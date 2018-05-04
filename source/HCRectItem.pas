@@ -1,0 +1,745 @@
+{*******************************************************}
+{                                                       }
+{               HCView V1.0  作者：荆通                 }
+{                                                       }
+{      本代码遵循BSD协议，你可以加入QQ群 649023932      }
+{            来获取更多的技术交流 2018-5-4              }
+{                                                       }
+{            文档RectItem对象基类实现单元               }
+{                                                       }
+{*******************************************************}
+
+unit HCRectItem;
+
+interface
+
+uses
+  Windows, Classes, Controls, Graphics, HCItem, HCDrawItem, HCTextStyle, HCParaStyle,
+  HCStyleMatch, HCStyle, HCCommon, HCCustomData, HCDataCommon;
+
+type
+  THCCustomRectItem = class(THCCustomItem)
+  strict private
+    FStyle: THCStyle;
+    FWidth, FHeight: Integer;
+    FTextWrapping: Boolean;  // 文本环绕
+
+    // 标识内部高度是否发生了变化，用于此Item内部格式化时给其所属的Data标识需要重新格式化此Item
+    // 如表格的一个单元格内容变化在没有引起表格整体变化时，不需要重新格式化表格，也不需要重新计算页数
+    // 由拥有此Item的Data使用完后应该立即赋值为False，可参考TableItem.KeyPress的使用
+    FHeightChanged: Boolean;
+  protected
+    function GetWidth: Integer; virtual;
+    procedure SetWidth(const Value: Integer); virtual;
+    function GetHeight: Integer; virtual;
+    procedure SetHeight(const Value: Integer); virtual;
+    function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
+    function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+  public
+    constructor Create; overload; override;
+    constructor Create(const AWidth, AHeight: Integer); overload; virtual;
+    // 抽象方法，供继承
+    function ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: TStyleMatch): Integer; virtual;
+    procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: TParaMatch); virtual;
+    procedure FormatToDrawItem(const AStyle: THCStyle); virtual;
+
+    /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
+    function ClearFormatExtraHeight: Integer; virtual;
+    function DeleteSelected: Boolean; virtual;
+    procedure MarkStyleUsed(const AMark: Boolean); virtual;
+    procedure SaveSelectToStream(const AStream: TStream); virtual;
+    function SaveSelectToText: string; virtual;
+    function GetActiveItem: THCCustomItem; virtual;
+    function GetActiveDrawItem: THCCustomDrawItem; virtual;
+    function GetActiveDrawItemCoord: TPoint; virtual;
+    /// <summary> 获取指定X位置对应的Offset </summary>
+    function GetOffsetAt(const X: Integer): Integer; virtual;
+    /// <summary> 获取坐标X、Y是否在选中区域中 </summary>
+    function CoordInSelect(const X, Y: Integer): Boolean; virtual;
+    /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
+    function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; virtual;
+    /// <summary> 分散对齐时是否分间距 </summary>
+    function JustifySplit: Boolean; virtual;
+    /// <summary> 更新光标位置 </summary>
+    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); virtual;
+    procedure GetCurStyle(var AStyleNo, AParaNo: Integer); virtual;
+
+    /// <summary> 获取在指定高度内的结束位置处最下端(暂时没用到注释了) </summary>
+    /// <param name="AHeight">指定的高度范围</param>
+    /// <param name="ADItemMostBottom">最底端DItem的底部位置</param>
+    //procedure GetPageFmtBottomInfo(const AHeight: Integer; var ADItemMostBottom: Integer); virtual;
+
+    /// <summary> 计算格式化后的分页位置 </summary>
+    /// <param name="ADrawItemRectTop">对应的DrawItem的Rect.Top往下行间距一半</param>
+    /// <param name="ADrawItemRectBottom">对应的DrawItem的Rect.Bottom往上行间距一半</param>
+    /// <param name="APageDataFmtTop">页数据Top</param>
+    /// <param name="APageDataFmtBottom">页数据Bottom</param>
+    /// <param name="AStartSeat">开始计算分页位置</param>
+    /// <param name="ABreakSeat">需要分页位置</param>
+    /// <param name="AFmtOffset">为了避开分页位置整体向下偏移的高度</param>
+    /// <param name="AFmtHeightInc">为了避开分页位置高度增加值</param>
+    procedure CheckFormatPage(const ADrawItemRectTop, ADrawItemRectBottom,
+      APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer;
+      var ABreakSeat, AFmtOffset, AFmtHeightInc: Integer); virtual;
+
+    function InsertItem(const AItem: THCCustomItem): Boolean; virtual;
+    function InsertText(const AText: string): Boolean; virtual;
+    function InsertGraphic(const AGraphic: TGraphic; const ANewPara: Boolean): Boolean; virtual;
+    function InsertStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word): Boolean; virtual;
+
+    procedure KeyDown(var Key: Word; Shift: TShiftState); virtual;
+    procedure KeyPress(var Key: Char); virtual;
+    function SelectExists: Boolean; virtual;
+    procedure DragNotify(const AFinish: Boolean); virtual;
+    // 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomRichData类型)
+    function GetActiveData: THCCustomData; virtual;
+    // 返回指定位置处的顶层Data(为松耦合请返回TCustomRichData类型)
+    function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
+
+    procedure TraverseItem(const ATraverse: TItemTraverse); virtual;
+    //
+    function GetLength: Integer; override;
+    property Width: Integer read GetWidth write SetWidth;
+    property Height: Integer read GetHeight write SetHeight;
+    property TextWrapping: Boolean read FTextWrapping write FTextWrapping;  // 文本环绕
+    property HeightChanged: Boolean read FHeightChanged write FHeightChanged;
+  end;
+
+  THCDomainItem = class(THCCustomRectItem)  // 域
+  private
+    FLevel: Byte;
+    FMarkType: TMarkType;
+  protected
+    function GetOffsetAt(const X: Integer): Integer; override;
+    function JustifySplit: Boolean; override;
+    procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+      const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+  public
+    constructor Create; override;
+    property MarkType: TMarkType read FMarkType write FMarkType;
+    property Level: Byte read FLevel write FLevel;
+  end;
+
+  THCTextRectItem = class(THCCustomRectItem)
+  private
+    FTextStyleNo: Integer;
+  protected
+    function SelectExists: Boolean; override;
+    function GetOffsetAt(const X: Integer): Integer; override;
+    function JustifySplit: Boolean; override;
+    function ApplySelectTextStyle(const AStyle: THCStyle;
+      const AMatchStyle: TStyleMatch): Integer; override;
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure SetTextStyleNo(const Value: Integer); virtual;
+  public
+    constructor Create; override;
+    property TextStyleNo: Integer read FTextStyleNo write SetTextStyleNo;
+  end;
+
+  TGripType = (gtNone, gtLeftTop, gtRightTop, gtLeftBottom, gtRightBottom,
+    gtLeft, gtTop, gtRight, gtBottom);
+
+  THCResizeRectItem = class(THCCustomRectItem)
+  private
+    FGripSize: Word;  // 拖动块大小
+    FResizing: Boolean;  // 正在拖动改变大小
+    FCanResize: Boolean;  // 当前是否处于可改变大小状态
+    FResizeGrip: TGripType;
+    FResizeRect: TRect;
+    FResizeX, FResizeY: Integer;  // 拖动缩放时起始位置
+    FResizeWidth, FResizeHeight: Integer;  // 缩放后的宽、高
+    function GetGripType(const X, Y: Integer): TGripType;
+  protected
+    /// <summary> 获取坐标X、Y是否在选中区域中 </summary>
+    function CoordInSelect(const X, Y: Integer): Boolean; override;
+    procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+      const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+    procedure PaintTop(const ACanvas: TCanvas); override;
+    // 继承THCCustomItem抽象方法
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function CanDrag: Boolean; override;
+    function SelectExists: Boolean; override;
+    /// <summary> 更新光标位置 </summary>
+    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+
+    function GetResizing: Boolean; virtual;
+    procedure SetResizing(const Value: Boolean); virtual;
+    property ResizeGrip: TGripType read FResizeGrip;
+  public
+    constructor Create; override;
+    property GripSize: Word read FGripSize write FGripSize;
+    property Resizing: Boolean read GetResizing write SetResizing;
+    property ResizeRect: TRect read FResizeRect;
+    property ResizeWidth: Integer read FResizeWidth;
+    property ResizeHeight: Integer read FResizeHeight;
+    property CanResize: Boolean read FCanResize write FCanResize;
+  end;
+
+implementation
+
+{ THCCustomRectItem }
+
+procedure THCCustomRectItem.ApplySelectParaStyle(const AStyle: THCStyle;
+  const AMatchStyle: TParaMatch);
+begin
+end;
+
+function THCCustomRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
+  const AMatchStyle: TStyleMatch): Integer;
+begin
+end;
+
+function THCCustomRectItem.BreakByOffset(const AOffset: Integer): THCCustomItem;
+begin
+  Result := nil;
+end;
+
+function THCCustomRectItem.CanConcatItems(const AItem: THCCustomItem): Boolean;
+begin
+  Result := False;
+end;
+
+procedure THCCustomRectItem.CheckFormatPage(const ADrawItemRectTop, ADrawItemRectBottom,
+  APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer; var ABreakSeat,
+  AFmtOffset, AFmtHeightInc: Integer);
+begin
+  AFmtHeightInc := 0;
+  ABreakSeat := 0;
+  if ADrawItemRectBottom > APageDataFmtBottom then
+    AFmtOffset := APageDataFmtBottom - ADrawItemRectTop
+  else
+    AFmtOffset := 0;
+end;
+
+function THCCustomRectItem.CoordInSelect(const X, Y: Integer): Boolean;
+begin
+  Result := False;
+end;
+
+constructor THCCustomRectItem.Create;
+begin
+  inherited Create;
+  FWidth := 100;   // 默认尺寸
+  FHeight := 50;
+  FTextWrapping := False;
+  FHeightChanged := False;
+end;
+
+constructor THCCustomRectItem.Create(const AWidth, AHeight: Integer);
+begin
+  inherited Create;  // 这里不继承的话，THCCustomRectItem子类到这里时并不能调用到
+  Width := AWidth;   // THCCustomRectItem.Create，而是子类自己的Create造成死循环
+  Height := AHeight;
+  FTextWrapping := False;
+  FHeightChanged := False;
+end;
+
+function THCCustomRectItem.DeleteSelected: Boolean;
+begin
+  Result := False;
+end;
+
+procedure THCCustomRectItem.DragNotify(const AFinish: Boolean);
+begin
+end;
+
+procedure THCCustomRectItem.FormatToDrawItem(const AStyle: THCStyle);
+begin
+end;
+
+function THCCustomRectItem.GetActiveData: THCCustomData;
+begin
+  Result := nil;
+end;
+
+function THCCustomRectItem.GetActiveDrawItem: THCCustomDrawItem;
+begin
+  Result := nil;
+end;
+
+function THCCustomRectItem.GetActiveDrawItemCoord: TPoint;
+begin
+  Result := Point(0, 0);
+end;
+
+function THCCustomRectItem.GetActiveItem: THCCustomItem;
+begin
+  Result := Self;
+end;
+
+procedure THCCustomRectItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+begin
+end;
+
+procedure THCCustomRectItem.GetCurStyle(var AStyleNo, AParaNo: Integer);
+begin
+  AStyleNo := Self.StyleNo;
+  AParaNo := Self.ParaNo;
+end;
+
+function THCCustomRectItem.ClearFormatExtraHeight: Integer;
+begin
+  Result := 0;
+end;
+
+function THCCustomRectItem.GetHeight: Integer;
+begin
+  Result := FHeight;
+end;
+
+function THCCustomRectItem.GetLength: Integer;
+begin
+  Result := 1;
+end;
+
+function THCCustomRectItem.GetOffsetAt(const X: Integer): Integer;
+begin
+  if X < 0 then
+    Result := OffsetBefor
+  else
+  if X > Width then
+    Result := OffsetAfter
+  else
+    Result := OffsetInner;
+end;
+
+function THCCustomRectItem.GetTopLevelDataAt(const X, Y: Integer): THCCustomData;
+begin
+  Result := nil;
+end;
+
+//procedure THCCustomRectItem.GetPageFmtBottomInfo(const AHeight: Integer;
+//  var ADItemMostBottom: Integer);
+//begin
+//end;
+
+function THCCustomRectItem.GetWidth: Integer;
+begin
+  Result := FWidth;
+end;
+
+function THCCustomRectItem.InsertGraphic(const AGraphic: TGraphic;
+  const ANewPara: Boolean): Boolean;
+begin
+end;
+
+function THCCustomRectItem.InsertItem(const AItem: THCCustomItem): Boolean;
+begin
+end;
+
+function THCCustomRectItem.InsertStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word): Boolean;
+begin
+end;
+
+function THCCustomRectItem.InsertText(const AText: string): Boolean;
+begin
+end;
+
+function THCCustomRectItem.JustifySplit: Boolean;
+begin
+  Result := True;
+end;
+
+procedure THCCustomRectItem.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  Key := 0;
+end;
+
+procedure THCCustomRectItem.KeyPress(var Key: Char);
+begin
+  Key := #0
+end;
+
+procedure THCCustomRectItem.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  AStream.ReadBuffer(FWidth, SizeOf(FWidth));
+  AStream.ReadBuffer(FHeight, SizeOf(FHeight));
+end;
+
+procedure THCCustomRectItem.MarkStyleUsed(const AMark: Boolean);
+begin
+end;
+
+procedure THCCustomRectItem.SaveSelectToStream(const AStream: TStream);
+begin
+end;
+
+function THCCustomRectItem.SaveSelectToText: string;
+begin
+  Result := '';
+end;
+
+procedure THCCustomRectItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+begin
+  inherited SaveToStream(AStream, AStart, AEnd);
+  AStream.WriteBuffer(FWidth, SizeOf(FWidth));
+  AStream.WriteBuffer(FHeight, SizeOf(FHeight));
+end;
+
+function THCCustomRectItem.SelectExists: Boolean;
+begin
+  Result := False;
+end;
+
+procedure THCCustomRectItem.SetHeight(const Value: Integer);
+begin
+  FHeight := Value;
+end;
+
+procedure THCCustomRectItem.SetWidth(const Value: Integer);
+begin
+  FWidth := Value;
+end;
+
+procedure THCCustomRectItem.TraverseItem(const ATraverse: TItemTraverse);
+begin
+end;
+
+function THCCustomRectItem.WantKeyDown(const Key: Word;
+  const Shift: TShiftState): Boolean;
+begin
+  Result := False;
+end;
+
+{ THCResizeRectItem }
+
+function THCResizeRectItem.CanDrag: Boolean;
+begin
+  Result := not FResizing;
+end;
+
+function THCResizeRectItem.CoordInSelect(const X, Y: Integer): Boolean;
+begin
+  Result := SelectExists and PtInRect(Bounds(0, 0, Width, Height), Point(X, Y))
+    and (GetGripType(X, Y) = gtNone);
+end;
+
+constructor THCResizeRectItem.Create;
+begin
+  inherited Create;
+  FCanResize := True;
+  FGripSize := 8;
+end;
+
+procedure THCResizeRectItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
+  inherited;
+
+  if (not APaintInfo.Print) and Active then  // 激活状态，绘制焦点框、锚点
+  begin
+    if Resizing then
+    begin
+      case FResizeGrip of
+        gtLeftTop:
+          FResizeRect := Bounds(ADrawRect.Left + Width - FResizeWidth,
+            ADrawRect.Top + Height - FResizeHeight, FResizeWidth, FResizeHeight);
+
+        gtRightTop:
+          FResizeRect := Bounds(ADrawRect.Left,
+            ADrawRect.Top + Height - FResizeHeight, FResizeWidth, FResizeHeight);
+
+        gtLeftBottom:
+          FResizeRect := Bounds(ADrawRect.Left + Width - FResizeWidth,
+            ADrawRect.Top, FResizeWidth, FResizeHeight);
+
+        gtRightBottom:
+          FResizeRect := Bounds(ADrawRect.Left, ADrawRect.Top, FResizeWidth, FResizeHeight);
+      end;
+
+      APaintInfo.TopItems.Add(Self);
+    end;
+
+    // 绘制缩放拖动提示锚点
+    ACanvas.Brush.Color := clGray;
+    ACanvas.FillRect(Bounds(ADrawRect.Left, ADrawRect.Top, GripSize, GripSize));
+    ACanvas.FillRect(Bounds(ADrawRect.Right - GripSize, ADrawRect.Top, GripSize, GripSize));
+    ACanvas.FillRect(Bounds(ADrawRect.Left, ADrawRect.Bottom - GripSize, GripSize, GripSize));
+    ACanvas.FillRect(Bounds(ADrawRect.Right - GripSize, ADrawRect.Bottom - GripSize, GripSize, GripSize));
+  end;
+end;
+
+procedure THCResizeRectItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+begin
+  if Self.Active then
+    ACaretInfo.Visible := False;
+end;
+
+function THCResizeRectItem.GetGripType(const X, Y: Integer): TGripType;
+var
+  vPt: TPoint;
+begin
+  vPt := Point(X, Y);
+  if PtInRect(Bounds(0, 0, GripSize, GripSize), vPt) then
+    Result := gtLeftTop
+  else
+  if PtInRect(Bounds(Width - GripSize, 0, GripSize, GripSize), vPt) then
+    Result := gtRightTop
+  else
+  if PtInRect(Bounds(0, Height - GripSize, GripSize, GripSize), vPt) then
+    Result := gtLeftBottom
+  else
+  if PtInRect(Bounds(Width - GripSize, Height - GripSize, GripSize, GripSize), vPt) then
+    Result := gtRightBottom
+  else
+    Result := gtNone;
+end;
+
+function THCResizeRectItem.GetResizing: Boolean;
+begin
+  Result := FResizing;
+end;
+
+procedure THCResizeRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer);
+begin
+  FResizeGrip := gtNone;
+  inherited MouseDown(Button, Shift, X, Y);
+  if Active then
+  begin
+    FResizeGrip := GetGripType(X, Y);
+    FResizing := FResizeGrip <> gtNone;
+    if FResizing then
+    begin
+      FResizeX := X;
+      FResizeY := Y;
+    end;
+  end;
+end;
+
+procedure THCResizeRectItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+var
+  vW, vH: Integer;
+  vBL: Single;
+begin
+  inherited;
+  GCursor := crDefault;
+  if Active then
+  begin
+    if FResizing then  // 正在缩放中
+    begin
+      vBL := Width / Height;
+      vW := X - FResizeX;
+      vH := Y - FResizeY;
+      if vW > vH then
+        vH := Round(vW / vBL)
+      else
+        vW := Round(vH * vBL);
+
+      case FResizeGrip of
+        gtLeftTop:
+          begin
+            FResizeWidth := Width - vW;
+            FResizeHeight := Height - vH;
+          end;
+
+        gtRightTop:
+          begin
+            FResizeWidth := Width + vW;
+            FResizeHeight := Height - vH;
+          end;
+
+        gtLeftBottom:
+          begin
+            FResizeWidth := Width - vW;
+            FResizeHeight := Height + vH;
+          end;
+
+        gtRightBottom:
+          begin
+            FResizeWidth := Width + vW;
+            FResizeHeight := Height + vH;
+          end;
+      end;
+    end
+    else  // 非缩放
+    begin
+      case GetGripType(X, Y) of
+        gtLeftTop, gtRightBottom:
+          GCursor := crSizeNWSE;
+
+        gtRightTop, gtLeftBottom:
+          GCursor := crSizeNESW;
+
+        gtLeft, gtRight:
+          GCursor := crSizeWE;
+
+        gtTop, gtBottom:
+          GCursor := crSizeNS;
+      end;
+    end;
+  end;
+end;
+
+procedure THCResizeRectItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer);
+begin
+  inherited;
+  if FResizing then
+  begin
+    Width := FResizeWidth;
+    Height := FResizeHeight;
+    FResizing := False;
+  end;
+end;
+
+procedure THCResizeRectItem.PaintTop(const ACanvas: TCanvas);
+begin
+  inherited;
+  //ACanvas.DrawFocusRect(ADrawRect);  // 焦点框，为啥画不出来呢
+  ACanvas.Brush.Style := bsClear;
+  ACanvas.Rectangle(FResizeRect);
+end;
+
+function THCResizeRectItem.SelectExists: Boolean;
+begin
+  Result := IsSelectComplate or Active;
+end;
+
+procedure THCResizeRectItem.SetResizing(const Value: Boolean);
+begin
+  if FResizing <> Value then
+    FResizing := Value;
+end;
+
+{ THCTextRectItem }
+
+function THCTextRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
+  const AMatchStyle: TStyleMatch): Integer;
+begin
+  FTextStyleNo := AMatchStyle.GetMatchStyleNo(AStyle, FTextStyleNo);
+end;
+
+constructor THCTextRectItem.Create;
+begin
+  inherited Create;
+  FTextStyleNo := -1;
+end;
+
+function THCTextRectItem.GetOffsetAt(const X: Integer): Integer;
+begin
+  if X < Width div 2 then
+    Result := OffsetBefor
+  else
+    Result := OffsetAfter;
+end;
+
+function THCTextRectItem.JustifySplit: Boolean;
+begin
+  Result := False;
+end;
+
+procedure THCTextRectItem.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  AStream.ReadBuffer(FTextStyleNo, SizeOf(FTextStyleNo));
+end;
+
+procedure THCTextRectItem.SaveToStream(const AStream: TStream; const AStart,
+  AEnd: Integer);
+begin
+  inherited SaveToStream(AStream, AStart, AEnd);
+  AStream.WriteBuffer(FTextStyleNo, SizeOf(FTextStyleNo));
+end;
+
+function THCTextRectItem.SelectExists: Boolean;
+begin
+  Result := ioSelectComplate in Options;
+end;
+
+procedure THCTextRectItem.SetTextStyleNo(const Value: Integer);
+begin
+  if FTextStyleNo <> Value then
+    FTextStyleNo := Value;
+end;
+
+{ THCDomainItem }
+
+constructor THCDomainItem.Create;
+begin
+  Width := 0;
+  Height := 10;
+  inherited Create(Width, Height);
+  Self.StyleNo := THCStyle.RsDomain;
+  FLevel := 0;
+end;
+
+procedure THCDomainItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
+  inherited;
+  if not APaintInfo.Print then  // 绘制[和]
+  begin
+    if FMarkType = cmtBeg then
+    begin
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.Pen.Color := clActiveBorder;
+      ACanvas.MoveTo(ADrawRect.Left + 2, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom + 1);
+      ACanvas.LineTo(ADrawRect.Left + 2, ADrawRect.Bottom + 1);
+    end
+    else
+    begin
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.Pen.Color := clActiveBorder;
+      ACanvas.MoveTo(ADrawRect.Right - 2, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom + 1);
+      ACanvas.LineTo(ADrawRect.Right - 2, ADrawRect.Bottom + 1);
+    end;
+  end;
+end;
+
+function THCDomainItem.GetOffsetAt(const X: Integer): Integer;
+begin
+  if (X >= 0) and (X <= Width) then
+  begin
+    if FMarkType = cmtBeg then
+      Result := OffsetAfter
+    else
+      Result := OffsetBefor;
+  end
+  else
+    Result := inherited GetOffsetAt(X);
+end;
+
+function THCDomainItem.JustifySplit: Boolean;
+begin
+  Result := False;
+end;
+
+procedure THCDomainItem.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  AStream.ReadBuffer(FMarkType, SizeOf(FMarkType));
+end;
+
+procedure THCDomainItem.SaveToStream(const AStream: TStream; const AStart,
+  AEnd: Integer);
+begin
+  inherited SaveToStream(AStream, AStart, AEnd);
+  AStream.WriteBuffer(FMarkType, SizeOf(FMarkType));
+end;
+
+end.

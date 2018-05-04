@@ -14,10 +14,10 @@ unit HCDataCommon;
 interface
 
 uses
-  HCCustomRichData;
+  HCCustomData;
 
 type
-  TTraverseItemEvent = procedure(const AData: THCCustomRichData;
+  TTraverseItemEvent = procedure(const AData: THCCustomData;
     const AItemNo, ATag: Integer; var AStop: Boolean) of object;
 
   TItemTraverse = class(TObject)

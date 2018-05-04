@@ -15,7 +15,8 @@ interface
 
 uses
   Windows, Classes, Types, Controls, Graphics, SysUtils, HCCustomData, HCStyle,
-  HCItem, HCDrawItem, HCTextStyle, HCParaStyle, HCStyleMatch, HCCommon;
+  HCItem, HCDrawItem, HCTextStyle, HCParaStyle, HCStyleMatch, HCCommon, HCRectItem,
+  HCTextItem;
 
 type
   TInsertProc = reference to function(const AItem: THCCustomItem): Boolean;
@@ -26,7 +27,11 @@ type
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
   TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo: Integer;
-    Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
+
+  TGetCreateDomainItem = function(): THCDomainItem of object;
+
+  TGetCreateTextItem = function(): THCTextItem of object;
 
   THCCustomRichData = class(THCCustomData)
   strict private
@@ -53,6 +58,9 @@ type
     FOnItemMouseDown, FOnItemMouseUp: TItemMouseEvent;
     FOnItemPaintBefor, FOnItemPaintAfter: TItemPaintEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
+
+    FOnGetCreateDomainItem: TGetCreateDomainItem;
+    FOnGetCreateTextItem: TGetCreateTextItem;
 
     /// <summary> 添加一个空Item防止Data无Item </summary>
     procedure AddEmptyTextItem;
@@ -230,13 +238,15 @@ type
     property OnItemPaintBefor: TItemPaintEvent read FOnItemPaintBefor write FOnItemPaintBefor;
     property OnItemPaintAfter: TItemPaintEvent read FOnItemPaintAfter write FOnItemPaintAfter;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
+    property OnGetCreateDomainItem: TGetCreateDomainItem read FOnGetCreateDomainItem write FOnGetCreateDomainItem;
+    property OnGetCreateTextItem: TGetCreateTextItem read FOnGetCreateTextItem write FOnGetCreateTextItem;
   end;
 
 implementation
 
 uses
-  HCTextItem, HCRectItem, HCTableItem, HCBitmapItem, HCCheckBoxItem,
-  HCTabItem, HCLineItem, HCExpressItem, HCPageBreakItem;
+  HCTableItem, HCBitmapItem, HCCheckBoxItem, HCTabItem, HCLineItem, HCExpressItem,
+  HCPageBreakItem;
 
 { THCCustomRichData }
 

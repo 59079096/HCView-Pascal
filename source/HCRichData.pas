@@ -14,8 +14,9 @@ unit HCRichData;
 interface
 
 uses
-  Windows, Classes, Controls, Graphics, HCCustomData, HCCustomRichData, HCItem,
-  HCStyle, HCParaStyle, HCTextStyle, HCRectItem, HCCommon, HCDataCommon;
+  Windows, Classes, Controls, Graphics, SysUtils, HCCustomData, HCCustomRichData,
+  HCItem, HCStyle, HCParaStyle, HCTextStyle, HCTextItem, HCRectItem, HCCommon,
+  HCDataCommon;
 
 type
   TDomain = class
@@ -34,7 +35,6 @@ type
     FHotDomain, FActiveDomain: TDomain;
     FHotDomainRGN, FActiveDomainRGN: HRGN;
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;
-
     procedure GetDomainFrom(const AItemNo, AOffset: Integer;
       const ADomain: TDomain);
     function GetActiveDomain: TDomain;
@@ -73,13 +73,9 @@ type
     procedure TraverseItem(const ATraverse: TItemTraverse);
     property HotDomain: TDomain read FHotDomain;
     property ActiveDomain: TDomain read GetActiveDomain;
-    //property ShowHotDeGroupRegion: Boolean read FShowHotDeGroupRegion write FShowHotDeGroupRegion; 如果放开则处理201711281352
   end;
 
 implementation
-
-uses
-  SysUtils, EmrElementItem, EmrGroupItem; {CreateDefaultTextItem，CreateDefaultDomainItem使用了Emr相关单元}
 
 { THCRichData }
 
@@ -104,13 +100,20 @@ end;
 
 function THCRichData.CreateDefaultDomainItem: THCCustomItem;
 begin
-  Result := TDeGroup.Create;
+  if Assigned(OnGetCreateDomainItem) then
+    Result := OnGetCreateDomainItem
+  else
+    Result := THCDomainItem.Create;
+
   Result.ParaNo := Style.CurParaNo;
 end;
 
 function THCRichData.CreateDefaultTextItem: THCCustomItem;
 begin
-  Result := TEmrTextItem.CreateByText('');  // 必需有参数否则不能调用属性创建
+  if Assigned(OnGetCreateTextItem) then
+    Result := OnGetCreateTextItem
+  else
+    Result := THCTextItem.CreateByText('');  // 必需有参数否则不能调用属性创建
   Result.StyleNo := Style.CurStyleNo;
   Result.ParaNo := Style.CurParaNo;
   if Assigned(OnCreateItem) then
@@ -135,7 +138,6 @@ procedure THCRichData.DoDrawItemPaintBefor(const AData: THCCustomData;
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
-  vEmrItem: TEmrTextItem;
   vDrawHotDomainBorde, vDrawActiveDomainBorde: Boolean;
   vItemNo: Integer;
   vDliRGN: HRGN;
@@ -165,14 +167,6 @@ begin
       finally
         DeleteObject(vDliRGN);
       end;
-      {vRect := ADrawRect;
-      //InflateRect(vRect, 0, -GStyle.ParaStyles[GetDrawItemParaStyle(ADrawItemIndex)].LineSpaceHalf);
-      ACanvas.Pen.Color := clGreen;
-      ACanvas.Pen.Style := psSolid;
-      ACanvas.MoveTo(vRect.Left, vRect.Top);
-      ACanvas.LineTo(vRect.Right, vRect.Top);
-      ACanvas.MoveTo(vRect.Left, vRect.Bottom);
-      ACanvas.LineTo(vRect.Right, vRect.Bottom);}
     end;
   end;
 end;

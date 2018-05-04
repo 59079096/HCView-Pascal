@@ -15,8 +15,9 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData,
-  Generics.Collections, HCCommon, HCCustomRichData, HCDrawItem, HCSection,
-  HCScrollBar, HCRichScrollBar, HCParaStyle, HCTextStyle, HCItem;
+  Generics.Collections, HCCommon, HCRichData, HCCustomRichData, HCDrawItem,
+  HCSection, HCScrollBar, HCRichScrollBar, HCParaStyle, HCTextStyle, HCRectItem,
+  HCTextItem, HCItem;
 
 type
   TPageScrollModel = (psmVertical, psmHorizontal);
@@ -70,6 +71,8 @@ type
     FOnItemPaintAfter, FOnItemPaintBefor: TItemPaintEvent;
 
     FOnPaintHeader, FOnPaintFooter, FOnPaintData: TSectionPagePaintEvent;
+    FOnGetCreateDomainItem: TGetCreateDomainItem;
+    FOnGetCreateTextItem: TGetCreateTextItem;
     FOnChange, FOnChangedSwitch: TNotifyEvent;
     FOnPaintPage: TSectionPagePaintEvent;
     //
@@ -128,6 +131,7 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoSectionGetPageInfo(Sender: THCSection; var AStartPageIndex,
       AAllPageCount: Integer);
+
     procedure DoPaintPage(Sender: THCSection; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     /// <summary>
@@ -191,6 +195,8 @@ type
     procedure SetOnInsertItem(const Value: TItemNotifyEvent);
     procedure SetOnItemPaintAfter(const Value: TItemPaintEvent);
     procedure SetOnItemPaintBefor(const Value: TItemPaintEvent);
+    procedure SetOnGetCreateDomainItem(const Value: TGetCreateDomainItem);
+    procedure SetOnGetCreateTextItem(const Value: TGetCreateTextItem);
 
     function GetOnReadOnlySwitch: TNotifyEvent;
     procedure SetOnReadOnlySwitch(const Value: TNotifyEvent);
@@ -331,6 +337,8 @@ type
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnChangedSwitch: TNotifyEvent read FOnChangedSwitch write FOnChangedSwitch;
     property OnReadOnlySwitch: TNotifyEvent read GetOnReadOnlySwitch write SetOnReadOnlySwitch;
+    property OnGetCreateDomainItem: TGetCreateDomainItem read FOnGetCreateDomainItem write SetOnGetCreateDomainItem;
+    property OnGetCreateTextItem: TGetCreateTextItem read FOnGetCreateTextItem write SetOnGetCreateTextItem;
     property PopupMenu;
   end;
 
@@ -1208,6 +1216,7 @@ end;
 function THCView.NewDefaultSection: THCSection;
 begin
   Result := THCSection.Create(FStyle);
+  // 创建节后马上赋值事件（保证后续插入表格等需要这些事件的操作可获取到事件）
   Result.OnDataChanged := DoSectionDataChanged;
   Result.OnCheckUpdateInfo := DoSectionDataCheckUpdateInfo;
   Result.OnInsertItem := DoSectionInsertItem;
@@ -1218,6 +1227,8 @@ begin
   Result.OnPaintFooter := FOnPaintFooter;
   Result.OnPaintData := FOnPaintData;
   Result.OnPaintPage := DoPaintPage;
+  Result.OnGetCreateDomainItem := FOnGetCreateDomainItem;
+  Result.OnGetCreateTextItem := FOnGetCreateTextItem;
 end;
 
 procedure THCView.DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
@@ -1660,6 +1671,24 @@ var
 begin
   for i := 0 to FSections.Count - 1 do
     FSections[i].OnCreateItem := Value;
+end;
+
+procedure THCView.SetOnGetCreateDomainItem(const Value: TGetCreateDomainItem);
+var
+  i: Integer;
+begin
+  FOnGetCreateDomainItem := Value;
+  for i := 0 to FSections.Count - 1 do
+    FSections[i].OnGetCreateDomainItem := FOnGetCreateDomainItem;
+end;
+
+procedure THCView.SetOnGetCreateTextItem(const Value: TGetCreateTextItem);
+var
+  i: Integer;
+begin
+  FOnGetCreateTextItem := Value;
+  for i := 0 to FSections.Count - 1 do
+    FSections[i].OnGetCreateTextItem := FOnGetCreateTextItem;
 end;
 
 procedure THCView.SetOnInsertItem(const Value: TItemNotifyEvent);

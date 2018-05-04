@@ -142,6 +142,12 @@ type
     function GetRichDataAt(const X, Y: Integer): THCRichData;
     function GetActiveArea: TSectionArea;
 
+    function GetGetCreateDomainItem: TGetCreateDomainItem;
+    procedure SetGetCreateDomainItem(const Value: TGetCreateDomainItem);
+
+    function GetGetCreateTextItem: TGetCreateTextItem;
+    procedure SetGetCreateTextItem(const Value: TGetCreateTextItem);
+
     /// <summary>
     /// 返回数据格式化AVertical位置在胶卷中的位置
     /// </summary>
@@ -346,6 +352,8 @@ type
     property OnItemPaintBefor: TItemPaintEvent read GetOnItemPaintBefor write SetOnItemPaintBefor;
     property OnItemPaintAfter: TItemPaintEvent read GetOnItemPaintAfter write SetOnItemPaintAfter;
     property OnCreateItem: TNotifyEvent read GetOnCreateItem write SetOnCreateItem;
+    property OnGetCreateDomainItem: TGetCreateDomainItem read GetGetCreateDomainItem write SetGetCreateDomainItem;
+    property OnGetCreateTextItem: TGetCreateTextItem read GetGetCreateTextItem write SetGetCreateTextItem;
   end;
 
 implementation
@@ -751,6 +759,16 @@ end;
 function THCSection.GetFilmWidth: Cardinal;
 begin
   Result := FPages.Count * (MinPadding + FPageSize.PageWidthPix);
+end;
+
+function THCSection.GetGetCreateDomainItem: TGetCreateDomainItem;
+begin
+  Result := FPageData.OnGetCreateDomainItem;
+end;
+
+function THCSection.GetGetCreateTextItem: TGetCreateTextItem;
+begin
+  Result := FPageData.OnGetCreateTextItem;
 end;
 
 function THCSection.GetHeaderAreaHeight: Integer;
@@ -1834,6 +1852,20 @@ begin
   Result := False;
   if FActiveData <> nil then
     Result := FActiveData.SelectExists
+end;
+
+procedure THCSection.SetGetCreateDomainItem(const Value: TGetCreateDomainItem);
+begin
+  FHeader.OnGetCreateDomainItem := Value;
+  FPageData.OnGetCreateDomainItem := Value;
+  FFooter.OnGetCreateDomainItem := Value;
+end;
+
+procedure THCSection.SetGetCreateTextItem(const Value: TGetCreateTextItem);
+begin
+  FHeader.OnGetCreateTextItem := Value;
+  FPageData.OnGetCreateTextItem := Value;
+  FFooter.OnGetCreateTextItem := Value;
 end;
 
 procedure THCSection.SetHeaderOffset(const Value: Integer);

@@ -920,6 +920,9 @@ begin
       ARow.Cols[i].CellData.OnInsertItem := (FOwnerData as THCCustomRichData).OnInsertItem;
       ARow.Cols[i].CellData.OnItemPaintAfter := (FOwnerData as THCCustomRichData).OnItemPaintAfter;
       ARow.Cols[i].CellData.OnItemPaintBefor := (FOwnerData as THCCustomRichData).OnItemPaintBefor;
+      ARow.Cols[i].CellData.OnGetCreateDomainItem := (FOwnerData as THCCustomRichData).OnGetCreateDomainItem;
+      ARow.Cols[i].CellData.OnGetCreateTextItem := (FOwnerData as THCCustomRichData).OnGetCreateTextItem;
+
       ARow.Cols[i].CellData.OnCreateItem := (FOwnerData as THCCustomRichData).OnCreateItem;
     end;
   end;

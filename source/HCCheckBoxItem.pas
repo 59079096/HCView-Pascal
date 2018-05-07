@@ -20,7 +20,6 @@ uses
 type
   TCheckBoxItem = class(THCTextRectItem)
   private
-    FStyle: THCStyle;
     FText: string;
     FChecked, FMouseIn: Boolean;
     function GetBoxRect: TRect;
@@ -129,14 +128,12 @@ procedure TCheckBoxItem.MouseEnter;
 begin
   inherited;
   FMouseIn := True;
-  FStyle.UpdateInfoRePaint;
 end;
 
 procedure TCheckBoxItem.MouseLeave;
 begin
   inherited;
   FMouseIn := False;
-  FStyle.UpdateInfoRePaint;
 end;
 
 procedure TCheckBoxItem.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -193,7 +190,6 @@ begin
   if FChecked <> Value then
   begin
     FChecked := Value;
-    FStyle.UpdateInfoRePaint;
   end;
 end;
 

@@ -162,8 +162,8 @@ end;
 
 constructor THCCustomItem.Create;
 begin
-  FStyleNo := -1;
-  FParaNo := -1;
+  FStyleNo := THCStyle.RsNull;
+  FParaNo := THCStyle.RsNull;
   FFirstDItemNo := -1;
   FVisible := True;
 end;

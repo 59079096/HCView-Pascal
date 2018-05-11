@@ -22,8 +22,9 @@ type
     FLineHeght: byte;
     FLineStyle: TPenStyle;
   protected
+    function GetOffsetAt(const X: Integer): Integer; override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-      const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -47,7 +48,7 @@ begin
 end;
 
 procedure TLineItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vTop: Integer;
@@ -58,6 +59,14 @@ begin
   vTop := (ADrawRect.Top + ADrawRect.Bottom) div 2;
   ACanvas.MoveTo(ADrawRect.Left, vTop);
   ACanvas.LineTo(ADrawRect.Right, vTop);
+end;
+
+function TLineItem.GetOffsetAt(const X: Integer): Integer;
+begin
+  if X < Width div 2 then
+    Result := OffsetBefor
+  else
+    Result := OffsetAfter;
 end;
 
 procedure TLineItem.LoadFromStream(const AStream: TStream;

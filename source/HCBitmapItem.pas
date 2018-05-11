@@ -29,7 +29,7 @@ type
       const AFileVersion: Word); override;
     //
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-      const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure PaintTop(const ACanvas: TCanvas); override;
   public
@@ -57,12 +57,12 @@ begin
 end;
 
 procedure THCBitmapItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   ACanvas.StretchDraw(ADrawRect, FBitmap);
 
-  inherited DoPaint(AStyle, ADrawRect, ADataDrawBottom, ADataScreenTop,
+  inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 end;
 

@@ -18,7 +18,7 @@ uses
 
 const
   MinRowHeight = 20;
-  MinColWidth = 10;
+  MinColWidth = 20;
   MaxListSize = Maxint div 16;
 
 type

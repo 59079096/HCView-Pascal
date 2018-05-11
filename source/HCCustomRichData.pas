@@ -29,17 +29,13 @@ type
   TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo: Integer;
     Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
-  TGetCreateDomainItem = function(): THCDomainItem of object;
-
-  TGetCreateTextItem = function(): THCTextItem of object;
-
   THCCustomRichData = class(THCCustomData)
   strict private
     FWidth: Cardinal;
     /// <summary> 鼠标左键按下(打开文件对话框双击文件后会触发MouseMouse，MouseUp) </summary>
     FMouseLBDowning,
-    /// <summary> 鼠标在选中区域中 </summary>
-    FMouseInSelect,
+    /// <summary> 鼠标双击(处理双击自动选中，弹起清除选中的问题) </summary>
+    FMouseLBDouble,
     FMouseMoveRestrain  // 并不是在Item范围内MouseMove而是通过约束坐标找到的
       : Boolean;
 
@@ -59,11 +55,6 @@ type
     FOnItemPaintBefor, FOnItemPaintAfter: TItemPaintEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
 
-    FOnGetCreateDomainItem: TGetCreateDomainItem;
-    FOnGetCreateTextItem: TGetCreateTextItem;
-
-    /// <summary> 添加一个空Item防止Data无Item </summary>
-    procedure AddEmptyTextItem;
 
     /// <summary>
     /// 获取指定ItemNo最近的DrawItemNo(请保证AItemNo的最后一个DrawItemNo为-1)
@@ -140,6 +131,8 @@ type
     constructor Create(const AStyle: THCStyle); override;
     //
     function CanEdit: Boolean;
+    /// <summary> 初始化为只有一个空Item的Data</summary>
+    procedure SetEmptyData;
     /// <summary> 在光标处换行 </summary>
     function InsertBreak: Boolean;
     function InsertText(const AText: string): Boolean;
@@ -154,7 +147,8 @@ type
     /// <param name="AIndex"></param>
     /// <param name="AItem"></param>
     /// <returns></returns>
-    function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload; virtual;
+    function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
+      const AOffsetBefor: Boolean = True): Boolean; overload; virtual;
 
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -191,7 +185,6 @@ type
 
     /// <summary> 重新格式化当前Item(用于仅修改当前Item属性或内容) </summary>
     procedure ReFormatActiveItem;
-    procedure GetCurStyle(var AStyleNo, AParaNo: Integer);
     function GetActiveItem: THCCustomItem;
     function GetActiveDrawItem: THCCustomDrawItem;
     function GetActiveDrawItemCoord: TPoint;
@@ -200,7 +193,7 @@ type
     procedure DisActive;
 
     /// <summary> 初始化字段和变量 </summary>
-    procedure Initialize; virtual;
+    procedure InitializeField; virtual;
 
     function GetHint: string;
 
@@ -238,8 +231,6 @@ type
     property OnItemPaintBefor: TItemPaintEvent read FOnItemPaintBefor write FOnItemPaintBefor;
     property OnItemPaintAfter: TItemPaintEvent read FOnItemPaintAfter write FOnItemPaintAfter;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
-    property OnGetCreateDomainItem: TGetCreateDomainItem read FOnGetCreateDomainItem write FOnGetCreateDomainItem;
-    property OnGetCreateTextItem: TGetCreateTextItem read FOnGetCreateTextItem write FOnGetCreateTextItem;
   end;
 
 implementation
@@ -254,12 +245,9 @@ constructor THCCustomRichData.Create(const AStyle: THCStyle);
 begin
   inherited Create(AStyle);
   Items.OnItemInsert := DoItemInsert;
-  AddEmptyTextItem;  // 插入空TextItem
-  SelectInfo.StartItemNo := 0;
-  SelectInfo.StartItemOffset := 0;
-  FormatData(0, 0);
-  Initialize;
   FReadOnly := False;
+  InitializeField;
+  SetEmptyData;
 end;
 
 function THCCustomRichData.CreateItemByStyle(
@@ -270,7 +258,7 @@ begin
   begin
     case AStyleNo of
       THCStyle.RsBitmap: Result := THCBitmapItem.Create(0, 0);
-      THCStyle.RsTable: Result := THCTableItem.Create(Style, 1, 1, 1, Self);
+      THCStyle.RsTable: Result := THCTableItem.Create(Self, 1, 1, 1);
       THCStyle.RsTab: Result := TTabItem.Create(0, 0);
       THCStyle.RsLine: Result := TLineItem.Create(1, 1);
       THCStyle.RsExpress: Result := TExperssItem.Create('', '', '', '');
@@ -293,6 +281,8 @@ var
   vItemNo, vItemOffset, vDrawItemNo, vX, vY: Integer;
   vRestrain: Boolean;
 begin
+  FMouseLBDouble := True;
+
   GetItemAt(X, Y, vItemNo, vItemOffset, vDrawItemNo, vRestrain);
   if vItemNo < 0 then Exit;
   CoordToItemOffset(X, Y, vItemNo, vItemOffset, vX, vY);
@@ -309,7 +299,7 @@ begin
     end;
   end;
   Style.UpdateInfoRePaint;
-  Style.UpdateInfoReCaret;
+  Style.UpdateInfoReCaret(False);
 end;
 
 function THCCustomRichData.DeleteSelected: Boolean;
@@ -615,7 +605,7 @@ procedure THCCustomRichData.DisActive;
 var
   vItem: THCCustomItem;
 begin
-  Self.Initialize;
+  Self.InitializeField;
 
   if Items.Count > 0 then  // 页眉中元素激活后切换到正文不高亮
   begin
@@ -632,7 +622,7 @@ begin
   begin
     // 拖拽完成时清除
     FDraging := False;  // 拖拽完成
-    FMouseLBDowning := False;
+    //FMouseLBDowning := False;  // 鼠标按下在选中区域外的时候清选中，但不能改FMouseLBDowning状态
     FSelecting := False;  // 准备划选  
     
     // Self.Initialize;  这里会导致Mouse事件中的FMouseLBDowning等属性被取消掉
@@ -718,8 +708,8 @@ end;
 
 procedure THCCustomRichData.Clear;
 begin
-  Initialize;
   inherited Clear;
+  InitializeField;
 end;
 
 function THCCustomRichData.GetActiveDrawItem: THCCustomDrawItem;
@@ -762,20 +752,6 @@ begin
   Result := GetCurItem;
   if (Result <> nil) and (Result.StyleNo < THCStyle.RsNull) then
     Result := (Result as THCCustomRectItem).GetActiveItem;
-end;
-
-procedure THCCustomRichData.GetCurStyle(var AStyleNo, AParaNo: Integer);
-var
-  vCurItemNo: Integer;
-begin
-  vCurItemNo := GetCurItemNo;
-  if Items[vCurItemNo].StyleNo < THCStyle.RsNull then
-    (Items[vCurItemNo] as THCCustomRectItem).GetCurStyle(AStyleNo, AParaNo)
-  else
-  begin
-    AStyleNo := Items[vCurItemNo].StyleNo;
-    AParaNo := Items[vCurItemNo].ParaNo;
-  end;
 end;
 
 function THCCustomRichData.GetHeight: Cardinal;
@@ -918,18 +894,6 @@ begin
     begin
       Result := (AItem as THCTableItem).DeleteRow(ARowCount);
     end);
-end;
-
-procedure THCCustomRichData.AddEmptyTextItem;
-var
-  vItem: THCCustomItem;
-begin
-  if Self.Items.Count = 0 then
-  begin
-    vItem := CreateDefaultTextItem;
-    vItem.ParaFirst := True;
-    Items.Add(vItem);  // 不使用InsertText，为避免其触发ReFormatPara时因为没有格式化过，获取不到对应的DrawItem
-  end;
 end;
 
 function THCCustomRichData.ApplySelectParaStyle(
@@ -1215,20 +1179,35 @@ var
 var
   i, vFormatFirstItemNo, vFormatLastItemNo, vMStart, vMEnd: Integer;
 begin
-  Self.Initialize;
+  Self.InitializeField;
   vExtraCount := 0;
 
   GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
   if not SelectExists then  // 没有选中
   begin
+    AMatchStyle.Append := not AMatchStyle.StyleHasMatch(Style, Style.CurStyleNo);  // 根据第光标前判断是添加样式还是减掉样式
+    Style.CurStyleNo := AMatchStyle.GetMatchStyleNo(Style, Style.CurStyleNo);
+
+    Style.UpdateInfoRePaint;
     if Items[SelectInfo.StartItemNo].Length = 0 then  // 空行，改变当前光标处样式
     begin
+      FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+      Items[SelectInfo.StartItemNo].StyleNo := Style.CurStyleNo;
+      ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
+      Style.UpdateInfoReCaret;
+    end
+    else  // 不是空行
+      Style.UpdateInfoReCaret(False);
+
+    {if Items[SelectInfo.StartItemNo].Length = 0 then  // 空行，改变当前光标处样式
+    begin
+      AMatchStyle.Append := not AMatchStyle.StyleHasMatch(Style, Items[SelectInfo.StartItemNo].StyleNo);  // 根据第光标前判断是添加样式还是减掉样式
       Items[SelectInfo.StartItemNo].StyleNo := AMatchStyle.GetMatchStyleNo(Style, Items[SelectInfo.StartItemNo].StyleNo);
       FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
       ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
       Style.UpdateInfoRePaint;
       Style.UpdateInfoReCaret;
-    end;
+    end;}
 
     Exit;
   end;
@@ -1338,7 +1317,7 @@ begin
     Beep; //MessageBeep(MB_OK);
 end;
 
-procedure THCCustomRichData.Initialize;
+procedure THCCustomRichData.InitializeField;
 begin
   FMouseLBDowning := False;
   FMouseDownItemNo := -1;
@@ -1366,9 +1345,10 @@ begin
 end;
 
 function THCCustomRichData.InsertItem(const AIndex: Integer;
-  const AItem: THCCustomItem): Boolean;
+  const AItem: THCCustomItem; const AOffsetBefor: Boolean = True): Boolean;
 var
-  vFormatFirstItemNo, vFormatLastItemNo: Integer;
+  vFormatFirstItemNo, vFormatLastItemNo, vIncCount: Integer;
+  vMerged: Boolean;
 begin
   Result := False;
 
@@ -1378,10 +1358,15 @@ begin
 
   //DeleteSelection;  // 如果正在选中区域中那么有歧义所以暂时不删除选中
   AItem.ParaNo := Style.CurParaNo;
-  if AItem is THCTextItem then
-    AItem.StyleNo := Style.CurStyleNo;
+  {if AItem is THCTextItem then  // 插入TextItem Item创建时处理好当前样式了
+  begin
+    if Style.CurStyleNo > THCStyle.RsNull then  // 在RectItem后面或前面插入TextItem
+      AItem.StyleNo := Style.CurStyleNo
+    else
+      AItem.StyleNo := 0;
+  end;}
 
-  if IsEmpty then
+  if IsEmptyData then
   begin
     FormatItemPrepare(0);
     Items.Clear;
@@ -1396,70 +1381,98 @@ begin
   {说明：当插入位置不是最后一个且插入位置是段起始，那么可能是在上一段最后插入，
    也可能是要在下一段最前页插入，这时以AItem的ParaFirst属性为判断依据}
 
+  vIncCount := 0;
+
   if AItem.StyleNo < THCStyle.RsNull then  // 插入RectItem
   begin
     if AIndex < Items.Count then  // 不是在末尾添加一个Item
     begin
       GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo, AIndex, 0);
-      if AItem.ParaFirst then  // 另起一段
+      FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+      if AOffsetBefor and (not AItem.ParaFirst) then  // 在原位置Item前面插入，且没标明是否段起始，根据环境自适应
       begin
+        AItem.ParaFirst := Items[AIndex].ParaFirst;
         if Items[AIndex].ParaFirst then  // 下一段开始变为非开始，如果要独立为一段去掉此判断即可
           Items[AIndex].ParaFirst := False;
+      end;
+
+      if (Items[AIndex].StyleNo > THCStyle.RsNull) and (Items[AIndex].Text = '') then  // 插入位置处是空行，替换当前
+      begin
+        Items.Delete(AIndex);
+        Dec(vIncCount);
       end;
     end
     else  // 在末尾添加一个Item
     begin
       vFormatFirstItemNo := AIndex - 1;
       vFormatLastItemNo := AIndex - 1;
+      FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
     end;
 
-    FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
     Items.Insert(AIndex, AItem);
-    ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + 1, 1);
+    Inc(vIncCount);
+    ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + vIncCount, vIncCount);
     ReSetSelectAndCaret(AIndex);
   end
   else  // 插入文本Item
   begin
-    if AIndex < Items.Count then
+    vMerged := False;
+
+    if AIndex < Items.Count then  // 不是在末尾添加一个Item
       GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo, AIndex, 0)
     else
       GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo, AIndex - 1, 0);
 
     FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
 
-    if (AIndex < Items.Count) and (not AItem.ParaFirst) and (Items[AIndex].CanConcatItems(AItem)) then  // 和当前位置处能合并
+    if not AItem.ParaFirst then
     begin
-      Items[AIndex].Text := AItem.Text + Items[AIndex].Text;
-      if AItem.ParaFirst then  // 考虑到原位置是段首，新插入不是段首，所以不能直接 Items[AIndex].ParaFirst := AItem.ParaFirst
-        Items[AIndex].ParaFirst := True;
-
-      ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo, 0);
-      ReSetSelectAndCaret(AIndex, AItem.Length);
-    end
-    else
-    if (AIndex > 0) and (not AItem.ParaFirst) and (Items[AIndex - 1].CanConcatItems(AItem)) then  // 和前一个能合并
-    begin
-      Items[AIndex - 1].Text := Items[AIndex - 1].Text + AItem.Text;
-      ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo, 0);
-      ReSetSelectAndCaret(AIndex - 1);
-    end
-    else  // 不能和插入位置及插入位置前的Item合并
-    begin
-      if AItem.ParaFirst then
-        Items[AIndex].ParaFirst := False;
-
-      if Items[AIndex].Text <> '' then  // 插入位置处不是空行
+      if (AIndex < Items.Count) and (Items[AIndex].CanConcatItems(AItem)) then  // 在某一个前面插，和当前位置处能合并
       begin
-        Items.Insert(AIndex, AItem);
-        ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + 1, 1);
+        Items[AIndex].Text := AItem.Text + Items[AIndex].Text;
+        if AItem.ParaFirst then  // 考虑到原位置是段首，新插入不是段首，所以不能直接 Items[AIndex].ParaFirst := AItem.ParaFirst
+          Items[AIndex].ParaFirst := True;
+
+        ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo, 0);
+        ReSetSelectAndCaret(AIndex, AItem.Length);
+
+        vMerged := True;
       end
       else
+      if (AIndex > 0) and (Items[AIndex - 1].CanConcatItems(AItem)) then  // 在某一个后面插，和前一个能合并
+      begin
+        Items[AIndex - 1].Text := Items[AIndex - 1].Text + AItem.Text;
+        ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo, 0);
+        ReSetSelectAndCaret(AIndex - 1);
+
+        vMerged := True;
+      end;
+    end;
+
+    if not vMerged then  // 不和插入位置及插入位置前的Item合并
+    begin
+      if (AIndex < Items.Count)
+        and (Items[AIndex].StyleNo > THCStyle.RsNull)
+        and (Items[AIndex].Text = '')
+      then  // 插入位置处是空行，替换当前
       begin
         AItem.ParaFirst := Items[AIndex].ParaFirst;
 
         Items.Delete(AIndex);
         Items.Insert(AIndex, AItem);
         ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
+      end
+      else  // 插入位置不是空行
+      begin
+        if AOffsetBefor and (not AItem.ParaFirst) then  // 在原位置Item前面插入，且没标明是否段起始，根据环境自适应
+        begin
+          AItem.ParaFirst := Items[AIndex].ParaFirst;
+          if Items[AIndex].ParaFirst then  // 下一段开始变为非开始，如果要独立为一段去掉此判断即可
+            Items[AIndex].ParaFirst := False;
+        end;
+
+        Items.Insert(AIndex, AItem);
+        ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + 1, 1);
       end;
 
       ReSetSelectAndCaret(AIndex);
@@ -1477,7 +1490,7 @@ begin
 
   if not CanEdit then Exit;
 
-  vItem := TLineItem.Create(Self.Width, 21);
+  vItem := TLineItem.Create(GetTopLevelData.Width, 21);
   vItem.LineHeght := ALineHeight;
   Result := InsertItem(vItem);
 end;
@@ -1516,8 +1529,8 @@ begin
     if Result then
     begin
       ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo, 0);
-      Style.UpdateInfoReCaret;
       Style.UpdateInfoRePaint;
+      Style.UpdateInfoReCaret;
     end;
   end;
 end;
@@ -1546,7 +1559,6 @@ function THCCustomRichData.InsertStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word): Boolean;
 var
   vInsPos, vFormatFirstItemNo, vFormatLastItemNo: Integer;
-  vEmpty: Boolean;
   vItem, vAfterItem: THCCustomItem;
   i, vItemCount, vStyleNo: Integer;
   vDataSize: Int64;
@@ -1556,9 +1568,11 @@ begin
   if not CanEdit then Exit;
 
   vAfterItem := nil;
-  vEmpty := IsEmpty;
 
-  if vEmpty then  // 空
+  if Items.Count = 0 then  // 空
+    vInsPos := 0
+  else
+  if IsEmptyData then  // 只有空行
   begin
     Clear;
     vInsPos := 0;
@@ -1673,8 +1687,8 @@ begin
 
   ReSetSelectAndCaret(vInsPos + vItemCount - 1);  // 选中插入内容最后Item位置
 
-  Style.UpdateInfoReCaret;
   Style.UpdateInfoRePaint;
+  Style.UpdateInfoReCaret;
 end;
 
 function THCCustomRichData.InsertItem(const AItem: THCCustomItem): Boolean;
@@ -1691,10 +1705,15 @@ begin
   DeleteSelected;
 
   AItem.ParaNo := Style.CurParaNo;
-  if AItem is THCTextItem then
-    AItem.StyleNo := Style.CurStyleNo;
+  {if AItem is THCTextItem then  // item创建时处理好当前样式了
+  begin
+    if Style.CurStyleNo > THCStyle.RsNull then  // 在RectItem后面或前面插入TextItem
+      AItem.StyleNo := Style.CurStyleNo
+    else
+      AItem.StyleNo := 0;
+  end;}
 
-  if IsEmpty then
+  if IsEmptyData then
   begin
     FormatItemPrepare(0);
     Items.Clear;
@@ -1727,8 +1746,8 @@ begin
     begin
       if SelectInfo.StartItemOffset = OffsetBefor then  // 其前
         Result := InsertItem(SelectInfo.StartItemNo, AItem)
-      else
-        Result := InsertItem(SelectInfo.StartItemNo + 1, AItem);
+      else  // 其后
+        Result := InsertItem(SelectInfo.StartItemNo + 1, AItem, False);
     end;
   end
   else  // 当前位置是TextItem
@@ -1737,7 +1756,7 @@ begin
       Result := InsertItem(SelectInfo.StartItemNo, AItem)
     else
     if (SelectInfo.StartItemOffset = Items[vCurItemNo].Length) then  // 在TextItem最后插入
-      Result := InsertItem(SelectInfo.StartItemNo + 1, AItem)
+      Result := InsertItem(SelectInfo.StartItemNo + 1, AItem, False)
     else  // 在Item中间
     begin
       GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
@@ -1791,12 +1810,15 @@ function THCCustomRichData.InsertTable(const ARowCount,
   AColCount: Integer): Boolean;
 var
   vItem: THCCustomItem;
+  vTopData: THCCustomRichData;
 begin
   Result := False;
 
   if not CanEdit then Exit;
 
-  vItem := THCTableItem.Create(Style, ARowCount, AColCount, Self.Width, Self);
+  vTopData := GetTopLevelData;
+
+  vItem := THCTableItem.Create(vTopData, ARowCount, AColCount, vTopData.Width);
   Result := InsertItem(vItem);
 end;
 
@@ -1804,15 +1826,20 @@ function THCCustomRichData.InsertText(const AText: string): Boolean;
 var
   vNewPara: Boolean;
 
-  function InsertTextItem(const AText: string): Boolean;
+  procedure InsertTextItem(const AText: string);
   var
     vItem: THCCustomItem;
   begin
-    vItem := CreateDefaultTextItem;
-    vItem.Text := AText;
-    vItem.ParaFirst := vNewPara;
-    Result := InsertItem(vItem);
-    vNewPara := True;
+    if AText <> '' then
+    begin
+      vItem := CreateDefaultTextItem;
+      vItem.Text := AText;
+      vItem.ParaFirst := vNewPara;
+      Result := InsertItem(vItem);
+      vNewPara := True;
+    end
+    else  // 通过#13#10的过滤后为空的按回车处理
+      InsertBreak;
   end;
 
 var
@@ -1834,7 +1861,7 @@ begin
       #13:
         begin
           System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-          if not InsertTextItem(vS) then Exit;
+          InsertTextItem(vS);
           Inc(vPtr);
           vPCharStart := vPtr;
           Continue;
@@ -1851,7 +1878,8 @@ begin
     Inc(vPtr);
   end;
   System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-  Result := InsertTextItem(vS)
+  InsertTextItem(vS);
+  Result := True;
 end;
 
 procedure THCCustomRichData.KeyDown(var Key: Word; Shift: TShiftState);
@@ -2017,9 +2045,9 @@ var
       if vRectItem.WantKeyDown(Key, Shift) then
       begin
         vRectItem.KeyDown(Key, Shift);
-        if vRectItem.HeightChanged then
+        if vRectItem.SizeChanged then
         begin
-          vRectItem.HeightChanged := False;
+          vRectItem.SizeChanged := False;
           ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
         end;
       end
@@ -2164,7 +2192,7 @@ var
       end;
     end
     else
-    if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后，后面补充一个空Item
+    if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后
     begin
       case Key of
         VK_BACK:
@@ -2228,13 +2256,26 @@ var
 
         VK_RETURN:
           begin
-            vCurItem := CreateDefaultTextItem;
-            vCurItem.ParaFirst := True;
-            Items.Insert(SelectInfo.StartItemNo + 1, vCurItem);
-            ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + 1, 1);
-            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-            SelectInfo.StartItemOffset := vCurItem.Length;
-            CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+            if (SelectInfo.StartItemNo < Items.Count - 1)  // 不是最后一个
+              and (not Items[SelectInfo.StartItemNo + 1].ParaFirst)  // 下一个不是段首
+            then
+            begin
+              Items[SelectInfo.StartItemNo + 1].ParaFirst := True;
+              ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
+              SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+              SelectInfo.StartItemOffset := 0;
+              CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+            end
+            else
+            begin
+              vCurItem := CreateDefaultTextItem;
+              vCurItem.ParaFirst := True;
+              Items.Insert(SelectInfo.StartItemNo + 1, vCurItem);
+              ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + 1, 1);
+              SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+              SelectInfo.StartItemOffset := vCurItem.Length;
+              CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+            end;
           end;
 
         VK_TAB:
@@ -2350,6 +2391,7 @@ var
             begin
               SelectInfo.StartItemNo := vCurItemNo + 1;
               SelectInfo.StartItemOffset := OffsetBefor;
+
               KeyDown(Key, Shift);
               Exit;
             end
@@ -2394,6 +2436,7 @@ var
             RectItemKeyDown
           else
             DeleteKeyDown;}
+
           KeyDown(Key, Shift);
           Exit;
         end;
@@ -2590,6 +2633,7 @@ var
               SelectInfo.StartItemOffset := Items[SelectInfo.StartItemNo].Length;
             vCurItem := GetCurItem;
 
+            Style.UpdateInfoReStyle;
             BackspaceKeyDown;  // 重新处理
             Exit;
           end;
@@ -2623,7 +2667,6 @@ var
           end
           else  // 当前不是行首，删除后没有内容了，且不能合并上一个和下一个
           begin
-            vLen := 0;
             if SelectInfo.StartItemNo = vFormatLastItemNo then  // 段最后一个
             begin
               vFormatFirstItemNo := GetLineFirstItemNo(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
@@ -2775,7 +2818,9 @@ var
         SelectInfo.StartItemNo := DrawItems[vLastDItemNo].ItemNo;
         SelectInfo.StartItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
         CaretDrawItemNo := vLastDItemNo;
-      end;
+      end
+      else
+        Key := 0;
     end;
   end;
   {$ENDREGION}
@@ -2837,7 +2882,7 @@ begin
   if not CanEdit then Exit;
 
   if Key in [VK_BACK, VK_DELETE, VK_RETURN, VK_TAB] then
-    Self.Initialize;  // 如果Item删除完了，会对鼠标移动事件有影响，所以初始化
+    Self.InitializeField;  // 如果Item删除完了，会对鼠标移动事件有影响，所以初始化
 
   vCurItem := GetCurItem;
   if vCurItem = nil then Exit;
@@ -2866,8 +2911,8 @@ begin
       VK_DELETE: DeleteKeyDown;     // 删除键
       VK_HOME:   HomeKeyDown;       // Home键
       VK_END:    EndKeyDown;        // End键
-      VK_UP:     UpKeyDown;         // 向上翻页键
-      VK_DOWN:   DownKeyDown;       // 向下翻页键
+      VK_UP:     UpKeyDown;         // 上方向键
+      VK_DOWN:   DownKeyDown;       // 下方向键
       VK_TAB:    TABKeyDown;        // TAB键
     end;
   end;
@@ -2875,8 +2920,8 @@ begin
   case Key of
     VK_BACK, VK_DELETE, VK_RETURN, VK_TAB:
       begin
-        Style.UpdateInfoReCaret;
         Style.UpdateInfoRePaint;
+        Style.UpdateInfoReCaret(False);
       end;
 
     VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
@@ -2902,9 +2947,9 @@ var
     begin
       vRectItem := vCurItem as THCCustomRectItem;
       vRectItem.KeyPress(Key);
-      if vRectItem.HeightChanged then
+      if vRectItem.SizeChanged then
       begin
-        vRectItem.HeightChanged := False;
+        vRectItem.SizeChanged := False;
         GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
         FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
         if Key <> #0 then
@@ -2919,17 +2964,17 @@ var
       if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后输入内容
       begin
         { TODO : 这里需要处理其后有文本的合并问题吗？ }
-        vNewItem.ParaFirst := False;  // 如果非占整行的Item，此处不应该为True
+        //vNewItem.ParaFirst := False;  // 如果非占整行的Item，此处不应该为True
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-        InsertItem(SelectInfo.StartItemNo, vNewItem);
+        InsertItem(SelectInfo.StartItemNo, vNewItem, False);
       end
       else  // 在其前输入内容，补充TextItem
       begin
-        if vCurItem.ParaFirst then
+        {if vCurItem.ParaFirst then
         begin
           vNewItem.ParaFirst := True;
           vCurItem.ParaFirst := False;
-        end;
+        end;}
         InsertItem(SelectInfo.StartItemNo, vNewItem);
       end;
     end;
@@ -2946,23 +2991,28 @@ begin
   vCurItem := GetCurItem;
   if vCurItem.StyleNo < THCStyle.RsNull then
     RectItemKeyPress
-  else
+  else  // 在TextItem中增加字符
   begin
-    vText := vCurItem.Text;
-    // 行起始为TextItem，同一行后面有RectItem时，编辑TextItem后格式化可能会将RectItem分到下一行，
-    // 所以不能直接 FormatItemPrepare(SelectInfo.StartItemNo)否则会因为格式化范围太小，
-    // 没有进行FiniLine调整行高，所以从段最后或行最后开始
-    GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
-    FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
-    Insert(Key, vText, SelectInfo.StartItemOffset + 1);
-    vCurItem.Text := vText;
-    SelectInfo.StartItemOffset := SelectInfo.StartItemOffset + 1;
-    ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
-    Self.Initialize;
+    if vCurItem.StyleNo = Self.Style.CurStyleNo then
+    begin
+      vText := vCurItem.Text;
+      // 行起始为TextItem，同一行后面有RectItem时，编辑TextItem后格式化可能会将RectItem分到下一行，
+      // 所以不能直接 FormatItemPrepare(SelectInfo.StartItemNo)否则会因为格式化范围太小，
+      // 没有进行FiniLine调整行高，所以从段最后或行最后开始
+      GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
+      FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+      Insert(Key, vText, SelectInfo.StartItemOffset + 1);
+      vCurItem.Text := vText;
+      SelectInfo.StartItemOffset := SelectInfo.StartItemOffset + 1;
+      ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
+      Self.InitializeField;
+    end
+    else  // 在TextItem头、中、尾没选中，但应用了新样式，新按下的要以新样式处理
+      InsertText(Key);
   end;
 
   Style.UpdateInfoRePaint;
-  Style.UpdateInfoReCaret;
+  Style.UpdateInfoReCaret(False);
 end;
 
 procedure THCCustomRichData.KeyUp(var Key: Word; Shift: TShiftState);
@@ -2990,7 +3040,7 @@ begin
   //DisSelect; 解决第一个是表格且跨页打开后自动滚动的问题
   SelectInfo.StartItemNo := 0;
   SelectInfo.StartItemOffset := 0;
-  Self.Initialize;
+  Self.InitializeField;
 end;
 
 function THCCustomRichData.MergeItemText(const ADestItem,
@@ -3018,8 +3068,7 @@ begin
       GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
       FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
       ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
-      DisSelect;
-      //ReFormatData_(vItemNo);
+      DisSelect;  // 合并后清空选中
       Style.UpdateInfoRePaint;
     end;
   end;
@@ -3047,6 +3096,7 @@ var
 begin
   FSelecting := False;  // 准备划选
   FDraging := False;  // 准备拖拽
+  FMouseLBDouble := False;
   //Style.UpdateInfo.Draging := False;
 
   FMouseLBDowning := (Button = mbLeft) and (Shift = [ssLeft]);
@@ -3079,8 +3129,8 @@ begin
       if FMouseDownItemNo >= 0 then
         Items[FMouseDownItemNo].Active := False;  // 旧的取消激活
 
-      Style.UpdateInfoReCaret;
       Style.UpdateInfoRePaint;  // 旧的去焦点，新的入焦点
+      Style.UpdateInfoReCaret;
     end;
 
     DisSelect;
@@ -3127,7 +3177,7 @@ procedure THCCustomRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
           (Items[i] as THCCustomRectItem).DisSelect;  // Item内部处理自己的全选、部分选状态
       end;
     end;
-    SelectInfo.Initialize;
+    //SelectInfo.Initialize;  // 初始化后无法处理选中结束回到起始时Item的DisSelect
 
     if FMouseDownItemNo < FMouseMoveItemNo then  // 从前往后选择在不同的Item
     begin
@@ -3141,6 +3191,8 @@ procedure THCCustomRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
       end;
       if (FMouseMoveItemOffset = 0) and (FMouseMoveItemNo >= 0) then  // 结束在Item最前面，改为上一个Item结束
       begin
+        Items[FMouseMoveItemNo].DisSelect;  // 从前往后选，鼠标移动到前一次前面，原鼠标处被移出选中范围
+
         FMouseMoveItemNo := FMouseMoveItemNo - 1;
         if Items[FMouseMoveItemNo].StyleNo < THCStyle.RsNull then
           FMouseMoveItemOffset := OffsetAfter
@@ -3158,6 +3210,8 @@ procedure THCCustomRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
     begin
       if OffsetInItemAfter(FMouseMoveItemNo, FMouseMoveItemOffset) then  // 结束在Item最后面
       begin
+        Items[FMouseMoveItemNo].DisSelect;  // 从后往前选，鼠标移动到前一次后面，原鼠标处被移出选中范围
+
         if FMouseMoveItemNo < Items.Count - 1 then  // 起始改为下一个Item开始
         begin
           FMouseMoveItemNo := FMouseMoveItemNo + 1;
@@ -3229,6 +3283,8 @@ procedure THCCustomRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
       end
       else  // 结束位置和起始位置相同
       begin
+        if SelectInfo.EndItemNo >= 0 then  // 选中结束回到起始
+          Items[SelectInfo.EndItemNo].DisSelect;  // 上一次有选中，这一次结束和起始相同了
         SelectInfo.StartItemNo := FMouseDownItemNo;
         SelectInfo.StartItemOffset := FMouseDownItemOffset;
         Items[SelectInfo.StartItemNo].Active := not FMouseMoveRestrain;
@@ -3382,7 +3438,7 @@ var
   begin
     if DisSelect then
     begin
-      Self.Initialize;
+      Self.InitializeField;
       SelectInfo.StartItemNo := vUpItemNo;
       SelectInfo.StartItemOffset := vUpItemOffset;
       CaretDrawItemNo := vDrawItemNo;  // GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
@@ -3412,6 +3468,8 @@ begin
 //  if not FMouseLBDowning then Exit;  // 打开文件对话框双击文件后会触发MouseUp
 
   FMouseLBDowning := False;
+
+  if FMouseLBDouble then Exit;
 
   if SelectedResizing then  // RectItem缩放ing，停止缩放
   begin
@@ -3620,7 +3678,7 @@ end;
 
 procedure THCCustomRichData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer);
 begin
-  Self.Initialize;
+  Self.InitializeField;
   SelectInfo.StartItemNo := AItemNo;
   SelectInfo.StartItemOffset := AOffset;
   CaretDrawItemNo := GetDrawItemNoByOffset(AItemNo, AOffset);
@@ -3632,6 +3690,22 @@ begin
     ReSetSelectAndCaret(AItemNo, OffsetAfter)
   else
     ReSetSelectAndCaret(AItemNo, Items[AItemNo].Length);
+end;
+
+procedure THCCustomRichData.SetEmptyData;
+var
+  vItem: THCCustomItem;
+begin
+  if Self.Items.Count = 0 then
+  begin
+    vItem := CreateDefaultTextItem;
+    vItem.ParaFirst := True;
+    Items.Add(vItem);  // 不使用InsertText，为避免其触发ReFormatPara时因为没有格式化过，获取不到对应的DrawItem
+
+    SelectInfo.StartItemNo := 0;
+    SelectInfo.StartItemOffset := 0;
+    FormatData(0, 0);
+  end;
 end;
 
 procedure THCCustomRichData.SetReadOnly(const Value: Boolean);

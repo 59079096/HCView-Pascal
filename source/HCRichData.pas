@@ -45,8 +45,7 @@ type
     procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure Clear; override;
-    procedure Initialize; override;
+    procedure InitializeField; override;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); override;
     function CanDeleteItem(const AItemNo: Integer): Boolean; override;
     //
@@ -58,7 +57,8 @@ type
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
     function InsertItem(const AItem: THCCustomItem): Boolean; override;
-    function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; override;
+    function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
+      const AOffsetBefor: Boolean = True): Boolean; override;
   public
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
@@ -84,13 +84,6 @@ begin
   Result := Items[AItemNo].StyleNo <> THCStyle.RsDomain;
 end;
 
-procedure THCRichData.Clear;
-begin
-  inherited Clear;
-  FHotDomain.Clear;
-  FActiveDomain.Clear;
-end;
-
 constructor THCRichData.Create(const AStyle: THCStyle);
 begin
   FHotDomain := TDomain.Create;
@@ -100,21 +93,18 @@ end;
 
 function THCRichData.CreateDefaultDomainItem: THCCustomItem;
 begin
-  if Assigned(OnGetCreateDomainItem) then
-    Result := OnGetCreateDomainItem
-  else
-    Result := THCDomainItem.Create;
-
+  Result := HCDefaultDomainItemClass.Create;
   Result.ParaNo := Style.CurParaNo;
 end;
 
 function THCRichData.CreateDefaultTextItem: THCCustomItem;
 begin
-  if Assigned(OnGetCreateTextItem) then
-    Result := OnGetCreateTextItem
+  Result := HCDefaultTextItemClass.CreateByText('');  // 必需有参数否则不能调用属性创建
+  if Style.CurStyleNo < THCStyle.RsNull then
+    Result.StyleNo := 0
   else
-    Result := THCTextItem.CreateByText('');  // 必需有参数否则不能调用属性创建
-  Result.StyleNo := Style.CurStyleNo;
+    Result.StyleNo := Style.CurStyleNo;
+
   Result.ParaNo := Style.CurParaNo;
   if Assigned(OnCreateItem) then
     OnCreateItem(Result);
@@ -324,17 +314,17 @@ begin
   end;
 end;
 
-procedure THCRichData.Initialize;
+procedure THCRichData.InitializeField;
 begin
-  inherited Initialize;
+  inherited InitializeField;
   FActiveDomain.Clear;
   FHotDomain.Clear;
 end;
 
 function THCRichData.InsertItem(const AIndex: Integer;
-  const AItem: THCCustomItem): Boolean;
+  const AItem: THCCustomItem; const AOffsetBefor: Boolean = True): Boolean;
 begin
-  Result := inherited InsertItem(AIndex, AItem);
+  Result := inherited InsertItem(AIndex, AItem, AOffsetBefor);
   if Result then
   begin
     Style.UpdateInfoRePaint;

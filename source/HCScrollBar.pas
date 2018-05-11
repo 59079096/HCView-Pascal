@@ -146,15 +146,14 @@ type
 
 implementation
 
-{$R HCScrollBar.RES}
-
 uses
   Math;
 
 const
   LineColor = clMedGray;
   IconWidth = 16;
-  TitleBackColor = $E8FFDF;
+  TitleBackColor = $B3ABAA;
+  ThumBackColor = $D5D1D0;
 
 { THCScrollBar }
 
@@ -252,7 +251,6 @@ end;
 procedure THCScrollBar.Paint;
 var
   vRect: TRect;
-  vIcon: HICON;
 begin
   Canvas.Brush.Style := bsSolid;
   Canvas.Brush.Color := TitleBackColor;
@@ -260,30 +258,30 @@ begin
   case FOrientation of
     oriHorizontal:  // 水平滚动条
       begin
-        // 水平滚动条左按钮
-        vRect := FLeftBtnRect;
-        //ACanvas.Brush.Color := GTitleForegColor;
-        //ACanvas.FillRect(vRect);
-        //vIcon := LoadIcon(HInstance, 'DROPLEFT');
-        vIcon := LoadImage(HInstance, 'DROPLEFT', IMAGE_ICON, IconWidth, IconWidth, LR_DEFAULTCOLOR);
-        try
-          DrawIconEx(Canvas.Handle, vRect.Left + (vRect.Right - vRect.Left - IconWidth) div 2,
-            vRect.Top + (vRect.Bottom - vRect.Top - IconWidth) div 2, vIcon, IconWidth, IconWidth, 0, 0, DI_NORMAL);
-        finally
-          DestroyIcon(vIcon);  // 释放，防止GDI对象泄露
-        end;
+        // 左按钮
+        Canvas.Pen.Color := clWhite;
+        vRect.Left := FLeftBtnRect.Left + (FLeftBtnRect.Width - 4) div 2 + 4;
+        vRect.Top := FLeftBtnRect.Top + (FLeftBtnRect.Height - 7) div 2;
+        Canvas.MoveTo(vRect.Left, vRect.Top);
+        Canvas.LineTo(vRect.Left, vRect.Top + 7);
+        Canvas.MoveTo(vRect.Left - 1, vRect.Top + 1);
+        Canvas.LineTo(vRect.Left - 1, vRect.Top + 6);
+        Canvas.MoveTo(vRect.Left - 2, vRect.Top + 2);
+        Canvas.LineTo(vRect.Left - 2, vRect.Top + 5);
+        Canvas.MoveTo(vRect.Left - 3, vRect.Top + 3);
+        Canvas.LineTo(vRect.Left - 3, vRect.Top + 4);
 
-        // 水平滚动条右按钮
-        vRect := FRightBtnRect;
-        //ACanvas.FillRect(vRect);
-        //vIcon := LoadIcon(HInstance, 'DROPRIGHT');
-        vIcon := LoadImage(HInstance, 'DROPRIGHT', IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
-        try
-          DrawIconEx(Canvas.Handle, vRect.Left + (vRect.Right - vRect.Left - IconWidth) div 2,
-            vRect.Top + (vRect.Bottom - vRect.Top - IconWidth) div 2, vIcon, IconWidth, IconWidth, 0, 0, DI_NORMAL);
-        finally
-          DestroyIcon(vIcon);  // 释放，防止GDI对象泄露
-        end;
+        // 右按钮
+        vRect.Left := FRightBtnRect.Left + (FRightBtnRect.Width - 4) div 2;
+        vRect.Top := FRightBtnRect.Top + (FRightBtnRect.Height - 7) div 2;
+        Canvas.MoveTo(vRect.Left, vRect.Top);
+        Canvas.LineTo(vRect.Left, vRect.Top + 7);
+        Canvas.MoveTo(vRect.Left + 1, vRect.Top + 1);
+        Canvas.LineTo(vRect.Left + 1, vRect.Top + 6);
+        Canvas.MoveTo(vRect.Left + 2, vRect.Top + 2);
+        Canvas.LineTo(vRect.Left + 2, vRect.Top + 5);
+        Canvas.MoveTo(vRect.Left + 3, vRect.Top + 3);
+        Canvas.LineTo(vRect.Left + 3, vRect.Top + 4);
 
         // 水平滑块
         vRect := FThumRect;
@@ -291,7 +289,7 @@ begin
 
         DoDrawThumBefor(Canvas, vRect);
 
-        Canvas.Brush.Color := TitleBackColor;
+        Canvas.Brush.Color := ThumBackColor;
         Canvas.Pen.Color := LineColor;
         Canvas.Rectangle(vRect);
         // 滑块上的修饰
@@ -307,38 +305,37 @@ begin
     oriVertical:  // 垂直滚动条
       begin
         // 上按钮
-        vRect := FLeftBtnRect;
-        //ACanvas.Brush.Color := GTitleForegColor;
-        //ACanvas.FillRect(vRect);
-        //vIcon := LoadIcon(HInstance, 'DROPUP');
-        vIcon := LoadImage(HInstance, 'DROPUP', IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
-        try
-          DrawIconEx(Canvas.Handle, vRect.Left + (vRect.Right - vRect.Left - IconWidth) div 2,
-            vRect.Top + (vRect.Bottom - vRect.Top - IconWidth) div 2, vIcon, IconWidth, IconWidth, 0, 0, DI_NORMAL);
-        finally
-          DestroyIcon(vIcon);  // 释放，防止GDI对象泄露
-        end;
+        Canvas.Pen.Color := clWhite;
+        vRect.Left := FLeftBtnRect.Left + (FLeftBtnRect.Width - 7) div 2;
+        vRect.Top := FLeftBtnRect.Top + (FLeftBtnRect.Height - 4) div 2 + 4;
+        Canvas.MoveTo(vRect.Left, vRect.Top);
+        Canvas.LineTo(vRect.Left + 7, vRect.Top);
+        Canvas.MoveTo(vRect.Left + 1, vRect.Top - 1);
+        Canvas.LineTo(vRect.Left + 6, vRect.Top - 1);
+        Canvas.MoveTo(vRect.Left + 2, vRect.Top - 2);
+        Canvas.LineTo(vRect.Left + 5, vRect.Top - 2);
+        Canvas.MoveTo(vRect.Left + 3, vRect.Top - 3);
+        Canvas.LineTo(vRect.Left + 4, vRect.Top - 3);
 
         // 下按钮
-        vRect := FRightBtnRect;
-        Canvas.FillRect(vRect);
-        //vIcon := LoadIcon(HInstance, 'DROPDOWN');
-        vIcon := LoadImage(HInstance, 'DROPDOWN', IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
-        try
-          DrawIconEx(Canvas.Handle, vRect.Left + (vRect.Right - vRect.Left - IconWidth) div 2,
-            vRect.Top + (vRect.Bottom - vRect.Top - IconWidth) div 2, vIcon, IconWidth, IconWidth, 0, 0, DI_NORMAL);
-        finally
-          DestroyIcon(vIcon);  // 释放，防止GDI对象泄露
-        end;
+        vRect.Left := FRightBtnRect.Left + (FRightBtnRect.Width - 7) div 2;
+        vRect.Top := FRightBtnRect.Top + (FRightBtnRect.Height - 4) div 2;
+        Canvas.MoveTo(vRect.Left, vRect.Top);
+        Canvas.LineTo(vRect.Left + 7, vRect.Top);
+        Canvas.MoveTo(vRect.Left + 1, vRect.Top + 1);
+        Canvas.LineTo(vRect.Left + 6, vRect.Top + 1);
+        Canvas.MoveTo(vRect.Left + 2, vRect.Top + 2);
+        Canvas.LineTo(vRect.Left + 5, vRect.Top + 2);
+        Canvas.MoveTo(vRect.Left + 3, vRect.Top + 3);
+        Canvas.LineTo(vRect.Left + 4, vRect.Top + 3);
 
         // 滑块
         vRect := FThumRect;
         InflateRect(vRect, -1, 0);
-        //vRect.Right := vRect.Right - 1;
 
         DoDrawThumBefor(Canvas, vRect);
 
-        Canvas.Brush.Color := TitleBackColor;
+        Canvas.Brush.Color := ThumBackColor;
         Canvas.Pen.Color := LineColor;
         Canvas.Rectangle(vRect);
         // 滑块上的修饰
@@ -595,15 +592,15 @@ begin
   else
     vPos := Value;
 
-
   if FPosition <> vPos then
   begin
     FPosition := vPos;
     ReCalcThumRect;  // 滑块区域
+    //Repaint;
+    InvalidateRect(Handle, ClientRect, False);
+
     if Assigned(FOnScroll) then  // 滚动
       FOnScroll(Self, scPosition, FPosition);
-
-    Repaint;
   end;
 end;
 

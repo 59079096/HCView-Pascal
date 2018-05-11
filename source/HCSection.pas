@@ -22,7 +22,7 @@ type
   TPrintResult = (prOk, prNoPrinter, prError);
 
   TSectionPaintInfo = class(TPaintInfo)
-  private
+  strict private
     FSectionIndex, FPageIndex: Integer;
     FPageDrawRight: Integer;
   public
@@ -73,7 +73,8 @@ type
     /// <summary> 当前Data内容变动完成后 </summary>
     /// <param name="AInsertActItemNo">插入发生的位置</param>
     /// <param name="AOldDataHeight">插入前Data的高度</param>
-    procedure DoActiveDataChanged(const AInsertActItemNo, AOldDataHeight: Integer);
+    procedure DoActiveDataChanged(const AActiveItemNo: Integer;
+      const ABuildSectionPage: Boolean);
 
     /// <summary> 当前Data需要UpdateInfo更新 </summary>
     procedure DoActiveDataCheckUpdateInfo;
@@ -142,12 +143,6 @@ type
     function GetRichDataAt(const X, Y: Integer): THCRichData;
     function GetActiveArea: TSectionArea;
 
-    function GetGetCreateDomainItem: TGetCreateDomainItem;
-    procedure SetGetCreateDomainItem(const Value: TGetCreateDomainItem);
-
-    function GetGetCreateTextItem: TGetCreateTextItem;
-    procedure SetGetCreateTextItem(const Value: TGetCreateTextItem);
-
     /// <summary>
     /// 返回数据格式化AVertical位置在胶卷中的位置
     /// </summary>
@@ -162,10 +157,10 @@ type
     /// <summary> 修改纸张边距 </summary>
     procedure ReMarginPaper;
     procedure Clear;
+    procedure SetEmptyData;
     procedure DisActive;
     function SelectExists: Boolean;
     function GetHint: string;
-    procedure GetCurStyle(var AStyleNo, AParaNo: Integer);
     function GetCurItem: THCCustomItem;
     function GetActiveItem: THCCustomItem;
     function GetActiveDrawItem: THCCustomDrawItem;
@@ -352,8 +347,6 @@ type
     property OnItemPaintBefor: TItemPaintEvent read GetOnItemPaintBefor write SetOnItemPaintBefor;
     property OnItemPaintAfter: TItemPaintEvent read GetOnItemPaintAfter write SetOnItemPaintAfter;
     property OnCreateItem: TNotifyEvent read GetOnCreateItem write SetOnCreateItem;
-    property OnGetCreateDomainItem: TGetCreateDomainItem read GetGetCreateDomainItem write SetGetCreateDomainItem;
-    property OnGetCreateTextItem: TGetCreateTextItem read GetGetCreateTextItem write SetGetCreateTextItem;
   end;
 
 implementation
@@ -448,6 +441,7 @@ begin
   ActiveDataChangeByAction(function(): Boolean
     begin
       FActiveData.ApplyTextBackColor(AColor);
+      Result := True;
     end);
 end;
 
@@ -456,6 +450,7 @@ begin
   ActiveDataChangeByAction(function(): Boolean
     begin
       FActiveData.ApplyTextColor(AColor);
+      Result := True;
     end);
 end;
 
@@ -464,6 +459,7 @@ begin
   ActiveDataChangeByAction(function(): Boolean
     begin
       FActiveData.ApplyTextFontName(AFontName);
+      Result := True;
     end);
 end;
 
@@ -472,6 +468,7 @@ begin
   ActiveDataChangeByAction(function(): Boolean
     begin
       FActiveData.ApplyTextFontSize(AFontSize);
+      Result := True;
     end);
 end;
 
@@ -480,6 +477,7 @@ begin
   ActiveDataChangeByAction(function(): Boolean
     begin
       FActiveData.ApplyTextStyle(AFontStyle);
+      Result := True;
     end);
 end;
 
@@ -546,12 +544,12 @@ end;
 
 procedure THCSection.DisActive;
 begin
-  if FActiveData <> nil then
+  //if FActiveData <> nil then
     FActiveData.DisSelect;
 
-  FHeader.Initialize;
-  FFooter.Initialize;
-  FPageData.Initialize;
+  FHeader.InitializeField;
+  FFooter.InitializeField;
+  FPageData.InitializeField;
   FActiveData := FPageData;
 end;
 
@@ -560,13 +558,13 @@ begin
   FActiveData.GetTopLevelData.DisSelect;
 end;
 
-procedure THCSection.DoActiveDataChanged(const AInsertActItemNo,
-  AOldDataHeight: Integer);
+procedure THCSection.DoActiveDataChanged(const AActiveItemNo: Integer;
+  const ABuildSectionPage: Boolean);
 begin
-  if AOldDataHeight <> FActiveData.Height then  { TODO : 这里高度没变，并不严谨，比如选中一些内容后粘贴，替换后高度可能一样，但是页的起始结束Item可能需要重新计算 }
+  if ABuildSectionPage then
   begin
     if FActiveData = FPageData then
-      BuildSectionPages(AInsertActItemNo{FActiveData.GetFormatStartItemNo(AInsertActItemNo)})
+      BuildSectionPages(AActiveItemNo)
     else
       BuildSectionPages(0);
     // 在需要的时候，可以将绘画变化和高度变化分开，以减少RichEdit不必要的CalcScrollRang和AdjustScroll
@@ -590,6 +588,13 @@ procedure THCSection.DoDataReadOnlySwitch(Sender: TObject);
 begin
   if Assigned(FOnReadOnlySwitch) then
     FOnReadOnlySwitch(Self);
+end;
+
+procedure THCSection.SetEmptyData;
+begin
+  FHeader.SetEmptyData;
+  FFooter.SetEmptyData;
+  FPageData.SetEmptyData;
 end;
 
 procedure THCSection.FormatData;
@@ -619,14 +624,6 @@ begin
     else
       Result := GetPageDataDrawItemPageIndex(FPageData.CaretDrawItemNo);
   end;
-end;
-
-procedure THCSection.GetCurStyle(var AStyleNo, AParaNo: Integer);
-begin
-  AStyleNo := THCStyle.RsNull;
-  AParaNo := THCStyle.RsNull;
-  if FActiveData <> nil then
-    FActiveData.GetCurStyle(AStyleNo, AParaNo);
 end;
 
 function THCSection.GetActiveArea: TSectionArea;
@@ -761,16 +758,6 @@ begin
   Result := FPages.Count * (MinPadding + FPageSize.PageWidthPix);
 end;
 
-function THCSection.GetGetCreateDomainItem: TGetCreateDomainItem;
-begin
-  Result := FPageData.OnGetCreateDomainItem;
-end;
-
-function THCSection.GetGetCreateTextItem: TGetCreateTextItem;
-begin
-  Result := FPageData.OnGetCreateTextItem;
-end;
-
 function THCSection.GetHeaderAreaHeight: Integer;
 begin
   Result := FHeaderOffset + FHeader.Height;
@@ -791,8 +778,8 @@ end;
 
 function THCSection.GetHint: string;
 begin
-  Result := '';
-  if FActiveData <> nil then
+  //Result := '';
+  //if FActiveData <> nil then
     Result := FActiveData.GetTopLevelData.GetHint;
 end;
 
@@ -825,19 +812,24 @@ begin
   for i := 0 to FPages.Count - 1 do
   begin
     vPos := vPos + MinPadding + FPageSize.PageHeightPix;
-    if vPos >= AVOffset then
+    if vPos >= AVOffset then  // AVOffset < 0时有2种可能，1当前节第一页前面的Padding，2在上一节里
     begin
       Result := i;
       Break;
     end;
   end;
+
+  if (Result < 0) and (AVOffset > vPos) then  // 同节最后一页下面，下一页里面
+    Result := FPages.Count - 1;
+
+  Assert(Result >= 0, '没有获取到正确的页序号！');
 end;
 
 procedure THCSection.GetPageCaretInfo(var ACaretInfo: TCaretInfo);
 var
   vMarginLeft, vMarginRight: Integer;
 begin
-  if FActiveData = nil then Exit;
+  //if FActiveData = nil then Exit;
 
   if (FActiveData.SelectInfo.StartItemNo < 0) or (FActivePageIndex < 0) then
   begin
@@ -903,8 +895,6 @@ end;
 procedure THCSection.GetPageMarginLeftAndRight(const APageIndex: Integer;
   var AMarginLeft, AMarginRight: Integer);
 begin
-  Assert(APageIndex >= 0, '获取页边距时传递的页序号小于0！');
-
   if FSymmetryMargin and Odd(APageIndex) then
   begin
     AMarginLeft := FPageSize.PageMarginRightPix;
@@ -1024,14 +1014,21 @@ end;
 
 function THCSection.ActiveDataChangeByAction(const AProc: TChangeProc): Boolean;
 var
-  vHeight, vCruItemNo: Integer;
+  vHeight, vCurItemNo, vNewItemNo: Integer;
 begin
-  if (FActiveData = nil) or (not FActiveData.CanEdit) then Exit(False);
+  if {(FActiveData = nil) or} (not FActiveData.CanEdit) then Exit(False);
 
   vHeight := FActiveData.Height;
-  vCruItemNo := FActiveData.GetCurItemNo;
-  Result := AProc;
-  DoActiveDataChanged(vCruItemNo, vHeight);
+  vCurItemNo := FActiveData.GetCurItemNo;
+
+  // 应用选中文本样式等操作，并不引起高度变化，但会引起DrawItem数量变化
+  // 也需要重新计算各页起始结束DrawItem，用Result表示需要重新计算
+  Result := AProc;  // Result二层含义，一是执行成功，二是需要重新计算节页数
+  vNewItemNo := FActiveData.GetCurItemNo;  // 变动后的当前ItemNo
+  if vNewItemNo < 0 then  // 如果变动后小于0，修正为第0个
+    vNewItemNo := 0;
+  DoActiveDataChanged(Min(vCurItemNo, vNewItemNo),  // vCurItemNo是最后一个时，样式修改合并到前一个后不存在了，所以取范围小的
+    Result or (vHeight <> FActiveData.Height));
 end;
 
 function THCSection.InsertStream(const AStream: TStream; const AStyle: THCStyle;
@@ -1076,7 +1073,7 @@ begin
     FActiveData.KeyDown(Key, Shift);
     case Key of
       VK_BACK, VK_DELETE, VK_RETURN, VK_TAB:
-        DoActiveDataChanged(Max(FActiveData.GetCurItemNo - 1, 0), vHeight);  // 从上一个开始，Item数据变动(如空行后面回车、分页)后SelectInfo.StartItemNo会变为变动后的，而计算分页需要从前一个开始
+        DoActiveDataChanged(Max(FActiveData.GetCurItemNo - 1, 0), vHeight <> FActiveData.Height);  // 从上一个开始，Item数据变动(如空行后面回车、分页)后SelectInfo.StartItemNo会变为变动后的，而计算分页需要从前一个开始
 
       VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
         DoActiveDataCheckUpdateInfo;
@@ -1095,7 +1092,7 @@ begin
     vHeight := FActiveData.Height;
     FActiveData.KeyPress(Key);
     if Key <> #0 then
-      DoActiveDataChanged(FActiveData.GetCurItemNo, vHeight);
+      DoActiveDataChanged(FActiveData.GetCurItemNo, vHeight <> FActiveData.Height);
   end
   else
     Key := #0;
@@ -1109,7 +1106,7 @@ end;
 
 procedure THCSection.KillFocus;
 begin
-  if FActiveData <> nil then
+  //if FActiveData <> nil then
     FActiveData.KillFocus;
 end;
 
@@ -1229,12 +1226,12 @@ begin
     vY := vY + GetPageDataFmtTop(vPageIndex);
   end;
 
-  if FActiveData <> nil then
+  //if FActiveData <> nil then
   begin
     if (ssDouble in Shift) and (not vChangeActiveData) then  // 在同一Data上双击
       FActiveData.DblClick(vX, vY)
     else
-    if FActiveData <> nil then
+    //if FActiveData <> nil then
       FActiveData.MouseDown(Button, Shift, vX, vY);
   end;
 end;
@@ -1256,7 +1253,7 @@ var
 begin
   vPageIndex := GetPageByFilm(Y);
   if vPageIndex < 0 then Exit;
-  
+
   SectionToPage(vPageIndex, X, Y, vX, vY);
 
   if Shift <> [] then  // 有操作时判断，不在当前激活Data上时不操作(如鼠标由页面划选到页脚时不再继续找选中结束位置)
@@ -1279,7 +1276,7 @@ begin
 
   GCursor := GetCursor;
 
-  if FActiveData <> nil then
+  //if FActiveData <> nil then
     FActiveData.MouseMove(Shift, vX, vY);
 end;
 
@@ -1305,7 +1302,7 @@ begin
     vY := vY + GetPageDataFmtTop(vPageIndex);
   end;
 
-  if FActiveData <> nil then
+  //if FActiveData <> nil then
   begin
     // RectItem的缩放在MouseUp中处理，所以需要判断是否需要改变
     if FActiveData.SelectedResizing then
@@ -1348,9 +1345,9 @@ procedure THCSection.PaintPage(const APageIndex, ALeft, ATop,
   ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 var
   vHeaderAreaHeight, vMarginLeft, vMarginRight,
-  vPageDrawLeft, vPageDrawRight, vPageDrawTop, vPageDrawBottom,
-  //vPageScreenTop, vPageScreenBottom,
-  vPageDataScreenTop, vPageDataScreenBottom: Integer;
+  vPageDrawLeft, vPageDrawRight, vPageDrawTop, vPageDrawBottom,  // 页区域各位置
+  vPageDataScreenTop, vPageDataScreenBottom  // 页数据屏幕位置
+    : Integer;
 
   vSectionPageStart,  // 节的第一页在全文中起始序号
   vAllPageCount: Integer;  // 全文总页数
@@ -1704,6 +1701,7 @@ var
 
 var
   i, vPrioDrawItemNo: Integer;
+  vPage: THCPage;
 begin
   if AStartItemNo > 0 then
     vPrioDrawItemNo := FPageData.GetItemLastDrawItemNo(AStartItemNo - 1)  // 上一个最后的DItem
@@ -1718,8 +1716,9 @@ begin
   begin
     for i := FPages.Count - 1 downto 0 do  // 对于跨页的，按最后位置所在页，所以倒序
     begin
-      if (vPrioDrawItemNo >= FPages[i].StartDrawItemNo)
-        and (vPrioDrawItemNo <= FPages[i].EndDrawItemNo)
+      vPage := FPages[i];
+      if (vPrioDrawItemNo >= vPage.StartDrawItemNo)
+        and (vPrioDrawItemNo <= vPage.EndDrawItemNo)
       then  // 因为可能有跨页，所以需要判断起始结束都满足
       begin
         vPageIndex := i;
@@ -1776,7 +1775,7 @@ begin
   BuildSectionPages(0);
 
   FStyle.UpdateInfoRePaint;
-  FStyle.UpdateInfoReCaret;
+  FStyle.UpdateInfoReCaret(False);
 
   DoDataChanged(Self);
 end;
@@ -1849,23 +1848,9 @@ end;
 
 function THCSection.SelectExists: Boolean;
 begin
-  Result := False;
-  if FActiveData <> nil then
+  //Result := False;
+  //if FActiveData <> nil then
     Result := FActiveData.SelectExists
-end;
-
-procedure THCSection.SetGetCreateDomainItem(const Value: TGetCreateDomainItem);
-begin
-  FHeader.OnGetCreateDomainItem := Value;
-  FPageData.OnGetCreateDomainItem := Value;
-  FFooter.OnGetCreateDomainItem := Value;
-end;
-
-procedure THCSection.SetGetCreateTextItem(const Value: TGetCreateTextItem);
-begin
-  FHeader.OnGetCreateTextItem := Value;
-  FPageData.OnGetCreateTextItem := Value;
-  FFooter.OnGetCreateTextItem := Value;
 end;
 
 procedure THCSection.SetHeaderOffset(const Value: Integer);

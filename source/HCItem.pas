@@ -53,7 +53,7 @@ type
     procedure SetActive(const Value: Boolean); virtual;
     function GetLength: Integer; virtual;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-      const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
   public
     constructor Create; virtual;
@@ -68,7 +68,7 @@ type
     /// <param name="ADataScreenTop"></param>
     /// <param name="ADataScreenBottom"></param>
     procedure PaintTo(const AStyle: THCStyle; const ADrawRect: TRect;
-      const APageDataDrawBottom, APageDataScreenTop, APageDataScreenBottom: Integer;
+      const APageDataDrawTop, APageDataDrawBottom, APageDataScreenTop, APageDataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual; final;  // 不可继承
 
     procedure PaintTop(const ACanvas: TCanvas); virtual;
@@ -178,7 +178,7 @@ begin
 end;
 
 procedure THCCustomItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
 end;
@@ -250,15 +250,15 @@ begin
 end;
 
 procedure THCCustomItem.PaintTo(const AStyle: THCStyle; const ADrawRect: TRect;
-  const APageDataDrawBottom, APageDataScreenTop, APageDataScreenBottom: Integer;
+  const APageDataDrawTop, APageDataDrawBottom, APageDataScreenTop, APageDataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vDCState: Integer;
 begin
   vDCState := Windows.SaveDC(ACanvas.Handle);
   try
-    DoPaint(AStyle, ADrawRect, APageDataDrawBottom, APageDataScreenTop,
-      APageDataScreenBottom, ACanvas, APaintInfo);
+    DoPaint(AStyle, ADrawRect, APageDataDrawTop, APageDataDrawBottom,
+      APageDataScreenTop, APageDataScreenBottom, ACanvas, APaintInfo);
   finally
     Windows.RestoreDC(ACanvas.Handle, vDCState);
     ACanvas.Refresh;  // 恢复Pen的修改

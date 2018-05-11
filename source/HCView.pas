@@ -48,6 +48,7 @@ type
   THCView = class(TCustomControl)
   private
     { Private declarations }
+    FFileName: string;
     FStyle: THCStyle;
     FSections: TObjectList<THCSection>;
     FHScrollBar: THCScrollBar;
@@ -71,8 +72,6 @@ type
     FOnItemPaintAfter, FOnItemPaintBefor: TItemPaintEvent;
 
     FOnPaintHeader, FOnPaintFooter, FOnPaintData: TSectionPagePaintEvent;
-    FOnGetCreateDomainItem: TGetCreateDomainItem;
-    FOnGetCreateTextItem: TGetCreateTextItem;
     FOnChange, FOnChangedSwitch: TNotifyEvent;
     FOnPaintPage: TSectionPagePaintEvent;
     //
@@ -85,6 +84,9 @@ type
       var ScrollPos: Integer);
     //
     function NewDefaultSection: THCSection;
+
+    /// <summary> 全部清空(因清除了各节各部件所的Item，所以只当前类私用) </summary>
+    procedure Clear;
 
     /// <summary> 重新获取光标位置 </summary>
     procedure ReBuildCaret(const AScrollBar: Boolean = False);
@@ -174,6 +176,7 @@ type
     procedure WMGetDlgCode(var Message: TWMGetDlgCode); message WM_GETDLGCODE;
     procedure WMERASEBKGND(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
     procedure WMLButtonDblClk(var Message: TWMLButtonDblClk); message WM_LBUTTONDBLCLK;
+    procedure WMSetFocus(var Message: TWMSetFocus); message WM_SETFOCUS;
     procedure WMKillFocus(var Message: TWMKillFocus); message WM_KILLFOCUS;
 
     // 接收输入法输入的内容
@@ -195,8 +198,6 @@ type
     procedure SetOnInsertItem(const Value: TItemNotifyEvent);
     procedure SetOnItemPaintAfter(const Value: TItemPaintEvent);
     procedure SetOnItemPaintBefor(const Value: TItemPaintEvent);
-    procedure SetOnGetCreateDomainItem(const Value: TGetCreateDomainItem);
-    procedure SetOnGetCreateTextItem(const Value: TGetCreateTextItem);
 
     function GetOnReadOnlySwitch: TNotifyEvent;
     procedure SetOnReadOnlySwitch(const Value: TNotifyEvent);
@@ -213,7 +214,9 @@ type
 
     /// <summary> 修改纸张边距 </summary>
     procedure ReMarginPaper;
-    procedure Clear;
+
+    /// <summary> 全部清空但添加空文本Item </summary>
+    procedure ClearData;
     procedure DisSelect;
     procedure DeleteSelected;
     procedure DeleteSection;
@@ -257,7 +260,6 @@ type
     procedure BeginUpdate;
     procedure EndUpdate;
     //
-    procedure GetCurStyle(var AStyleNo, AParaNo: Integer);
     function GetCurItem: THCCustomItem;
     function GetActiveItem: THCCustomItem;
     function GetActiveDrawItem: THCCustomDrawItem;
@@ -295,6 +297,7 @@ type
     function PrintPageRang(const AStartPageNo, AEndPageNo: Integer): TPrintResult;
     function MergeTableSelectCells: Boolean;
     //
+    property FileName: string read FFileName write FFileName;
     property Style: THCStyle read FStyle;
 
     /// <summary> 是否对称边距 </summary>
@@ -337,8 +340,6 @@ type
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnChangedSwitch: TNotifyEvent read FOnChangedSwitch write FOnChangedSwitch;
     property OnReadOnlySwitch: TNotifyEvent read GetOnReadOnlySwitch write SetOnReadOnlySwitch;
-    property OnGetCreateDomainItem: TGetCreateDomainItem read FOnGetCreateDomainItem write SetOnGetCreateDomainItem;
-    property OnGetCreateTextItem: TGetCreateTextItem read FOnGetCreateTextItem write SetOnGetCreateTextItem;
     property PopupMenu;
   end;
 
@@ -421,6 +422,7 @@ begin
   begin
     FStyle.UpdateInfo.ReCaret := False;
     ReBuildCaret(AScrollBar);
+    FStyle.UpdateInfo.ReStyle := False;
     UpdateImmPosition;
   end;
 
@@ -436,6 +438,18 @@ begin
   FSections.DeleteRange(1, FSections.Count - 1);
   FSections[0].Clear;
   FStyle.Initialize;
+  FHScrollBar.Position := 0;
+  FVScrollBar.Position := 0;
+end;
+
+procedure THCView.ClearData;
+begin
+  Clear;
+
+  FSections[0].SetEmptyData;
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret;
+  CheckUpdateInfo(True);
 end;
 
 procedure THCView.Copy;
@@ -482,6 +496,7 @@ constructor THCView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   //
+  FFileName := '未命名';
   FIsChanged := False;
   FZoom := 1;
   FShowAnnotation := False;
@@ -535,8 +550,8 @@ begin
     FActiveSectionIndex := FActiveSectionIndex - 1;
     FDisplayFirstSection := -1;
     FDisplayLastSection := -1;
-    FStyle.UpdateInfoReCaret;
     FStyle.UpdateInfoRePaint;
+    FStyle.UpdateInfoReCaret;
 
     DoChange;
   end;
@@ -779,8 +794,8 @@ begin
   for i := 0 to Sections.Count - 1 do
     Sections[i].FormatData;
 
-  FStyle.UpdateInfoReCaret;
   FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret;
   DoMapChanged;
 end;
 
@@ -810,11 +825,6 @@ begin
   Result := ActiveSection.GetCurItem;
 end;
 
-procedure THCView.GetCurStyle(var AStyleNo, AParaNo: Integer);
-begin
-  ActiveSection.GetCurStyle(AStyleNo, AParaNo);
-end;
-
 procedure THCView.GetSectionByCrood(const X, Y: Integer;
   var ASectionIndex: Integer);
 var
@@ -831,6 +841,10 @@ begin
       Break;
     end;
   end;
+  if (ASectionIndex < 0) and (vY + MinPadding >= Y) then  // 最后一页后面的Padding
+    ASectionIndex := FSections.Count - 1;
+
+  Assert(ASectionIndex >= 0, '没有获取到正确的节序号！');
 end;
 
 function THCView.GetSectionDrawLeft(const ASectionNo: Integer): Integer;
@@ -910,8 +924,8 @@ begin
   FSections.Insert(FActiveSectionIndex + 1, vSection);
   FActiveSectionIndex := FActiveSectionIndex + 1;
   Result := True;
-  FStyle.UpdateInfoReCaret;
   FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret;
   DoChange;
 end;
 
@@ -1227,15 +1241,13 @@ begin
   Result.OnPaintFooter := FOnPaintFooter;
   Result.OnPaintData := FOnPaintData;
   Result.OnPaintPage := DoPaintPage;
-  Result.OnGetCreateDomainItem := FOnGetCreateDomainItem;
-  Result.OnGetCreateTextItem := FOnGetCreateTextItem;
 end;
 
 procedure THCView.DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
     var ScrollPos: Integer);
 begin
-  FStyle.UpdateInfoReCaret;
   FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo(True);
   if Assigned(FOnVerScroll) then
     FOnVerScroll(Self);
@@ -1335,7 +1347,7 @@ begin
 
   if Printer.PrinterIndex >= 0 then
   begin
-    //Printer.Title := FFileName;
+    Printer.Title := FFileName;
     Result := PrintPageRang(1, PageCount);
   end;
 end;
@@ -1466,11 +1478,9 @@ var
   vCaretInfo: TCaretInfo;
   vDisplayHeight: Integer;
 begin
-  if not Self.Focused then Exit;
-
   if FCaret = nil then Exit;
 
-  if (not Style.UpdateInfo.Draging) and ActiveSection.SelectExists then
+  if (not Self.Focused) or ((not Style.UpdateInfo.Draging) and ActiveSection.SelectExists) then
   begin
     FCaret.Hide;
     Exit;
@@ -1534,9 +1544,9 @@ procedure THCView.Resize;
 begin
   inherited;
   FDataBmp.SetSize(GetDisplayWidth, GetDisplayHeight);
-  if FCaret <> nil then
-    FStyle.UpdateInfoReCaret;
   FStyle.UpdateInfoRePaint;
+  if FCaret <> nil then
+    FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo;
 end;
 
@@ -1673,24 +1683,6 @@ begin
     FSections[i].OnCreateItem := Value;
 end;
 
-procedure THCView.SetOnGetCreateDomainItem(const Value: TGetCreateDomainItem);
-var
-  i: Integer;
-begin
-  FOnGetCreateDomainItem := Value;
-  for i := 0 to FSections.Count - 1 do
-    FSections[i].OnGetCreateDomainItem := FOnGetCreateDomainItem;
-end;
-
-procedure THCView.SetOnGetCreateTextItem(const Value: TGetCreateTextItem);
-var
-  i: Integer;
-begin
-  FOnGetCreateTextItem := Value;
-  for i := 0 to FSections.Count - 1 do
-    FSections[i].OnGetCreateTextItem := FOnGetCreateTextItem;
-end;
-
 procedure THCView.SetOnInsertItem(const Value: TItemNotifyEvent);
 var
   i: Integer;
@@ -1776,8 +1768,8 @@ begin
       FAnnotations := TAnnotations.Create;
 
     FShowAnnotation := Value;
-    FStyle.UpdateInfoReCaret;
     FStyle.UpdateInfoRePaint;
+    FStyle.UpdateInfoReCaret(False);
     DoMapChanged;
   end;
 end;
@@ -1817,8 +1809,8 @@ begin
   if ActiveSection.SymmetryMargin <> Value then
   begin
     ActiveSection.SymmetryMargin := Value;
-    FStyle.UpdateInfoReCaret;
     FStyle.UpdateInfoRePaint;
+    FStyle.UpdateInfoReCaret(False);
     DoMapChanged;
   end;
 end;
@@ -1836,8 +1828,8 @@ begin
   begin
     Self.SetFocus;
     FZoom := Value;
-    FStyle.UpdateInfoReCaret;
     FStyle.UpdateInfoRePaint;
+    FStyle.UpdateInfoReCaret(False);
     DoMapChanged;
   end;
 end;
@@ -1976,7 +1968,7 @@ begin
             vOffsetY, vDisplayWidth, vDisplayHeight, FZoom, FDataBmp.Canvas, vPaintInfo);
         end;
 
-        for i := 0 to vPaintInfo.TopItems.Count - 1 do
+        for i := 0 to vPaintInfo.TopItems.Count - 1 do  // 绘制顶层Item
           vPaintInfo.TopItems[i].PaintTop(FDataBmp.Canvas);
       finally
         vPaintInfo.Free;
@@ -1986,7 +1978,7 @@ begin
     end;
 
     BitBlt(Canvas.Handle, 0, 0, vDisplayWidth, vDisplayHeight, FDataBmp.Canvas.Handle, 0, 0, SRCCOPY);
-    InvalidateRect(Handle, ClientRect, False);  // 通知Edit只更新变动区域，防止闪烁，解决BitBlt光标滞留问题
+    InvalidateRect(Handle, Bounds(0, 0, vDisplayWidth, vDisplayHeight), False);  // 只更新变动区域，防止闪烁，解决BitBlt光标滞留问题
   end;
 end;
 
@@ -2091,13 +2083,23 @@ end;
 procedure THCView.WMKillFocus(var Message: TWMKillFocus);
 begin
   inherited;
-  ActiveSection.KillFocus;
+  //if Message.FocusedWnd <> Self.Handle then
+  begin
+    FCaret.Hide;
+    ActiveSection.KillFocus;
+  end;
 end;
 
 procedure THCView.WMLButtonDblClk(var Message: TWMLButtonDblClk);
 begin
   inherited;
   //ActiveSection.DblClick(Message.XPos, Message.YPos);  // 双击也放到MouseDown中了
+end;
+
+procedure THCView.WMSetFocus(var Message: TWMSetFocus);
+begin
+  inherited;
+  ReBuildCaret;
 end;
 
 procedure THCView.WndProc(var Message: TMessage);

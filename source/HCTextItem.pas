@@ -17,6 +17,8 @@ uses
   Windows, Classes, SysUtils, Graphics, HCStyle, HCItem;
 
 type
+  THCTextItemClass = class of THCTextItem;
+
   THCTextItem = class(THCCustomItem)
   private
     FText: string;
@@ -40,6 +42,9 @@ type
     function GetTextPart(const AStartOffs, ALength: Integer): string;
   end;
 
+var
+  HCDefaultTextItemClass: THCTextItemClass = THCTextItem;
+
 implementation
 
 uses
@@ -51,7 +56,6 @@ constructor THCTextItem.CreateByText(const AText: string);
 begin
   Create;  // 这里如果 inherited Create; 则调用THCCustomItem的Create，子类TEmrTextItem调用CreateByText时不能执行自己的Create
   FText := AText;
-  StyleNo := THCStyle.RsNull;  // 默认无样式
 end;
 
 procedure THCTextItem.Assign(Source: THCCustomItem);

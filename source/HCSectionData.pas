@@ -42,7 +42,6 @@ type
       const AFileVersion: Word): Boolean; override;
   public
     constructor Create(const AStyle: THCStyle); override;
-    function DisSelect: Boolean; override;
     function InsertPageBreak: Boolean;
     //
     // ±£´æ
@@ -73,11 +72,6 @@ begin
   FShowLineActiveMark := False;
   FShowUnderLine := False;
   FShowLineNo := False;
-end;
-
-function THCSectionData.DisSelect: Boolean;
-begin
-  Result := inherited DisSelect;
 end;
 
 procedure THCSectionData.SaveToStream(const AStream: TStream);
@@ -122,7 +116,9 @@ begin
   begin
     {$IFDEF SHOWITEMNO}
     DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr(DrawItems[ADrawItemIndex].ItemNo));
-    {$ELSE}
+    {$ENDIF}
+
+    {$IFDEF SHOWDRAWITEMNO}
     DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr(ADrawItemIndex));
     {$ENDIF}
   end;

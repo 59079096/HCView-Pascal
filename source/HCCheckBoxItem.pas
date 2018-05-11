@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem, HCStyle,
-  HCCommon;
+  HCCustomData, HCCommon;
 
 type
   TCheckBoxItem = class(THCTextRectItem)
@@ -28,9 +28,9 @@ type
     //
     procedure MouseEnter; override;
     procedure MouseLeave; override;
-    procedure FormatToDrawItem(const AStyle: THCStyle); override;
+    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-      const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -50,11 +50,15 @@ implementation
 uses
   Math;
 
+const
+  CheckBoxSize = 14;
+  BoxSpliter = 2;
+
 { TCheckBoxItem }
 
 function TCheckBoxItem.GetBoxRect: TRect;
 begin
-  Result := Classes.Bounds(2, (Height - 16) div 2, 16, 16)
+  Result := Classes.Bounds(BoxSpliter, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize)
 end;
 
 constructor TCheckBoxItem.Create(const ATextStyleNo: Integer; const AText: string;
@@ -69,14 +73,14 @@ begin
 end;
 
 procedure TCheckBoxItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vBoxRect: TRect;
 begin
   inherited;
   vBoxRect := GetBoxRect;
-  OffsetRect(vBoxRect, ADrawRect.Left + 2, ADrawRect.Top);
+  OffsetRect(vBoxRect, ADrawRect.Left, ADrawRect.Top);
 
   if Self.IsSelectComplate then
   begin
@@ -84,11 +88,12 @@ begin
     ACanvas.FillRect(ADrawRect);
   end;
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
-  ACanvas.TextOut(ADrawRect.Left + 2 + 16 + 2, ADrawRect.Top + (Height - ACanvas.TextHeight('×Ö')) div 2 + 1, FText);
+  ACanvas.TextOut(ADrawRect.Left + BoxSpliter + CheckBoxSize + BoxSpliter,
+    ADrawRect.Top + (Height - ACanvas.TextHeight('×Ö')) div 2 + 1, FText);
 
   if FChecked then  // ¹´Ñ¡
   begin
-    ACanvas.Font.Size := 12;
+    ACanvas.Font.Size := 10;
     ACanvas.TextOut(vBoxRect.Left, vBoxRect.Top, '¡Ì');
   end;
 
@@ -107,14 +112,15 @@ begin
   end;
 end;
 
-procedure TCheckBoxItem.FormatToDrawItem(const AStyle: THCStyle);
+procedure TCheckBoxItem.FormatToDrawItem(const ARichData: THCCustomData;
+  const AItemNo: Integer);
 var
   vSize: TSize;
 begin
-  AStyle.TextStyles[TextStyleNo].ApplyStyle(AStyle.DefCanvas);
-  vSize := AStyle.DefCanvas.TextExtent(FText);
-  Width := vSize.cx + 16 + 6;  // ¼ä¾à2 + 2 + 2
-  Height := Max(vSize.cy, 16) + AStyle.ParaStyles[ParaNo].LineSpace;
+  ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
+  vSize := ARichData.Style.DefCanvas.TextExtent(FText);
+  Width := BoxSpliter + CheckBoxSize + BoxSpliter + vSize.cx;  // ¼ä¾à
+  Height := Max(vSize.cy, CheckBoxSize) + ARichData.Style.ParaStyles[ParaNo].LineSpace;
 end;
 
 procedure TCheckBoxItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

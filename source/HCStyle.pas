@@ -23,8 +23,9 @@ type
     // 以下字段，仅在需要为True时赋值，不可使用 RePaint := A <> B的形式，防止将其他处修改的True覆盖
     RePaint: Boolean;  // 所有参数只能写赋值为True的代码，不能赋值为多个变量的与、或、非
     //ReSized: Boolean;  // Item有大小改变，只在TCustomRichData.MouseUp中判断
-    ReCaret: Boolean;
-    Draging: Boolean;  // 仅为了处理光标状态
+    ReCaret,  // 重新计算光标
+    ReStyle,  // 重新计算光标时获取光标处样式
+    Draging: Boolean;
     constructor Create;
   end;
 
@@ -66,7 +67,8 @@ type
     destructor Destroy; override;
     procedure Initialize;
     procedure UpdateInfoRePaint;
-    procedure UpdateInfoReCaret;
+    procedure UpdateInfoReStyle;
+    procedure UpdateInfoReCaret(const ACaretStyle: Boolean = True);
     function AddTextStyle(const ATextStyle: TTextStyle): Integer;
     /// <summary>
     /// 创建一个新字体样式
@@ -286,7 +288,7 @@ begin
   vEndPos := AStream.Position;
   AStream.Position := vBegPos;
   vBegPos := vEndPos - vBegPos - SizeOf(vBegPos);
-  AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 当前节数据大小
+  AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 样式数据总大小
   AStream.Position := vEndPos;
 end;
 
@@ -299,14 +301,21 @@ begin
   end;
 end;
 
-procedure THCStyle.UpdateInfoReCaret;
+procedure THCStyle.UpdateInfoReCaret(const ACaretStyle: Boolean = True);
 begin
   FUpdateInfo.ReCaret := True;
+  if ACaretStyle then
+    FUpdateInfo.ReStyle := True;
 end;
 
 procedure THCStyle.UpdateInfoRePaint;
 begin
   FUpdateInfo.RePaint := True;
+end;
+
+procedure THCStyle.UpdateInfoReStyle;
+begin
+  FUpdateInfo.ReStyle := True;
 end;
 
 function THCStyle.NewDefaultParaStyle: Integer;
@@ -322,9 +331,9 @@ end;
 constructor TUpdateInfo.Create;
 begin
   RePaint := False;
-  Draging := False;
   ReCaret := False;
-  //Selecting := False;
+  ReStyle := False;
+  Draging := False;
 end;
 
 end.

@@ -17,7 +17,10 @@ uses
   Classes, Graphics;
 
 type
-  TParaAlignHorz = (pahLeft, pahRight, pahCenter, pahJustify, pahScatter); { 段对齐方式：左、右、居中、两端、分散)}
+  /// <summary> 段水平对齐方式：左、右、居中、两端、分散) </summary>
+  TParaAlignHorz = (pahLeft, pahRight, pahCenter, pahJustify, pahScatter);
+
+  /// <summary> 段垂直对齐方式：下、居中、上) </summary>
   TParaAlignVert = (pavBottom, pavCenter, pavTop);
 
   TParaStyle = class(TPersistent)
@@ -72,8 +75,8 @@ begin
   FFristIndent := 0;
   FLeftIndent := 0;
   FBackColor := clSilver;
-  FAlignHorz := TParaAlignHorz.pahJustify; // paLeft
-  FAlignVert := TParaAlignVert.pavBottom;
+  FAlignHorz := TParaAlignHorz.pahJustify;
+  FAlignVert := TParaAlignVert.pavCenter;
 end;
 
 destructor TParaStyle.Destroy;

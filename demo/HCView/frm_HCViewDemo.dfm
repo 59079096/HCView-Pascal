@@ -1,7 +1,7 @@
-object frmEmrView: TfrmEmrView
+object frmHCViewDemo: TfrmHCViewDemo
   Left = 0
   Top = 0
-  Caption = 'EmrView'
+  Caption = 'HCViewDemo'
   ClientHeight = 774
   ClientWidth = 874
   Color = clBtnFace
@@ -38,21 +38,28 @@ object frmEmrView: TfrmEmrView
       ImageIndex = 6
       OnClick = mniOpenClick
     end
-    object btnSave: TToolButton
+    object btnNew: TToolButton
       Left = 24
+      Top = 0
+      Caption = 'btnNew'
+      ImageIndex = 5
+      OnClick = btnNewClick
+    end
+    object btnSave: TToolButton
+      Left = 48
       Top = 0
       ImageIndex = 7
       OnClick = mniSaveClick
     end
     object btnprint: TToolButton
-      Left = 48
+      Left = 72
       Top = 0
       Caption = 'btnprint'
       ImageIndex = 8
       OnClick = btnprintClick
     end
     object btn3: TToolButton
-      Left = 72
+      Left = 96
       Top = 0
       Width = 8
       Caption = 'btn3'
@@ -60,7 +67,7 @@ object frmEmrView: TfrmEmrView
       Style = tbsSeparator
     end
     object cbbZoom: TComboBox
-      Left = 80
+      Left = 104
       Top = 0
       Width = 63
       Height = 21
@@ -79,7 +86,7 @@ object frmEmrView: TfrmEmrView
         '500')
     end
     object btnAnnotation: TToolButton
-      Left = 143
+      Left = 167
       Top = 0
       Hint = #25209#27880
       Caption = #25209#27880
@@ -87,7 +94,7 @@ object frmEmrView: TfrmEmrView
       OnClick = btnAnnotationClick
     end
     object btnSymmetryMargin: TToolButton
-      Left = 167
+      Left = 191
       Top = 0
       Hint = #23545#31216#39029#36793#36317
       Caption = 'btnSymmetryMargin'
@@ -95,7 +102,7 @@ object frmEmrView: TfrmEmrView
       OnClick = btnSymmetryMarginClick
     end
     object ToolButton1: TToolButton
-      Left = 191
+      Left = 215
       Top = 0
       Width = 8
       Caption = 'ToolButton1'
@@ -103,7 +110,7 @@ object frmEmrView: TfrmEmrView
       Style = tbsSeparator
     end
     object cbbFont: TComboBox
-      Left = 199
+      Left = 223
       Top = 0
       Width = 65
       Height = 21
@@ -113,7 +120,7 @@ object frmEmrView: TfrmEmrView
       OnChange = cbbFontChange
     end
     object btn1: TToolButton
-      Left = 264
+      Left = 288
       Top = 0
       Width = 8
       Caption = 'btn1'
@@ -121,7 +128,7 @@ object frmEmrView: TfrmEmrView
       Style = tbsSeparator
     end
     object cbbFontSize: TComboBox
-      Left = 272
+      Left = 296
       Top = 0
       Width = 51
       Height = 21
@@ -146,7 +153,7 @@ object frmEmrView: TfrmEmrView
         #23567#20116)
     end
     object cbbBackColor: TColorBox
-      Left = 323
+      Left = 347
       Top = 0
       Width = 73
       Height = 22
@@ -154,7 +161,7 @@ object frmEmrView: TfrmEmrView
       OnChange = cbbBackColorChange
     end
     object cbbFontColor: TColorBox
-      Left = 396
+      Left = 420
       Top = 0
       Width = 73
       Height = 22
@@ -162,7 +169,7 @@ object frmEmrView: TfrmEmrView
       OnChange = cbbFontColorChange
     end
     object btnBold: TToolButton
-      Left = 469
+      Left = 493
       Top = 0
       Caption = 'btnBold'
       ImageIndex = 13
@@ -170,7 +177,7 @@ object frmEmrView: TfrmEmrView
     end
     object btnItalic: TToolButton
       Tag = 1
-      Left = 493
+      Left = 517
       Top = 0
       Caption = 'btnItalic'
       ImageIndex = 14
@@ -178,7 +185,7 @@ object frmEmrView: TfrmEmrView
     end
     object btnUnderLine: TToolButton
       Tag = 2
-      Left = 517
+      Left = 541
       Top = 0
       Caption = 'btnUnderLine'
       ImageIndex = 15
@@ -186,7 +193,7 @@ object frmEmrView: TfrmEmrView
     end
     object btnStrikeOut: TToolButton
       Tag = 3
-      Left = 541
+      Left = 565
       Top = 0
       Caption = 'btnStrikeOut'
       ImageIndex = 16
@@ -194,7 +201,7 @@ object frmEmrView: TfrmEmrView
     end
     object btnSuperScript: TToolButton
       Tag = 4
-      Left = 565
+      Left = 589
       Top = 0
       Caption = 'btnSuperScript'
       ImageIndex = 11
@@ -202,14 +209,14 @@ object frmEmrView: TfrmEmrView
     end
     object btnSubScript: TToolButton
       Tag = 5
-      Left = 589
+      Left = 613
       Top = 0
       Caption = 'btnSubScript'
       ImageIndex = 12
       OnClick = btnBoldClick
     end
     object btn2: TToolButton
-      Left = 613
+      Left = 637
       Top = 0
       Width = 8
       Caption = 'btn2'
@@ -217,7 +224,7 @@ object frmEmrView: TfrmEmrView
       Style = tbsSeparator
     end
     object btnAlignLeft: TToolButton
-      Left = 621
+      Left = 645
       Top = 0
       Hint = #24038#23545#40784
       Caption = 'btnAlignLeft'
@@ -226,7 +233,7 @@ object frmEmrView: TfrmEmrView
     end
     object btnAlignCenter: TToolButton
       Tag = 1
-      Left = 645
+      Left = 669
       Top = 0
       Hint = #23621#20013#23545#40784
       Caption = 'btnAlignCenter'
@@ -235,7 +242,7 @@ object frmEmrView: TfrmEmrView
     end
     object btnAlignRight: TToolButton
       Tag = 2
-      Left = 669
+      Left = 693
       Top = 0
       Hint = #21491#23545#40784
       Caption = 'btnAlignRight'
@@ -244,7 +251,7 @@ object frmEmrView: TfrmEmrView
     end
     object btnAlignJustify: TToolButton
       Tag = 3
-      Left = 693
+      Left = 717
       Top = 0
       Hint = #20004#31471#23545#40784
       Caption = 'btnAlignJustify'
@@ -253,14 +260,14 @@ object frmEmrView: TfrmEmrView
     end
     object btnAlignScatter: TToolButton
       Tag = 4
-      Left = 717
+      Left = 741
       Top = 0
       Hint = #20998#25955#23545#40784
       ImageIndex = 4
       OnClick = btnAlignLeftClick
     end
     object btnLineSpace: TToolButton
-      Left = 741
+      Left = 765
       Top = 0
       Caption = 'btnLineSpace'
       DropdownMenu = pmLineSpace
@@ -268,7 +275,7 @@ object frmEmrView: TfrmEmrView
       Style = tbsDropDown
     end
     object btn9: TToolButton
-      Left = 782
+      Left = 806
       Top = 0
       Width = 8
       Caption = 'btn9'
@@ -276,20 +283,20 @@ object frmEmrView: TfrmEmrView
       Style = tbsSeparator
     end
     object btn10: TToolButton
-      Left = 790
+      Left = 814
       Top = 0
       Caption = 'btn10'
       ImageIndex = 18
       OnClick = btn10Click
     end
     object btn11: TToolButton
-      Left = 814
+      Left = 838
       Top = 0
       Caption = 'btn11'
       OnClick = btn11Click
     end
     object btn12: TToolButton
-      Left = 838
+      Left = 862
       Top = 0
       Width = 8
       Caption = 'btn12'
@@ -315,7 +322,7 @@ object frmEmrView: TfrmEmrView
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00340010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00500010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

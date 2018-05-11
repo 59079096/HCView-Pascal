@@ -17,17 +17,26 @@ uses
   Windows, Classes, Controls, Graphics, HCItem, HCDrawItem, HCTextStyle, HCParaStyle,
   HCStyleMatch, HCStyle, HCCommon, HCCustomData, HCDataCommon;
 
+const
+  /// <summary> 光标在RectItem前面 </summary>
+  OffsetBefor = 0;
+
+  /// <summary> 光标在RectItem区域内 </summary>
+  OffsetInner = 1;
+
+  /// <summary> 光标在RectItem后面 </summary>
+  OffsetAfter = 2;
+
 type
   THCCustomRectItem = class(THCCustomItem)
   strict private
-    FStyle: THCStyle;
     FWidth, FHeight: Integer;
     FTextWrapping: Boolean;  // 文本环绕
 
     // 标识内部高度是否发生了变化，用于此Item内部格式化时给其所属的Data标识需要重新格式化此Item
     // 如表格的一个单元格内容变化在没有引起表格整体变化时，不需要重新格式化表格，也不需要重新计算页数
     // 由拥有此Item的Data使用完后应该立即赋值为False，可参考TableItem.KeyPress的使用
-    FHeightChanged: Boolean;
+    FSizeChanged: Boolean;
   protected
     function GetWidth: Integer; virtual;
     procedure SetWidth(const Value: Integer); virtual;
@@ -44,7 +53,9 @@ type
     // 抽象方法，供继承
     function ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: TStyleMatch): Integer; virtual;
     procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: TParaMatch); virtual;
-    procedure FormatToDrawItem(const AStyle: THCStyle); virtual;
+
+    // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
+    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); virtual;
 
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer; virtual;
@@ -65,7 +76,6 @@ type
     function JustifySplit: Boolean; virtual;
     /// <summary> 更新光标位置 </summary>
     procedure GetCaretInfo(var ACaretInfo: TCaretInfo); virtual;
-    procedure GetCurStyle(var AStyleNo, AParaNo: Integer); virtual;
 
     /// <summary> 获取在指定高度内的结束位置处最下端(暂时没用到注释了) </summary>
     /// <param name="AHeight">指定的高度范围</param>
@@ -106,8 +116,10 @@ type
     property Width: Integer read GetWidth write SetWidth;
     property Height: Integer read GetHeight write SetHeight;
     property TextWrapping: Boolean read FTextWrapping write FTextWrapping;  // 文本环绕
-    property HeightChanged: Boolean read FHeightChanged write FHeightChanged;
+    property SizeChanged: Boolean read FSizeChanged write FSizeChanged;
   end;
+
+  THCDomainItemClass = class of THCDomainItem;
 
   THCDomainItem = class(THCCustomRectItem)  // 域
   private
@@ -117,7 +129,7 @@ type
     function GetOffsetAt(const X: Integer): Integer; override;
     function JustifySplit: Boolean; override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-      const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -163,7 +175,7 @@ type
     /// <summary> 获取坐标X、Y是否在选中区域中 </summary>
     function CoordInSelect(const X, Y: Integer): Boolean; override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-      const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure PaintTop(const ACanvas: TCanvas); override;
     // 继承THCCustomItem抽象方法
@@ -187,6 +199,9 @@ type
     property ResizeHeight: Integer read FResizeHeight;
     property CanResize: Boolean read FCanResize write FCanResize;
   end;
+
+var
+  HCDefaultDomainItemClass: THCDomainItemClass = THCDomainItem;
 
 implementation
 
@@ -235,7 +250,7 @@ begin
   FWidth := 100;   // 默认尺寸
   FHeight := 50;
   FTextWrapping := False;
-  FHeightChanged := False;
+  FSizeChanged := False;
 end;
 
 constructor THCCustomRectItem.Create(const AWidth, AHeight: Integer);
@@ -244,7 +259,7 @@ begin
   Width := AWidth;   // THCCustomRectItem.Create，而是子类自己的Create造成死循环
   Height := AHeight;
   FTextWrapping := False;
-  FHeightChanged := False;
+  FSizeChanged := False;
 end;
 
 function THCCustomRectItem.DeleteSelected: Boolean;
@@ -256,7 +271,8 @@ procedure THCCustomRectItem.DragNotify(const AFinish: Boolean);
 begin
 end;
 
-procedure THCCustomRectItem.FormatToDrawItem(const AStyle: THCStyle);
+procedure THCCustomRectItem.FormatToDrawItem(const ARichData: THCCustomData;
+  const AItemNo: Integer);
 begin
 end;
 
@@ -282,12 +298,6 @@ end;
 
 procedure THCCustomRectItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
 begin
-end;
-
-procedure THCCustomRectItem.GetCurStyle(var AStyleNo, AParaNo: Integer);
-begin
-  AStyleNo := Self.StyleNo;
-  AParaNo := Self.ParaNo;
 end;
 
 function THCCustomRectItem.ClearFormatExtraHeight: Integer;
@@ -438,7 +448,7 @@ begin
 end;
 
 procedure THCResizeRectItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   inherited;
@@ -683,7 +693,7 @@ begin
 end;
 
 procedure THCDomainItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   inherited;

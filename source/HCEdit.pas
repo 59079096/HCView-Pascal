@@ -338,8 +338,8 @@ end;
 procedure THCEdit.DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
   var ScrollPos: Integer);
 begin
-  FStyle.UpdateInfoReCaret;
   FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo(True);
 //  if Assigned(FOnVerScroll) then
 //    FOnVerScroll(Self);
@@ -628,9 +628,9 @@ begin
   inherited;
   FDataBmp.SetSize(GetDisplayWidth, GetDisplayHeight);
   FData.Width := FDataBmp.Width - MinPadding - MinPadding;
-  if FCaret <> nil then
-    FStyle.UpdateInfoReCaret;
   FStyle.UpdateInfoRePaint;
+  if FCaret <> nil then
+    FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo;
 end;
 
@@ -755,8 +755,8 @@ begin
           if vS <> '' then
           begin
             FData.InsertText(vS);
-            FStyle.UpdateInfoReCaret;
             FStyle.UpdateInfoRePaint;
+            FStyle.UpdateInfoReCaret;
             CheckUpdateInfo;
           end;
         end;

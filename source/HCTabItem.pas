@@ -21,9 +21,9 @@ type
   protected
     function JustifySplit: Boolean; override;
     function GetOffsetAt(const X: Integer): Integer; override;
-    procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect; const ADataDrawBottom,
-      ADataScreenTop, ADataScreenBottom: Integer; const ACanvas: TCanvas;
-      const APaintInfo: TPaintInfo); override;
+    procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
   public
     constructor Create(const AWidth, AHeight: Integer); override;
   end;
@@ -41,7 +41,7 @@ begin
 end;
 
 procedure TTabItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   inherited;

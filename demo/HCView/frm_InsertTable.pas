@@ -29,13 +29,25 @@ implementation
 
 procedure TfrmInsertTable.btnOkClick(Sender: TObject);
 var
-  vValue: Integer;
+  vRowCount, vColCount: Integer;
 begin
-  if not TryStrToInt(edtRows.Text, vValue) then
+  if not TryStrToInt(edtRows.Text, vRowCount) then
     ShowMessage('请输入正确的行数！')
   else
-  if not TryStrToInt(edtCols.Text, vValue) then
+  if not TryStrToInt(edtCols.Text, vColCount) then
     ShowMessage('请输入正确的列数！')
+  else
+  if vRowCount < 1 then
+    ShowMessage('行数至少为1！')
+  else
+  if vRowCount > 256 then
+    ShowMessage('行数不能超过256行！')
+  else
+  if vColCount < 1 then
+    ShowMessage('列数至少为1！')
+  else
+  if vColCount > 32 then
+    ShowMessage('列数不能超过32列！')
   else
     Self.ModalResult := mrOk;
 end;

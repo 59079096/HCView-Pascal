@@ -156,7 +156,16 @@ begin
     if FAppend then  // 添加
     begin
       if not (FFontStyle in vTextStyle.FontStyle) then
-        vTextStyle.FontStyle := vTextStyle.FontStyle + [FFontStyle]
+      begin
+        // 不能同时为上标和下标
+        if FFontStyle = TFontStyleEx.tsSuperscript then
+          vTextStyle.FontStyle := vTextStyle.FontStyle - [TFontStyleEx.tsSubscript]
+        else
+        if FFontStyle = TFontStyleEx.tsSubscript then
+          vTextStyle.FontStyle := vTextStyle.FontStyle - [TFontStyleEx.tsSuperscript];
+
+        vTextStyle.FontStyle := vTextStyle.FontStyle + [FFontStyle];
+      end
       else
         Exit(ACurStyleNo);
     end

@@ -30,15 +30,6 @@ const
   DontLineFirstChar = '`-=[]\;'',./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；‘，。、～！＠＃￥％……＆×（）——＋｛｝｜：“《》？°';
   DontLineLastChar = '/\＼';
 
-  /// <summary> 光标在RectItem前面 </summary>
-  OffsetBefor = 0;
-
-  /// <summary> 光标在RectItem区域内 </summary>
-  OffsetInner = 1;
-
-  /// <summary> 光标在RectItem后面 </summary>
-  OffsetAfter = 2;
-
 type
   TChangeProc = reference to function(): Boolean;
 
@@ -277,18 +268,27 @@ var
   i, vX, vCharWidth: Integer;
 begin
   Result := -1;
-  vX := 0;
-  for i := 1 to Length(AText) do  { TODO : 有空改为二分法更高效 }
+
+  if X < 0 then
+    Result := 0
+  else
+  if X > ACanvas.TextWidth(AText) then
+    Result := Length(AText)
+  else
   begin
-    vCharWidth := ACanvas.TextWidth(AText[i]);
-    vX := vX + vCharWidth;
-    if vX > X then  // 当前字符结束位置在X后
+    vX := 0;
+    for i := 1 to Length(AText) do  { TODO : 有空改为二分法更高效 }
     begin
-      if vX - vCharWidth div 2 > X then  // 点击在前半部分
-        Result := i - 1  // 计为前一个后面
-      else
-        Result := i;
-      Break;
+      vCharWidth := ACanvas.TextWidth(AText[i]);
+      vX := vX + vCharWidth;
+      if vX > X then  // 当前字符结束位置在X后
+      begin
+        if vX - vCharWidth div 2 > X then  // 点击在前半部分
+          Result := i - 1  // 计为前一个后面
+        else
+          Result := i;
+        Break;
+      end;
     end;
   end;
 end;

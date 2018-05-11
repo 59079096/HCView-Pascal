@@ -27,6 +27,19 @@ type
     procedure SetActive(const Value: Boolean);
   public
     //constructor Create; override;
+
+    /// <summary> 选在第一个Item最前面 </summary>
+    function SelectFirstItemOffsetBefor: Boolean;
+
+    /// <summary> 选在最后一个Item最后面 </summary>
+    function SelectLastItemOffsetAfter: Boolean;
+
+    /// <summary> 选在第一行 </summary>
+    function SelectFirstLine: Boolean;
+
+    /// <summary> 选在最后一行 </summary>
+    function SelectLastLine: Boolean;
+
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer;
     // 用于表格切换编辑的单元格
@@ -36,7 +49,7 @@ type
 implementation
 
 uses
-  HCRectItem, HCStyle; // debug用
+  HCRectItem, HCStyle, HCItem;
 
 { THCTableCellData }
 
@@ -75,6 +88,38 @@ begin
     Result := Result + DrawItems[0].Rect.Top;
 end;
 
+function THCTableCellData.SelectFirstItemOffsetBefor: Boolean;
+begin
+  Result := False;
+  if (not SelectExists) and (SelectInfo.StartItemNo = 0) then
+    Result := SelectInfo.StartItemOffset = 0;
+end;
+
+function THCTableCellData.SelectFirstLine: Boolean;
+begin
+  Result := Self.GetParaFirstItemNo(SelectInfo.StartItemNo) = 0;
+end;
+
+function THCTableCellData.SelectLastItemOffsetAfter: Boolean;
+var
+  vItem: THCCustomItem;
+begin
+  Result := False;
+  if (not SelectExists) and (SelectInfo.StartItemNo = Self.Items.Count - 1) then  // 最后一个
+  begin
+    vItem := Items[SelectInfo.StartItemNo];
+    if vItem.StyleNo < THCStyle.RsNull then
+      Result := SelectInfo.StartItemOffset = OffsetAfter
+    else
+      Result := SelectInfo.StartItemOffset = vItem.Length;
+  end;
+end;
+
+function THCTableCellData.SelectLastLine: Boolean;
+begin
+  Result := Self.GetParaLastItemNo(SelectInfo.StartItemNo) = Self.Items.Count - 1;
+end;
+
 procedure THCTableCellData.SetActive(const Value: Boolean);
 begin
   if FActive <> Value then
@@ -85,7 +130,7 @@ begin
     if Self.MouseDownItemNo >= 0 then
       Self.Items[Self.MouseDownItemNo].Active := False;
     Self.DisSelect;
-    Self.Initialize;
+    Self.InitializeField;
     Style.UpdateInfoRePaint;
   end;
 end;

@@ -75,9 +75,6 @@ procedure THCRichScrollBar.DoDrawThumBefor(const ACanvas: TCanvas;
 var
   i, vDrawTop, vDrawHeight: Integer;
 begin
-  Canvas.Brush.Style := bsSolid;
-  Canvas.Brush.Color := clBlue;
-
   case Self.Orientation of
     oriHorizontal:
       begin
@@ -86,6 +83,9 @@ begin
       begin
         if Assigned(FAreaMarks) then
         begin
+          ACanvas.Brush.Style := bsSolid;
+          ACanvas.Brush.Color := clBlue;
+
           for i := 0 to FAreaMarks.Count - 1 do
           begin
             vDrawTop := ButtonSize + Round(FAreaMarks[i].Position * Percent);

@@ -30,7 +30,7 @@ type
     FSize: Integer;
     FFamily: TFontName;
     FFontStyle: TFontStyleExs;
-    FColor: TColor;
+    FColor: TColor;  // ×ÖÌåÑÕÉ«
     FBackColor: TColor;
   protected
     procedure SetFamily(const Value: TFontName);

@@ -9,7 +9,7 @@ uses
   System.Actions, Vcl.ActnList;
 
 type
-  TfrmEmrView = class(TForm)
+  TfrmHCViewDemo = class(TForm)
     il1: TImageList;
     tlbFontSize: TToolBar;
     btnOpen: TToolButton;
@@ -88,6 +88,7 @@ type
     mniN31: TMenuItem;
     mniN32: TMenuItem;
     actlst: TActionList;
+    btnNew: TToolButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -131,6 +132,7 @@ type
     procedure mniN30Click(Sender: TObject);
     procedure mniN31Click(Sender: TObject);
     procedure mniN32Click(Sender: TObject);
+    procedure btnNewClick(Sender: TObject);
   private
     { Private declarations }
     FFileName: TFileName;
@@ -154,7 +156,7 @@ type
   end;
 
 var
-  frmEmrView: TfrmEmrView;
+  frmHCViewDemo: TfrmHCViewDemo;
 
 implementation
 
@@ -164,58 +166,135 @@ uses
 
 {$R *.dfm}
 
-procedure TfrmEmrView.btnSymmetryMarginClick(Sender: TObject);
+function GetVersionInfo: string;
+const
+  SNotAvailable = 'Value Not Available';
+var
+  vFilePath: string;
+  vLanguageID: string;
+  vCodePage: string;
+  vTranslationLength: Cardinal;
+  vTranslationTable: Pointer;
+  vInfoSize, vTemp, vLen: DWord;
+  vInfoBuf: Pointer;
+  vCompanyName, vFileDescription, vFileVersion, vInternalName, vLegalCopyright: string;
+  vLegalTradeMarks, vOriginalFilename, vProductName, vProductVersion, vComments: string;
+  vValue: PChar;
+  vLookupString: string;
+  vPathStz: array[ 0..MAX_PATH ] of Char;
+begin
+  Result := '';
+  GetModuleFileName(HInstance, vPathStz, SizeOf( vPathStz ) );
+  vFilePath := vPathStz;
+
+  vInfoSize := GetFileVersionInfoSize( PChar( vFilePath ), vTemp );
+
+  if vInfoSize > 0 then
+  begin
+    vInfoBuf := AllocMem( vInfoSize );
+    try
+      GetFileVersionInfo( PChar( vFilePath ), 0, vInfoSize, vInfoBuf );
+
+
+      if VerQueryValue( vInfoBuf, '\VarFileInfo\Translation', vTranslationTable, vTranslationLength ) then
+      begin
+        vCodePage := Format( '%.4x', [ HiWord( PLongInt( vTranslationTable )^ ) ] );
+        vLanguageID := Format( '%.4x', [ LoWord( PLongInt( vTranslationTable )^ ) ] );
+      end;
+
+      vLookupString := 'StringFileInfo\' + vLanguageID + vCodePage + '\';
+
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'CompanyName' ), Pointer( vValue ), vLen ) then
+        vCompanyName := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'FileDescription' ), Pointer( vValue ), vLen ) then
+        vFileDescription := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'FileVersion' ), Pointer( vValue ), vLen ) then
+        vFileVersion := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'InternalName' ), Pointer( vValue ), vLen ) then
+        vInternalName := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'LegalCopyright' ), Pointer( vValue ), vLen ) then
+        vLegalCopyright := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'LegalTrademarks' ), Pointer( vValue ), vLen ) then
+        vLegalTradeMarks := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'OriginalFilename' ), Pointer( vValue ), vLen ) then
+        vOriginalFilename := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'ProductName' ), Pointer( vValue ), vLen ) then
+        vProductName := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'ProductVersion' ), Pointer( vValue ), vLen ) then
+        vProductVersion := vValue;
+      if VerQueryValue( vInfoBuf, PChar( vLookupString + 'Comments' ), Pointer( vValue ), vLen ) then
+        vComments := vValue;
+    finally
+      FreeMem( vInfoBuf, vInfoSize );
+    end;
+  end
+  else
+  begin
+    vCompanyName := SNotAvailable;
+    vFileDescription := SNotAvailable;
+    vFileVersion := SNotAvailable;
+    vInternalName := SNotAvailable;
+    vLegalCopyright := SNotAvailable;
+    vLegalTrademarks := SNotAvailable;
+    vOriginalFilename := SNotAvailable;
+    vProductName := SNotAvailable;
+    vProductVersion := SNotAvailable;
+    vComments := SNotAvailable;
+  end;
+  Result := vFileVersion;
+end;
+
+procedure TfrmHCViewDemo.btnSymmetryMarginClick(Sender: TObject);
 begin
   FHCView.SymmetryMargin := not FHCView.SymmetryMargin;
 end;
 
-procedure TfrmEmrView.cbbFontSizeChange(Sender: TObject);
+procedure TfrmHCViewDemo.cbbFontSizeChange(Sender: TObject);
 begin
   FHCView.ApplyTextFontSize(GetFontSize(cbbFontSize.Text));
+  if not FHCView.Focused then
+    FHCView.SetFocus;
 end;
 
-procedure TfrmEmrView.cbbZoomChange(Sender: TObject);
+procedure TfrmHCViewDemo.cbbZoomChange(Sender: TObject);
 begin
   FHCView.Zoom := (StrToInt(cbbZoom.Text) / 100);
 end;
 
-procedure TfrmEmrView.cbbBackColorChange(Sender: TObject);
+procedure TfrmHCViewDemo.cbbBackColorChange(Sender: TObject);
 begin
   FHCView.ApplyTextBackColor(cbbBackColor.Selected);
 end;
 
-procedure TfrmEmrView.cbbFontChange(Sender: TObject);
+procedure TfrmHCViewDemo.cbbFontChange(Sender: TObject);
 begin
   FHCView.ApplyTextFontName(cbbFont.Text);
+  if not FHCView.Focused then
+    FHCView.SetFocus;
 end;
 
-procedure TfrmEmrView.cbbFontColorChange(Sender: TObject);
+procedure TfrmHCViewDemo.cbbFontColorChange(Sender: TObject);
 begin
   FHCView.ApplyTextColor(cbbFontColor.Selected);
+  if not FHCView.Focused then
+    FHCView.SetFocus;
 end;
 
-procedure TfrmEmrView.DoCanDelete(const Sender: THCCustomRichData;
+procedure TfrmHCViewDemo.DoCanDelete(const Sender: THCCustomRichData;
   const AItemNo, AItemOffs: Integer; var ACanDelete: Boolean);
 begin
 
 end;
 
-procedure TfrmEmrView.DoCaretChange(Sender: TObject);
-var
-  vStyleNo, vParaNo: Integer;
+procedure TfrmHCViewDemo.DoCaretChange(Sender: TObject);
 begin
   GetPagesAndActive;
-  FHCView.GetCurStyle(vStyleNo, vParaNo);
-  if vStyleNo < 0 then
-    //GStyle.CurStyleNo := 0
-  else
-    FHCView.Style.CurStyleNo := vStyleNo;
-  FHCView.Style.CurParaNo := vParaNo;
-  CurTextStyleChange(vStyleNo);
-  CurParaStyleChange(vParaNo);
+
+  CurTextStyleChange(FHCView.Style.CurStyleNo);
+  CurParaStyleChange(FHCView.Style.CurParaNo);
 end;
 
-procedure TfrmEmrView.DoItemLoaded(const AItem: THCCustomItem);
+procedure TfrmHCViewDemo.DoItemLoaded(const AItem: THCCustomItem);
 begin
   if AItem.StyleNo < THCStyle.RsNull then
 
@@ -224,7 +303,7 @@ begin
     AItem.Text := '张三';
 end;
 
-procedure TfrmEmrView.CurParaStyleChange(const ANewStyleNo: Integer);
+procedure TfrmHCViewDemo.CurParaStyleChange(const ANewStyleNo: Integer);
 var
   vAlignHorz: TParaAlignHorz;
 begin
@@ -240,7 +319,7 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.CurTextStyleChange(const ANewStyleNo: Integer);
+procedure TfrmHCViewDemo.CurTextStyleChange(const ANewStyleNo: Integer);
 begin
   if ANewStyleNo >= 0 then
   begin
@@ -252,31 +331,40 @@ begin
     btnStrikeOut.Down := tsStrikeOut in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
     btnSuperscript.Down := tsSuperscript in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
     btnSubscript.Down := tsSubscript in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
+  end
+  else
+  begin
+    btnBold.Down := False;
+    btnItalic.Down := False;
+    btnUnderline.Down := False;
+    btnStrikeOut.Down := False;
+    btnSuperscript.Down := False;
+    btnSubscript.Down := False;
   end;
 end;
 
-procedure TfrmEmrView.DoVerScroll(Sender: TObject);
+procedure TfrmHCViewDemo.DoVerScroll(Sender: TObject);
 begin
   GetPagesAndActive;
 end;
 
-procedure TfrmEmrView.DrawItemClick(Shift: TShiftState; X, Y, AItemNo,
+procedure TfrmHCViewDemo.DrawItemClick(Shift: TShiftState; X, Y, AItemNo,
   ADItemNo: Integer; ADrawRect: TRect);
 begin
-  Caption := 'X:' + IntToStr(X) + ' Y:' + IntToStr(Y)
-    + ' DItemNo:' + IntToStr(ADItemNo)
-    + ' DrawRect:' + IntToStr(ADrawRect.Left) + ','
-    + IntToStr(ADrawRect.Top) + ','
-    + IntToStr(ADrawRect.Right) + ','
-    + IntToStr(ADrawRect.Bottom);
+//  Caption := 'X:' + IntToStr(X) + ' Y:' + IntToStr(Y)
+//    + ' DItemNo:' + IntToStr(ADItemNo)
+//    + ' DrawRect:' + IntToStr(ADrawRect.Left) + ','
+//    + IntToStr(ADrawRect.Top) + ','
+//    + IntToStr(ADrawRect.Right) + ','
+//    + IntToStr(ADrawRect.Bottom);
 end;
 
-procedure TfrmEmrView.btnAnnotationClick(Sender: TObject);
+procedure TfrmHCViewDemo.btnAnnotationClick(Sender: TObject);
 begin
   FHCView.ShowAnnotation := not FHCView.ShowAnnotation;
 end;
 
-procedure TfrmEmrView.btnBoldClick(Sender: TObject);
+procedure TfrmHCViewDemo.btnBoldClick(Sender: TObject);
 begin
   case (Sender as TToolButton).Tag of
     0: FHCView.ApplyTextStyle(TFontStyleEx.tsBold);
@@ -288,22 +376,27 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.btnprintClick(Sender: TObject);
+procedure TfrmHCViewDemo.btnNewClick(Sender: TObject);
+begin
+  FHCView.ClearData;
+end;
+
+procedure TfrmHCViewDemo.btnprintClick(Sender: TObject);
 begin
   FHCView.Print('');
 end;
 
-procedure TfrmEmrView.btn10Click(Sender: TObject);
+procedure TfrmHCViewDemo.btn10Click(Sender: TObject);
 begin
   FHCView.MergeTableSelectCells;
 end;
 
-procedure TfrmEmrView.btn11Click(Sender: TObject);
+procedure TfrmHCViewDemo.btn11Click(Sender: TObject);
 begin
   // FHCView.SaveToBitmap('C:\Users\Thinkpad\Desktop\a.bmp');
 end;
 
-procedure TfrmEmrView.btnAlignLeftClick(Sender: TObject);
+procedure TfrmHCViewDemo.btnAlignLeftClick(Sender: TObject);
 begin
   case (Sender as TToolButton).Tag of
     0: FHCView.ApplyParaAlignHorz(TParaAlignHorz.pahLeft);
@@ -314,8 +407,9 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.FormCreate(Sender: TObject);
+procedure TfrmHCViewDemo.FormCreate(Sender: TObject);
 begin
+  Caption := 'HCViewDemo ' + GetVersionInfo;
   FHCView := THCView.Create(Self);
   FHCView.OnCaretChange := DoCaretChange;
   FHCView.OnVerScroll := DoVerScroll;
@@ -324,19 +418,19 @@ begin
   FHCView.PopupMenu := pmRichEdit;
 end;
 
-procedure TfrmEmrView.FormDestroy(Sender: TObject);
+procedure TfrmHCViewDemo.FormDestroy(Sender: TObject);
 begin
   FHCView.Free;
 end;
 
-procedure TfrmEmrView.FormShow(Sender: TObject);
+procedure TfrmHCViewDemo.FormShow(Sender: TObject);
 begin
   cbbFont.Items := Screen.Fonts;
   cbbFont.ItemIndex := cbbFont.Items.IndexOf('宋体');
   FHCView.SetFocus;
 end;
 
-function TfrmEmrView.GetFontSize(AFontSize: string): Integer;
+function TfrmHCViewDemo.GetFontSize(AFontSize: string): Integer;
 begin
   Result := 10;
   if not TryStrToInt(AFontSize, Result) then
@@ -373,7 +467,7 @@ begin
   end;
 end;
 
-function TfrmEmrView.GetFontSizeStr(AFontSize: Integer): string;
+function TfrmHCViewDemo.GetFontSizeStr(AFontSize: Integer): string;
 begin
   Result := IntToStr(AFontSize);
   if AFontSize = 42 then Result := '初号';
@@ -393,14 +487,14 @@ begin
   if AFontSize = 5 then Result := '七号';
 end;
 
-procedure TfrmEmrView.GetPagesAndActive;
+procedure TfrmHCViewDemo.GetPagesAndActive;
 begin
   statbar.Panels[0].Text := '预览' + IntToStr(FHCView.PagePreviewFirst + 1)
     + '页 光标' + IntToStr(FHCView.ActivePageIndex + 1)
     + '页 共' + IntToStr(FHCView.PageCount) + '页';
 end;
 
-function TfrmEmrView.GetPaperSizeStr(APaperSize: Integer): string;
+function TfrmHCViewDemo.GetPaperSizeStr(APaperSize: Integer): string;
 begin
   case APaperSize of
     DMPAPER_A3: Result := 'A3';
@@ -412,7 +506,7 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniC1Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniC1Click(Sender: TObject);
 var
   vCheckBox: TCheckBoxItem;
 begin
@@ -420,12 +514,12 @@ begin
   FHCView.InsertItem(vCheckBox);
 end;
 
-procedure TfrmEmrView.mniCopyClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniCopyClick(Sender: TObject);
 begin
   FHCView.Copy;
 end;
 
-procedure TfrmEmrView.mniInsertTableClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniInsertTableClick(Sender: TObject);
 var
   vFrmInsertTable: TfrmInsertTable;
 begin
@@ -440,7 +534,7 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniLineSpaceClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniLineSpaceClick(Sender: TObject);
 begin
   if Sender is TMenuItem then
   begin
@@ -452,12 +546,12 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniCutClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniCutClick(Sender: TObject);
 begin
   FHCView.Cut;
 end;
 
-procedure TfrmEmrView.mniN13Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN13Click(Sender: TObject);
 var
   vExpress: TExperssItem;
 begin
@@ -465,12 +559,12 @@ begin
   FHCView.InsertItem(vExpress);
 end;
 
-procedure TfrmEmrView.mniN14Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN14Click(Sender: TObject);
 begin
   FHCView.InsertLine(1);
 end;
 
-procedure TfrmEmrView.mniDisBorderClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniDisBorderClick(Sender: TObject);
 var
   vTable: THCTableItem;
 begin
@@ -482,37 +576,37 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniInsertRowTopClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniInsertRowTopClick(Sender: TObject);
 begin
   FHCView.ActiveTableInsertRowBefor(1);
 end;
 
-procedure TfrmEmrView.mniInsertRowBottomClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniInsertRowBottomClick(Sender: TObject);
 begin
   FHCView.ActiveTableInsertRowAfter(1);
 end;
 
-procedure TfrmEmrView.mniInsertColLeftClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniInsertColLeftClick(Sender: TObject);
 begin
   FHCView.ActiveTableInsertColBefor(1);
 end;
 
-procedure TfrmEmrView.mniInsertColRightClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniInsertColRightClick(Sender: TObject);
 begin
   FHCView.ActiveTableInsertColAfter(1);
 end;
 
-procedure TfrmEmrView.mniDeleteRowClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniDeleteRowClick(Sender: TObject);
 begin
   FHCView.ActiveTableDeleteRow(1);
 end;
 
-procedure TfrmEmrView.mniDeleteColClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniDeleteColClick(Sender: TObject);
 begin
   FHCView.ActiveTableDeleteCol(1);
 end;
 
-procedure TfrmEmrView.mniN26Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN26Click(Sender: TObject);
 var
   vFrmParagraph: TfrmParagraph;
 begin
@@ -541,27 +635,27 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniN27Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN27Click(Sender: TObject);
 begin
   FHCView.InsertPageBreak;
 end;
 
-procedure TfrmEmrView.mniN28Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN28Click(Sender: TObject);
 begin
   FHCView.InsertPageSeparator;
 end;
 
-procedure TfrmEmrView.mniN30Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN30Click(Sender: TObject);
 begin
   FHCView.DeleteSelected;
 end;
 
-procedure TfrmEmrView.mniN31Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN31Click(Sender: TObject);
 begin
   FHCView.DeleteSection;
 end;
 
-procedure TfrmEmrView.mniN32Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN32Click(Sender: TObject);
 var
   vMemory: TMemoryStream;
 begin
@@ -574,7 +668,7 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniN5Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN5Click(Sender: TObject);
 var
   vFrmPageSet: TFrmPageSet;
 begin
@@ -614,7 +708,7 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniN9Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN9Click(Sender: TObject);
 var
   vBmp: TBitmap;
 begin
@@ -623,15 +717,14 @@ begin
 //  FHCView.InsertItem .InsertGraphic(vBmp);
 end;
 
-procedure TfrmEmrView.mniOpenClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniOpenClick(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
   vt1, vt2: Cardinal;
 begin
-//  FHCView.LoadFromFile('C:\Users\Thinkpad\Desktop\a.cff');
   vOpenDlg := TOpenDialog.Create(Self);
   try
-    vOpenDlg.Filter := '文件|*.cff';
+    vOpenDlg.Filter := '文件|*' + HC_EXT;
     if vOpenDlg.Execute then
     begin
       if vOpenDlg.FileName <> '' then
@@ -640,7 +733,7 @@ begin
         vt1 := GetTickCount;
         FHCView.LoadFromFile(FFileName);
         vt2 := GetTickCount - vt1;
-        Caption := IntToStr(vt2);
+        //Caption := IntToStr(vt2);
       end;
     end;
   finally
@@ -648,12 +741,12 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniPasteClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniPasteClick(Sender: TObject);
 begin
   FHCView.Paste;
 end;
 
-procedure TfrmEmrView.mniSaveAsClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniSaveAsClick(Sender: TObject);
 var
   vDlg: TSaveDialog;
 begin
@@ -673,7 +766,7 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.mniSaveClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniSaveClick(Sender: TObject);
 var
   vDlg: TSaveDialog;
 begin
@@ -683,12 +776,12 @@ begin
   begin
     vDlg := TSaveDialog.Create(Self);
     try
-      vDlg.Filter := '文件|*.cff';
+      vDlg.Filter := '文件|*' + HC_EXT;
       vDlg.Execute;
       if vDlg.FileName <> '' then
       begin
-        if ExtractFileName(vDlg.FileName) <> '.cff' then
-          vDlg.FileName := vDlg.FileName + '.cff';
+        if ExtractFileName(vDlg.FileName) <> HC_EXT then
+          vDlg.FileName := vDlg.FileName + HC_EXT;
         FHCView.SaveToFile(vDlg.FileName);
       end;
     finally
@@ -697,12 +790,12 @@ begin
   end;
 end;
 
-procedure TfrmEmrView.N2Click(Sender: TObject);
+procedure TfrmHCViewDemo.N2Click(Sender: TObject);
 begin
   FHCView.MergeTableSelectCells;
 end;
 
-procedure TfrmEmrView.pmRichEditPopup(Sender: TObject);
+procedure TfrmHCViewDemo.pmRichEditPopup(Sender: TObject);
 var
   vItem: THCCustomItem;
   vData: THCCustomRichData;
@@ -724,10 +817,10 @@ begin
   //mniPaste :=
 end;
 
-procedure TfrmEmrView.SetFileName(const AFileName: string);
+procedure TfrmHCViewDemo.SetFileName(const AFileName: string);
 begin
   FFileName := AFileName;
-  Self.Caption := FFileName;
+  statbar.Panels[1].Text := FFileName;
 end;
 
 end.

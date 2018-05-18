@@ -39,7 +39,7 @@ type
     procedure SetItems(Index: Integer; const Value: Pointer);
     procedure SetColCount(const Value: Integer);
   protected
-    function GetCols(Index: Integer): TTableCell;
+    function GetCols(Index: Integer): THCTableCell;
 
     property Items[Index: Integer]: Pointer read GetItems write SetItems; default;
   public
@@ -59,7 +59,7 @@ type
     property ColCount: Integer read FColCount write SetColCount;
     //property List: PCellDataList read FList;
     //
-    property Cols[Index: Integer]: TTableCell read GetCols;
+    property Cols[Index: Integer]: THCTableCell read GetCols;
 
     /// <summary> 当前行中所有没有发生合并单元格的高度(含CellVPadding * 2因为会受有合并列的影响，所以>=数据高度) </summary>
     property Height: Integer read FHeight write FHeight;
@@ -144,14 +144,14 @@ end;
 
 constructor TTableRow.Create(const AStyle: THCStyle; const AColCount: Integer);
 var
-  vCell: TTableCell;
+  vCell: THCTableCell;
   i: Integer;
 begin
   FColCount := 0;
   FCapacity := 0;
   for i := 0 to AColCount - 1 do
   begin
-    vCell := TTableCell.Create(AStyle);
+    vCell := THCTableCell.Create(AStyle);
     Add(vCell);
   end;
   FAutoHeight := True;
@@ -161,7 +161,7 @@ procedure TTableRow.Delete(Index: Integer);
 begin
   if (Index < 0) or (Index >= FColCount) then
     raise Exception.CreateFmt('[Delete]非法的 Index:%d', [Index]);
-  TTableCell(FList^[Index]).Free;
+  THCTableCell(FList^[Index]).Free;
   if Index < FColCount then
     System.Move(FList^[Index + 1], FList^[Index], (FColCount - Index) * SizeOf(Pointer));
   Dec(FColCount);
@@ -173,9 +173,9 @@ begin
   inherited;
 end;
 
-function TTableRow.GetCols(Index: Integer): TTableCell;
+function TTableRow.GetCols(Index: Integer): THCTableCell;
 begin
-  Result := TTableCell(Items[Index]);
+  Result := THCTableCell(Items[Index]);
 end;
 
 function TTableRow.ClearFormatExtraHeight: Integer;

@@ -18,7 +18,7 @@ uses
   HCCustomData, HCCommon;
 
 type
-  TCheckBoxItem = class(THCTextRectItem)
+  THCCheckBoxItem = class(THCTextRectItem)
   private
     FText: string;
     FChecked, FMouseIn: Boolean;
@@ -32,15 +32,13 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
   public
-    constructor Create(const ATextStyleNo: Integer; const AText: string;
-      const AChecked: Boolean);
+    constructor Create(const AOwnerData: THCCustomData; const AText: string; const AChecked: Boolean);
     property Checked: Boolean read FChecked write SetChecked;
     property Text: string read FText write FText;
   end;
@@ -54,25 +52,24 @@ const
   CheckBoxSize = 14;
   BoxSpliter = 2;
 
-{ TCheckBoxItem }
+{ THCCheckBoxItem }
 
-function TCheckBoxItem.GetBoxRect: TRect;
+function THCCheckBoxItem.GetBoxRect: TRect;
 begin
   Result := Classes.Bounds(BoxSpliter, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize)
 end;
 
-constructor TCheckBoxItem.Create(const ATextStyleNo: Integer; const AText: string;
+constructor THCCheckBoxItem.Create(const AOwnerData: THCCustomData; const AText: string;
   const AChecked: Boolean);
 begin
-  inherited Create;
+  inherited Create(AOwnerData);
   FMouseIn := False;
   Self.StyleNo := THCStyle.RsControl;
   FChecked := AChecked;
-  TextStyleNo := ATextStyleNo;
   FText := AText;
 end;
 
-procedure TCheckBoxItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+procedure THCCheckBoxItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -94,8 +91,12 @@ begin
   if FChecked then  // 勾选
   begin
     ACanvas.Font.Size := 10;
-    ACanvas.TextOut(vBoxRect.Left, vBoxRect.Top, '√');
+    //ACanvas.TextOut(vBoxRect.Left, vBoxRect.Top, '√');
+    DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_MENU, DFCS_CHECKED or DFCS_MENUCHECK)
+    //DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONCHECK);
   end;
+  //else
+  //  DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_HOT or DFCS_BUTTONCHECK);
 
   if FMouseIn then  // 鼠标在其中
   begin
@@ -112,7 +113,7 @@ begin
   end;
 end;
 
-procedure TCheckBoxItem.FormatToDrawItem(const ARichData: THCCustomData;
+procedure THCCheckBoxItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
 var
   vSize: TSize;
@@ -123,33 +124,26 @@ begin
   Height := Max(vSize.cy, CheckBoxSize) + ARichData.Style.ParaStyles[ParaNo].LineSpace;
 end;
 
-procedure TCheckBoxItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+procedure THCCheckBoxItem.MouseEnter;
 begin
-  inherited;
-
-end;
-
-procedure TCheckBoxItem.MouseEnter;
-begin
-  inherited;
+  inherited MouseEnter;
   FMouseIn := True;
 end;
 
-procedure TCheckBoxItem.MouseLeave;
+procedure THCCheckBoxItem.MouseLeave;
 begin
-  inherited;
+  inherited MouseLeave;
   FMouseIn := False;
 end;
 
-procedure TCheckBoxItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+procedure THCCheckBoxItem.MouseMove(Shift: TShiftState; X, Y: Integer);
 begin
   inherited;
   //if PtInRect(GetBoxRect, Point(X, Y)) then
   GCursor := crArrow;
 end;
 
-procedure TCheckBoxItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+procedure THCCheckBoxItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited;
@@ -157,7 +151,7 @@ begin
     Checked := not FChecked;
 end;
 
-procedure TCheckBoxItem.LoadFromStream(const AStream: TStream;
+procedure THCCheckBoxItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vSize: Word;
@@ -174,7 +168,7 @@ begin
   end;
 end;
 
-procedure TCheckBoxItem.SaveToStream(const AStream: TStream; const AStart,
+procedure THCCheckBoxItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 var
   vBuffer: TBytes;
@@ -184,14 +178,14 @@ begin
   AStream.WriteBuffer(FChecked, SizeOf(FChecked));
   vBuffer := BytesOf(FText);
   if System.Length(vBuffer) > MAXWORD then
-    raise Exception.Create(CFE_EXCEPTION + 'TextItem的内容超出最大字符数据！');
+    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
   vSize := System.Length(vBuffer);
   AStream.WriteBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
     AStream.WriteBuffer(vBuffer[0], vSize);
 end;
 
-procedure TCheckBoxItem.SetChecked(const Value: Boolean);
+procedure THCCheckBoxItem.SetChecked(const Value: Boolean);
 begin
   if FChecked <> Value then
   begin

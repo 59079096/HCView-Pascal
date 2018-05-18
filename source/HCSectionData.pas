@@ -42,6 +42,8 @@ type
       const AFileVersion: Word): Boolean; override;
   public
     constructor Create(const AStyle: THCStyle); override;
+
+    /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
     //
     // 保存
@@ -62,7 +64,7 @@ implementation
 {$I HCView.inc}
 
 uses
-  Math, HCTextItem, HCRectItem, HCBitmapItem, HCTableItem, HCPageBreakItem;
+  Math, HCTextItem, HCRectItem, HCImageItem, HCTableItem, HCPageBreakItem;
 
 { THCSectionData }
 
@@ -218,14 +220,11 @@ end;
 function THCSectionData.InsertPageBreak: Boolean;
 var
   vPageBreak: TPageBreakItem;
-  vSize: TSize;
   vKey: Word;
 begin
   Result := False;
-  Style.TextStyles[Style.CurStyleNo].ApplyStyle(Style.DefCanvas);
-  vSize := Style.DefCanvas.TextExtent('字');
-  vPageBreak := TPageBreakItem.Create(0, vSize.cy);
-  vPageBreak.ParaNo := Style.CurParaNo;
+
+  vPageBreak := TPageBreakItem.Create(Self);
   vPageBreak.ParaFirst := True;
   // 第一个Item分到下一页后，前一页没有任何Item，对编辑有诸多不利，所以在前一页补充一个空Item
   if (SelectInfo.StartItemNo = 0) and (SelectInfo.StartItemOffset = 0) then

@@ -93,8 +93,7 @@ end;
 
 function THCRichData.CreateDefaultDomainItem: THCCustomItem;
 begin
-  Result := HCDefaultDomainItemClass.Create;
-  Result.ParaNo := Style.CurParaNo;
+  Result := HCDefaultDomainItemClass.Create(Self);
 end;
 
 function THCRichData.CreateDefaultTextItem: THCCustomItem;

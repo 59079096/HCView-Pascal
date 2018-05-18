@@ -14,7 +14,7 @@ unit HCPageBreakItem;
 interface
 
 uses
-  HCRectItem, HCStyle, HCCommon;
+  Windows, HCRectItem, HCStyle, HCCommon, HCCustomData;
 
 type
   TPageBreakItem = class(THCCustomRectItem)
@@ -22,19 +22,29 @@ type
     function JustifySplit: Boolean; override;
     //function GetOffsetAt(const X: Integer): Integer; override;
   public
-    constructor Create(const AWidth, AHeight: Integer); override;
+    constructor Create(const AOwnerData: THCCustomData); override;
   end;
 
 implementation
 
 { TPageBreakItem }
 
-constructor TPageBreakItem.Create(const AWidth, AHeight: Integer);
+constructor TPageBreakItem.Create(const AOwnerData: THCCustomData);
+var
+  vSize: TSize;
 begin
-  inherited Create;
+  inherited Create(AOwnerData);
   StyleNo := THCStyle.RsPageBreak;
+
+  if AOwnerData.Style.CurStyleNo > THCStyle.RsNull then
+    AOwnerData.Style.TextStyles[AOwnerData.Style.CurStyleNo].ApplyStyle(AOwnerData.Style.DefCanvas)
+  else
+    AOwnerData.Style.TextStyles[0].ApplyStyle(AOwnerData.Style.DefCanvas);
+
+  vSize := AOwnerData.Style.DefCanvas.TextExtent('×Ö');
+
   Width := 0;
-  Height := AHeight;
+  Height := vSize.cy;
 end;
 
 {function TPageBreakItem.GetOffsetAt(const X: Integer): Integer;

@@ -48,8 +48,10 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
   public
-    constructor Create; overload; override;
-    constructor Create(const AWidth, AHeight: Integer); overload; virtual;
+    /// <summary> 适用于工作期间创建 </summary>
+    constructor Create(const AOwnerData: THCCustomData); overload; virtual;
+    /// <summary> 适用于加载时创建 </summary>
+    constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); overload; virtual;
     // 抽象方法，供继承
     function ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: TStyleMatch): Integer; virtual;
     procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: TParaMatch); virtual;
@@ -104,7 +106,6 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); virtual;
     procedure KeyPress(var Key: Char); virtual;
     function SelectExists: Boolean; virtual;
-    procedure DragNotify(const AFinish: Boolean); virtual;
     // 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomRichData类型)
     function GetActiveData: THCCustomData; virtual;
     // 返回指定位置处的顶层Data(为松耦合请返回TCustomRichData类型)
@@ -135,7 +136,7 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
   public
-    constructor Create; override;
+    constructor Create(const AOwnerData: THCCustomData); override;
     property MarkType: TMarkType read FMarkType write FMarkType;
     property Level: Byte read FLevel write FLevel;
   end;
@@ -154,7 +155,7 @@ type
       const AFileVersion: Word); override;
     procedure SetTextStyleNo(const Value: Integer); virtual;
   public
-    constructor Create; override;
+    constructor Create(const AOwnerData: THCCustomData); override;
     property TextStyleNo: Integer read FTextStyleNo write SetTextStyleNo;
   end;
 
@@ -191,13 +192,18 @@ type
     procedure SetResizing(const Value: Boolean); virtual;
     property ResizeGrip: TGripType read FResizeGrip;
   public
-    constructor Create; override;
+    constructor Create(const AOwnerData: THCCustomData); override;
     property GripSize: Word read FGripSize write FGripSize;
     property Resizing: Boolean read GetResizing write SetResizing;
     property ResizeRect: TRect read FResizeRect;
     property ResizeWidth: Integer read FResizeWidth;
     property ResizeHeight: Integer read FResizeHeight;
     property CanResize: Boolean read FCanResize write FCanResize;
+  end;
+
+  THCAnimateRectItem = class(THCCustomRectItem)
+  public
+    function GetOffsetAt(const X: Integer): Integer; override;
   end;
 
 var
@@ -244,31 +250,26 @@ begin
   Result := False;
 end;
 
-constructor THCCustomRectItem.Create;
+constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create;
+  Self.ParaNo := AOwnerData.Style.CurParaNo;
   FWidth := 100;   // 默认尺寸
   FHeight := 50;
   FTextWrapping := False;
   FSizeChanged := False;
 end;
 
-constructor THCCustomRectItem.Create(const AWidth, AHeight: Integer);
+constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer);
 begin
-  inherited Create;  // 这里不继承的话，THCCustomRectItem子类到这里时并不能调用到
-  Width := AWidth;   // THCCustomRectItem.Create，而是子类自己的Create造成死循环
+  Create(AOwnerData);
+  Width := AWidth;
   Height := AHeight;
-  FTextWrapping := False;
-  FSizeChanged := False;
 end;
 
 function THCCustomRectItem.DeleteSelected: Boolean;
 begin
   Result := False;
-end;
-
-procedure THCCustomRectItem.DragNotify(const AFinish: Boolean);
-begin
 end;
 
 procedure THCCustomRectItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -440,9 +441,9 @@ begin
     and (GetGripType(X, Y) = gtNone);
 end;
 
-constructor THCResizeRectItem.Create;
+constructor THCResizeRectItem.Create(const AOwnerData: THCCustomData);
 begin
-  inherited Create;
+  inherited Create(AOwnerData);
   FCanResize := True;
   FGripSize := 8;
 end;
@@ -530,13 +531,15 @@ begin
     begin
       FResizeX := X;
       FResizeY := Y;
+      FResizeWidth := Width;
+      FResizeHeight := Height;
     end;
   end;
 end;
 
 procedure THCResizeRectItem.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
-  vW, vH: Integer;
+  vW, vH, vTempW, vTempH: Integer;
   vBL: Single;
 begin
   inherited;
@@ -548,38 +551,93 @@ begin
       vBL := Width / Height;
       vW := X - FResizeX;
       vH := Y - FResizeY;
-      if vW > vH then
-        vH := Round(vW / vBL)
-      else
-        vW := Round(vH * vBL);
 
+      // 根据缩放位置在对角线的不同方位计算长宽
       case FResizeGrip of
         gtLeftTop:
           begin
+            vTempW := Round(vH * vBL);
+            vTempH := Round(vW / vBL);
+            if vTempW > vW then
+              vH := vTempH
+            else
+              vW := vTempW;
+
             FResizeWidth := Width - vW;
             FResizeHeight := Height - vH;
           end;
 
         gtRightTop:
           begin
+            vTempW := Abs(Round(vH * vBL));
+            vTempH := Abs(Round(vW / vBL));
+
+            if vW < 0 then
+            begin
+              if vH > vTempH then
+                vH := vTempH
+              else
+              if vH > 0 then
+                vW := -vTempW
+              else
+                vW := vTempW;
+            end
+            else
+            begin
+              if -vH < vTempH then
+                vH := -vTempH
+              else
+                vW := vTempW;
+            end;
+
             FResizeWidth := Width + vW;
             FResizeHeight := Height - vH;
           end;
 
         gtLeftBottom:
           begin
+            vTempW := Abs(Round(vH * vBL));
+            vTempH := Abs(Round(vW / vBL));
+
+            if vW < 0 then  // 左侧
+            begin
+              if vH < vTempH then  // 对角线上面，纵向以横向为准
+                vH := vTempH
+              else  // 对角线下面，横向以纵向为准
+                vW := -vTempW;
+            end
+            else  // 右侧
+            begin
+              if (vW > vTempW) or (vH > vTempH) then  // 对角线下面，横向以纵向为准
+              begin
+                if vH < 0 then
+                  vW := vTempW
+                else
+                  vW := -vTempW;
+              end
+              else  // 对角线上面，纵向以横向为准
+                vH := -vTempH
+            end;
+
             FResizeWidth := Width - vW;
             FResizeHeight := Height + vH;
           end;
 
         gtRightBottom:
           begin
+            vTempW := Round(vH * vBL);
+            vTempH := Round(vW / vBL);
+            if vTempW > vW then
+              vW := vTempW
+            else
+              vH := vTempH;
+
             FResizeWidth := Width + vW;
             FResizeHeight := Height + vH;
           end;
       end;
     end
-    else  // 非缩放
+    else  // 非缩放中
     begin
       case GetGripType(X, Y) of
         gtLeftTop, gtRightBottom:
@@ -637,10 +695,13 @@ begin
   FTextStyleNo := AMatchStyle.GetMatchStyleNo(AStyle, FTextStyleNo);
 end;
 
-constructor THCTextRectItem.Create;
+constructor THCTextRectItem.Create(const AOwnerData: THCCustomData);
 begin
-  inherited Create;
-  FTextStyleNo := -1;
+  inherited Create(AOwnerData);
+  if AOwnerData.Style.CurStyleNo > THCStyle.RsNull then
+    FTextStyleNo := AOwnerData.Style.CurStyleNo
+  else
+    FTextStyleNo := 0;
 end;
 
 function THCTextRectItem.GetOffsetAt(const X: Integer): Integer;
@@ -683,13 +744,13 @@ end;
 
 { THCDomainItem }
 
-constructor THCDomainItem.Create;
+constructor THCDomainItem.Create(const AOwnerData: THCCustomData);
 begin
-  Width := 0;
-  Height := 10;
-  inherited Create(Width, Height);
+  inherited Create(AOwnerData);
   Self.StyleNo := THCStyle.RsDomain;
   FLevel := 0;
+  Width := 0;
+  Height := 10;
 end;
 
 procedure THCDomainItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -750,6 +811,16 @@ procedure THCDomainItem.SaveToStream(const AStream: TStream; const AStart,
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   AStream.WriteBuffer(FMarkType, SizeOf(FMarkType));
+end;
+
+{ THCAnimateRectItem }
+
+function THCAnimateRectItem.GetOffsetAt(const X: Integer): Integer;
+begin
+  if X < Width div 2 then
+    Result := OffsetBefor
+  else
+    Result := OffsetAfter;
 end;
 
 end.

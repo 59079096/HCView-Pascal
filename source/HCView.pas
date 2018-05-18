@@ -88,6 +88,8 @@ type
     /// <summary> 全部清空(因清除了各节各部件所的Item，所以只当前类私用) </summary>
     procedure Clear;
 
+    function GetDisplayRect: TRect;
+
     /// <summary> 重新获取光标位置 </summary>
     procedure ReBuildCaret(const AScrollBar: Boolean = False);
     procedure GetSectionByCrood(const X, Y: Integer; var ASectionIndex: Integer);
@@ -136,6 +138,9 @@ type
 
     procedure DoPaintPage(Sender: THCSection; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+
+    procedure DoStyleInvalidateRect(const ARect: TRect);
+
     /// <summary>
     /// 是否不上屏输入法输入的词条屏词条ID和词条
     /// </summary>
@@ -228,9 +233,16 @@ type
     function InsertLine(const ALineHeight: Integer): Boolean;
     function InsertItem(const AItem: THCCustomItem): Boolean; overload;
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
+
+    /// <summary> 从当前位置后换行 </summary>
     function InsertBreak: Boolean;
+
+    /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
-    function InsertPageSeparator: Boolean;
+
+    /// <summary> 从当前位置后分节 </summary>
+    function InsertSectionBreak: Boolean;
+
     // 表格插入行列
     function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
     function ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
@@ -256,7 +268,8 @@ type
     function ZoomIn(const Value: Integer): Integer;
     function ZoomOut(const Value: Integer): Integer;
     //
-    procedure UpdateBuffer;
+    procedure UpdateBuffer; overload;
+    procedure UpdateBuffer(const ARect: TRect); overload;
     procedure BeginUpdate;
     procedure EndUpdate;
     //
@@ -348,7 +361,7 @@ type
 implementation
 
 uses
-  Printers, Imm, SysUtils, Forms, Math, Clipbrd;
+  Printers, Imm, SysUtils, Forms, Math, Clipbrd, HCImageItem;
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
@@ -469,7 +482,7 @@ begin
       ActiveSection.ActiveData.GetTopLevelData.SaveSelectToStream(vStream);
       vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
       if vMem = 0 then
-        raise Exception.Create(CFE_EXCEPTION + '复制时没有申请到足够的内存！');
+        raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
       vPtr := GlobalLock(vMem);
       Move(vStream.Memory^, vPtr^, vStream.Size);
       GlobalUnlock(vMem);
@@ -505,6 +518,7 @@ begin
 
   FDataBmp := TBitmap.Create;
   FStyle := THCStyle.CreateEx(True, True);
+  FStyle.OnInvalidateRect := DoStyleInvalidateRect;
   FSections := TObjectList<THCSection>.Create;
   FSections.Add(NewDefaultSection);
   FActiveSectionIndex := 0;
@@ -589,6 +603,11 @@ begin
     Result := Height - FHScrollBar.Height
   else
     Result := Height;
+end;
+
+function THCView.GetDisplayRect: TRect;
+begin
+  Result := Bounds(0, 0, GetDisplayWidth, GetDisplayHeight);
 end;
 
 function THCView.GetDisplayWidth: Integer;
@@ -773,6 +792,11 @@ begin
   end;
 end;
 
+procedure THCView.DoStyleInvalidateRect(const ARect: TRect);
+begin
+  UpdateBuffer(ARect);
+end;
+
 procedure THCView.DoLoadAfter(const AStream: TStream; const AFileVersion: Word);
 begin
 end;
@@ -915,7 +939,7 @@ begin
   Result := Self.ActiveSection.InsertPageBreak;
 end;
 
-function THCView.InsertPageSeparator: Boolean;
+function THCView.InsertSectionBreak: Boolean;
 var
   vSection: THCSection;
 begin
@@ -1126,7 +1150,6 @@ var
   vPt: TPoint;
 begin
   inherited;
-
   GetSectionByCrood(ZoomOut(FHScrollBar.Position + X), ZoomOut(FVScrollBar.Position + Y), vSectionIndex);
   if vSectionIndex <> FActiveSectionIndex then
   begin
@@ -1221,10 +1244,14 @@ begin
       ZoomOut(FHScrollBar.Position + X - GetSectionDrawLeft(FActiveSectionIndex)),
       ZoomOut(FVScrollBar.Position + Y) - GetSectionTopFilm(FActiveSectionIndex));
   Cursor := GCursor;
+
   CheckUpdateInfo;  // 在选中区域中按下不移动弹起鼠标时需要更新
 
   if Assigned(FOnMouseUp) then
     FOnMouseUp(Self, Button, Shift, X, Y);
+
+  FStyle.UpdateInfo.Selecting := False;
+  FStyle.UpdateInfo.Draging := False;
 end;
 
 function THCView.NewDefaultSection: THCSection;
@@ -1289,12 +1316,22 @@ end;
 
 procedure THCView.Paint;
 begin
-//  Canvas.Draw(0, 0, FDataBmp);
+  //Canvas.Draw(0, 0, FDataBmp);
   BitBlt(Canvas.Handle, 0, 0, GetDisplayWidth, GetDisplayHeight,
       FDataBmp.Canvas.Handle, 0, 0, SRCCOPY);
 end;
 
 procedure THCView.Paste;
+
+  procedure PasteImage;
+  var
+    vImageItem: THCImageItem;
+  begin
+    vImageItem := THCImageItem.Create(Self.ActiveSection.ActiveData.GetTopLevelData);
+    vImageItem.Image.Assign(Clipboard);
+    Self.InsertItem(vImageItem);
+  end;
+
 var
   vStream: TMemoryStream;
   vMem: Cardinal;
@@ -1336,7 +1373,10 @@ begin
   end
   else
   if Clipboard.HasFormat(CF_TEXT) then
-    ActiveSection.InsertText(Clipboard.AsText);
+    ActiveSection.InsertText(Clipboard.AsText)
+  else
+  if Clipboard.HasFormat(CF_BITMAP) then
+    PasteImage;
 end;
 
 function THCView.Print(const APrinter: string): TPrintResult;
@@ -1541,9 +1581,17 @@ begin
 end;
 
 procedure THCView.Resize;
+var
+  vDisplayWidth, vDisplayHeight: Integer;
 begin
   inherited;
-  FDataBmp.SetSize(GetDisplayWidth, GetDisplayHeight);
+
+  vDisplayWidth := GetDisplayWidth;
+  vDisplayHeight := GetDisplayHeight;
+
+  if (vDisplayWidth > 0) and (vDisplayHeight > 0) then
+    FDataBmp.SetSize(vDisplayWidth, vDisplayHeight);  // Bitmap设置为0时会出错
+
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
@@ -1854,7 +1902,7 @@ begin
   ActiveSection.ApplyParaLineSpace(ASpace);
 end;
 
-procedure THCView.UpdateBuffer;
+procedure THCView.UpdateBuffer(const ARect: TRect);
 
   {$REGION '获取当前滚动条位置可显示的起始和结束节、页序号'}
   procedure CalcDisplaySectionAndPage;
@@ -1950,10 +1998,14 @@ begin
     try
       if FShowAnnotation then
         FAnnotations.Clear;
+
+      // 创建一个新的剪切区域，该区域是当前剪切区域和一个特定矩形的交集
+      IntersectClipRect(FDataBmp.Canvas.Handle, ARect.Left, ARect.Top, ARect.Right, ARect.Bottom);
+
       // 控件背景
       FDataBmp.Canvas.Brush.Color := RGB(82, 89, 107);// $00E7BE9F;
       FDataBmp.Canvas.FillRect(Rect(0, 0, FDataBmp.Width, FDataBmp.Height));
-      //
+      // 因基于此计算当前页面数据起始结束，所以不能用ARect代替
       vDisplayWidth := GetDisplayWidth;
       vDisplayHeight := GetDisplayHeight;
       CalcDisplaySectionAndPage;  // 计算当前范围内可显示的起始节、页和结束节、页
@@ -1977,9 +2029,16 @@ begin
       FDataBmp.Canvas.Unlock;
     end;
 
-    BitBlt(Canvas.Handle, 0, 0, vDisplayWidth, vDisplayHeight, FDataBmp.Canvas.Handle, 0, 0, SRCCOPY);
-    InvalidateRect(Handle, Bounds(0, 0, vDisplayWidth, vDisplayHeight), False);  // 只更新变动区域，防止闪烁，解决BitBlt光标滞留问题
+    BitBlt(Canvas.Handle, ARect.Left, ARect.Top, ARect.Width, ARect.Height,
+      FDataBmp.Canvas.Handle, ARect.Left, ARect.Top, SRCCOPY);
+
+    InvalidateRect(Self.Handle, ARect, False);  // 只更新变动区域，防止闪烁，解决BitBlt光标滞留问题
   end;
+end;
+
+procedure THCView.UpdateBuffer;
+begin
+  UpdateBuffer(GetDisplayRect);
 end;
 
 procedure THCView.UpdateImmPosition;
@@ -2084,10 +2143,7 @@ procedure THCView.WMKillFocus(var Message: TWMKillFocus);
 begin
   inherited;
   //if Message.FocusedWnd <> Self.Handle then
-  begin
-    FCaret.Hide;
-    ActiveSection.KillFocus;
-  end;
+  //  FCaret.Hide;
 end;
 
 procedure THCView.WMLButtonDblClk(var Message: TWMLButtonDblClk);

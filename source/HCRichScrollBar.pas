@@ -14,7 +14,7 @@ unit HCRichScrollBar;
 interface
 
 uses
-  Windows, Classes, Controls, Graphics, System.Generics.Collections, HCScrollBar;
+  Windows, Classes, Controls, Graphics, Generics.Collections, HCScrollBar;
 
 type
   TAreaMark = class(TObject)  // ÇøÓò±ê¼Ç

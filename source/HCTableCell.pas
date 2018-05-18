@@ -17,7 +17,7 @@ uses
   Classes, Graphics, HCStyle, HCCustomData, HCTableCellData, HCCommon;
 
 type
-  TTableCell = class
+  THCTableCell = class
   private
     FCellData: THCTableCellData;
     FWidth,    // 被合并后记录原始宽(否则当行第一列被合并后，第二列无法确认水平起始位置)
@@ -29,6 +29,7 @@ type
   protected
     function GetActive: Boolean;
     procedure SetActive(const Value: Boolean);
+    procedure SetHeight(const Value: Integer);
   public
     constructor Create(const AStyle: THCStyle);
     destructor Destroy; override;
@@ -49,7 +50,7 @@ type
     /// </summary>
     property Width: Integer read FWidth write FWidth;
     /// <summary> 单元格高度(含CellVPadding * 2 主要用于合并目标单元格，如果发生合并，则>=数据高度) </summary>
-    property Height: Integer read FHeight write FHeight;
+    property Height: Integer read FHeight write SetHeight;
     property RowSpan: Integer read FRowSpan write FRowSpan;
     property ColSpan: Integer read FColSpan write FColSpan;
     property BackgroundColor: TColor read FBackgroundColor write FBackgroundColor;
@@ -62,9 +63,9 @@ implementation
 uses
   SysUtils;
 
-{ TTableCell }
+{ THCTableCell }
 
-constructor TTableCell.Create(const AStyle: THCStyle);
+constructor THCTableCell.Create(const AStyle: THCStyle);
 begin
   FCellData := THCTableCellData.Create(AStyle);
   //FCellData.ParentData := AParentData;
@@ -73,13 +74,13 @@ begin
   FColSpan := 0;
 end;
 
-destructor TTableCell.Destroy;
+destructor THCTableCell.Destroy;
 begin
   FCellData.Free;
   inherited;
 end;
 
-function TTableCell.GetActive: Boolean;
+function THCTableCell.GetActive: Boolean;
 begin
   if FCellData <> nil then
     Result := FCellData.Active
@@ -87,14 +88,14 @@ begin
     Result := False;
 end;
 
-function TTableCell.ClearFormatExtraHeight: Integer;
+function THCTableCell.ClearFormatExtraHeight: Integer;
 begin
   Result := 0;
   if FCellData <> nil then
     Result := FCellData.ClearFormatExtraHeight;
 end;
 
-procedure TTableCell.LoadFromStream(const AStream: TStream;
+procedure THCTableCell.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vNullData: Boolean;
@@ -106,7 +107,10 @@ begin
 
   AStream.ReadBuffer(vNullData, SizeOf(vNullData));
   if not vNullData then
-    FCellData.LoadFromStream(AStream, AStyle, AFileVersion)
+  begin
+    FCellData.LoadFromStream(AStream, AStyle, AFileVersion);
+    FCellData.CellHeight := FHeight;
+  end
   else
   begin
     FCellData.Free;
@@ -114,17 +118,17 @@ begin
   end;
 end;
 
-function TTableCell.MergeDest: Boolean;
+function THCTableCell.MergeDest: Boolean;
 begin
   Result := (FRowSpan > 0) or (FColSpan > 0);
 end;
 
-function TTableCell.MergeSource: Boolean;
+function THCTableCell.MergeSource: Boolean;
 begin
   Result := FCellData = nil;
 end;
 
-procedure TTableCell.SaveToStream(const AStream: TStream);
+procedure THCTableCell.SaveToStream(const AStream: TStream);
 var
   vNullData: Boolean;
 begin
@@ -141,10 +145,20 @@ begin
     FCellData.SaveToStream(AStream);
 end;
 
-procedure TTableCell.SetActive(const Value: Boolean);
+procedure THCTableCell.SetActive(const Value: Boolean);
 begin
   if FCellData <> nil then
     FCellData.Active := Value;
+end;
+
+procedure THCTableCell.SetHeight(const Value: Integer);
+begin
+  if FHeight <> Value then
+  begin
+    FHeight := Value;
+    if FCellData <> nil then
+      FCellData.CellHeight := Value;
+  end;
 end;
 
 end.

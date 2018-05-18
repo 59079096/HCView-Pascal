@@ -75,6 +75,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       ItemIndex = 2
       TabOrder = 0
       Text = '100'
+      Visible = False
       OnChange = cbbZoomChange
       Items.Strings = (
         '25'
@@ -322,7 +323,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00500010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00100010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1317,6 +1318,10 @@ object frmHCViewDemo: TfrmHCViewDemo
       object mniN9: TMenuItem
         Caption = #22270#29255
         OnClick = mniN9Click
+      end
+      object mnigif1: TMenuItem
+        Caption = 'gif'#21160#30011
+        OnClick = mnigif1Click
       end
       object mniN13: TMenuItem
         Caption = #20844#24335

@@ -5,8 +5,8 @@ interface
 uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCCustomRichData, HCItem,
-  HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, System.ImageList,
-  System.Actions, Vcl.ActnList;
+  HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
+  System.Actions, System.ImageList;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -89,6 +89,7 @@ type
     mniN32: TMenuItem;
     actlst: TActionList;
     btnNew: TToolButton;
+    mnigif1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -133,6 +134,7 @@ type
     procedure mniN31Click(Sender: TObject);
     procedure mniN32Click(Sender: TObject);
     procedure btnNewClick(Sender: TObject);
+    procedure mnigif1Click(Sender: TObject);
   private
     { Private declarations }
     FFileName: TFileName;
@@ -162,7 +164,8 @@ implementation
 
 uses
   frm_InsertTable, frm_PageSet, HCStyle, HCTableItem, HCTextItem, HCDrawItem,
-  HCExpressItem, HCLineItem, HCCheckBoxItem, EmrGroupItem, frm_Paragraph;
+  HCExpressItem, HCLineItem, HCCheckBoxItem, HCImageItem, EmrGroupItem,
+  frm_Paragraph, HCGifItem;
 
 {$R *.dfm}
 
@@ -508,9 +511,9 @@ end;
 
 procedure TfrmHCViewDemo.mniC1Click(Sender: TObject);
 var
-  vCheckBox: TCheckBoxItem;
+  vCheckBox: THCCheckBoxItem;
 begin
-  vCheckBox := TCheckBoxItem.Create(FHCView.Style.CurStyleNo, '勾选框', False);
+  vCheckBox := THCCheckBoxItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData, '勾选框', False);
   FHCView.InsertItem(vCheckBox);
 end;
 
@@ -553,10 +556,11 @@ end;
 
 procedure TfrmHCViewDemo.mniN13Click(Sender: TObject);
 var
-  vExpress: TExperssItem;
+  vExpressItem: THCExperssItem;
 begin
-  vExpress := TExperssItem.Create('12', '5-6', '2017-6-3', '28-30');
-  FHCView.InsertItem(vExpress);
+  vExpressItem := THCExperssItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData,
+    '12', '5-6', '2017-6-3', '28-30');
+  FHCView.InsertItem(vExpressItem);
 end;
 
 procedure TfrmHCViewDemo.mniN14Click(Sender: TObject);
@@ -573,6 +577,29 @@ begin
     vTable := FHCView.ActiveSection.ActiveData.GetCurItem as THCTableItem;
     vTable.BorderVisible := not vTable.BorderVisible;
     FHCView.UpdateBuffer;
+  end;
+end;
+
+procedure TfrmHCViewDemo.mnigif1Click(Sender: TObject);
+var
+  vOpenDlg: TOpenDialog;
+  vGifItem: THCGifItem;
+begin
+  vOpenDlg := TOpenDialog.Create(Self);
+  try
+    vOpenDlg.Filter := '图像文件|*.gif';
+    if vOpenDlg.Execute then
+    begin
+      if vOpenDlg.FileName <> '' then
+      begin
+        vGifItem := THCGifItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData);
+        vGifItem.LoadFromFile(vOpenDlg.FileName);
+        Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
+        FHCView.InsertItem(vGifItem);
+      end;
+    end;
+  finally
+    FreeAndNil(vOpenDlg);
   end;
 end;
 
@@ -642,7 +669,7 @@ end;
 
 procedure TfrmHCViewDemo.mniN28Click(Sender: TObject);
 begin
-  FHCView.InsertPageSeparator;
+  FHCView.InsertSectionBreak;
 end;
 
 procedure TfrmHCViewDemo.mniN30Click(Sender: TObject);
@@ -710,17 +737,30 @@ end;
 
 procedure TfrmHCViewDemo.mniN9Click(Sender: TObject);
 var
-  vBmp: TBitmap;
+  vOpenDlg: TOpenDialog;
+  vImageItem: THCImageItem;
 begin
-  vBmp := TBitmap.Create;
-  vBmp.LoadFromFile('辅助设计\test.bmp');
-//  FHCView.InsertItem .InsertGraphic(vBmp);
+  vOpenDlg := TOpenDialog.Create(Self);
+  try
+    vOpenDlg.Filter := '图像文件|*.bmp';//|*.jpg|*.jpge|*.png';
+    if vOpenDlg.Execute then
+    begin
+      if vOpenDlg.FileName <> '' then
+      begin
+        vImageItem := THCImageItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData);
+        vImageItem.LoadFromBmpFile(vOpenDlg.FileName);
+        Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
+        FHCView.InsertItem(vImageItem);
+      end;
+    end;
+  finally
+    FreeAndNil(vOpenDlg);
+  end;
 end;
 
 procedure TfrmHCViewDemo.mniOpenClick(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
-  vt1, vt2: Cardinal;
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
@@ -730,10 +770,8 @@ begin
       if vOpenDlg.FileName <> '' then
       begin
         FFileName := vOpenDlg.FileName;
-        vt1 := GetTickCount;
+        Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
         FHCView.LoadFromFile(FFileName);
-        vt2 := GetTickCount - vt1;
-        //Caption := IntToStr(vt2);
       end;
     end;
   finally

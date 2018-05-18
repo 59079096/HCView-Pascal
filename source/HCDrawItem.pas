@@ -62,8 +62,12 @@ type
   public
     /// <summary> 在格式化前标记要删除的起始和结束DrawItemNo </summary>
     procedure MarkFormatDelete(const AStartDrawItemNo, AEndDrawItemNo: Integer);
+
     /// <summary> 删除格式化前标记的起始和结束DrawItemNo </summary>
     procedure DeleteFormatMark;
+
+    /// <summary> 初始化格式化参数 </summary>
+    procedure ClearFormatMark;
     procedure DeleteRange(const AIndex, ACount: Integer);
     procedure Insert(const AIndex: Integer; const AItem: THCCustomDrawItem);
     function Last: THCCustomDrawItem;
@@ -119,6 +123,13 @@ begin
 end;
 
 { THCDrawItems }
+
+procedure THCDrawItems.ClearFormatMark;
+begin
+  FDeleteStartDrawItemNo := -1;
+  FDeleteCount := 0;
+  FFormatBeforBottom := -1;
+end;
 
 procedure THCDrawItems.DeleteFormatMark;
 begin

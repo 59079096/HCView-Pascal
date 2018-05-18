@@ -14,7 +14,7 @@ unit HCLineItem;
 interface
 
 uses
-  Windows, Classes, Graphics, HCStyle, HCItem, HCRectItem;
+  Windows, Classes, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData, HCCustomRichData;
 
 type
   TLineItem = class(THCCustomRectItem)
@@ -23,6 +23,7 @@ type
     FLineStyle: TPenStyle;
   protected
     function GetOffsetAt(const X: Integer): Integer; override;
+    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -30,7 +31,7 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
   public
-    constructor Create(const AWidth, AHeight: Integer); override;
+    constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); override;
     property LineStyle: TPenStyle read FLineStyle write FLineStyle;
     property LineHeght: byte read FLineHeght write FLineHeght;
   end;
@@ -39,10 +40,12 @@ implementation
 
 { TLineItem }
 
-constructor TLineItem.Create(const AWidth, AHeight: Integer);
+constructor TLineItem.Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer);
 begin
-  inherited;
+  inherited Create(AOwnerData);
   FLineHeght := 1;
+  Width := AWidth;
+  Height := AHeight;
   FLineStyle := TPenStyle.psSolid;
   StyleNo := THCStyle.RsLine;
 end;
@@ -59,6 +62,12 @@ begin
   vTop := (ADrawRect.Top + ADrawRect.Bottom) div 2;
   ACanvas.MoveTo(ADrawRect.Left, vTop);
   ACanvas.LineTo(ADrawRect.Right, vTop);
+end;
+
+procedure TLineItem.FormatToDrawItem(const ARichData: THCCustomData;
+  const AItemNo: Integer);
+begin
+  Width := THCCustomRichData(ARichData).Width;
 end;
 
 function TLineItem.GetOffsetAt(const X: Integer): Integer;

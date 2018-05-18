@@ -17,7 +17,11 @@ uses
   Windows, Controls, Classes, Graphics, HCStyle;
 
 const
-  CFE_EXCEPTION = 'CFE异常：';
+  HC_EXCEPTION = 'HC异常：';
+  HCS_EXCEPTION_NULLTEXT = HC_EXCEPTION + '文本Item的内容出现为空的情况！';
+  HCS_EXCEPTION_TEXTOVER = HC_EXCEPTION + 'TextItem的内容超出最大字符数据！';
+  HCS_EXCEPTION_MEMORYLESS = HC_EXCEPTION + '复制时没有申请到足够的内存！';
+
   HC_EXT = '.hcf';
 
   HC_FileVersion = '1.0';

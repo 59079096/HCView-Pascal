@@ -260,8 +260,8 @@ begin
       begin
         // 左按钮
         Canvas.Pen.Color := clWhite;
-        vRect.Left := FLeftBtnRect.Left + (FLeftBtnRect.Width - 4) div 2 + 4;
-        vRect.Top := FLeftBtnRect.Top + (FLeftBtnRect.Height - 7) div 2;
+        vRect.Left := FLeftBtnRect.Left + ((FLeftBtnRect.Right - FLeftBtnRect.Left) - 4) div 2 + 4;
+        vRect.Top := FLeftBtnRect.Top + ((FLeftBtnRect.Bottom - FLeftBtnRect.Top) - 7) div 2;
         Canvas.MoveTo(vRect.Left, vRect.Top);
         Canvas.LineTo(vRect.Left, vRect.Top + 7);
         Canvas.MoveTo(vRect.Left - 1, vRect.Top + 1);
@@ -272,8 +272,8 @@ begin
         Canvas.LineTo(vRect.Left - 3, vRect.Top + 4);
 
         // 右按钮
-        vRect.Left := FRightBtnRect.Left + (FRightBtnRect.Width - 4) div 2;
-        vRect.Top := FRightBtnRect.Top + (FRightBtnRect.Height - 7) div 2;
+        vRect.Left := FRightBtnRect.Left + ((FRightBtnRect.Right - FRightBtnRect.Left) - 4) div 2;
+        vRect.Top := FRightBtnRect.Top + ((FRightBtnRect.Bottom - FRightBtnRect.Top) - 7) div 2;
         Canvas.MoveTo(vRect.Left, vRect.Top);
         Canvas.LineTo(vRect.Left, vRect.Top + 7);
         Canvas.MoveTo(vRect.Left + 1, vRect.Top + 1);
@@ -306,8 +306,8 @@ begin
       begin
         // 上按钮
         Canvas.Pen.Color := clWhite;
-        vRect.Left := FLeftBtnRect.Left + (FLeftBtnRect.Width - 7) div 2;
-        vRect.Top := FLeftBtnRect.Top + (FLeftBtnRect.Height - 4) div 2 + 4;
+        vRect.Left := FLeftBtnRect.Left + ((FLeftBtnRect.Right - FLeftBtnRect.Left) - 7) div 2;
+        vRect.Top := FLeftBtnRect.Top + ((FLeftBtnRect.Bottom - FLeftBtnRect.Top) - 4) div 2 + 4;
         Canvas.MoveTo(vRect.Left, vRect.Top);
         Canvas.LineTo(vRect.Left + 7, vRect.Top);
         Canvas.MoveTo(vRect.Left + 1, vRect.Top - 1);
@@ -318,8 +318,8 @@ begin
         Canvas.LineTo(vRect.Left + 4, vRect.Top - 3);
 
         // 下按钮
-        vRect.Left := FRightBtnRect.Left + (FRightBtnRect.Width - 7) div 2;
-        vRect.Top := FRightBtnRect.Top + (FRightBtnRect.Height - 4) div 2;
+        vRect.Left := FRightBtnRect.Left + ((FRightBtnRect.Right - FRightBtnRect.Left) - 7) div 2;
+        vRect.Top := FRightBtnRect.Top + ((FRightBtnRect.Bottom - FRightBtnRect.Top) - 4) div 2;
         Canvas.MoveTo(vRect.Left, vRect.Top);
         Canvas.LineTo(vRect.Left + 7, vRect.Top);
         Canvas.MoveTo(vRect.Left + 1, vRect.Top + 1);

@@ -219,7 +219,7 @@ begin
       FData.GetTopLevelData.SaveSelectToStream(vStream);
       vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
       if vMem = 0 then
-        raise Exception.Create(CFE_EXCEPTION + '复制时没有申请到足够的内存！');
+        raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
       vPtr := GlobalLock(vMem);
       Move(vStream.Memory^, vPtr^, vStream.Size);
       GlobalUnlock(vMem);

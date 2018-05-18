@@ -14,10 +14,11 @@ unit HCTabItem;
 interface
 
 uses
-  Windows, Controls, Classes, Graphics, HCItem, HCRectItem, HCStyle, HCCommon;
+  Windows, Controls, Classes, Graphics, HCItem, HCRectItem, HCStyle, HCCommon,
+  HCCustomData;
 
 type
-  TTabItem = class(THCCustomRectItem)
+  TTabItem = class(THCTextRectItem)
   protected
     function JustifySplit: Boolean; override;
     function GetOffsetAt(const X: Integer): Integer; override;
@@ -25,19 +26,23 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
   public
-    constructor Create(const AWidth, AHeight: Integer); override;
+    constructor Create(const AOwnerData: THCCustomData); override;
   end;
 
 implementation
 
 { TTabItem }
 
-constructor TTabItem.Create(const AWidth, AHeight: Integer);
+constructor TTabItem.Create(const AOwnerData: THCCustomData);
+var
+  vSize: TSize;
 begin
-  inherited Create;
+  inherited Create(AOwnerData);
   StyleNo := THCStyle.RsTab;
-  Width := AWidth;
-  Height := AHeight;
+  AOwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(AOwnerData.Style.DefCanvas);
+  vSize := AOwnerData.Style.DefCanvas.TextExtent('ºº×Ö');
+  Width := vSize.cx;
+  Height := vSize.cy;
 end;
 
 procedure TTabItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;

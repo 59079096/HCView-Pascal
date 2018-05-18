@@ -14,7 +14,7 @@ unit HCStyle;
 interface
 
 uses
-  Classes, Graphics, Generics.Collections, HCTextStyle, HCParaStyle;
+  Windows, Classes, Graphics, Generics.Collections, HCTextStyle, HCParaStyle;
 
 type
   /// <summary> 全局状态更新控制 </summary>
@@ -25,9 +25,13 @@ type
     //ReSized: Boolean;  // Item有大小改变，只在TCustomRichData.MouseUp中判断
     ReCaret,  // 重新计算光标
     ReStyle,  // 重新计算光标时获取光标处样式
-    Draging: Boolean;
+    Selecting,  // 全局划选标识
+    Draging  // 全局拖拽标识
+      : Boolean;
     constructor Create;
   end;
+
+  TInvalidateRectEvent = procedure(const ARect: TRect) of object;
 
   THCStyle = class(TPersistent)
   strict private
@@ -43,6 +47,8 @@ type
     FPixelsPerInchX, FPixelsPerInchY: Single;  // 屏幕1英寸dpi数
     FUpdateInfo: TUpdateInfo;
     FShowLineLastMark: Boolean;  // 是否显示换行符
+
+    FOnInvalidateRect: TInvalidateRectEvent;
   protected
     procedure SetShowLineLastMark(Value: Boolean);
   public const
@@ -51,7 +57,7 @@ type
     LineSpace200 = 16;
     //
     RsNull = -1;  // 用于表示StyleNo没有赋值，出错状态
-    RsBitmap = -2;
+    RsImage = -2;
     RsTable = -3;
     RsTab = -4;
     RsLine = -5;
@@ -60,6 +66,7 @@ type
     RsDomain = -8;
     RsPageBreak = -9;
     RsControl = -10;
+    RsGif = -11;
     RsCustom = -100;  // 自定义类型分界线
   public
     constructor Create; virtual;
@@ -82,6 +89,8 @@ type
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 
+    procedure InvalidateRect(const ARect: TRect);
+
     property TextStyles: TObjectList<TTextStyle> read FTextStyles write FTextStyles;
     property ParaStyles: TObjectList<TParaStyle> read FParaStyles write FParaStyles;
     property BackgroudColor: TColor read FBackgroudColor write FBackgroudColor;
@@ -93,12 +102,13 @@ type
     property PixelsPerInchY: single read FPixelsPerInchY;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowLineLastMark: Boolean read FShowLineLastMark write SetShowLineLastMark;
+    property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
   end;
 
 implementation
 
 uses
-  Windows, HCCommon;
+  HCCommon;
 
 { THCStyle }
 
@@ -113,6 +123,12 @@ begin
   FParaStyles.DeleteRange(1, FParaStyles.Count - 1);  // 保留默认段样式
   FCurStyleNo := 0;
   FCurParaNo := 0;
+end;
+
+procedure THCStyle.InvalidateRect(const ARect: TRect);
+begin
+  if Assigned(FOnInvalidateRect) then
+    FOnInvalidateRect(ARect);
 end;
 
 constructor THCStyle.Create;

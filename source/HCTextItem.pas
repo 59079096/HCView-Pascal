@@ -117,7 +117,7 @@ begin
   vS := GetTextPart(AStart + 1, AEnd - AStart);
   vBuffer := BytesOf(vS);
   if System.Length(vBuffer) > MAXWORD then
-    raise Exception.Create(CFE_EXCEPTION + 'TextItem的内容超出最大字符数据！');
+    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
   vSize := System.Length(vBuffer);
   AStream.WriteBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then

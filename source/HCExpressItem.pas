@@ -20,10 +20,10 @@ uses
 type
   TExpressArea = (ceaNone, ceaLeft, ceaTop, ceaRight, ceaBottom);
 
-  // 公式
-  TExperssItem = class(THCCustomRectItem)
+  // 公式(上、下、左、右文本，带分数线)
+  THCExperssItem = class(THCTextRectItem)
   private
-    FStyle: THCStyle;
+    FOwnerData: THCCustomData;
     FLeftText, FTopText, FRightText, FBottomText: string;
     FLeftRect, FTopRect, FRightRect, FBottomRect: TRect;
     FPadding: Byte;
@@ -49,7 +49,8 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
   public
-    constructor Create(const ALeftText, ATopText, ARightText, ABottomText: string);
+    constructor Create(const AOwnerData: THCCustomData;
+      const ALeftText, ATopText, ARightText, ABottomText: string);
   end;
 
 implementation
@@ -57,11 +58,13 @@ implementation
 uses
   SysUtils;
 
-{ TExperssItem }
+{ THCExperssItem }
 
-constructor TExperssItem.Create(const ALeftText, ATopText, ARightText, ABottomText: string);
+constructor THCExperssItem.Create(const AOwnerData: THCCustomData;
+  const ALeftText, ATopText, ARightText, ABottomText: string);
 begin
-  inherited Create;
+  inherited Create(AOwnerData);
+  FOwnerData := AOwnerData;
   Self.StyleNo := THCStyle.RsExpress;
   FPadding := 5;
   FActiveArea := TExpressArea.ceaNone;
@@ -73,32 +76,34 @@ begin
   FBottomText := ABottomText;
 end;
 
-procedure TExperssItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+procedure THCExperssItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  AStyle.TextStyles[0].ApplyStyle(ACanvas);
+  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
   ACanvas.TextOut(ADrawRect.Left + FLeftRect.Left, ADrawRect.Top + FLeftRect.Top, FLeftText);
   ACanvas.TextOut(ADrawRect.Left + FTopRect.Left, ADrawRect.Top + FTopRect.Top, FTopText);
   ACanvas.TextOut(ADrawRect.Left + FRightRect.Left, ADrawRect.Top + FRightRect.Top, FRightText);
   ACanvas.TextOut(ADrawRect.Left + FBottomRect.Left, ADrawRect.Top + FBottomRect.Top, FBottomText);
 
+  ACanvas.Pen.Color := clBlack;
   ACanvas.MoveTo(ADrawRect.Left + FLeftRect.Right + FPadding, ADrawRect.Top + FTopRect.Bottom + FPadding);
   ACanvas.LineTo(ADrawRect.Left + FRightRect.Left - FPadding, ADrawRect.Top + FTopRect.Bottom + FPadding);
 end;
 
-procedure TExperssItem.FormatToDrawItem(const ARichData: THCCustomData;
+procedure THCExperssItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
 var
   vH, vLeftW, vRightW, vTopW, vBottomW: Integer;
+  vStyle: THCStyle;
 begin
-  FStyle := ARichData.Style;
-  FStyle.TextStyles[0].ApplyStyle(FStyle.DefCanvas);
-  vH := FStyle.DefCanvas.TextHeight('字');
-  vLeftW := FStyle.DefCanvas.TextWidth(FLeftText);
-  vTopW := FStyle.DefCanvas.TextWidth(FTopText);
-  vRightW := FStyle.DefCanvas.TextWidth(FRightText);
-  vBottomW := FStyle.DefCanvas.TextWidth(FBottomText);
+  vStyle := ARichData.Style;
+  vStyle.TextStyles[TextStyleNo].ApplyStyle(vStyle.DefCanvas);
+  vH := vStyle.DefCanvas.TextHeight('字');
+  vLeftW := vStyle.DefCanvas.TextWidth(FLeftText);
+  vTopW := vStyle.DefCanvas.TextWidth(FTopText);
+  vRightW := vStyle.DefCanvas.TextWidth(FRightText);
+  vBottomW := vStyle.DefCanvas.TextWidth(FBottomText);
   // 计算尺寸
   if vTopW > vBottomW then  // 上面比下面宽
     Width := vLeftW + vTopW + vRightW + 6 * FPadding
@@ -107,7 +112,7 @@ begin
 
   Height := vH * 2 + 4 * FPadding;
   // 计算各字符串位置
-  vH := FStyle.DefCanvas.TextHeight('字');
+  vH := vStyle.DefCanvas.TextHeight('字');
   //
   FLeftRect := Bounds(FPadding, (Height - vH) div 2, vLeftW, vH);
   FRightRect := Bounds(Width - FPadding - vRightW, (Height - vH) div 2, vRightW, vH);
@@ -117,44 +122,44 @@ begin
     Height - FPadding - vH, vBottomW, vH);
 end;
 
-procedure TExperssItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCExperssItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
 begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
-    FStyle.TextStyles[0].ApplyStyle(FStyle.DefCanvas);
+    FOwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(FOwnerData.Style.DefCanvas);
     case FActiveArea of
       ceaLeft:
         begin
           ACaretInfo.Height := FLeftRect.Bottom - FLeftRect.Top;
-          ACaretInfo.X := FLeftRect.Left + FStyle.DefCanvas.TextWidth(Copy(FLeftText, 1, FCaretOffset));
+          ACaretInfo.X := FLeftRect.Left + FOwnerData.Style.DefCanvas.TextWidth(Copy(FLeftText, 1, FCaretOffset));
           ACaretInfo.Y := FLeftRect.Top;
         end;
 
       ceaTop:
         begin
           ACaretInfo.Height := FTopRect.Bottom - FTopRect.Top;
-          ACaretInfo.X := FTopRect.Left + FStyle.DefCanvas.TextWidth(Copy(FTopText, 1, FCaretOffset));
+          ACaretInfo.X := FTopRect.Left + FOwnerData.Style.DefCanvas.TextWidth(Copy(FTopText, 1, FCaretOffset));
           ACaretInfo.Y := FTopRect.Top;
         end;
 
       ceaRight:
         begin
           ACaretInfo.Height := FRightRect.Bottom - FRightRect.Top;
-          ACaretInfo.X := FRightRect.Left + FStyle.DefCanvas.TextWidth(Copy(FRightText, 1, FCaretOffset));
+          ACaretInfo.X := FRightRect.Left + FOwnerData.Style.DefCanvas.TextWidth(Copy(FRightText, 1, FCaretOffset));
           ACaretInfo.Y := FRightRect.Top;
         end;
 
       ceaBottom:
         begin
           ACaretInfo.Height := FBottomRect.Bottom - FBottomRect.Top;
-          ACaretInfo.X := FBottomRect.Left + FStyle.DefCanvas.TextWidth(Copy(FBottomText, 1, FCaretOffset));
+          ACaretInfo.X := FBottomRect.Left + FOwnerData.Style.DefCanvas.TextWidth(Copy(FBottomText, 1, FCaretOffset));
           ACaretInfo.Y := FBottomRect.Top;
         end;
     end;
   end;
 end;
 
-function TExperssItem.GetExpressArea(const X, Y: Integer): TExpressArea;
+function THCExperssItem.GetExpressArea(const X, Y: Integer): TExpressArea;
 var
   vPt: TPoint;
 begin
@@ -192,20 +197,23 @@ begin
   end;
 end;
 
-function TExperssItem.GetOffsetAt(const X: Integer): Integer;
+function THCExperssItem.GetOffsetAt(const X: Integer): Integer;
 begin
   if FOutSelectInto then
+    Result := inherited GetOffsetAt(X)
+  else
   begin
-    if X < Width div 2 then
+    if X < 0 then
       Result := OffsetBefor
     else
-      Result := OffsetAfter;
-  end
-  else
-    Result := inherited GetOffsetAt(X);
+    if X > Width then
+      Result := OffsetAfter
+    else
+      Result := OffsetInner;
+  end;
 end;
 
-procedure TExperssItem.KeyDown(var Key: Word; Shift: TShiftState);
+procedure THCExperssItem.KeyDown(var Key: Word; Shift: TShiftState);
 
   procedure BackspaceKeyDown;
 
@@ -297,7 +305,7 @@ begin
   end;
 end;
 
-procedure TExperssItem.KeyPress(var Key: Char);
+procedure THCExperssItem.KeyPress(var Key: Char);
 begin
   if FActiveArea <> ceaNone then
   begin
@@ -315,7 +323,7 @@ begin
     Key := #0;
 end;
 
-procedure TExperssItem.LoadFromStream(const AStream: TStream;
+procedure THCExperssItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 
   procedure LoadPartText(var S: string);
@@ -342,7 +350,7 @@ begin
   LoadPartText(FBottomText);
 end;
 
-procedure TExperssItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+procedure THCExperssItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var
   vS: string;
@@ -358,7 +366,7 @@ begin
   if vArea <> FActiveArea then
   begin
     FActiveArea := vArea;
-    FStyle.UpdateInfoReCaret;
+    FOwnerData.Style.UpdateInfoReCaret;
   end;
 
   case FActiveArea of
@@ -389,19 +397,19 @@ begin
   end;
   if FActiveArea <> TExpressArea.ceaNone then
   begin
-    FStyle.TextStyles[0].ApplyStyle(FStyle.DefCanvas);
-    vOffset := GetCharOffsetByX(FStyle.DefCanvas, vS, vX)
+    FOwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(FOwnerData.Style.DefCanvas);
+    vOffset := GetCharOffsetByX(FOwnerData.Style.DefCanvas, vS, vX)
   end
   else
     vOffset := -1;
   if vOffset <> FCaretOffset then
   begin
     FCaretOffset := vOffset;
-    FStyle.UpdateInfoReCaret;
+    FOwnerData.Style.UpdateInfoReCaret;
   end;
 end;
 
-procedure TExperssItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+procedure THCExperssItem.MouseMove(Shift: TShiftState; X, Y: Integer);
 begin
   if (not FMouseLBDowning) and (Shift = [ssLeft]) then
     FOutSelectInto := True;
@@ -409,7 +417,7 @@ begin
   inherited MouseMove(Shift, X, Y);
 end;
 
-procedure TExperssItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+procedure THCExperssItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   FMouseLBDowning := False;
@@ -417,7 +425,7 @@ begin
   inherited MouseUp(Button, Shift, X, Y);
 end;
 
-procedure TExperssItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCExperssItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 
   procedure SavePartText(const S: string);
   var
@@ -426,7 +434,7 @@ procedure TExperssItem.SaveToStream(const AStream: TStream; const AStart, AEnd: 
   begin
     vBuffer := BytesOf(S);
     if System.Length(vBuffer) > MAXWORD then
-      raise Exception.Create(CFE_EXCEPTION + 'TextItem的内容超出最大字符数据！');
+      raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
     vSize := System.Length(vBuffer);
     AStream.WriteBuffer(vSize, SizeOf(vSize));
     if vSize > 0 then
@@ -441,7 +449,7 @@ begin
   SavePartText(FBottomText);
 end;
 
-function TExperssItem.WantKeyDown(const Key: Word;
+function THCExperssItem.WantKeyDown(const Key: Word;
   const Shift: TShiftState): Boolean;
 begin
   Result := True;

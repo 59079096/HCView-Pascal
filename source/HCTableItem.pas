@@ -117,6 +117,9 @@ type
     function GetCellPostion(const ARow, ACol: Integer): TPoint;
 
     function ActiveDataResizing: Boolean;
+
+    /// <summary> 取消选中范围内除ARow, ACol之外单元格的选中状态(-1表示全部取消) </summary>
+    procedure DisSelectSelectedCell(const ARow: Integer = -1; const ACol: Integer = -1);
   protected
     function CanDrag: Boolean; override;
     function GetSelectComplate: Boolean; override;
@@ -159,7 +162,6 @@ type
     function ClearFormatExtraHeight: Integer; override;
     function DeleteSelected: Boolean; override;
     procedure DisSelect; override;
-    procedure DragNotify(const AFinish: Boolean); override;
     procedure MarkStyleUsed(const AMark: Boolean); override;
     procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
     procedure SetActive(const Value: Boolean); override;
@@ -213,7 +215,7 @@ type
     function GetRowCount: Integer;
     //function GetColCount: Integer;
     function MergeCells(const AStartRow, AStartCol, AEndRow, AEndCol: Integer):Boolean;
-    function GetCells(ARow, ACol: Integer): TTableCell;
+    function GetCells(ARow, ACol: Integer): THCTableCell;
   public
     //DrawItem: TCustomDrawItem;
     constructor Create(const AOwnerData: TCustomData; const ARowCount, AColCount,
@@ -263,7 +265,7 @@ type
     /// <returns>true:当前是选中状态</returns>
     function CellSelectComplate(const ARow, ACol: Integer): Boolean;
     function MergeSelectCells: Boolean;
-    function GetEditCell: TTableCell; overload;
+    function GetEditCell: THCTableCell; overload;
     procedure GetEditCell(var ARow, ACol: Integer); overload;
 
     function InsertRowAfter(const ACount: Byte): Boolean;
@@ -273,7 +275,7 @@ type
     function InsertColBefor(const ACount: Byte): Boolean;
     function DeleteCol(const ACount: Byte): Boolean;
 
-    property Cells[ARow, ACol: Integer]: TTableCell read GetCells;
+    property Cells[ARow, ACol: Integer]: THCTableCell read GetCells;
     property RowCount: Integer read GetRowCount;
     //property ColCount: Integer read GetColCount;
     property SelectCellRang: TSelectCellRang read FSelectCellRang;
@@ -285,7 +287,7 @@ type
 implementation
 
 uses
-  Math, Winapi.Windows;
+  Math, Windows;
 
 type
   TCellCross = class(TObject)
@@ -342,7 +344,7 @@ procedure THCTableItem.FormatToDrawItem(const ARichData: THCCustomData;
   begin
     vRow := FRows[ARow];
     vRow.FmtOffset := 0;  // 恢复上次格式化可能的偏移
-    // 格式化各列
+    // 格式化各单元格中的Data
     for vC := 0 to vRow.ColCount - 1 do
     begin
       if vRow.Cols[vC].CellData <> nil then
@@ -425,7 +427,7 @@ var
   vRow: TTableRow;
   i, vDataWidth: Integer;
 begin
-  inherited Create;
+  inherited Create(AOwnerData);
   FOwnerData := AOwnerData;
   GripSize := 2;
   FCellHPadding := 2;
@@ -465,7 +467,7 @@ var
   i, j, vDelCount: Integer;
   //viDestRow, viDestCol: Integer;
   //vTableRow: TTableRow;
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
@@ -496,7 +498,7 @@ var
   i, j, k, vDelCount: Integer;
   viDestRow, viDestCol: Integer;
   //vTableRow: TTableRow;
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
@@ -535,9 +537,6 @@ var
 begin
   Result := inherited DeleteSelected;
 
-  if Self.IsSelectComplate then // 全选中的删除由外部处理
-    raise Exception.Create('删除表格异常，表格全选中后由不能由其内部删除！');
-
   if FSelectCellRang.StartRow >= 0 then  // 有选择起始行
   begin
     if FSelectCellRang.EndRow >= 0 then  // 有选择结束行，说明选中不在同一单元格
@@ -547,10 +546,8 @@ begin
       begin
         for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
         begin
-          if (Cells[vR, vC].CellData <> nil) and
-            (not Cells[vR, vC].CellData.DeleteSelected)
-          then
-            Result := False;
+          if Cells[vR, vC].CellData <> nil then
+            Cells[vR, vC].CellData.DeleteSelected;
         end;
       end;
     end
@@ -569,30 +566,54 @@ begin
 end;
 
 procedure THCTableItem.DisSelect;
-var
-  vRow: Integer;
-  vCol: Integer;
 begin
   inherited DisSelect;
 
-  if SelectExists then
+  DisSelectSelectedCell;
+
+  FSelectCellRang.Initialize;
+  Self.InitializeMouseInfo;
+
+  FSelecting := False;
+  FDraging := False;
+  FOutSelectInto := False;
+end;
+
+procedure THCTableItem.DisSelectSelectedCell(const ARow: Integer = -1;
+  const ACol: Integer = -1);
+var
+  vRow, vCol: Integer;
+  vCellData: THCTableCellData;
+begin
+  if FSelectCellRang.StartRow >= 0 then
   begin
-    if FSelectCellRang.EndRow < 0 then  // 选择发生在一个单元格中
-      Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData.DisSelect
+    // 先清起始，确保当前单元格可执行DisSelect 与201805172309相似
+    if (FSelectCellRang.StartRow = ARow) and (FSelectCellRang.StartCol = ACol) then
+
     else
     begin
-      for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
+      vCellData := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData;
+      vCellData.DisSelect;
+      vCellData.InitializeField;
+    end;
+
+    for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
+    begin
+      for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
       begin
-        for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
+        if (vRow = ARow) and (vCol = ACol) then
+
+        else
         begin
-          if FRows[vRow].Cols[vCol].CellData <> nil then
-            FRows[vRow].Cols[vCol].CellData.DisSelect;
+          vCellData := FRows[vRow].Cols[vCol].CellData;
+          if vCellData <> nil then
+          begin
+            vCellData.DisSelect;
+            vCellData.InitializeField;
+          end;
         end;
       end;
     end;
-    FOwnerData.Style.UpdateInfoRePaint;
-
-    FSelectCellRang.Initialize;  // SetActive(False)时，会清除当前单元格，但不会清除选择的行、列信息   
   end;
 end;
 
@@ -929,15 +950,6 @@ begin
   end;
 end;
 
-procedure THCTableItem.DragNotify(const AFinish: Boolean);
-begin
-  inherited;
-  FDraging := False;  // 拖拽完成
-  FMouseLBDowning := False;
-  FOutSelectInto := False;
-  FSelecting := False;  // 准备划选
-end;
-
 procedure THCTableItem.KeyDown(var Key: Word; Shift: TShiftState);
 
   function IsDirectionKey(const AKey: Word): Boolean;
@@ -946,7 +958,7 @@ procedure THCTableItem.KeyDown(var Key: Word; Shift: TShiftState);
   end;
 
 var
-  vEditCell: TTableCell;
+  vEditCell: THCTableCell;
 
   function DoCrossCellKey(const AKey: Word): Boolean;
   var
@@ -1101,7 +1113,7 @@ end;
 procedure THCTableItem.KeyPress(var Key: Char);
 var
   vOldHeight: Integer;
-  vEditCell: TTableCell;
+  vEditCell: THCTableCell;
 begin
   Self.SizeChanged := False;
 
@@ -1171,7 +1183,7 @@ procedure THCTableItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y:
 var
   //i: Integer;
   vMouseDownRow, vMouseDownCol: Integer;// abstract vBottom;
-  vCell: TTableCell;
+  vCell: THCTableCell;
   vCellPt: TPoint;
 begin
   FMouseLBDowning := (Button = mbLeft) and (Shift = [ssLeft]);
@@ -1192,45 +1204,49 @@ begin
     Exit;
   end;
 
-  if CoordInSelect(X, Y) then
-  begin
-    if FMouseLBDowning then
-    begin
-      FDraging := True;
-      FOwnerData.Style.UpdateInfo.Draging := True;
-    end;
-    
-    vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
-
-    FRows[FMouseDownRow].Cols[FMouseDownCol].CellData.MouseDown(
-      Button, Shift, X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);    
-  end
-  else
   if FResizeInfo.TableSite = tsCell then
   begin
-    if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // 新位置
+    if CoordInSelect(X, Y) then  // 在选中区域中（不包括边框线及边框线容差）
     begin
-      vCell := GetEditCell;
-      if vCell <> nil then  // 取消原来编辑
-        vCell.Active := False;
+      if FMouseLBDowning then
+        FDraging := True;
 
-      FMouseDownRow := vMouseDownRow;
+      FMouseDownRow := vMouseDownRow;  // 记录拖拽起始单元格
       FMouseDownCol := vMouseDownCol;
-      FOwnerData.Style.UpdateInfoReCaret;
-    end;
 
-    //if not CoordInSelect(X, Y) then  // 没点在选中范围内
+      vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
+      FRows[FMouseDownRow].Cols[FMouseDownCol].CellData.MouseDown(
+        Button, Shift, X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+    end
+    else  // 不在选中区域中
     begin
-      DisSelect;  // 取消原来选中
+      DisSelect;  // 清除原选中
+      FSelectCellRang.Initialize;  // 准备新选中
+
+      if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // 新位置
+      begin
+        vCell := GetEditCell;
+        if vCell <> nil then  // 取消原来编辑
+          vCell.Active := False;
+
+        FMouseDownRow := vMouseDownRow;
+        FMouseDownCol := vMouseDownCol;
+        FOwnerData.Style.UpdateInfoReCaret;
+      end;
 
       FSelectCellRang.StartRow := FMouseDownRow;
       FSelectCellRang.StartCol := FMouseDownCol;
+
+      vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
+
+      FRows[FMouseDownRow].Cols[FMouseDownCol].CellData.MouseDown(
+        Button, Shift, X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
     end;
-
-    vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
-
-    FRows[FMouseDownRow].Cols[FMouseDownCol].CellData.MouseDown(
-      Button, Shift, X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+  end
+  else
+  begin
+    DisSelect;  // 取消原来选中
+    Self.InitializeMouseInfo;
   end;
 end;
 
@@ -1262,8 +1278,8 @@ var
         for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
         begin
           if ((vRow = FMouseDownRow) and (vCol = FMouseDownCol))
-            or ((vRow = vMoveRow) and (vCol = vMoveCol))
-          then  // 保留当前按下和移动处的选中状态
+            //or ((vRow = vMoveRow) and (vCol = vMoveCol))
+          then  // 保留当前按下的选中信息，防止回到按下中做内容的选中
 
           else
           begin
@@ -1276,28 +1292,33 @@ var
 
     if FMouseDownRow < 0 then  // 从表格外面选到里面
     begin
-      if (vMoveRow = 0) or (vMoveCol = 0) then  // 从上面或左面选入
+      if vMoveRow = 0 then  // 从上面选入
       begin
-        FMouseDownRow := 0;  // 需要赋值FMouseDown行列吗
+        FMouseDownRow := 0;
         FMouseDownCol := 0;
+
+        FSelectCellRang.StartRow := FMouseDownRow;
+        FSelectCellRang.StartCol := FMouseDownCol;
+        FSelectCellRang.EndRow := vMoveRow;
+        FSelectCellRang.EndCol := vMoveCol;
       end
-      else  // 从下面或右面选入
+      else  // 从下面选入
       begin
         GetDestCell(Self.RowCount - 1, Self.FColWidths.Count - 1, vRow, vCol);
         FMouseDownRow := vRow;
         FMouseDownCol := vCol;
+
+        FSelectCellRang.StartRow := vMoveRow;
+        FSelectCellRang.StartCol := vMoveCol;
+        FSelectCellRang.EndRow := FMouseDownRow;
+        FSelectCellRang.EndCol := FMouseDownCol;
       end;
 
-      FSelectCellRang.StartRow := FMouseDownRow;
-      FSelectCellRang.StartCol := FMouseDownCol;
-      FSelectCellRang.EndRow := vMoveRow;
-      FSelectCellRang.EndCol := vMoveCol;
-
-      with Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData do
+      {with Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData do
       begin
         SelectInfo.StartItemNo := 0;
         SelectInfo.StartItemOffset := 0;
-      end;
+      end;}
 
       FOutSelectInto := True;
     end
@@ -1379,9 +1400,7 @@ var
       begin
         for vCol := FSelectCellRang.FStartCol to FSelectCellRang.FEndCol do
         begin
-          if (vRow = vMoveRow) and (vCol = vMoveCol) then
-
-          else
+          {if (vRow = vMoveRow) and (vCol = vMoveCol) then else 什么情况下需要跳过?}
           if Cells[vRow, vCol].CellData <> nil then
             Cells[vRow, vCol].CellData.SelectAll;
         end;
@@ -1419,7 +1438,7 @@ begin
   begin
     if FMouseLBDowning or (Shift = [ssLeft]) then  // 左键按下移动，按下时在表格上 or 没有在表格上按下(划选进入)
     begin
-      if FDraging or FOwnerData.Style.UpdateInfo.Draging{解决拖拽在外面进入表格时按选择单元格范围处理的问题} then
+      if FDraging or FOwnerData.Style.UpdateInfo.Draging then
       begin
         FMouseMoveRow := vMoveRow;
         FMouseMoveCol := vMoveCol;
@@ -1438,13 +1457,13 @@ begin
         FMouseMoveRow := vMoveRow;
         FMouseMoveCol := vMoveCol;
 
-        AdjustSelectRang;  // 计算选中起始结束范围
+        AdjustSelectRang;  // 计算选中起始结束范围(会纠正从后、下往前选的情况)
         MatchCellSelectState;  // 处理选中范围内各单元格的选中状态
       end;
 
-      if (FSelectCellRang.StartRow = FMouseMoveRow)
+      {if (FSelectCellRang.StartRow = FMouseMoveRow)
         and (FSelectCellRang.StartCol = FMouseMoveCol)
-      then  // 选择起始和现在是同一个单元格
+      then}  // 选择起始和现在是同一个单元格
       begin
         vCellPt := GetCellPostion(FMouseMoveRow, FMouseMoveCol);
         Cells[FMouseMoveRow, FMouseMoveCol].CellData.MouseMove(Shift,
@@ -1486,33 +1505,12 @@ begin
 end;
 
 procedure THCTableItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-
-  {$REGION '以拖拽弹起单元格做为当前编辑单元格'}
-  procedure DoSelectUpCell(const AUpRow, AUpCol: Integer);
-  var
-    vRow, vCol: Integer;
-  begin
-    if FSelectCellRang.StartRow >= 0 then
-    begin
-      for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
-      begin
-        for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
-        begin
-          if Cells[vRow, vCol].CellData <> nil then
-            Cells[vRow, vCol].CellData.DisSelect;
-        end;
-      end;
-    end;
-    FSelectCellRang.StartRow := AUpRow;
-    FSelectCellRang.StartCol := AUpCol;
-  end;
-  {$ENDREGION}
-
 var
   vPt: TPoint;
   vUpRow, vUpCol: Integer;
   vCellPt: TPoint;
   vResizeInfo: TResizeInfo;
+  //vMouseUpInSelect: Boolean;
 begin
   FMouseLBDowning := False;
 
@@ -1529,7 +1527,7 @@ begin
   begin
     if FResizeInfo.TableSite = tsBorderRight then  // 拖宽/拖窄
     begin
-      vPt.X := FResizeInfo.DestX - FMouseDownX;
+      vPt.X := X - FMouseDownX;  // 不使用FResizeInfo.DestX(会造成按下处弹出也有偏移)
       if vPt.X <> 0 then
       begin
         // AReDest为False用于处理拖动改变列宽时，如拖动处列是合并源，其他行此列并无合并操作
@@ -1579,7 +1577,7 @@ begin
     else
     if FResizeInfo.TableSite = tsBorderBottom then  // 拖高/拖矮
     begin
-      vPt.Y := FResizeInfo.DestY - FMouseDownY;
+      vPt.Y := Y - FMouseDownY;  // // 不使用FResizeInfo.DestY(会造成按下处弹出也有偏移)
       if vPt.Y <> 0 then
       begin
         FRows[FMouseDownRow].Height := FRows[FMouseDownRow].Height + vPt.Y;
@@ -1591,38 +1589,54 @@ begin
     GCursor := crDefault;
     FOwnerData.Style.UpdateInfoRePaint;
     FOwnerData.Style.UpdateInfoReCaret;
-    FSelectCellRang.Initialize;
+
     Exit;
   end;
 
-  if FSelecting then  // 划选完成
+  if FSelecting or FOwnerData.Style.UpdateInfo.Selecting then  // 划选完成
   begin
     FSelecting := False;
 
-    // 选中仅在某一个单元格中时需要处理划选完成
-    vResizeInfo := GetCellAt(X, Y, vUpRow, vUpCol);
-
-    if vResizeInfo.TableSite <> TTableSite.tsOutside then  // 没有拖到页面空白的地方
+    // 先在按下单元格弹起，以便单元格中嵌套的表格有机会响应弹起(取消按下、划选状态，划选完成)
+    if (FMouseDownRow >= 0) and (not FOutSelectInto) then  // 在表格右侧按下移动时再弹起时无有效的FMouseDownRow和FMouseDownCol
     begin
-      vPt := GetCellPostion(vUpRow, vUpCol);
-      Cells[vUpRow, vUpCol].CellData.MouseUp(Button, Shift,
+      vPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
+      Cells[FMouseDownRow, FMouseDownCol].CellData.MouseUp(Button, Shift,
         X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
+    end;
+
+    vResizeInfo := GetCellAt(X, Y, vUpRow, vUpCol);
+    if vResizeInfo.TableSite = TTableSite.tsCell then  // 没有划选到页面空白的地方
+    begin
+      if (vUpRow <> FMouseDownRow) or (vUpCol <> FMouseDownCol) then  // 划选完成后弹起在非按下单元格
+      begin
+        vPt := GetCellPostion(vUpRow, vUpCol);
+        Cells[vUpRow, vUpCol].CellData.MouseUp(Button, Shift,
+          X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
+      end;
     end;
   end
   else
-  if FDraging then  // 拖拽弹起
+  if FDraging or FOwnerData.Style.UpdateInfo.Draging then  // 拖拽弹起
   begin
     FDraging := False;
-    
+
     vResizeInfo := GetCellAt(X, Y, vUpRow, vUpCol);
 
-    if vResizeInfo.TableSite <> TTableSite.tsOutside then  // 没有拖到页面空白的地方
+    if vResizeInfo.TableSite = TTableSite.tsCell then  // 拖到了某单元格中
     begin
-      DoSelectUpCell(vUpRow, vUpCol);  // 以拖拽弹起时单元格做为当前编辑单元格
+      DisSelectSelectedCell(vUpRow, vUpCol);  // 取消除弹起处之外的所有拖拽选中单元格的状态
+      FSelectCellRang.Initialize;  // 准备重新赋值
 
+      // 不管是否在在选中单元格中弹起，拖拽弹起都需要编辑到选中单元格，
+      FSelectCellRang.StartRow := vUpRow;
+      FSelectCellRang.StartCol := vUpCol;
       vPt := GetCellPostion(vUpRow, vUpCol);
       Cells[vUpRow, vUpCol].CellData.MouseUp(Button, Shift,
         X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
+
+      {if FMouseDownRow >= 0 then  // 有点击时的单元格(表格是划选范围内其中一个，在其他上拖拽到表格上时没有按下FMouseDownRow)
+        Cells[FMouseDownRow, FMouseDownCol].CellData.InitializeField;}  // 拖拽起始单元格标明拖拽完成了
     end;
   end
   else  // 非划选，非拖拽
@@ -1655,7 +1669,7 @@ end;
 
 function THCTableItem.GetHint: string;
 var
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := inherited GetHint;
   if (FMouseMoveRow < 0) or (FMouseMoveCol < 0) then Exit;
@@ -1664,7 +1678,7 @@ begin
     Result := vCell.CellData.GetHint;
 end;
 
-function THCTableItem.GetCells(ARow, ACol: Integer): TTableCell;
+function THCTableItem.GetCells(ARow, ACol: Integer): THCTableCell;
 begin
   Result := FRows[ARow].Cols[ACol];
 end;
@@ -1700,7 +1714,7 @@ begin
   end;
 end;
 
-function THCTableItem.GetEditCell: TTableCell;
+function THCTableItem.GetEditCell: THCTableCell;
 begin
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
     Result := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol]
@@ -1753,7 +1767,8 @@ begin
   // 判断是在行边框上还是行中
   for i := 0 to RowCount - 1 do
   begin
-    vBottom := vTop + FRows[i].FmtOffset + FRows[i].Height + FBorderWidth;
+    vTop := vTop + FRows[i].FmtOffset;  // 以实际内容Top为顶位置，避免行有跨页时，在上一页底部点击选中的是下一页第一行
+    vBottom := vTop + FRows[i].Height + FBorderWidth;
     if CheckRowBorderRang(vBottom) then  // 第i行下边框
     begin
       ARow := i;
@@ -1953,6 +1968,7 @@ begin
   FMouseDownCol := -1;
   FMouseMoveRow := -1;
   FMouseMoveCol := -1;
+  FMouseLBDowning := False;
 end;
 
 function THCTableItem.InsertColAfter(const ACount: Byte): Boolean;
@@ -1960,7 +1976,7 @@ var
   i, j, k: Integer;
   viDestRow, viDestCol: Integer;
   //vTableRow: TTableRow;
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
@@ -1972,7 +1988,7 @@ begin
     FColWidths.Insert(FSelectCellRang.StartCol + 1, 50);
     for j := 0 to RowCount - 1 do
     begin
-      vCell := TTableCell.Create(FOwnerData.Style);
+      vCell := THCTableCell.Create(FOwnerData.Style);
       vCell.Width := 50;
       vCell.RowSpan := FRows[j].Cols[FSelectCellRang.StartCol].RowSpan;
       vCell.ColSpan := FRows[j].Cols[FSelectCellRang.StartCol].ColSpan;
@@ -2001,7 +2017,7 @@ var
   i, j, k: Integer;
   viDestRow, viDestCol: Integer;
   //vTableRow: TTableRow;
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
@@ -2011,7 +2027,7 @@ begin
   begin
     for j := 0 to RowCount - 1 do
     begin
-      vCell := TTableCell.Create(FOwnerData.Style);
+      vCell := THCTableCell.Create(FOwnerData.Style);
       vCell.Width := 50;
       vCell.RowSpan := FRows[j].Cols[FSelectCellRang.StartCol].RowSpan;
       vCell.ColSpan := FRows[j].Cols[FSelectCellRang.StartCol].ColSpan;
@@ -2037,7 +2053,7 @@ end;
 
 function THCTableItem.InsertItem(const AItem: THCCustomItem): Boolean;
 var
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
@@ -2050,7 +2066,7 @@ var
   i, j, k: Integer;
   viDestRow, viDestCol: Integer;
   vTableRow: TTableRow;
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
@@ -2105,7 +2121,7 @@ var
   i, j, k: Integer;
   viDestRow, viDestCol: Integer;
   vTableRow: TTableRow;
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
@@ -2142,7 +2158,7 @@ end;
 function THCTableItem.InsertStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word): Boolean;
 var
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
@@ -2180,7 +2196,7 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
   var
     vR, vC, vR1: Integer;
     vEmptyRow: Boolean;
-    vTableCell: TTableCell;
+    vTableCell: THCTableCell;
   begin
     for vR := AERow downto ASRow do  // 遍历行
     begin
@@ -2220,7 +2236,7 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
   var
     vR, vC, vC2: Integer;
     vEmptyCol: Boolean;
-    vTableCell: TTableCell;
+    vTableCell: THCTableCell;
   begin
     for vC := AECol downto ASCol do  // 循环各列
     begin
@@ -2380,7 +2396,7 @@ begin
     if Result then
     begin
       { 防止合并后有空行或空列被删除后，DisSelect访问越界，所以合并后直接赋值结束信息 }
-      //Self.Initialize;  // 合并后不保留选中单元格
+      //Self.InitializeMouseInfo;  // 合并后不保留选中单元格
       FSelectCellRang.EndRow := -1;
       FSelectCellRang.EndCol := -1;
       Self.Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData.InitializeField;
@@ -2815,13 +2831,43 @@ var
   vSelRect: TRect;
   vCellPt: TPoint;
   vCellData: THCTableCellData;
-  vX, vY, vItemNo, vDrawItemNo, vOffset: Integer;
+  vX, vY, vItemNo, vDrawItemNo, vOffset, vRow, vCol: Integer;
   vRestrain: Boolean;
+  vResizeInfo: TResizeInfo;
 begin
-  Result := inherited CoordInSelect(X, Y);
+  Result := inherited CoordInSelect(X, Y);  // 有选中且在RectItem区域中(粗略估算)
   if Result then
   begin
-    if FSelectCellRang.StartRow >= 0 then  // 有选择起始行
+    vResizeInfo := GetCellAt(X, Y, vRow, vCol);  // 坐标处信息
+    Result := vResizeInfo.TableSite = TTableSite.tsCell;  // 坐标处在单元格中不在边框上
+    if Result then  // 在单元格中，判断单元格是否在选中范围内
+    begin
+      if FSelectCellRang.StartRow >= 0 then  // 有选择起始行
+      begin
+        if FSelectCellRang.EndRow >= 0 then  // 有选择结束行
+        begin
+          Result := (vRow >= FSelectCellRang.StartRow)
+                and (vRow <= FSelectCellRang.EndRow)
+                and (vCol >= FSelectCellRang.StartCol)
+                and (vCol <= FSelectCellRang.EndCol)
+        end
+        else  // 无选择结束行，判断是否在当前单元格的选中中
+        begin
+          vCellData := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData;
+          if vCellData.SelectExists then
+          begin
+            vCellPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
+            vX := X - vCellPt.X - FCellHPadding;
+            vY := Y - vCellPt.Y - FCellVPadding;
+            vCellData.GetItemAt(vX, vY, vItemNo, vOffset, vDrawItemNo, vRestrain);
+
+            Result := vCellData.CoordInSelect(vX, vY, vItemNo, vOffset, vRestrain);
+          end;
+        end;
+      end;
+    end;
+
+    {if FSelectCellRang.StartRow >= 0 then  // 有选择起始行
     begin
       if FSelectCellRang.EndRow >= 0 then  // 有选择结束行
       begin
@@ -2845,7 +2891,7 @@ begin
           Result := (not vRestrain) and vCellData.CoordInSelect(vX, vY, vItemNo, vOffset);
         end;
       end;
-    end;
+    end;}
   end;
 end;
 
@@ -2922,7 +2968,7 @@ end;
 
 procedure THCTableItem.SetActive(const Value: Boolean);
 var
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   if Self.Active <> Value then
   begin
@@ -2930,10 +2976,8 @@ begin
     if (vCell <> nil) and (vCell.CellData <> nil) then
       vCell.CellData.Active := Value;
     if not Value then
-    begin
-      //DisSelect; 这里需要吗?
       Self.InitializeMouseInfo;
-    end;
+
     inherited SetActive(Value);
   end;
 end;
@@ -2941,8 +2985,6 @@ end;
 procedure THCTableItem.SetResizing(const Value: Boolean);
 begin
   inherited SetResizing(Value);
-  {if not Value then
-    FStyle.UpdateInfo.Draging := False;}
 end;
 
 procedure THCTableItem.SelectComplate;
@@ -3041,7 +3083,7 @@ end;
 
 function THCTableItem.GetActiveData: THCCustomData;
 var
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := nil;
   vCell := GetEditCell;
@@ -3061,7 +3103,7 @@ end;
 
 function THCTableItem.GetActiveDrawItemCoord: TPoint;
 var
-  vCell: TTableCell;
+  vCell: THCTableCell;
   vPt: TPoint;
 begin
   Result := Point(0, 0);
@@ -3077,7 +3119,7 @@ end;
 
 function THCTableItem.GetActiveItem: THCCustomItem;
 var
-  vCell: TTableCell;
+  vCell: THCTableCell;
 begin
   Result := Self;
   vCell := GetEditCell;
@@ -3089,7 +3131,7 @@ procedure THCTableItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
 var
   vRow, vCol: Integer;
   vPos: TPoint;
-  vCaretCell: TTableCell;
+  vCaretCell: THCTableCell;
 begin
   if FOwnerData.Style.UpdateInfo.Draging then
   begin

@@ -47,8 +47,8 @@ type
     FSymmetryMargin: Boolean;
     FPages: THCPages;  // 所有页面
     FPageSize: THCPageSize;
-    FHeader: THCCustomSectionData;
-    FFooter: THCCustomSectionData;
+    FHeader: THCHeaderData;
+    FFooter: THCFooterData;
     FPageData: THCSectionData;
     FActiveData: THCRichData;  // 页眉、正文、页脚
 
@@ -72,7 +72,7 @@ type
 
     /// <summary> 当前Data内容变动完成后 </summary>
     /// <param name="AInsertActItemNo">插入发生的位置</param>
-    /// <param name="AOldDataHeight">插入前Data的高度</param>
+    /// <param name="ABuildSectionPage">需要重新计算页</param>
     procedure DoActiveDataChanged(const AActiveItemNo: Integer;
       const ABuildSectionPage: Boolean);
 
@@ -324,8 +324,8 @@ type
     property PageMarginBottomPix: Integer read GetPageMarginBottomPix write SetPageMarginBottomPix;
 
     property HeaderOffset: Integer read FHeaderOffset write SetHeaderOffset;
-    property Header: THCCustomSectionData read FHeader;
-    property Footer: THCCustomSectionData read FFooter;
+    property Header: THCHeaderData read FHeader;
+    property Footer: THCFooterData read FFooter;
     property PageData: THCSectionData read FPageData;
 
     /// <summary> 当前文档激活区域(页眉、页脚、页面)的数据对象 </summary>
@@ -510,11 +510,11 @@ begin
   // FData.PageHeight := PageHeightPix - PageMarginBottomPix - GetHeaderAreaHeight;
   // 在ReFormatSectionData中处理了FData.PageHeight
 
-  FHeader := THCCustomSectionData.Create(AStyle);
+  FHeader := THCHeaderData.Create(AStyle);
   FHeader.OnReadOnlySwitch := DoDataReadOnlySwitch;
   FHeader.Width := FPageData.Width;
 
-  FFooter := THCCustomSectionData.Create(AStyle);
+  FFooter := THCFooterData.Create(AStyle);
   FFooter.OnReadOnlySwitch := DoDataReadOnlySwitch;
   FFooter.Width := FPageData.Width;
 
@@ -572,6 +572,7 @@ begin
       BuildSectionPages(0);
     // 在需要的时候，可以将绘画变化和高度变化分开，以减少RichEdit不必要的CalcScrollRang和AdjustScroll
   end;
+
   DoDataChanged(Self);
 end;
 
@@ -602,10 +603,10 @@ end;
 
 procedure THCSection.FormatData;
 begin
+  FActiveData.DisSelect;  // 先清选中，防止格式化后选中位置不存在
   FHeader.ReFormat(0);
   Footer.ReFormat(0);
   FPageData.ReFormat(0);
-  FActiveData.DisSelect;
 end;
 
 function THCSection.GetCurrentPage: Integer;
@@ -1823,13 +1824,10 @@ begin
   with FPageSize do
     FPageData.Width := PageWidthPix - PageMarginLeftPix - PageMarginRightPix;
 
-  FPageData.ReFormat(0);
-
   FHeader.Width := FPageData.Width;
-  FHeader.ReFormat(0);
-
   FFooter.Width := FPageData.Width;
-  FFooter.ReFormat(0);
+
+  FormatData;
 
   BuildSectionPages(0);
 

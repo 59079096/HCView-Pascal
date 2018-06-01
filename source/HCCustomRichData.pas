@@ -118,9 +118,7 @@ type
     function GetHeight: Cardinal; virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
 
-    /// <summary>
-    /// 准备格式化参数
-    /// </summary>
+    /// <summary> 准备格式化参数 </summary>
     /// <param name="AStartItemNo">开始格式化的Item</param>
     /// <param name="APrioDItemNo">上一个Item的最后一个DrawItemNo</param>
     /// <param name="APos">开始格式化位置</param>
@@ -130,15 +128,7 @@ type
     function CalcContentHeight: Integer;
   public
     constructor Create(const AStyle: THCStyle); override;
-    //
-    function CanEdit: Boolean;
-    /// <summary> 初始化为只有一个空Item的Data</summary>
-    procedure SetEmptyData;
-    /// <summary> 在光标处换行 </summary>
-    function InsertBreak: Boolean;
-    function InsertText(const AText: string): Boolean;
-    function InsertTable(const ARowCount, AColCount: Integer): Boolean;
-    function InsertLine(const ALineHeight: Integer): Boolean;
+
     /// <summary> 在光标处插入Item </summary>
     /// <param name="AItem"></param>
     /// <returns></returns>
@@ -151,11 +141,40 @@ type
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
       const AOffsetBefor: Boolean = True): Boolean; overload; virtual;
 
+    procedure KillFocus; virtual;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); virtual;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
+
+    // Key返回0表示此键按下Data没有做任何事情
+    procedure KeyPress(var Key: Char); virtual;
+
+    // Key返回0表示此键按下Data没有做任何事情
+    procedure KeyDown(var Key: Word; Shift: TShiftState); virtual;
+
+    // Key返回0表示此键按下Data没有做任何事情
+    procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
+
+    /// <summary> 初始化字段和变量 </summary>
+    procedure InitializeField; virtual;
+    //
+    procedure DblClick(X, Y: Integer);
+    function CanEdit: Boolean;
+
+    /// <summary> 初始化为只有一个空Item的Data</summary>
+    procedure SetEmptyData;
+
+    /// <summary> 在光标处换行 </summary>
+    function InsertBreak: Boolean;
+    function InsertText(const AText: string): Boolean;
+    function InsertTable(const ARowCount, AColCount: Integer): Boolean;
+    function InsertLine(const ALineHeight: Integer): Boolean;
+
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
-
+    procedure DeleteItems(const AStartNo: Integer; const AEndNo: Integer = -1);
     function TableInsertRowAfter(const ARowCount: Byte): Boolean;
     function TableInsertRowBefor(const ARowCount: Byte): Boolean;
     function ActiveTableDeleteRow(const ARowCount: Byte): Boolean;
@@ -163,23 +182,12 @@ type
     function TableInsertColBefor(const AColCount: Byte): Boolean;
     function ActiveTableDeleteCol(const AColCount: Byte): Boolean;
     function MergeTableSelectCells: Boolean;
-    procedure KillFocus; virtual;
-    procedure DblClick(X, Y: Integer);
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); virtual;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
-    {IKeyEvent}
-    // Key返回0表示此键按下Data没有做任何事情
-    procedure KeyPress(var Key: Char); virtual;
-    // Key返回0表示此键按下Data没有做任何事情
-    procedure KeyDown(var Key: Word; Shift: TShiftState); virtual;
-    // Key返回0表示此键按下Data没有做任何事情
-    procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
 
     // Format仅负责格式化Item，ReFormat仅负责格式化后对后面Item和DrawItem的关联处理
     // 目前仅单元格用了，需要放到CellData中吗？
     procedure ReFormat(const AStartItemNo: Integer);
     procedure FormatData(const AStartItemNo, ALastItemNo: Integer);
+
     // Format仅负责格式化Item，ReFormat负责格式化后对后面Item和DrawItem的关联处理
     procedure ReFormatData_(const AStartItemNo: Integer; const ALastItemNo: Integer = -1;
       const AExtraItemCount: Integer = 0);
@@ -193,9 +201,6 @@ type
     /// <summary> 取消激活(用于页眉、页脚、正文切换时原激活的取消) </summary>
     procedure DisActive;
 
-    /// <summary> 初始化字段和变量 </summary>
-    procedure InitializeField; virtual;
-
     function GetHint: string;
 
     /// <summary> 返回当前光标处的顶层Data </summary>
@@ -204,9 +209,7 @@ type
     /// <summary> 返回指定位置处的顶层Data </summary>
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomRichData;
 
-    /// <summary>
-    /// 绘制数据
-    /// </summary>
+    /// <summary> 绘制数据 </summary>
     /// <param name="AOffsetX">数据偏移</param>
     /// <param name="AOffsetY">数据偏移</param>
     /// <param name="ADataScreenTop">数据在当前屏幕露出来的最上端</param>
@@ -303,6 +306,49 @@ begin
   end;
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret(False);
+end;
+
+procedure THCCustomRichData.DeleteItems(const AStartNo: Integer; const AEndNo: Integer = -1);
+var
+  vStartFirstDrawItemNo, vStartEndDrawItemNo,
+  vEndFirstDrawItemNo, vEndEndDrawItemNo,
+  {vStartNo, }vEndNo, vDelCount: Integer;
+  vItem: THCCustomItem;
+begin
+  InitializeField;
+  DisSelect;  // 防止删除后原选中ItemNo不存在
+
+  // 因目前调用DeleteItems后都是从0开始格式化，所以此处格式化相关代码暂时注释掉
+  {if AStartNo > 0 then  // 从删除的前一个开始格式化
+    vStartNo := AStartNo - 1
+  else
+    vStartNo := 0;}
+
+  if AEndNo < 0 then
+    vEndNo := AStartNo
+  else
+    vEndNo := AEndNo;
+
+  vDelCount := vEndNo - AStartNo + 1;
+  //FormatItemPrepare(vStartNo, vEndNo);
+  Items.DeleteRange(AStartNo, vDelCount);
+  //ReFormatData_(vStartNo, vEndNo - vDelCount, -vDelCount);
+  if Items.Count = 0 then  // 删除没了
+  begin
+    vItem := CreateDefaultTextItem;
+    vItem.ParaFirst := True;
+    Items.Add(vItem);  // 不使用InsertText，为避免其触发ReFormat时因为没有格式化过，获取不到对应的DrawItem
+  end
+  else  // 删除完了还有
+  if (AStartNo > 0) and (not Items[AStartNo].ParaFirst) then  // 删除位置的Item不是段首，判断是否能合并到前一个
+  begin
+    if Items[AStartNo - 1].CanConcatItems(Items[AStartNo]) then
+    begin
+      //vItem := Items[AStartNo - 1];
+      Items[AStartNo - 1].Text := Items[AStartNo - 1].Text + Items[AStartNo].Text;
+      Items.Delete(AStartNo);
+    end;
+  end;
 end;
 
 function THCCustomRichData.DeleteSelected: Boolean;
@@ -609,6 +655,7 @@ begin
 
       SelectInfo.EndItemNo := -1;
       SelectInfo.EndItemOffset := -1;
+      Self.InitializeField;  // 删除后原鼠标处可能已经没有了
       Style.UpdateInfoRePaint;
       Style.UpdateInfoReCaret;
 
@@ -712,9 +759,17 @@ end;
 
 procedure THCCustomRichData.ReFormat(const AStartItemNo: Integer);
 begin
-  FormatItemPrepare(AStartItemNo, Items.Count - 1);
-  FormatData(AStartItemNo, Items.Count - 1);
-  DrawItems.DeleteFormatMark;
+  if AStartItemNo > 0 then
+  begin
+    FormatItemPrepare(AStartItemNo, Items.Count - 1);
+    FormatData(AStartItemNo, Items.Count - 1);
+    DrawItems.DeleteFormatMark;
+  end
+  else  // 从0开始，适用于处理外部调用提供的方法(非内部操作)引起的Item变化且没处理Item对应的DrawItem的情况
+  begin
+    DrawItems.Clear;
+    FormatData(0, Items.Count - 1);
+  end;
 end;
 
 procedure THCCustomRichData.ReFormatActiveItem;
@@ -980,7 +1035,9 @@ var
 begin
   if SelectInfo.StartItemNo < 0 then Exit;
 
-  GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
+  //GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
+  vFormatFirstItemNo := GetParaFirstItemNo(SelectInfo.StartItemNo);
+
   if SelectInfo.EndItemNo >= 0 then  // 有选中内容
   begin
     vFormatLastItemNo := GetParaLastItemNo(SelectInfo.EndItemNo);
@@ -990,6 +1047,7 @@ begin
   end
   else  // 没有选中内容
   begin
+    vFormatLastItemNo := GetParaLastItemNo(SelectInfo.StartItemNo);
     FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
     DoApplyParaStyle(SelectInfo.StartItemNo);  // 应用样式
     ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
@@ -1491,7 +1549,7 @@ begin
       end;
     end;
 
-    if not vMerged then  // 不和插入位置及插入位置前的Item合并
+    if not vMerged then  // 不和插入位置前后Item合并
     begin
       if (AIndex < Items.Count)
         and (Items[AIndex].StyleNo > THCStyle.RsNull)
@@ -1858,6 +1916,7 @@ function THCCustomRichData.InsertText(const AText: string): Boolean;
 var
   vNewPara: Boolean;
 
+  {$REGION ' InsertTextItem '}
   procedure InsertTextItem(const AText: string);
   var
     vItem: THCCustomItem;
@@ -1873,6 +1932,7 @@ var
     else  // 通过#13#10的过滤后为空的按回车处理
       InsertBreak;
   end;
+  {$ENDREGION}
 
 var
   vPCharStart, vPCharEnd, vPtr: PChar;
@@ -2950,7 +3010,7 @@ begin
     VK_BACK, VK_DELETE, VK_RETURN, VK_TAB:
       begin
         Style.UpdateInfoRePaint;
-        Style.UpdateInfoReCaret(False);
+        Style.UpdateInfoReCaret;  // 删除后以新位置光标为当前样式
       end;
 
     VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
@@ -2982,7 +3042,6 @@ var
         GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
         FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
         if Key <> #0 then
-          //ReFormatPara(SelectInfo.StartItemNo);
           ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
       end;
     end
@@ -3437,7 +3496,6 @@ end;
 procedure THCCustomRichData.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   vUpItemNo, vUpItemOffset, vDrawItemNo: Integer;
-  vDragStartItemNo, vDragEndItemNo: Integer;
 
   {$REGION ' DoItemMouseUp '}
   procedure DoItemMouseUp(const AItemNo, AOffset: Integer);
@@ -3626,75 +3684,6 @@ begin
         end;
       end;
     end;
-
-    // 将原格式化因分页等原因引起的整体下移恢复回来
-
-    {if DrawItems.Count > vLastDrawItemNo + 1 then
-    begin
-      //vFmtTopOffset := DrawItems[vLastDrawItemNo + 1].Rect.Top - DrawItems[vLastDrawItemNo].Rect.Top;
-      for i := vLastDrawItemNo + 1 to DrawItems.Count - 1 do  // 从格式化变动段的下一段开始
-      begin
-        if DrawItems[i].LineFirst then
-          vFmtTopOffset := DrawItems[i - 1].Rect.Bottom - DrawItems[i].Rect.Top;
-
-        OffsetRect(DrawItems[i].Rect, 0, vFmtTopOffset);
-
-        if Items[DrawItems[i].ItemNo].StyleNo < THCStyle.RsNull then  // RectItem如表格，在格式化时有行和行中间的偏移，新格式化时要恢复，由分页函数再处理新格式化后的偏移
-        begin
-          vRectReFormatHight := (Items[DrawItems[i].ItemNo] as THCCustomRectItem).ClearFormatExtraHeight;
-          DrawItems[i].Rect.Bottom := DrawItems[i].Rect.Bottom - vRectReFormatHight;
-        end;
-      end;
-    end;}
-    {
-    vFmtTopOffset := 0;
-    for i := vLastDrawItemNo + 1 to DrawItems.Count - 1 do
-    begin
-      if (i > vLastDrawItemNo + 1) and DrawItems[i].LineFirst then
-      begin
-        if DrawItems[i].Rect.Top <> DrawItems[i - 1].Rect.Bottom then
-          vFmtTopOffset := vFmtTopOffset - (DrawItems[i].Rect.Top - DrawItems[i - 1].Rect.Bottom);
-
-        if Items[DrawItems[i].ItemNo].StyleNo < THCStyle.RsNull then  // RectItem如表格，在格式化时有行和行中间的偏移，新格式化时要恢复，由分页函数再处理新格式化后的偏移
-        begin
-          vRectReFormatHight := (Items[DrawItems[i].ItemNo] as THCCustomRectItem).GetFormatDiffClearHeight;
-          DrawItems[i].Rect.Bottom := DrawItems[i].Rect.Bottom - vRectReFormatHight;
-          OffsetRect(DrawItems[i].Rect, 0, vFmtTopOffset);
-          vFmtTopOffset := vFmtTopOffset - vRectReFormatHight;  // 将分页增加的高度恢复回来
-          Continue;
-        end;
-      end;
-      OffsetRect(DrawItems[i].Rect, 0, vFmtTopOffset);
-    end;
-
-    for i := vLastDrawItemNo + 1 to DrawItems.Count - 1 do
-    begin
-      OffsetRect(DrawItems[i].Rect, 0, vFormatIncHight);  // 新格式化后偏移
-    end; }
-
-    {vLastItemNo := -1;
-    for i := vLastDrawItemNo + 1 to DrawItems.Count - 1 do
-    begin
-      DrawItems[i].ItemNo := DrawItems[i].ItemNo + AExtraItemCount;
-      if vLastItemNo <> DrawItems[i].ItemNo then
-      begin
-        vLastItemNo := DrawItems[i].ItemNo;
-        Items[vLastItemNo].FirstDItemNo := i;
-      end;
-
-      // DrawItems[i]对应的Item整体跨页了或某种原因整体向下偏移了
-      if (DrawItems[i].LineFirst) and (DrawItems[i].Rect.Top + vFormatIncHight <> DrawItems[i - 1].Rect.Bottom) then
-        vFormatIncHight := vFormatIncHight - (DrawItems[i].Rect.Top + vFormatIncHight - DrawItems[i - 1].Rect.Bottom);  // 重新格式化时先紧贴着上一个下面，由分页函数再处理新格式化后的偏移
-
-      OffsetRect(DrawItems[i].Rect, 0, vFormatIncHight);  // 新格式化后偏移
-
-      if Items[DrawItems[i].ItemNo].StyleNo < THCStyle.RsNull then  // RectItem如表格，在格式化时有行和行中间的偏移，新格式化时要恢复，由分页函数再处理新格式化后的偏移
-      begin
-        vRectReFormatHight := (Items[DrawItems[i].ItemNo] as THCCustomRectItem).GetFormatDiffClearHeight;
-        vFormatIncHight := vFormatIncHight - vRectReFormatHight;  // 将分页增加的高度恢复回来
-        DrawItems[i].Rect.Bottom := DrawItems[i].Rect.Bottom - vRectReFormatHight;
-      end;
-    end; }
   end;
 end;
 
@@ -3721,7 +3710,7 @@ begin
   begin
     vItem := CreateDefaultTextItem;
     vItem.ParaFirst := True;
-    Items.Add(vItem);  // 不使用InsertText，为避免其触发ReFormatPara时因为没有格式化过，获取不到对应的DrawItem
+    Items.Add(vItem);  // 不使用InsertText，为避免其触发ReFormat时因为没有格式化过，获取不到对应的DrawItem
 
     FormatData(0, 0);
     ReSetSelectAndCaret(0);

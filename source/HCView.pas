@@ -281,6 +281,8 @@ type
     function GetPageCount: Integer;
     function GetSectionDrawLeft(const ASectionNo: Integer): Integer;
 
+    procedure FormatSection(const ASectionNo: Integer);
+
     /// <summary>
     /// 获取指定节页眉区域实际高(内容高度>上边距时取内容高度)
     /// </summary>
@@ -462,7 +464,8 @@ begin
   FSections[0].SetEmptyData;
   FStyle.UpdateInfoRePaint;
   FStyle.UpdateInfoReCaret;
-  CheckUpdateInfo(True);
+
+  DoMapChanged;
 end;
 
 procedure THCView.Copy;
@@ -1573,6 +1576,17 @@ begin
 
   FCaret.Show;
   DoCaretChange;
+end;
+
+procedure THCView.FormatSection(const ASectionNo: Integer);
+begin
+  // FSections[ASectionNo].PageData.ReFormat(0);
+  FSections[ASectionNo].FormatData;
+  FSections[ASectionNo].BuildSectionPages(0);
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret;
+
+  DoChange;
 end;
 
 procedure THCView.ReMarginPaper;

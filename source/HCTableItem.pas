@@ -97,20 +97,14 @@ type
     FOwnerData: THCCustomData;
     procedure InitializeMouseInfo;
 
-    /// <summary>
-    /// 表格行有添加时
-    /// </summary>
+    /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: TTableRow);
 
-    /// <summary>
-    /// 获取当前表格格式化高度
-    /// </summary>
+    /// <summary> 获取当前表格格式化高度 </summary>
     /// <returns></returns>
     function GetFormatHeight: Integer;
 
-    /// <summary>
-    /// 返回指定单元格相对表格的起始位置坐标(如果被合并返回合并到单元格的坐标)
-    /// </summary>
+    /// <summary> 返回指定单元格相对表格的起始位置坐标(如果被合并返回合并到单元格的坐标) </summary>
     /// <param name="ARow"></param>
     /// <param name="ACol"></param>
     /// <returns></returns>
@@ -166,9 +160,7 @@ type
     procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
     procedure SetActive(const Value: Boolean); override;
 
-    /// <summary>
-    /// 获取表格在指定高度内的结束位置处行中最下端(暂时没用到注释了)
-    /// </summary>
+    /// <summary> 获取表格在指定高度内的结束位置处行中最下端(暂时没用到注释了) </summary>
     /// <param name="AHeight">指定的高度范围</param>
     /// <param name="ADItemMostBottom">最后一行最底端DItem的底部位置</param>
     //procedure GetPageFmtBottomInfo(const AHeight: Integer; var ADItemMostBottom: Integer); override;
@@ -192,9 +184,7 @@ type
     procedure TraverseItem(const ATraverse: TItemTraverse); override;
     //
 
-    /// <summary>
-    /// 表格分页
-    /// </summary>
+    /// <summary> 表格分页 </summary>
     /// <param name="ADrawItemRectTop">表格对应的DrawItem的Rect.Top</param>
     /// <param name="ADrawItemRectTop">表格对应的DrawItem的Rect.Bottom</param>
     /// <param name="APageDataFmtTop">当前页的数据顶部位置</param>
@@ -222,9 +212,7 @@ type
       AWidth: Integer);
     destructor Destroy; override;
 
-    /// <summary>
-    /// 获取指定位置处的行、列(如果是被合并单元格则返回目标单元格行、列)
-    /// </summary>
+    /// <summary> 获取指定位置处的行、列(如果是被合并单元格则返回目标单元格行、列) </summary>
     /// <param name="X">横坐标</param>
     /// <param name="Y">纵坐标</param>
     /// <param name="ARow">坐标处的行</param>
@@ -237,9 +225,7 @@ type
     procedure GetDestCell(const ARow, ACol: Cardinal; var ADestRow, ADestCol: Integer);
 
     procedure SelectAll;
-    /// <summary>
-    /// 判断指定范围内的单元格是否可以合并(为了给界面合并菜单控制可用状态放到public域中)
-    /// </summary>
+    /// <summary> 判断指定范围内的单元格是否可以合并(为了给界面合并菜单控制可用状态放到public域中) </summary>
     /// <param name="AStartRow"></param>
     /// <param name="AStartCol"></param>
     /// <param name="AEndRow"></param>
@@ -247,19 +233,13 @@ type
     /// <returns></returns>
     function CellsCanMerge(const AStartRow, AStartCol, AEndRow, AEndCol: Integer): Boolean;
 
-    /// <summary>
-    /// 获取指定单元格合并后的单元格
-    /// </summary>
+    /// <summary> 获取指定单元格合并后的单元格 </summary>
     procedure GetMergeDest(const ARow, ACol: Integer; var ADestRow, ADestCol: Integer);
 
-    /// <summary>
-    /// 获取指定单元格合并后单元格的Data
-    /// </summary>
+    /// <summary> 获取指定单元格合并后单元格的Data </summary>
     //function GetMergeDestCellData(const ARow, ACol: Integer): THCTableCellData;
 
-    /// <summary>
-    /// 单元格是否处于全选中状态(非内容全选中)
-    /// </summary>
+    /// <summary> 单元格是否处于全选中状态(非内容全选中) </summary>
     /// <param name="ARow"></param>
     /// <param name="ACol"></param>
     /// <returns>true:当前是选中状态</returns>
@@ -781,7 +761,10 @@ begin
           if vFristDItemNo >= 0 then  // 有可显示的DrawItem
           begin
             {$IFDEF SHOWITEMNO}
-            ACanvas.TextOut(vCellDrawLeft, vMergeCellDataDrawTop, IntToStr(vC) + '/' + IntToStr(vR));
+            ACanvas.Font.Color := clGray;
+            ACanvas.Font.Style := [];
+            ACanvas.Font.Size := 8;
+            ACanvas.TextOut(vCellDrawLeft + 1, vMergeCellDataDrawTop, IntToStr(vC) + '/' + IntToStr(vR));
             {$ENDIF}
 
             vCellData.PaintData(vCellDrawLeft + FCellHPadding, vMergeCellDataDrawTop,
@@ -1220,8 +1203,7 @@ begin
     end
     else  // 不在选中区域中
     begin
-      DisSelect;  // 清除原选中
-      FSelectCellRang.Initialize;  // 准备新选中
+      {DisSelect;  // 清除原选中
 
       if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // 新位置
       begin
@@ -1232,7 +1214,21 @@ begin
         FMouseDownRow := vMouseDownRow;
         FMouseDownCol := vMouseDownCol;
         FOwnerData.Style.UpdateInfoReCaret;
+      end; }
+
+      // 如果先执行DisSelect会清除Mouse信息，导致当前编辑单元格不能响应取消激活事件
+      if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // 新位置
+      begin
+        vCell := GetEditCell;
+        if vCell <> nil then  // 取消原来编辑
+          vCell.Active := False;
+        FOwnerData.Style.UpdateInfoReCaret;
       end;
+
+      DisSelect;  // 清除原选中
+
+      FMouseDownRow := vMouseDownRow;
+      FMouseDownCol := vMouseDownCol;
 
       FSelectCellRang.StartRow := FMouseDownRow;
       FSelectCellRang.StartCol := FMouseDownCol;
@@ -1412,7 +1408,6 @@ var
 var
   vCellPt: TPoint;
   vResizeInfo: TResizeInfo;
-  vMoveNewCell: Boolean;
 begin
   if ActiveDataResizing then
   begin
@@ -1493,6 +1488,12 @@ begin
   end
   else
   begin
+    if (FMouseMoveRow >= 0) and (FMouseMoveCol >= 0) then
+    begin
+      if FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData <> nil then
+        FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData.MouseMove(Shift, -1, -1);  // 旧单元格移出
+    end;
+
     FMouseMoveRow := -1;
     FMouseMoveCol := -1;
 
@@ -2196,7 +2197,6 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
   var
     vR, vC, vR1: Integer;
     vEmptyRow: Boolean;
-    vTableCell: THCTableCell;
   begin
     for vR := AERow downto ASRow do  // 遍历行
     begin
@@ -2828,7 +2828,6 @@ end;
 
 function THCTableItem.CoordInSelect(const X, Y: Integer): Boolean;
 var
-  vSelRect: TRect;
   vCellPt: TPoint;
   vCellData: THCTableCellData;
   vX, vY, vItemNo, vDrawItemNo, vOffset, vRow, vCol: Integer;

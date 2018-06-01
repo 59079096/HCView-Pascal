@@ -111,9 +111,8 @@ begin
     Width := vLeftW + vBottomW + vRightW + 6 * FPadding;
 
   Height := vH * 2 + 4 * FPadding;
+
   // ¼ÆËã¸÷×Ö·û´®Î»ÖÃ
-  vH := vStyle.DefCanvas.TextHeight('×Ö');
-  //
   FLeftRect := Bounds(FPadding, (Height - vH) div 2, vLeftW, vH);
   FRightRect := Bounds(Width - FPadding - vRightW, (Height - vH) div 2, vRightW, vH);
   FTopRect := Bounds(FLeftRect.Right + FPadding + (FRightRect.Left - FPadding - (FLeftRect.Right + FPadding) - vTopW) div 2,

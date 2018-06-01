@@ -21,11 +21,15 @@ const
 
 type
   TOrientation = (oriHorizontal, oriVertical);
+
   TScrollCode = (scLineUp, scLineDown, scPageUp, scPageDown, scPosition,
     scTrack, scTop, scBottom, scEndScroll);
+
   TScrollEvent = procedure(Sender: TObject; ScrollCode: TScrollCode;
     var ScrollPos: Integer) of object;
+
   TBarControl = (cbcBar, cbcLeftBtn, cbcThum, cbcRightBtn);
+
   THCScrollBar = class(TCustomControl)  // 为实现滚动条上按下拖动到控件外也能继续滚动,使用 SetCapture 需要句柄
   private
     /// <summary> 滚动条位置的最小值 </summary>
@@ -116,6 +120,8 @@ type
     /// </summary>
     /// <param name="Value">移动范围</param>
     procedure SetBtnStep(const Value: Integer);
+
+    procedure UpdateRangRect;
   protected
     procedure Resize; override;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
@@ -530,7 +536,7 @@ begin
 
     FRange := FMax - FMin;
     ReCalcThumRect;  // 滑块区域
-    //UpdateDirectUI;  // 重绘
+    UpdateRangRect;  // 重绘
   end;
 end;
 
@@ -546,7 +552,7 @@ begin
       FPosition := FMin;
     FRange := FMax - FMin;
     ReCalcThumRect;  // 滑块区域
-    //UpdateDirectUI;  // 重绘
+    UpdateRangRect;  // 重绘
   end;
 end;
 
@@ -566,7 +572,7 @@ begin
     end;
     ReCalcButtonRect;
     ReCalcThumRect;
-    //UpdateDirectUI;  // 重绘
+    UpdateRangRect;  // 重绘
   end;
 end;
 
@@ -576,7 +582,7 @@ begin
   begin
     FPageSize := Value;
     ReCalcThumRect;  // 重新计算相对比率（相对Max - Min）
-    //UpdateDirectUI;  // 重绘 当其所有者大小改变时，造成系统中窗体后面的窗体闪烁
+    UpdateRangRect;  // 重绘
   end;
 end;
 
@@ -597,11 +603,17 @@ begin
     FPosition := vPos;
     ReCalcThumRect;  // 滑块区域
     //Repaint;
-    InvalidateRect(Handle, ClientRect, False);
+    UpdateRangRect;  // 重绘
 
     if Assigned(FOnScroll) then  // 滚动
       FOnScroll(Self, scPosition, FPosition);
   end;
+end;
+
+procedure THCScrollBar.UpdateRangRect;
+begin
+  if HandleAllocated then
+    InvalidateRect(Handle, ClientRect, False);
 end;
 
 end.

@@ -60,6 +60,7 @@ type
   protected
     /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
     procedure MatchItemSelectState;
+
     /// <summary> 式化时，记录起始DrawItem和段最后的DrawItem </summary>
     /// <param name="AStartItemNo"></param>
     procedure FormatItemPrepare(const AStartItemNo: Integer; const AEndItemNo: Integer = -1);
@@ -68,13 +69,13 @@ type
     /// 转换指定Item指定Offs格式化为DItem
     /// </summary>
     /// <param name="AItemNo">指定的Item</param>
-    /// <param name="AOffs">指定的格式化起始位置</param>
+    /// <param name="AOffset">指定的格式化起始位置</param>
     /// <param name="AContentWidth">当前Data格式化宽度</param>
     /// <param name="APageContenBottom">当前页格式化底部位置</param>
     /// <param name="APos">起始位置</param>
     /// <param name="ALastDNo">起始DItemNo前一个值</param>
     /// <param name="vPageBoundary">数据页底部边界</param>
-    procedure _FormatItemToDrawItems(const AItemNo, AOffs, AContentWidth: Integer;
+    procedure _FormatItemToDrawItems(const AItemNo, AOffset, AContentWidth: Integer;
       var APos: TPoint; var ALastDNo: Integer);
 
     /// <summary> 获取DItem中指定偏移处的内容绘制宽度 </summary>
@@ -91,8 +92,10 @@ type
       var AFirstItemNo, ALastItemNo: Integer);
     function GetParaFirstItemNo(const AItemNo: Integer): Integer;
     function GetParaLastItemNo(const AItemNo: Integer): Integer;
+
     /// <summary> 取行第一个DrawItem对应的ItemNo(用于格式化时计算一个较小的ItemNo范围) </summary>
     function GetLineFirstItemNo(const AItemNo, AOffset: Integer): Integer;
+
     /// <summary> 取行最后一个DrawItem对应的ItemNo(用于格式化时计算一个较小的ItemNo范围) </summary>
     function GetLineLastItemNo(const AItemNo, AOffset: Integer): Integer;
 
@@ -211,50 +214,34 @@ type
     function GetCurItemNo: Integer;
     function GetCurItem: THCCustomItem;
 
-    /// <summary>
-    /// 返回Item的文本样式
-    /// </summary>
+    /// <summary> 返回Item的文本样式 </summary>
     function GetItemStyle(const AItemNo: Integer): Integer;
 
-    /// <summary>
-    /// 返回DDrawItem对应的Item的文本样式
-    /// </summary>
+    /// <summary> 返回DDrawItem对应的Item的文本样式 </summary>
     function GetDrawItemStyle(const ADrawItemNo: Integer): Integer;
 
-    /// <summary>
-    /// 返回Item对应的段落样式
-    /// </summary>
+    /// <summary> 返回Item对应的段落样式 </summary>
     function GetItemParaStyle(const AItemNo: Integer): Integer;
 
-    /// <summary>
-    /// 返回DDrawItem对应的Item的段落样式
-    /// </summary>
+    /// <summary> 返回DDrawItem对应的Item的段落样式 </summary>
     function GetDrawItemParaStyle(const ADrawItemNo: Integer): Integer;
 
-    /// <summary>
-    /// 得到指定横坐标X处，是DItem内容的第几个字符
-    /// </summary>
+    /// <summary> 得到指定横坐标X处，是DItem内容的第几个字符 </summary>
     /// <param name="ADrawItemNo">指定的DItem</param>
     /// <param name="X">在Data中的横坐标</param>
     /// <returns>第几个字符</returns>
     function GetDrawItemOffset(const ADrawItemNo, X: Integer): Integer;
 
     { 获取选中相关信息 }
-    /// <summary>
-    /// 当前选中起始DItemNo
-    /// </summary>
+    /// <summary> 当前选中起始DItemNo </summary>
     /// <returns></returns>
     function GetSelectStartDrawItemNo: Integer;
 
-    /// <summary>
-    /// 当前选中结束DItemNo
-    /// </summary>
+    /// <summary> 当前选中结束DItemNo </summary>
     /// <returns></returns>
     function GetSelectEndDrawItemNo: Integer;
 
-    /// <summary>
-    /// 获取选中内容是否在同一个DItem中
-    /// </summary>
+    /// <summary> 获取选中内容是否在同一个DItem中 </summary>
     /// <returns></returns>
     function SelectInSameDItem: Boolean;
 
@@ -262,15 +249,11 @@ type
     /// <returns>取消时当前是否有选中，True：有选中；False：无选中</returns>
     function DisSelect: Boolean; virtual;
 
-    /// <summary>
-    /// 当前选中内容允许拖动
-    /// </summary>
+    /// <summary> 当前选中内容允许拖动 </summary>
     /// <returns></returns>
     function SelectedCanDrag: Boolean;
 
-    /// <summary>
-    /// 当前选中内容只有RectItem且正处于缩放状态
-    /// </summary>
+    /// <summary> 当前选中内容只有RectItem且正处于缩放状态 </summary>
     /// <returns></returns>
     function SelectedResizing: Boolean;
 
@@ -280,9 +263,7 @@ type
     /// <summary> 当前内容是否全选中了 </summary>
     function SelectedAll: Boolean; virtual;
 
-    /// <summary>
-    /// 为段应用对齐方式
-    /// </summary>
+    /// <summary> 为段应用对齐方式 </summary>
     /// <param name="AAlign">对方方式</param>
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz); virtual;
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert); virtual;
@@ -296,9 +277,7 @@ type
     /// <summary> 删除选中 </summary>
     function DeleteSelected: Boolean; virtual;
 
-    /// <summary>
-    /// 为选中文本使用指定的文本样式
-    /// </summary>
+    /// <summary> 为选中文本使用指定的文本样式 </summary>
     /// <param name="AFontStyle">文本样式</param>
     procedure ApplyTextStyle(const AFontStyle: TFontStyleEx); virtual;
     procedure ApplyTextFontName(const AFontName: TFontName); virtual;
@@ -306,9 +285,7 @@ type
     procedure ApplyTextColor(const AColor: TColor); virtual;
     procedure ApplyTextBackColor(const AColor: TColor); virtual;
 
-    /// <summary>
-    /// 绘制数据
-    /// </summary>
+    /// <summary> 绘制数据 </summary>
     /// <param name="ADataDrawLeft">绘制目标区域Left</param>
     /// <param name="ADataDrawTop">绘制目标区域的Top</param>
     /// <param name="ADataDrawBottom">绘制目标区域的Bottom</param>
@@ -320,9 +297,7 @@ type
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
-    /// <summary>
-    /// 添加Data到当前
-    /// </summary>
+    /// <summary> 添加Data到当前 </summary>
     /// <param name="ASrcData">源Data</param>
     procedure AddData(const ASrcData: THCCustomData);
 
@@ -361,9 +336,7 @@ uses
 
 { THCCustomData }
 
-/// <summary>
-/// 返回字符串AText的分散分隔数量和各分隔的起始位置
-/// </summary>
+/// <summary> 返回字符串AText的分散分隔数量和各分隔的起始位置 </summary>
 /// <param name="AText">要计算的字符串</param>
 /// <param name="ACharIndexs">记录各分隔的起始位置</param>
 /// <returns>分散分隔数量</returns>
@@ -971,7 +944,7 @@ var
   vStyleNo: Integer;
   vAlignHorz: TParaAlignHorz;
   vDItem: THCCustomDrawItem;
-  
+
   vSplitList: THCList;
   vLineLast: Boolean;
   vText, vS: string;
@@ -980,7 +953,7 @@ var
 begin
   Result := 0;
   if ADrawOffs = 0 then Exit;
-  
+
   vDItem := FDrawItems[ADrawItemNo];
   vStyleNo := FItems[vDItem.ItemNo].StyleNo;
   if vStyleNo < THCStyle.RsNull then  // 非文本
@@ -1196,22 +1169,22 @@ begin
 
   // 判断是指定行中哪一个Item
   GetLineDrawItemRang(vStartDItemNo, vEndDItemNo);  // 行起始和结束DrawItem
-  if X <= FDrawItems[vStartDItemNo].Rect.Left then  // 居中时，在行第一个左边点击
+  if X <= FDrawItems[vStartDItemNo].Rect.Left then  // 在行第一个左边点击
   begin
     ADrawItemNo := vStartDItemNo;
     AItemNo := FDrawItems[vStartDItemNo].ItemNo;
     if FItems[AItemNo].StyleNo < THCStyle.RsNull then
-      AOffset := OffsetBefor
+      AOffset := GetDrawItemOffset(vStartDItemNo, X)
     else
       AOffset := FDrawItems[vStartDItemNo].CharOffs - 1;  // DrawItem起始
   end
   else
-  if X >= FDrawItems[vEndDItemNo].Rect.Right then  // 居中时，在右边点击
+  if X >= FDrawItems[vEndDItemNo].Rect.Right then  // 在行右边点击
   begin
     ADrawItemNo := vEndDItemNo;
     AItemNo := FDrawItems[vEndDItemNo].ItemNo;
     if FItems[AItemNo].StyleNo < THCStyle.RsNull then
-      AOffset := OffsetAfter
+      AOffset := GetDrawItemOffset(vEndDItemNo, X)
     else
       AOffset := FDrawItems[vEndDItemNo].CharOffs + FDrawItems[vEndDItemNo].CharLen - 1;  // DrawItem最后
   end
@@ -1408,16 +1381,19 @@ begin
       FSelectInfo.StartItemOffset);
 end;
 
-procedure THCCustomData._FormatItemToDrawItems(const AItemNo, AOffs, AContentWidth: Integer;
+procedure THCCustomData._FormatItemToDrawItems(const AItemNo, AOffset, AContentWidth: Integer;
   var APos: TPoint; var ALastDNo: Integer);
 
 type
   TCharType = (
     jctBreak,  //  截断点
     jctHZ,  // 汉字
-    jctZM,  // 字母
-    jctSZ,  // 数字
-    jctFH   // 符号
+    jctZM,  // 半角字母
+    //jctCNZM,  // 全角字母
+    jctSZ,  // 半角数字
+    //jctCNSZ,  // 全角数字
+    jctFH  // 半角符号
+    //jctCNFH   // 全角符号
     );
 
   TBreakPosition = (  // 截断位置
@@ -1426,108 +1402,13 @@ type
     //jbpCur    // 在当前后面截断
     );
 
-
-  {$REGION 'GetTextPlace'}
-  function GetTextPlace(const AWidth: Integer; const AStr: string): Integer;
-
-  {$REGION '二分法(这里不如从后往前合适吧)'}
-  {var
-    viLen, viLastCan, vIndex: Integer;
-    vWidth, vWidthCan: Integer;
-    vTempStr: string;
-    vNeedReCalc: Boolean;
-  begin
-    vWidthCan := 0;
-    vNeedReCalc := False;
-    // 二分法
-    viLastCan := 0;
-    viLen := Length(AStr);
-    Result := viLen;
-    vIndex := Result;
-    while Result > 0 do
-    begin
-      vTempStr := Copy(AStr, 1, Result);
-      vWidth := FStyle.DefCanvas.TextWidth(vTempStr);
-      if vWidth > AWidth then  // 放不下
-      begin
-        if viLastCan > 0 then // 由能放下到放不下
-        begin
-          vNeedReCalc := True;  // 需要重新确定具体断点
-          Break;
-        end;
-        Result := Result - vIndex div 2;  // 往前二分
-        if Result = vIndex then  // 一个也放不下?
-        begin
-          vNeedReCalc := True;
-          Break;
-        end;
-        vIndex := Result;
-        if Result = viLastCan then
-        begin
-          vNeedReCalc := False;  // 确定断点
-          Break;
-        end;
-      end
-      else
-      begin
-        if Result = viLastCan then
-        begin
-          vNeedReCalc := False;  // 确定断点
-          Break;
-        end;
-        viLastCan := Result;  // 记录最后一个不需要断点的位置
-        vIndex := viLastCan;
-        vWidthCan := vWidth;  // 最后一个不需要断点所占掉宽度
-        Result := Result + (viLen - Result) div 2;  // 往后二分
-      end;
-    end;
-
-    if vNeedReCalc then  // 需要确定断点
-    begin
-      vWidth := AWidth - vWidthCan;  // 除最后能放下的后剩余宽度
-      viLen := Result - viLastCan;  // 除最后能放下的到放不下的中间个数
-      for vIndex := 1 to viLen do  // 依次判断在哪处断点
-      begin
-        vTempStr := Copy(AStr, viLastCan + 1, vIndex);
-        vWidthCan := FStyle.DefCanvas.TextWidth(vTempStr);
-        if vWidthCan > vWidth then
-        begin
-          Result := viLastCan + vIndex - 1;  // 确定断点
-          Break;
-        end;
-      end;
-    end;
-  end;}
-  {$ENDREGION}
-
-  var
-    i, vWidth, vCharWidth: Integer;
-  begin
-    Result := 0;
-    vWidth := FStyle.DefCanvas.TextWidth(AStr);  // 当前字符串宽度
-    vCharWidth := 0;
-    for i := Length(AStr) downto 1 do  // 从后往前找截断位置(比二分法更快吧)
-    begin
-      vCharWidth := vCharWidth + FStyle.DefCanvas.TextWidth(AStr[i]);  // 从后往前字符宽度和
-      if vWidth - vCharWidth <= AWidth then
-      begin
-        Result := i - 1;
-        Break;
-      end;
-    end;
-  end;
-  {$ENDREGION}
-
   {$REGION 'FinishLine'}
-  /// <summary>
-  /// 重整行
-  /// </summary>
+  /// <summary> 重整行 </summary>
   /// <param name="AEndDItemNo">行最后一个DItem</param>
   /// <param name="ARemWidth">行剩余宽度</param>
   procedure FinishLine(const ALineEndDItemNo, ARemWidth: Integer);
   var
-    i,
-    vLineBegDItemNo,  // 行第一个DItem
+    i, vLineBegDItemNo,  // 行第一个DItem
     vMaxBottom,
     viSplitW, vExtraW, vW
       : Integer;
@@ -1563,11 +1444,13 @@ type
       if FDrawItems[i].Rect.Bottom > vMaxBottom then
         vMaxBottom := FDrawItems[i].Rect.Bottom;  // 记下最大的Rect底位置
     end;
+
     if vReSize then  // 需要重新调整行中各DItem高度，处理行内不同样式的DItem
     begin
       for i := ALineEndDItemNo downto vLineBegDItemNo do
         FDrawItems[i].Rect.Bottom := vMaxBottom;
     end;
+
     // 处理对齐方式，放在这里，是因为方便计算行起始和结束DItem，避免绘制时的运算
     vAlignHorz := FStyle.ParaStyles[GetDrawItemParaStyle(ALineEndDItemNo)].AlignHorz;
     case vAlignHorz of  // 段内容水平对齐方式
@@ -1647,19 +1530,19 @@ type
               vModWidth := vDItemSpaceCount;
           end;
 
-          { 行中第一个DItem增加的空间 }
+          { 行中第一个DrawItem增加的空间 }
           if vDrawItemSplitCounts[0] > 0 then
           begin
             FDrawItems[vLineBegDItemNo].Rect.Right := FDrawItems[vLineBegDItemNo].Rect.Right
               + vDrawItemSplitCounts[0] * viSplitW + vExtraW;
             if vModWidth > 0 then  // 额外的没有分完
             begin
-              Inc(FDrawItems[vLineBegDItemNo].Rect.Right);  // 当前DItem多分一个像素
+              Inc(FDrawItems[vLineBegDItemNo].Rect.Right);  // 当前DrawItem多分一个像素
               Dec(vModWidth);  // 额外的减少一个像素
             end;
           end;
 
-          for i := vLineBegDItemNo + 1 to ALineEndDItemNo do  // 以第一个为基准，其余各DItem增加的空间
+          for i := vLineBegDItemNo + 1 to ALineEndDItemNo do  // 以第一个为基准，其余各DrawItem增加的空间
           begin
             vW := FDrawItems[i].Width;  // DrawItem原来Width
             if vDrawItemSplitCounts[i - vLineBegDItemNo] > 0 then  // 有分到间距
@@ -1671,13 +1554,13 @@ type
                 begin
                   if (FItems[FDrawItems[i].ItemNo] as THCCustomRectItem).JustifySplit then
                   begin
-                    Inc(vDWidth);  // 当前DItem多分一个像素
+                    Inc(vDWidth);  // 当前DrawItem多分一个像素
                     Dec(vModWidth);  // 额外的减少一个像素
                   end;
                 end
                 else
                 begin
-                  Inc(vDWidth);  // 当前DItem多分一个像素
+                  Inc(vDWidth);  // 当前DrawItem多分一个像素
                   Dec(vModWidth);  // 额外的减少一个像素
                 end;
               end;
@@ -1722,13 +1605,108 @@ type
   end;
   {$ENDREGION}
 
+  {$REGION 'GetTextPlace'}
+  //function GetTextPlace(const AWidth: Integer; const AStr: string): Integer;
+
+  {$REGION '二分法'}
+  {var
+    viLen, viLastCan, vIndex: Integer;
+    vWidth, vWidthCan: Integer;
+    vTempStr: string;
+    vNeedReCalc: Boolean;
+    vSize: TSize;
+  begin
+    vWidthCan := 0;
+    vNeedReCalc := False;
+    // 二分法
+    viLastCan := 0;
+    viLen := Length(AStr);
+    Result := viLen;
+    vIndex := Result;
+    while Result > 0 do
+    begin
+      vTempStr := Copy(AStr, 1, Result);
+      //vWidth := FStyle.DefCanvas.TextWidth(vTempStr);
+      Windows.GetTextExtentPoint32(FStyle.DefCanvas.Handle, vTempStr, Result, vSize);
+      vWidth := vSize.cx;
+      if vWidth > AWidth then  // 放不下
+      begin
+        if viLastCan > 0 then // 由能放下到放不下
+        begin
+          vNeedReCalc := True;  // 需要重新确定具体断点
+          Break;
+        end;
+        Result := Result - vIndex div 2;  // 往前二分
+        if Result = vIndex then  // 一个也放不下?
+        begin
+          vNeedReCalc := True;
+          Break;
+        end;
+        vIndex := Result;
+        if Result = viLastCan then
+        begin
+          vNeedReCalc := False;  // 确定断点
+          Break;
+        end;
+      end
+      else
+      begin
+        if Result = viLastCan then
+        begin
+          vNeedReCalc := False;  // 确定断点
+          Break;
+        end;
+        viLastCan := Result;  // 记录最后一个不需要断点的位置
+        vIndex := viLastCan;
+        vWidthCan := vWidth;  // 最后一个不需要断点所占掉宽度
+        Result := Result + (viLen - Result) div 2;  // 往后二分
+      end;
+    end;
+
+    if vNeedReCalc then  // 需要确定断点
+    begin
+      vWidth := AWidth - vWidthCan;  // 除最后能放下的后剩余宽度
+      viLen := Result - viLastCan;  // 除最后能放下的到放不下的中间个数
+      for vIndex := 1 to viLen do  // 依次判断在哪处断点
+      begin
+        vTempStr := Copy(AStr, viLastCan + 1, vIndex);
+        Windows.GetTextExtentPoint32(FStyle.DefCanvas.Handle, vTempStr, vIndex, vSize);
+        vWidthCan := vSize.cx;  // FStyle.DefCanvas.TextWidth(vTempStr);
+        if vWidthCan > vWidth then
+        begin
+          Result := viLastCan + vIndex - 1;  // 确定断点
+          Break;
+        end;
+      end;
+    end;
+  end; }
+  {$ENDREGION}
+
+  {var
+    i, vWidth, vCharWidth: Integer;
+  begin
+    Result := 0;
+    vWidth := FStyle.DefCanvas.TextWidth(AStr);  // 当前字符串宽度
+    vCharWidth := 0;
+    for i := Length(AStr) downto 1 do  // 从后往前找截断位置(比二分法更快吧)
+    begin
+      vCharWidth := vCharWidth + FStyle.DefCanvas.TextWidth(AStr[i]);  // 从后往前字符宽度和
+      if vWidth - vCharWidth <= AWidth then
+      begin
+        Result := i - 1;
+        Break;
+      end;
+    end;
+  end;}
+  {$ENDREGION}
+
   {$REGION 'FindLineBreak'}
   /// <summary>
   /// 获取字符串排版时截断到下一行的位置
   /// </summary>
   /// <param name="AText"></param>
   /// <param name="APos">在第X个后面断开 X > 0</param>
-  procedure FindLineBreak(const AText: string; var APos: Integer);
+  procedure FindLineBreak(const AText: string; const AStartPos: Integer; var APos: Integer);
 
     {$REGION 'GetCharType 获取字符类型'}
     function GetCharType(const AChar: Word): TCharType;
@@ -1736,7 +1714,13 @@ type
       case AChar of
         $4E00..$9FA5: Result := jctHZ;  // 汉字
 
-        $21..$2F, $3A..$40, $5B..$60, $7B..$7E: Result := jctFH;  // !"#$%&'()*+,-./   :;<=>?@   [\]^_`   {|}~
+        $21..$2F,  // !"#$%&'()*+,-./
+        $3A..$40,  // :;<=>?@
+        $5B..$60,  // [\]^_`
+        $7B..$7E   // {|}~
+          : Result := jctFH;
+
+        //$FF01..$FF0F,  // ！“＃￥％＆‘（）×＋，－。、
 
         $30..$39: Result := jctSZ;  // 0..9
 
@@ -1813,22 +1797,15 @@ type
     begin
       if vPosType <> jctBreak then
       begin
-        for i := APos - 1 downto 1 do
+        for i := APos - 1 downto AStartPos + 1 do
         begin
           vPrevType := GetCharType(Word(AText[i]));
-          case MatchBreak(vPrevType, vPosType) of
-            jbpPrev:
-              begin
-                APos := i;
-                Break;
-              end;
-
-            {jbpCur:  // 如果不需要此元素，可将case改为if
-              begin
-                APos := i + 1;
-                Break;
-              end;}
+          if MatchBreak(vPrevType, vPosType) = jbpPrev then
+          begin
+            APos := i;
+            Break;
           end;
+
           vPosType := vPrevType;
         end;
       end;
@@ -1837,28 +1814,124 @@ type
   {$ENDREGION}
 
 var
-  vStr: string;
+  vText: string;
   vRect: TRect;
-  vSize: TSize;
-  vWidth,  // 当前页面剩余可放置宽度
+  viLen,  // 文本Item字符串长度
   vItemHeight,  // 当前Item高度
-  viLen, // TextItem当前行格式化安置到的字符长度，截断位置
-  viCutPos,  // 用于记录viLen处理前的截断位置
   vRemainderWidth
     : Integer;
   vItem: THCCustomItem;
   vRectItem: THCCustomRectItem;
   vParaStyle: TParaStyle;
   vParaFirst, vLineFirst: Boolean;
-  //vFirstNullItem: Boolean;
+  vCharWidths: array of Cardinal;
+
+  procedure DoFormatRectItemToDrawItem;
+  var
+    vWidth: Integer;
+  begin
+    vRectItem.FormatToDrawItem(Self, AItemNo);
+    vWidth := AContentWidth - APos.X;
+    if (vRectItem.Width > vWidth) and (not vLineFirst) then  // 当前行剩余宽度放不下且不是行首
+    begin
+      // 偏移到下一行
+      FinishLine(ALastDNo, vWidth);
+      APos.X := 0;
+      APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
+      vLineFirst := True;  // 作为行首
+    end;
+
+    // 当前行空余宽度能放下或放不下但已经是行首了
+    vRect.Left := APos.X;
+    vRect.Top := APos.Y;
+    vRect.Right := vRect.Left + vRectItem.Width;
+    vRect.Bottom := vRect.Top + vRectItem.Height + vParaStyle.LineSpace;
+    NewDrawItem(AItemNo, AOffset, 1, vRect, vParaFirst, vLineFirst);
+
+    vRemainderWidth := AContentWidth - vRect.Right;  // 放入后的剩余量
+  end;
+
+  /// <summary> 从指定偏移和指定位置开始格式化Text </summary>
+  /// <param name="ACharOffset">文本格式化的起始偏移</param>
+  /// <param name="APlaceWidth">呈放文本的宽度</param>
+  /// <param name="ABasePos">vCharWidths中对应偏移的起始位置</param>
+  procedure DoFormatTextItemToDrawItems(const ACharOffset, APlaceWidth, ABasePos: Integer);
+  var
+    i, viPlaceOffset,  // 能放下第几个字符
+    viBreakOffset  // 第几个字符放不下
+      : Integer;
+  begin
+    vLineFirst := APos.X = 0;
+    viBreakOffset := 0;  // 换行位置，第几个字符放不下
+
+    for i := ACharOffset - 1 to viLen - 1 do
+    begin
+      if vCharWidths[i] - ABasePos > APlaceWidth then
+      begin
+        viBreakOffset := i + 1;
+        Break;
+      end;
+    end;
+
+    if viBreakOffset < 1 then  // 当前行剩余空间把vText全放置下了
+    begin
+      vRect.Left := APos.X;
+      vRect.Top := APos.Y;
+      vRect.Right := vRect.Left + vCharWidths[viLen - 1] - ABasePos;  // 使用自定义测量的结果
+      vRect.Bottom := vRect.Top + vItemHeight;
+      NewDrawItem(AItemNo, ACharOffset, viLen - ACharOffset + 1, vRect, vParaFirst, vLineFirst);
+      vParaFirst := False;
+
+      vRemainderWidth := AContentWidth - vRect.Right;  // 放入最多后的剩余量
+    end
+    else
+    if viBreakOffset = 1 then  // 当前行剩余空间连第一个字符也放不下
+    begin
+      vRemainderWidth := APlaceWidth;
+      FinishLine(ALastDNo, vRemainderWidth);
+      // 偏移到下一行开始计算
+      APos.X := 0;
+      APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
+      //if not vLineFirst then
+      DoFormatTextItemToDrawItems(ACharOffset, AContentWidth, ABasePos);
+    end
+    else  // 当前行剩余宽度能放下当前Text的一部分
+    begin
+      viPlaceOffset := viBreakOffset - 1;  // 第viBreakOffset个字符放不下，前一个能放下
+
+      FindLineBreak(vText, ACharOffset, viPlaceOffset);  // 判断从viPlaceOffset后打断是否合适
+
+      if viPlaceOffset < ACharOffset then  // 找不到截断位置，就在原位置截断(如整行文本都是逗号)
+        viPlaceOffset := viBreakOffset - 1;
+
+      vRect.Left := APos.X;
+      vRect.Top := APos.Y;
+      vRect.Right := vRect.Left + vCharWidths[viPlaceOffset - 1] - ABasePos;  // 使用自定义测量的结果
+      vRect.Bottom := vRect.Top + vItemHeight;
+
+      NewDrawItem(AItemNo, ACharOffset, viPlaceOffset - ACharOffset + 1, vRect, vParaFirst, vLineFirst);
+      vParaFirst := False;
+
+      vRemainderWidth := AContentWidth - vRect.Right;  // 放入最多后的剩余量
+      FinishLine(ALastDNo, vRemainderWidth);
+
+      // 偏移到下一行顶端，准备另起一行
+      APos.X := 0;
+      APos.Y := FDrawItems[ALastDNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正vRect.Bottom
+
+      DoFormatTextItemToDrawItems(viPlaceOffset + 1, AContentWidth, vCharWidths[viPlaceOffset - 1]);
+    end;
+  end;
+
+var
+  vSize: TSize;
 begin
   if not FItems[AItemNo].Visible then Exit;
 
-  viLen := 0;
   vRemainderWidth := 0;
   vItem := FItems[AItemNo];
   vParaStyle := FStyle.ParaStyles[vItem.ParaNo];
-  if (AOffs = 1) and vItem.ParaFirst then  // 第一次处理段第一个Item
+  if (AOffset = 1) and vItem.ParaFirst then  // 第一次处理段第一个Item
   begin
     vParaFirst := True;
     vLineFirst := True;
@@ -1866,138 +1939,62 @@ begin
   else  // 非段第1个
   begin
     vParaFirst := False;
-
-    if (ALastDNo >= 0)
-      and (FItems[FDrawItems[ALastDNo].ItemNo].StyleNo < THCStyle.RsNull)
-      and ((FItems[FDrawItems[ALastDNo].ItemNo] as THCCustomRectItem).Width = 0)
-      and FDrawItems[ALastDNo].LineFirst
-    then  // 为兼容宽度为0的RectItem，如数据组、分页符
-      vLineFirst := False
-    else
-      vLineFirst := APos.X = 0;
+    vLineFirst := APos.X = 0;
   end;
 
   if vItem.StyleNo < THCStyle.RsNull then  // 是RectItem
   begin
-    viLen := 1;
     vRectItem := vItem as THCCustomRectItem;
-    vRectItem.FormatToDrawItem(Self, AItemNo);
-    vWidth := AContentWidth - APos.X;
-    if (vRectItem.Width > vWidth) and (not vLineFirst) then  // 当前行剩余宽度放不下
-    begin
-      // 偏移到下一行
-      FinishLine(ALastDNo, vWidth);
-      APos.X := 0;
-      APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
-      _FormatItemToDrawItems(AItemNo, AOffs, AContentWidth, APos, ALastDNo);  // 继续放入没放完的
-      Exit;
-    end
-    else  // 当前行空余宽度能放下
-    begin
-      vRect.Left := APos.X;
-      vRect.Top := APos.Y;
-      vRect.Right := vRect.Left + vRectItem.Width;
-      vRect.Bottom := vRect.Top + vRectItem.Height + vParaStyle.LineSpace;
-      NewDrawItem(AItemNo, AOffs, viLen, vRect, vParaFirst, vLineFirst);
-      vRemainderWidth := AContentWidth - vRect.Right;
-    end;
+    DoFormatRectItemToDrawItem;
   end
   else  // 文本
   begin
     FStyle.TextStyles[vItem.StyleNo].ApplyStyle(FStyle.DefCanvas);
-    vItemHeight := FStyle.DefCanvas.TextHeight('字') + vParaStyle.LineSpace;  // 行高
-    vStr := Copy(vItem.Text, AOffs, Length(vItem.Text));  // 从AOffs往后的所有字符串
-    if vStr = '' then  // 空item(肯定是空行)
+    //vItemHeight := FStyle.DefCanvas.TextHeight('字') + vParaStyle.LineSpace;  // 行高
+    Windows.GetTextExtentPoint32(FStyle.DefCanvas.Handle, '字', 1, vSize);
+    vItemHeight := vSize.cy + vParaStyle.LineSpace;  // 行高
+    vRemainderWidth := AContentWidth - APos.X;
+    vText := vItem.Text;
+
+    if vText = '' then  // 空item(肯定是空行)
     begin
       Assert(vItem.ParaFirst, HCS_EXCEPTION_NULLTEXT);
-      vRemainderWidth := AContentWidth - APos.X;
       vRect.Left := APos.X;
       vRect.Top := APos.Y;
       vRect.Right := 0;
       vRect.Bottom := vRect.Top + vItemHeight;  //DefaultCaretHeight;
       vParaFirst := True;
       vLineFirst := True;
-      NewDrawItem(AItemNo, AOffs, viLen, vRect, vParaFirst, vLineFirst);
+      NewDrawItem(AItemNo, AOffset, 0, vRect, vParaFirst, vLineFirst);
+      vParaFirst := False;
     end
-    else  // 非空行，有文本内容
+    else  // 非空Item
     begin
-      vSize := FStyle.DefCanvas.TextExtent(vStr);  // 测量字符串大小
-      vRect.Left := APos.X;
-      vRect.Top := APos.Y;
-      // 赋初始值，否则调用MeasureText无效
-      vWidth := AContentWidth - APos.X;
-      if vSize.cx > vWidth then  // 当前行放不下当前TextItem没有安置的全部字符
-      begin
-        if vWidth > 0 then  // 有空余位置
-          viLen := GetTextPlace(vWidth, vStr);  // 得到能放下的位置
+      viLen := Length(vText);
+      SetLength(vCharWidths, viLen);
 
-        if viLen = 0 then  // 当前行剩余连一个字符也放不下  和 201804202355 一样
-        begin
-          FinishLine(ALastDNo, vWidth);
-          // 偏移到下一行
-          APos.X := 0;
-          APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
-          _FormatItemToDrawItems(AItemNo, AOffs + viLen, AContentWidth, APos, ALastDNo);  // 继续放入没放完的
-          Exit;
-        end
-        else  // 当前行能放下当前Item的一部分
-        begin
-          viCutPos := viLen;
-          FindLineBreak(vStr, viLen);  // 找截断位置
+      GetTextExtentExPoint(FStyle.DefCanvas.Handle, PChar(vText), viLen, 0,  //vRemainderWidth,
+        nil, PInteger(vCharWidths), vSize);
 
-          if viLen > 0 then  // 截断位置大于0
-          begin
-            vStr := Copy(vStr, 1, viLen);  // Item.Text从AOffs开始能放下的字符串
-            vSize := FStyle.DefCanvas.TextExtent(vStr);
-          end
-          else  // 找不到截断位置，就在原位置截断
-            viLen := viCutPos;
+      DoFormatTextItemToDrawItems(AOffset, AContentWidth - APos.X, 0);
 
-            vRemainderWidth := vWidth - vSize.cx;  // 放入最多后的剩余量
-            vRect.Right := vRect.Left + vSize.cx;  // 使用自定义测量的结果
-            vRect.Bottom := vRect.Top + vItemHeight;
-            NewDrawItem(AItemNo, AOffs, viLen, vRect, vParaFirst, vLineFirst);
-            FinishLine(ALastDNo, vRemainderWidth);
-            // 偏移到下一行顶端，准备另起一行
-            APos.X := 0;
-            APos.Y := FDrawItems[ALastDNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正其bottom
-            _FormatItemToDrawItems(AItemNo, AOffs + viLen, AContentWidth, APos, ALastDNo);  // 继续放入没放完的
-          {end
-          else  // 截断位置为0(说明无法截断，当前需要整体下移) 和 201804202355 一样
-          begin
-            FinishLine(ALastDNo, vWidth);
-            // 偏移到下一行
-            APos.X := 0;
-            APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
-            _FormatItemToDrawItems(AItemNo, AOffs + viLen, AContentWidth, APos, ALastDNo);  // 继续放入没放完的
-          end;}
-
-          Exit;
-        end;
-      end
-      else  // 当前行能放下当前TextItem没安置的全部字符
-      begin
-        viLen := vItem.Length;
-        vRemainderWidth := vWidth - vSize.cx;  // 放入最多后的剩余量
-        vRect.Right := vRect.Left + vSize.cx;  // 使用自定义测量的结果
-        vRect.Bottom := vRect.Top + vItemHeight;
-        NewDrawItem(AItemNo, AOffs, Length(vStr), vRect, vParaFirst, vLineFirst);
-      end;
+      SetLength(vCharWidths, 0);
     end;
   end;
+
   // 计算下一个的位置
   if AItemNo = FItems.Count - 1 then  // 是最后一个
     FinishLine(ALastDNo, vRemainderWidth)
   else  // 不是最后一个，则为下一个Item准备位置
   begin
-    if (viLen = vItem.Length) and FItems[AItemNo + 1].ParaFirst then // 当前Item处理完了且下一个是段起始
+    if FItems[AItemNo + 1].ParaFirst then // 下一个是段起始
     begin
       FinishLine(ALastDNo, vRemainderWidth);
       // 偏移到下一行顶端，准备另起一行
       APos.X := 0;
       APos.Y := FDrawItems[ALastDNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正其bottom
     end
-    else  // 当前Item没有处理完或下一个不是段起始
+    else  // 下一个不是段起始
       APos.X := vRect.Right;  // 下一个的起始坐标
   end;
 end;
@@ -2477,7 +2474,7 @@ begin
             vTextDrawTop := vDrawRect.Bottom - vTextHeight;
           end;
 
-          case vAlignHorz of
+          case vAlignHorz of  // 水平对齐方式
             pahLeft, pahRight, pahCenter:  // 一般对齐
               begin
                 {vLen := Length(S);
@@ -2801,7 +2798,10 @@ begin
     vStyleItemNo := AItemNo;
     if AOffset = 0 then  // 在最前面
     begin
-      if (AItemNo > 0) and (Items[AItemNo - 1].StyleNo > THCStyle.RsNull) then  // 前一个是TextItem
+      if (not FItems[AItemNo].ParaFirst)
+        and (AItemNo > 0)
+        and (Items[AItemNo - 1].StyleNo > THCStyle.RsNull)
+      then  // 前一个是TextItem
         vStyleItemNo := AItemNo - 1;
     end;
 

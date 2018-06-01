@@ -341,6 +341,9 @@ begin
   FDrawActiveDomainRegion := False;
 
   inherited MouseDown(Button, Shift, X, Y);
+
+  if Button = TMouseButton.mbRight then  // 右键菜单时，重新取光标处FActiveDomain
+    Style.UpdateInfoReCaret;
 end;
 
 procedure THCRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -427,7 +430,7 @@ var
 begin
   if ATraverse <> nil then
   begin
-    for i := Items.Count - 1 downto 0 do  // 倒序遍历，便于删除
+    for i := 0 to Items.Count - 1 do
     begin
       if ATraverse.Stop then Break;
 
@@ -448,7 +451,7 @@ end;
 
 function TDomain.Contain(const AItemNo: Integer): Boolean;
 begin
-  Result := (AItemNo > FBeginNo) and (AItemNo < FEndNo);
+  Result := (AItemNo >= FBeginNo) and (AItemNo <= FEndNo);
 end;
 
 constructor TDomain.Create;

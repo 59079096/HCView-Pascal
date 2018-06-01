@@ -182,7 +182,7 @@ var
   i: Integer;
 begin
   Result := 0;
-  for i := 0 to Length(AStr) do
+  for i := 1 to Length(AStr) do
   begin
     if AChar = AStr[i] then
     begin

@@ -29,6 +29,10 @@ type
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
   end;
 
+  THCHeaderData = class(THCCustomSectionData);
+
+  THCFooterData = class(THCCustomSectionData);
+
 implementation
 
 { THCCustomSectionData }

@@ -270,6 +270,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     object btnLineSpace: TToolButton
       Left = 765
       Top = 0
+      Hint = #34892#38388#36317
       Caption = 'btnLineSpace'
       DropdownMenu = pmLineSpace
       ImageIndex = 17

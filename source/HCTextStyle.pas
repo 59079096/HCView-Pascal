@@ -21,7 +21,7 @@ type
     tsSubscript);
   TFontStyleExs = set of TFontStyleEx;
 
-  TTextStyle = class(TPersistent)
+  THCTextStyle = class(TPersistent)
   private const
     DefaultFontSize: Integer = 11;  // ÎåºÅ
     DefaultFontFamily = 'ËÎÌå';
@@ -44,8 +44,8 @@ type
     function IsSizeStored: Boolean;
     function IsFamilyStored: Boolean;
     procedure ApplyStyle(const ACanvas: TCanvas);
-    function EqualsEx(const ASource: TTextStyle): Boolean;
-    procedure AssignEx(const ASource: TTextStyle);
+    function EqualsEx(const ASource: THCTextStyle): Boolean;
+    procedure AssignEx(const ASource: THCTextStyle);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
   published
@@ -58,9 +58,9 @@ type
 
 implementation
 
-{ TTextStyle }
+{ THCTextStyle }
 
-procedure TTextStyle.ApplyStyle(const ACanvas: TCanvas);
+procedure THCTextStyle.ApplyStyle(const ACanvas: TCanvas);
 begin
   with ACanvas do
   begin
@@ -102,7 +102,7 @@ begin
   end;
 end;
 
-procedure TTextStyle.AssignEx(const ASource: TTextStyle);
+procedure THCTextStyle.AssignEx(const ASource: THCTextStyle);
 begin
   Self.FSize := ASource.Size;
   Self.FFontStyle := ASource.FontStyle;
@@ -111,7 +111,7 @@ begin
   Self.FBackColor := ASource.BackColor;
 end;
 
-constructor TTextStyle.Create;
+constructor THCTextStyle.Create;
 begin
   FSize := DefaultFontSize;
   FFamily := DefaultFontFamily;
@@ -120,13 +120,13 @@ begin
   FBackColor := clNone;
 end;
 
-destructor TTextStyle.Destroy;
+destructor THCTextStyle.Destroy;
 begin
 
   inherited;
 end;
 
-function TTextStyle.EqualsEx(const ASource: TTextStyle): Boolean;
+function THCTextStyle.EqualsEx(const ASource: THCTextStyle): Boolean;
 begin
   Result :=
     (Self.FSize = ASource.Size)
@@ -136,17 +136,17 @@ begin
     and (Self.FBackColor = ASource.BackColor);
 end;
 
-function TTextStyle.IsFamilyStored: Boolean;
+function THCTextStyle.IsFamilyStored: Boolean;
 begin
   Result := FFamily <> DefaultFontFamily;
 end;
 
-function TTextStyle.IsSizeStored: Boolean;
+function THCTextStyle.IsSizeStored: Boolean;
 begin
   Result := FSize = DefaultFontSize;
 end;
 
-procedure TTextStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
+procedure THCTextStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 var
   vSize: Word;
   vBuffer: TBytes;
@@ -166,7 +166,7 @@ begin
   AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
 end;
 
-procedure TTextStyle.SaveToStream(const AStream: TStream);
+procedure THCTextStyle.SaveToStream(const AStream: TStream);
 var
   vBuffer: TBytes;
   vSize: Word;
@@ -184,19 +184,19 @@ begin
   AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
 end;
 
-procedure TTextStyle.SetFamily(const Value: TFontName);
+procedure THCTextStyle.SetFamily(const Value: TFontName);
 begin
   if FFamily <> Value then
     FFamily := Value;
 end;
 
-procedure TTextStyle.SetSize(const Value: Integer);
+procedure THCTextStyle.SetSize(const Value: Integer);
 begin
   if FSize <> Value then
     FSize := Value;
 end;
 
-procedure TTextStyle.SetFontStyle(const Value: TFontStyleExs);
+procedure THCTextStyle.SetFontStyle(const Value: TFontStyleExs);
 begin
   if FFontStyle <> Value then
     FFontStyle := Value;

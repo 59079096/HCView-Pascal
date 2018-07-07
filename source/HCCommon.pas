@@ -17,15 +17,17 @@ uses
   Windows, Controls, Classes, Graphics, HCStyle;
 
 const
+  HC_TEXTMAXSIZE = 4294967295;
   HC_EXCEPTION = 'HC异常：';
   HCS_EXCEPTION_NULLTEXT = HC_EXCEPTION + '文本Item的内容出现为空的情况！';
-  HCS_EXCEPTION_TEXTOVER = HC_EXCEPTION + 'TextItem的内容超出最大字符数据！';
+  HCS_EXCEPTION_TEXTOVER = HC_EXCEPTION + 'TextItem的内容超出允许的最大字节数4294967295！';
   HCS_EXCEPTION_MEMORYLESS = HC_EXCEPTION + '复制时没有申请到足够的内存！';
+  HCS_EXCEPTION_UNACCEPTDATATYPE = HC_EXCEPTION + '不可接受的数据类型！';
 
   HC_EXT = '.hcf';
 
-  HC_FileVersion = '1.0';
-  HC_FileVersionInt = 10;
+  HC_FileVersion = '1.1';
+  HC_FileVersionInt = 11;
 
   MinPadding = 20;
   PMSLineHeight = 24;  // 书写范围线的长度
@@ -99,14 +101,6 @@ type
     property Height: Integer read FHeight write SetHeight;
   end;
 
-  TZoomInfo = record
-    MapMode: Integer;
-    WindowOrg: TSize;
-    WindowExt: TSize;
-    ViewportOrg: TSize;
-    ViewportExt: TSize;
-  end;
-
   function IsKeyPressWant(const AKey: Char): Boolean;
   function IsKeyDownWant(const AKey: Word): Boolean;
 
@@ -123,6 +117,8 @@ type
 
   // 根据汉字大小获取字体数字大小
   function GetFontSize(const AFontSize: string): Integer;
+  function GetFontSizeStr(AFontSize: Integer): string;
+  function GetPaperSizeStr(APaperSize: Integer): string;
 
   function GetVersionAsInteger(const AVersion: string): Integer;
 
@@ -194,7 +190,6 @@ end;
 
 function GetFontSize(const AFontSize: string): Integer;
 begin
-  Result := 10;
   if not TryStrToInt(AFontSize, Result) then
   begin
     if AFontSize = '初号' then Result := 42
@@ -217,15 +212,64 @@ begin
     else
     if AFontSize = '小四' then Result := 12
     else
-    if AFontSize = '五号' then Result := Round(10.5)//Trunc(10.5)
+    if AFontSize = '五号' then Result := 11
     else
     if AFontSize = '小五' then Result := 9
     else
-    if AFontSize = '六号' then Result := Round(7.5)
+    if AFontSize = '六号' then Result := 8
     else
-    if AFontSize = '小六' then Result := Round(6.5)
+    if AFontSize = '小六' then Result := 7
     else
-    if AFontSize = '七号' then Result := Round(5.5);
+    if AFontSize = '七号' then Result := 5
+    else
+      raise Exception.Create(HC_EXCEPTION + '计算字号大小出错，无法识别的值：' + AFontSize);
+  end;
+end;
+
+function GetFontSizeStr(AFontSize: Integer): string;
+begin
+  if AFontSize = 42 then Result := '初号'
+  else
+  if AFontSize = 36 then Result := '小初'
+  else
+  if AFontSize = 26 then Result := '一号'
+  else
+  if AFontSize = 24 then Result := '小一'
+  else
+  if AFontSize = 22 then Result := '二号'
+  else
+  if AFontSize = 18 then Result := '小二'
+  else
+  if AFontSize = 16 then Result := '三号'
+  else
+  if AFontSize = 15 then Result := '小三'
+  else
+  if AFontSize = 14 then Result := '四号'
+  else
+  if AFontSize = 12 then Result := '小四'
+  else
+  if AFontSize = 11 then Result := '五号'
+  else
+  if AFontSize = 9 then Result := '小五'
+  else
+  if AFontSize = 7 then Result := '六号'
+  else
+  if AFontSize = 6 then Result := '小六'
+  else
+  if AFontSize = 5 then Result := '七号'
+  else
+    Result := IntToStr(AFontSize);
+end;
+
+function GetPaperSizeStr(APaperSize: Integer): string;
+begin
+  case APaperSize of
+    DMPAPER_A3: Result := 'A3';
+    DMPAPER_A4: Result := 'A4';
+    DMPAPER_A5: Result := 'A5';
+    DMPAPER_B5: Result := 'B5';
+  else
+    Result := '自定义';
   end;
 end;
 

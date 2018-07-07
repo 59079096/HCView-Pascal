@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, HCItem, HCDrawItem, HCTextStyle, HCParaStyle,
-  HCStyleMatch, HCStyle, HCCommon, HCCustomData, HCDataCommon;
+  HCStyleMatch, HCStyle, HCCommon, HCCustomData, HCUndo;
 
 const
   /// <summary> 光标在RectItem前面 </summary>
@@ -37,11 +37,22 @@ type
     // 如表格的一个单元格内容变化在没有引起表格整体变化时，不需要重新格式化表格，也不需要重新计算页数
     // 由拥有此Item的Data使用完后应该立即赋值为False，可参考TableItem.KeyPress的使用
     FSizeChanged: Boolean;
+    FCanBreak: Boolean;  // 在当前页显示不下时是否可以分页截断显示
+    FOnGetMainUndoList: TGetUndoListEvent;
   protected
     function GetWidth: Integer; virtual;
     procedure SetWidth(const Value: Integer); virtual;
     function GetHeight: Integer; virtual;
     procedure SetHeight(const Value: Integer); virtual;
+
+    // 撤销重做相关方法
+    procedure DoNewUndo(const Sender: THCUndo); virtual;
+    procedure DoUndoDestroy(const Sender: THCUndo); virtual;
+    procedure DoUndo(const Sender: THCUndo); virtual;
+    procedure DoRedo(const Sender: THCUndo); virtual;
+    procedure Undo_StartRecord;
+    function GetSelfUndoList: THCUndoList;
+
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
@@ -118,6 +129,9 @@ type
     property Height: Integer read GetHeight write SetHeight;
     property TextWrapping: Boolean read FTextWrapping write FTextWrapping;  // 文本环绕
     property SizeChanged: Boolean read FSizeChanged write FSizeChanged;
+
+    /// <summary> 在当前页显示不下时是否可以分页截断显示 </summary>
+    property CanBreak: Boolean read FCanBreak write FCanBreak;
   end;
 
   THCDomainItemClass = class of THCDomainItem;
@@ -129,6 +143,8 @@ type
   protected
     function GetOffsetAt(const X: Integer): Integer; override;
     function JustifySplit: Boolean; override;
+    // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
+    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -169,7 +185,7 @@ type
     FCanResize: Boolean;  // 当前是否处于可改变大小状态
     FResizeGrip: TGripType;
     FResizeRect: TRect;
-    FResizeX, FResizeY: Integer;  // 拖动缩放时起始位置
+    FResizeX, FResizeY,  // 拖动缩放时起始位置
     FResizeWidth, FResizeHeight: Integer;  // 缩放后的宽、高
     function GetGripType(const X, Y: Integer): TGripType;
   protected
@@ -188,14 +204,23 @@ type
     /// <summary> 更新光标位置 </summary>
     procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
 
+    // 撤销恢复相关方法
+    procedure Undo_Resize(const ANewWidth, ANewHeight: Integer);
+    procedure DoUndoDestroy(const Sender: THCUndo); override;
+    procedure DoUndo(const Sender: THCUndo); override;
+    procedure DoRedo(const Sender: THCUndo); override;
+
     function GetResizing: Boolean; virtual;
     procedure SetResizing(const Value: Boolean); virtual;
     property ResizeGrip: TGripType read FResizeGrip;
+    property ResizeRect: TRect read FResizeRect;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+
+    /// <summary> 约束到指定大小范围内 </summary>
+    procedure RestrainSize(const AWidth, AHeight: Integer); virtual;
     property GripSize: Word read FGripSize write FGripSize;
     property Resizing: Boolean read GetResizing write SetResizing;
-    property ResizeRect: TRect read FResizeRect;
     property ResizeWidth: Integer read FResizeWidth;
     property ResizeHeight: Integer read FResizeHeight;
     property CanResize: Boolean read FCanResize write FCanResize;
@@ -237,12 +262,22 @@ procedure THCCustomRectItem.CheckFormatPage(const ADrawItemRectTop, ADrawItemRec
   APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer; var ABreakSeat,
   AFmtOffset, AFmtHeightInc: Integer);
 begin
+  ABreakSeat := -1;
+  AFmtOffset := 0;
   AFmtHeightInc := 0;
-  ABreakSeat := 0;
-  if ADrawItemRectBottom > APageDataFmtBottom then
-    AFmtOffset := APageDataFmtBottom - ADrawItemRectTop
-  else
-    AFmtOffset := 0;
+
+  if FCanBreak then  // 可分页显示，当前页保留一部分
+  begin
+    ABreakSeat := Height - AStartSeat - (APageDataFmtBottom - ADrawItemRectTop);
+    if ADrawItemRectBottom > APageDataFmtBottom then
+      AFmtHeightInc := APageDataFmtBottom - ADrawItemRectBottom;
+  end
+  else  // 不分页显示，偏移到下一页从头显示
+  begin
+    ABreakSeat := 0;
+    if ADrawItemRectBottom > APageDataFmtBottom then
+      AFmtOffset := APageDataFmtBottom - ADrawItemRectTop;
+  end;
 end;
 
 function THCCustomRectItem.CoordInSelect(const X, Y: Integer): Boolean;
@@ -254,10 +289,12 @@ constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create;
   Self.ParaNo := AOwnerData.Style.CurParaNo;
+  FOnGetMainUndoList := (AOwnerData as THCCustomData).OnGetUndoList;
   FWidth := 100;   // 默认尺寸
   FHeight := 50;
   FTextWrapping := False;
   FSizeChanged := False;
+  FCanBreak := False;
 end;
 
 constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer);
@@ -270,6 +307,25 @@ end;
 function THCCustomRectItem.DeleteSelected: Boolean;
 begin
   Result := False;
+end;
+
+procedure THCCustomRectItem.DoNewUndo(const Sender: THCUndo);
+begin
+  // Sender.Data可绑定自定义的对象
+end;
+
+procedure THCCustomRectItem.DoRedo(const Sender: THCUndo);
+begin
+end;
+
+procedure THCCustomRectItem.DoUndo(const Sender: THCUndo);
+begin
+end;
+
+procedure THCCustomRectItem.DoUndoDestroy(const Sender: THCUndo);
+begin
+  if Sender.Data <> nil then
+    Sender.Data.Free;
 end;
 
 procedure THCCustomRectItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -330,6 +386,28 @@ end;
 function THCCustomRectItem.GetTopLevelDataAt(const X, Y: Integer): THCCustomData;
 begin
   Result := nil;
+end;
+
+function THCCustomRectItem.GetSelfUndoList: THCUndoList;
+var
+  vMainUndoList: THCUndoList;
+  vItemAction: THCItemSelfUndoAction;
+begin
+  Result := nil;
+  vMainUndoList := FOnGetMainUndoList;
+  if vMainUndoList.Last.Actions.Last is THCItemSelfUndoAction then
+  begin
+    vItemAction := vMainUndoList.Last.Actions.Last as THCItemSelfUndoAction;
+    if not Assigned(vItemAction.&Object) then
+    begin
+      vItemAction.&Object := THCUndoList.Create;
+      (vItemAction.&Object as THCUndoList).OnNewUndo := DoNewUndo;
+      (vItemAction.&Object as THCUndoList).OnUndo := DoUndo;
+      (vItemAction.&Object as THCUndoList).OnRedo := DoRedo;
+    end;
+
+    Result := vItemAction.&Object as THCUndoList;
+  end;
 end;
 
 //procedure THCCustomRectItem.GetPageFmtBottomInfo(const AHeight: Integer;
@@ -422,6 +500,11 @@ procedure THCCustomRectItem.TraverseItem(const ATraverse: TItemTraverse);
 begin
 end;
 
+procedure THCCustomRectItem.Undo_StartRecord;
+begin
+  GetSelfUndoList.NewUndo;
+end;
+
 function THCCustomRectItem.WantKeyDown(const Key: Word;
   const Shift: TShiftState): Boolean;
 begin
@@ -485,6 +568,42 @@ begin
     ACanvas.FillRect(Bounds(ADrawRect.Left, ADrawRect.Bottom - GripSize, GripSize, GripSize));
     ACanvas.FillRect(Bounds(ADrawRect.Right - GripSize, ADrawRect.Bottom - GripSize, GripSize, GripSize));
   end;
+end;
+
+procedure THCResizeRectItem.DoRedo(const Sender: THCUndo);
+var
+  vSizeAction: THCUndoSize;
+begin
+  if Sender.Data is THCUndoSize then
+  begin
+    vSizeAction := Sender.Data as THCUndoSize;
+    Self.Width := vSizeAction.NewWidth;
+    Self.Height := vSizeAction.NewHeight;
+  end
+  else
+    inherited DoRedo(Sender);
+end;
+
+procedure THCResizeRectItem.DoUndo(const Sender: THCUndo);
+var
+  vSizeAction: THCUndoSize;
+begin
+  if Sender.Data is THCUndoSize then
+  begin
+    vSizeAction := Sender.Data as THCUndoSize;
+    Self.Width := vSizeAction.OldWidth;
+    Self.Height := vSizeAction.OldHeight;
+  end
+  else
+    inherited DoUndo(Sender);
+end;
+
+procedure THCResizeRectItem.DoUndoDestroy(const Sender: THCUndo);
+begin
+  if Sender.Data is THCUndoSize then
+    (Sender.Data as THCUndoSize).Free;
+
+  inherited DoUndoDestroy(Sender);
 end;
 
 procedure THCResizeRectItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
@@ -662,6 +781,7 @@ begin
   inherited;
   if FResizing then
   begin
+    Undo_Resize(FResizeWidth, FResizeHeight);
     Width := FResizeWidth;
     Height := FResizeHeight;
     FResizing := False;
@@ -676,6 +796,10 @@ begin
   ACanvas.Rectangle(FResizeRect);
 end;
 
+procedure THCResizeRectItem.RestrainSize(const AWidth, AHeight: Integer);
+begin
+end;
+
 function THCResizeRectItem.SelectExists: Boolean;
 begin
   Result := IsSelectComplate or Active;
@@ -685,6 +809,25 @@ procedure THCResizeRectItem.SetResizing(const Value: Boolean);
 begin
   if FResizing <> Value then
     FResizing := Value;
+end;
+
+procedure THCResizeRectItem.Undo_Resize(const ANewWidth, ANewHeight: Integer);
+var
+  vUndo: THCUndo;
+  vUndoSize: THCUndoSize;
+begin
+  Undo_StartRecord;
+  vUndo := GetSelfUndoList.Last;
+  if vUndo <> nil then
+  begin
+    vUndoSize := THCUndoSize.Create;
+    vUndoSize.OldWidth := Self.Width;
+    vUndoSize.OldHeight := Self.Height;
+    vUndoSize.NewWidth := ANewWidth;
+    vUndoSize.NewHeight := ANewHeight;
+
+    vUndo.Data := vUndoSize;
+  end;
 end;
 
 { THCTextRectItem }
@@ -777,6 +920,46 @@ begin
       ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top - 1);
       ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom + 1);
       ACanvas.LineTo(ADrawRect.Right - 2, ADrawRect.Bottom + 1);
+    end;
+  end;
+end;
+
+procedure THCDomainItem.FormatToDrawItem(const ARichData: THCCustomData;
+  const AItemNo: Integer);
+var
+  vItem: THCCustomItem;
+begin
+  Self.Width := 0;
+  Self.Height := 10;  // 默认大小
+  if Self.MarkType = TMarkType.cmtBeg then  // 域起始标识
+  begin
+    //if AItemNo < ARichData.Items.Count - 1 then  // 因为是配对，所以后面肯定有
+    begin
+      vItem := ARichData.Items[AItemNo + 1];
+      if (vItem.StyleNo = Self.StyleNo)  // 下一个是组标识
+        and ((vItem as THCDomainItem).MarkType = TMarkType.cmtEnd)  // 下一个是结束标识
+      then
+        Self.Width := 10  // 增加宽度以便输入时光标可方便点击
+      else
+      if vItem.StyleNo > THCStyle.RsNull then  // 后面是文本，跟随后面的高度
+      begin
+        ARichData.Style.TextStyles[vItem.StyleNo].ApplyStyle(ARichData.Style.DefCanvas);
+        Self.Height := ARichData.Style.DefCanvas.TextExtent('H').cy;
+      end;
+    end;
+  end
+  else  // 域结束标识
+  begin
+    vItem := ARichData.Items[AItemNo - 1];
+    if (vItem.StyleNo = Self.StyleNo)
+      and ((vItem as THCDomainItem).MarkType = TMarkType.cmtBeg)
+    then
+      Self.Width := 10
+    else
+    if vItem.StyleNo > THCStyle.RsNull then  // 前面是文本，距离前面的高度
+    begin
+      ARichData.Style.TextStyles[vItem.StyleNo].ApplyStyle(ARichData.Style.DefCanvas);
+      Self.Height := ARichData.Style.DefCanvas.TextExtent('H').cy;
     end;
   end;
 end;

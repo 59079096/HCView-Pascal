@@ -17,12 +17,19 @@ uses
   Windows, Types, HCRichData, HCCustomData, HCCommon;
 
 type
+  TGetRootDataEvent = function (): THCCustomData of object;
+
   THCTableCellData = class(THCRichData)
   private
     FActive,
-    FCellSelectedAll  // 标识单元格全选状态(全选时点击虽然没在内部Item上也应标识在选中区域)
+
+    // 标识单元格全选状态(全选时点击虽然没在内部Item上也应标识在选中区域)
+    // 因CellData如果是EmptyData时，全选并没有SelectEndItem，获取其选中状态时
+    // 和未全选一样，所以需要自己记录全选状态
+    FCellSelectedAll
       : Boolean;
     FCellHeight: Integer;  // 所属单元格高度(因合并或手动拖高，单元格高度会大于等于其内数据高度)
+    FOnGetRootData: TGetRootDataEvent;
     function PointInCellRect(const APt: TPoint): Boolean;
   protected
     function GetHeight: Cardinal; override;
@@ -47,6 +54,9 @@ type
 
     procedure _FormatReadyParam(const AStartItemNo: Integer;
       var APrioDrawItemNo: Integer; var APos: TPoint); override;
+
+    function GetRootData: THCCustomData; override;
+
     procedure SetActive(const Value: Boolean);
   public
     //constructor Create; override;
@@ -66,12 +76,15 @@ type
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer;
 
+    /// <summary> 单元格全先状态 </summary>
     property CellSelectedAll: Boolean read FCellSelectedAll write FCellSelectedAll;
 
     /// <summary> 所属单元格高度 </summary>
     property CellHeight: Integer read FCellHeight write FCellHeight;
     // 用于表格切换编辑的单元格
     property Active: Boolean read FActive write SetActive;
+
+    property OnGetRootData: TGetRootDataEvent read FOnGetRootData write FOnGetRootData;
   end;
 
 implementation
@@ -145,6 +158,14 @@ begin
     ARestrain := not PointInCellRect(Point(X, Y))
 end;
 
+function THCTableCellData.GetRootData: THCCustomData;
+begin
+  if Assigned(FOnGetRootData) then
+    Result := FOnGetRootData
+  else
+    Result := inherited GetRootData;
+end;
+
 function THCTableCellData.PointInCellRect(const APt: TPoint): Boolean;
 begin
   Result := PtInRect(Bounds(0, 0, Width, FCellHeight), APt);
@@ -195,8 +216,8 @@ begin
 
   if not FActive then
   begin
-    if Self.MouseDownItemNo >= 0 then
-      Self.Items[Self.MouseDownItemNo].Active := False;
+    {if Self.MouseDownItemNo >= 0 then
+      Self.Items[Self.MouseDownItemNo].Active := False;}
     Self.DisSelect;
     Self.InitializeField;
     Style.UpdateInfoRePaint;

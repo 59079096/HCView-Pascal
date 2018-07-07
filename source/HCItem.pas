@@ -14,9 +14,17 @@ unit HCItem;
 interface
 
 uses
-  Windows, Classes, Controls, Graphics, Generics.Collections, HCStyle;
+  Windows, Classes, Controls, Graphics, Generics.Collections, HCStyle, HCUndo;
 
 type
+  TZoomInfo = record
+    MapMode: Integer;
+    WindowOrg: TSize;
+    WindowExt: TSize;
+    ViewportOrg: TSize;
+    ViewportExt: TSize;
+  end;
+
   TItemOptions = set of (ioParaFirst, ioSelectPart, ioSelectComplate);
 
   THCCustomItemClass = class of THCCustomItem;
@@ -27,13 +35,33 @@ type
   private
     FPrint: Boolean;
     FTopItems: TObjectList<THCCustomItem>;
+    FWindowWidth, FWindowHeight: Integer;
+    FScaleX, FScaleY: Single;
   public
     constructor Create;
     destructor Destroy; override;
+    function ZoomCanvas(const ACanvas: TCanvas): TZoomInfo;
+    procedure RestoreCanvasZoom(const ACanvas : TCanvas; const AOldInfo: TZoomInfo);
+    function GetScaleX(const AValue: Integer): Integer;
+    function GetScaleY(const AValue: Integer): Integer;
+    procedure DrawNoScaleLine(const ACanvas: TCanvas; const APoints: array of TPoint);
+
     property Print: Boolean read FPrint write FPrint;
 
     /// <summary> 只管理不负责释放 </summary>
     property TopItems: TObjectList<THCCustomItem> read FTopItems;
+
+    /// <summary> 用于绘制的区域高度 </summary>
+    property WindowWidth: Integer read FWindowWidth write FWindowWidth;
+
+    /// <summary> 用于绘制的区域宽度 </summary>
+    property WindowHeight: Integer read FWindowHeight write FWindowHeight;
+
+    /// <summary> 横向缩放 </summary>
+    property ScaleX: Single read FScaleX write FScaleX;
+
+    /// <summary> 纵向缩放 </summary>
+    property ScaleY: Single read FScaleY write FScaleY;
   end;
 
   THCCustomItem = class(TObject)
@@ -101,6 +129,10 @@ type
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); overload; virtual;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
+
+    // 撤销重做相关方法
+    procedure Undo(const AObject: TObject);
+    procedure Redo(const AObject: TObject);
     //
     property Options: TItemOptions read FOptions;
     property Text: string read GetText write SetText;
@@ -269,6 +301,12 @@ procedure THCCustomItem.PaintTop(const ACanvas: TCanvas);
 begin
 end;
 
+procedure THCCustomItem.Redo(const AObject: TObject);
+begin
+  if AObject is THCUndoList then
+    THCUndoList(AObject).Redo;
+end;
+
 procedure THCCustomItem.SelectComplate;
 begin
   Exclude(FOptions, ioSelectPart);
@@ -283,6 +321,12 @@ end;
 
 procedure THCCustomItem.SetText(const Value: string);
 begin
+end;
+
+procedure THCCustomItem.Undo(const AObject: TObject);
+begin
+  if AObject is THCUndoList then
+    THCUndoList(AObject).Undo;
 end;
 
 procedure THCCustomItem.SaveToStream(const AStream: TStream);
@@ -344,6 +388,57 @@ destructor TPaintInfo.Destroy;
 begin
   FTopItems.Free;
   inherited Destroy;
+end;
+
+procedure TPaintInfo.DrawNoScaleLine(const ACanvas: TCanvas;
+  const APoints: array of TPoint);
+var
+  vPt: TPoint;
+  i: Integer;
+begin
+  SetViewportExtEx(ACanvas.Handle, FWindowWidth, FWindowHeight, @vPt);
+  try
+    ACanvas.MoveTo(GetScaleX(APoints[0].X), GetScaleY(APoints[0].Y));
+    for i := 1 to Length(APoints) - 1 do
+      ACanvas.LineTo(GetScaleX(APoints[i].X), GetScaleY(APoints[i].Y));
+  finally
+    SetViewportExtEx(ACanvas.Handle, Round(FWindowWidth * FScaleX),
+      Round(FWindowHeight * FScaleY), @vPt);
+  end;
+end;
+
+function TPaintInfo.GetScaleX(const AValue: Integer): Integer;
+begin
+  Result := Round(AValue * FScaleX);
+end;
+
+function TPaintInfo.GetScaleY(const AValue: Integer): Integer;
+begin
+  Result := Round(AValue * FScaleY);
+end;
+
+procedure TPaintInfo.RestoreCanvasZoom(const ACanvas: TCanvas;
+  const AOldInfo: TZoomInfo);
+begin
+  SetViewportOrgEx(ACanvas.Handle, AOldInfo.ViewportOrg.cx, AOldInfo.ViewportOrg.cy, nil);
+  SetViewportExtEx(ACanvas.Handle, AOldInfo.ViewportExt.cx, AOldInfo.ViewportExt.cy, nil);
+  SetWindowOrgEx(ACanvas.Handle, AOldInfo.WindowOrg.cx, AOldInfo.WindowOrg.cy, nil);
+  SetWindowExtEx(ACanvas.Handle, AOldInfo.WindowExt.cx, AOldInfo.WindowExt.cy, nil);
+  SetMapMode(ACanvas.Handle, AOldInfo.MapMode);
+end;
+
+function TPaintInfo.ZoomCanvas(const ACanvas: TCanvas): TZoomInfo;
+begin
+  Result.MapMode := GetMapMode(ACanvas.Handle);  // 返回映射方式，零则失败
+  SetMapMode(ACanvas.Handle, MM_ANISOTROPIC);  // 逻辑单位转换成具有任意比例轴的任意单位，用SetWindowsEx和SetViewportExtEx函数指定单位、方向和需要的比例
+  SetWindowOrgEx(ACanvas.Handle, 0, 0, @Result.WindowOrg);  // 用指定的坐标设置设备环境的窗口原点
+  SetWindowExtEx(ACanvas.Handle, FWindowWidth,  // 为设备环境设置窗口的水平的和垂直的范围
+    FWindowHeight, @Result.WindowExt);
+
+  SetViewportOrgEx(ACanvas.Handle, 0, 0, @Result.ViewportOrg);  // 哪个设备点映射到窗口原点(0,0)
+  // 用指定的值来设置指定设备环境坐标的X轴、Y轴范围
+  SetViewportExtEx(ACanvas.Handle, Round(FWindowWidth * FScaleX),
+    Round(FWindowHeight * FScaleY), @Result.ViewportExt);
 end;
 
 end.

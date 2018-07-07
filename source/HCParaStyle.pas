@@ -23,7 +23,7 @@ type
   /// <summary> 段垂直对齐方式：下、居中、上) </summary>
   TParaAlignVert = (pavBottom, pavCenter, pavTop);
 
-  TParaStyle = class(TPersistent)
+  THCParaStyle = class(TPersistent)
   strict private
     FLineSpace,  // 行间距
     FLineSpaceHalf,  // 行间距一半
@@ -40,8 +40,8 @@ type
     TempNo: Integer;
     constructor Create;
     destructor Destroy; override;
-    function EqualsEx(const ASource: TParaStyle): Boolean;
-    procedure AssignEx(const ASource: TParaStyle);
+    function EqualsEx(const ASource: THCParaStyle): Boolean;
+    procedure AssignEx(const ASource: THCParaStyle);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
   published
@@ -56,9 +56,9 @@ type
 
 implementation
 
-{ TParaStyle }
+{ THCParaStyle }
 
-procedure TParaStyle.AssignEx(const ASource: TParaStyle);
+procedure THCParaStyle.AssignEx(const ASource: THCParaStyle);
 begin
   Self.FLineSpace := ASource.LineSpace;
   Self.FLineSpaceHalf := ASource.FLineSpaceHalf;
@@ -68,7 +68,7 @@ begin
   Self.FAlignHorz := ASource.AlignHorz;
 end;
 
-constructor TParaStyle.Create;
+constructor THCParaStyle.Create;
 begin
   FLineSpace := 8;  // 五号字的高为15，
   FLineSpaceHalf := 4;
@@ -79,13 +79,13 @@ begin
   FAlignVert := TParaAlignVert.pavCenter;
 end;
 
-destructor TParaStyle.Destroy;
+destructor THCParaStyle.Destroy;
 begin
 
   inherited;
 end;
 
-function TParaStyle.EqualsEx(const ASource: TParaStyle): Boolean;
+function THCParaStyle.EqualsEx(const ASource: THCParaStyle): Boolean;
 begin
   Result :=
   (Self.FLineSpace = ASource.LineSpace)
@@ -97,7 +97,7 @@ begin
   and (Self.FLineSpace = ASource.LineSpace);
 end;
 
-procedure TParaStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
+procedure THCParaStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 begin
   AStream.ReadBuffer(FLineSpace, SizeOf(FLineSpace));
   FLineSpaceHalf := FLineSpace div 2;
@@ -107,7 +107,7 @@ begin
   AStream.ReadBuffer(FAlignHorz, SizeOf(FAlignHorz));
 end;
 
-procedure TParaStyle.SaveToStream(const AStream: TStream);
+procedure THCParaStyle.SaveToStream(const AStream: TStream);
 begin
   AStream.WriteBuffer(FLineSpace, SizeOf(FLineSpace));
   AStream.WriteBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
@@ -116,7 +116,7 @@ begin
   AStream.WriteBuffer(FAlignHorz, SizeOf(FAlignHorz));
 end;
 
-procedure TParaStyle.SetLineSpace(const Value: Integer);
+procedure THCParaStyle.SetLineSpace(const Value: Integer);
 begin
   if FLineSpace <> Value then
   begin

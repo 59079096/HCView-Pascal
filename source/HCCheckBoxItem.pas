@@ -64,7 +64,7 @@ constructor THCCheckBoxItem.Create(const AOwnerData: THCCustomData; const AText:
 begin
   inherited Create(AOwnerData);
   FMouseIn := False;
-  Self.StyleNo := THCStyle.RsControl;
+  Self.StyleNo := THCStyle.RsCheckBox;
   FChecked := AChecked;
   FText := AText;
 end;
@@ -121,7 +121,7 @@ begin
   ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
   vSize := ARichData.Style.DefCanvas.TextExtent(FText);
   Width := BoxSpliter + CheckBoxSize + BoxSpliter + vSize.cx;  // 间距
-  Height := Max(vSize.cy, CheckBoxSize) + ARichData.Style.ParaStyles[ParaNo].LineSpace;
+  Height := Max(vSize.cy, CheckBoxSize);
 end;
 
 procedure THCCheckBoxItem.MouseEnter;
@@ -147,7 +147,7 @@ procedure THCCheckBoxItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited;
-  if PtInRect(GetBoxRect, Point(X, Y)) then
+  if PtInRect(GetBoxRect, Point(X, Y)) then  // 点在了勾选框中
     Checked := not FChecked;
 end;
 

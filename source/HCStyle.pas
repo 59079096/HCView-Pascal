@@ -25,6 +25,7 @@ type
     //ReSized: Boolean;  // Item有大小改变，只在TCustomRichData.MouseUp中判断
     ReCaret,  // 重新计算光标
     ReStyle,  // 重新计算光标时获取光标处样式
+    ReScroll,  // 滚动到光标位置
     Selecting,  // 全局划选标识
     Draging  // 全局拖拽标识
       : Boolean;
@@ -42,8 +43,8 @@ type
     FCurStyleNo: Integer;
     FSelColor: TColor;
     FBackgroudColor: TColor;
-    FTextStyles: TObjectList<TTextStyle>;
-    FParaStyles: TObjectList<TParaStyle>;
+    FTextStyles: TObjectList<THCTextStyle>;
+    FParaStyles: TObjectList<THCParaStyle>;
     FPixelsPerInchX, FPixelsPerInchY: Single;  // 屏幕1英寸dpi数
     FUpdateInfo: TUpdateInfo;
     FShowLineLastMark: Boolean;  // 是否显示换行符
@@ -62,11 +63,12 @@ type
     RsTab = -4;
     RsLine = -5;
     RsExpress = -6;
-    //RsVector = -7;  // 矢量图也许在GraphicItem上做用格式区别
+    RsVector = -7;  // SVG
     RsDomain = -8;
     RsPageBreak = -9;
-    RsControl = -10;
+    RsCheckBox = -10;
     RsGif = -11;
+    RsControl = -12;
     RsCustom = -100;  // 自定义类型分界线
   public
     constructor Create; virtual;
@@ -75,24 +77,28 @@ type
     procedure Initialize;
     procedure UpdateInfoRePaint;
     procedure UpdateInfoReStyle;
+    procedure UpdateInfoReScroll;
+
+    /// <summary> 更新光标位置/summary>
+    /// <param name="ACaretStyle">重新获取光标处样式</param>
     procedure UpdateInfoReCaret(const ACaretStyle: Boolean = True);
-    function AddTextStyle(const ATextStyle: TTextStyle): Integer;
+    function AddTextStyle(const ATextStyle: THCTextStyle): Integer;
     /// <summary>
     /// 创建一个新字体样式
     /// </summary>
     /// <returns>样式编号</returns>
     function NewDefaultTextStyle: Integer;
     function NewDefaultParaStyle: Integer;
-    function GetStyleNo(const ATextStyle: TTextStyle; const ACreateIfNull: Boolean): Integer;
-    function GetParaNo(const AParaStyle: TParaStyle; const ACreateIfNull: Boolean): Integer;
+    function GetStyleNo(const ATextStyle: THCTextStyle; const ACreateIfNull: Boolean): Integer;
+    function GetParaNo(const AParaStyle: THCParaStyle; const ACreateIfNull: Boolean): Integer;
 
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 
     procedure InvalidateRect(const ARect: TRect);
 
-    property TextStyles: TObjectList<TTextStyle> read FTextStyles write FTextStyles;
-    property ParaStyles: TObjectList<TParaStyle> read FParaStyles write FParaStyles;
+    property TextStyles: TObjectList<THCTextStyle> read FTextStyles write FTextStyles;
+    property ParaStyles: TObjectList<THCParaStyle> read FParaStyles write FParaStyles;
     property BackgroudColor: TColor read FBackgroudColor write FBackgroudColor;
     property SelColor: TColor read FSelColor write FSelColor;
     property CurParaNo: Integer read FCurParaNo write FCurParaNo;
@@ -112,7 +118,7 @@ uses
 
 { THCStyle }
 
-function THCStyle.AddTextStyle(const ATextStyle: TTextStyle): Integer;
+function THCStyle.AddTextStyle(const ATextStyle: THCTextStyle): Integer;
 begin
   Result := FTextStyles.Add(ATextStyle);
 end;
@@ -149,8 +155,8 @@ begin
   FSelColor := clSkyBlue;
   FShowLineLastMark := True;
   FUpdateInfo := TUpdateInfo.Create;
-  FTextStyles := TObjectList<TTextStyle>.Create;
-  FParaStyles := TObjectList<TParaStyle>.Create;
+  FTextStyles := TObjectList<THCTextStyle>.Create;
+  FParaStyles := TObjectList<THCParaStyle>.Create;
 end;
 
 constructor THCStyle.CreateEx(const ADefTextStyle, ADefParaStyle: Boolean);
@@ -178,10 +184,10 @@ begin
   inherited Destroy;
 end;
 
-function THCStyle.GetParaNo(const AParaStyle: TParaStyle; const ACreateIfNull: Boolean): Integer;
+function THCStyle.GetParaNo(const AParaStyle: THCParaStyle; const ACreateIfNull: Boolean): Integer;
 var
   i: Integer;
-  vParaStyle: TParaStyle;
+  vParaStyle: THCParaStyle;
 begin
   Result := -1;
   for i := 0 to FParaStyles.Count - 1 do
@@ -194,18 +200,18 @@ begin
   end;
   if ACreateIfNull and (Result < 0) then
   begin
-    vParaStyle := TParaStyle.Create;
+    vParaStyle := THCParaStyle.Create;
     vParaStyle.AssignEx(AParaStyle);
     FParaStyles.Add(vParaStyle);
     Result := FParaStyles.Count - 1;
   end;
 end;
 
-function THCStyle.GetStyleNo(const ATextStyle: TTextStyle;
+function THCStyle.GetStyleNo(const ATextStyle: THCTextStyle;
   const ACreateIfNull: Boolean): Integer;
 var
   i: Integer;
-  vTextStyle: TTextStyle;
+  vTextStyle: THCTextStyle;
 begin
   Result := -1;
   for i := 0 to FTextStyles.Count - 1 do
@@ -218,7 +224,7 @@ begin
   end;
   if ACreateIfNull and (Result < 0) then
   begin
-    vTextStyle := TTextStyle.Create;
+    vTextStyle := THCTextStyle.Create;
     vTextStyle.AssignEx(ATextStyle);
     FTextStyles.Add(vTextStyle);
     Result := FTextStyles.Count - 1;
@@ -262,9 +268,9 @@ end;
 
 function THCStyle.NewDefaultTextStyle: Integer;
 var
-  vTextStyle: TTextStyle;
+  vTextStyle: THCTextStyle;
 begin
-  vTextStyle := TTextStyle.Create;
+  vTextStyle := THCTextStyle.Create;
   Result := FTextStyles.Add(vTextStyle);
 end;
 
@@ -329,6 +335,11 @@ begin
   FUpdateInfo.RePaint := True;
 end;
 
+procedure THCStyle.UpdateInfoReScroll;
+begin
+  FUpdateInfo.ReScroll := True;
+end;
+
 procedure THCStyle.UpdateInfoReStyle;
 begin
   FUpdateInfo.ReStyle := True;
@@ -336,9 +347,9 @@ end;
 
 function THCStyle.NewDefaultParaStyle: Integer;
 var
-  vParaStyle: TParaStyle;
+  vParaStyle: THCParaStyle;
 begin
-  vParaStyle := TParaStyle.Create;
+  vParaStyle := THCParaStyle.Create;
   Result := FParaStyles.Add(vParaStyle);
 end;
 

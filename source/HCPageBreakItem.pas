@@ -41,7 +41,7 @@ begin
   else
     AOwnerData.Style.TextStyles[0].ApplyStyle(AOwnerData.Style.DefCanvas);
 
-  vSize := AOwnerData.Style.DefCanvas.TextExtent('×Ö');
+  vSize := AOwnerData.Style.DefCanvas.TextExtent('H');
 
   Width := 0;
   Height := vSize.cy;

@@ -5,7 +5,7 @@ interface
 uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCCustomRichData, HCItem,
-  HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
+  HCControlItem, HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
   System.Actions, System.ImageList;
 
 type
@@ -25,8 +25,6 @@ type
     mniOpen: TMenuItem;
     mniSave: TMenuItem;
     mniSaveAs: TMenuItem;
-    N1: TMenuItem;
-    N2: TMenuItem;
     ToolButton1: TToolButton;
     btnBold: TToolButton;
     btn2: TToolButton;
@@ -38,17 +36,12 @@ type
     btnStrikeOut: TToolButton;
     btnSuperScript: TToolButton;
     btnSubScript: TToolButton;
-    btn9: TToolButton;
-    btn10: TToolButton;
-    btn11: TToolButton;
     cbbFont: TComboBox;
     btn1: TToolButton;
     cbbFontColor: TColorBox;
     cbbBackColor: TColorBox;
     btnprint: TToolButton;
-    btn12: TToolButton;
     cbbFontSize: TComboBox;
-    mniInsertTable: TMenuItem;
     mniN3: TMenuItem;
     mniCopy: TMenuItem;
     mniPaste: TMenuItem;
@@ -77,8 +70,8 @@ type
     mniInsertRowBottom: TMenuItem;
     mniInsertColLeft: TMenuItem;
     mniInsertColRight: TMenuItem;
-    mniDeleteRow: TMenuItem;
-    mniDeleteCol: TMenuItem;
+    mniDeleteCurRow: TMenuItem;
+    mniDeleteCurCol: TMenuItem;
     mniN25: TMenuItem;
     mniN26: TMenuItem;
     mniN27: TMenuItem;
@@ -90,21 +83,25 @@ type
     actlst: TActionList;
     btnNew: TToolButton;
     mnigif1: TMenuItem;
+    mniN4: TMenuItem;
+    mniMerge: TMenuItem;
+    mniN10: TMenuItem;
+    mniN11: TMenuItem;
+    mniN16: TMenuItem;
+    mniInsertTable: TMenuItem;
+    btn4: TToolButton;
+    btn5: TToolButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
     procedure btnSymmetryMarginClick(Sender: TObject);
-    procedure N2Click(Sender: TObject);
     procedure btnBoldClick(Sender: TObject);
-    procedure btn10Click(Sender: TObject);
-    procedure btn11Click(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure cbbFontChange(Sender: TObject);
     procedure cbbFontColorChange(Sender: TObject);
     procedure cbbBackColorChange(Sender: TObject);
     procedure cbbFontSizeChange(Sender: TObject);
-    procedure mniInsertTableClick(Sender: TObject);
     procedure mniCopyClick(Sender: TObject);
     procedure mniPasteClick(Sender: TObject);
     procedure mniCutClick(Sender: TObject);
@@ -122,8 +119,8 @@ type
     procedure mniInsertRowBottomClick(Sender: TObject);
     procedure mniInsertColLeftClick(Sender: TObject);
     procedure mniInsertColRightClick(Sender: TObject);
-    procedure mniDeleteRowClick(Sender: TObject);
-    procedure mniDeleteColClick(Sender: TObject);
+    procedure mniDeleteCurRowClick(Sender: TObject);
+    procedure mniDeleteCurColClick(Sender: TObject);
     procedure mniN26Click(Sender: TObject);
     procedure mniSaveAsClick(Sender: TObject);
     procedure mniSaveClick(Sender: TObject);
@@ -135,6 +132,11 @@ type
     procedure mniN32Click(Sender: TObject);
     procedure btnNewClick(Sender: TObject);
     procedure mnigif1Click(Sender: TObject);
+    procedure mniN4Click(Sender: TObject);
+    procedure mniMergeClick(Sender: TObject);
+    procedure mniInsertTableClick(Sender: TObject);
+    procedure btn4Click(Sender: TObject);
+    procedure btn5Click(Sender: TObject);
   private
     { Private declarations }
     FFileName: TFileName;
@@ -142,9 +144,6 @@ type
     procedure SetFileName(const AFileName: string);
     procedure DrawItemClick(Shift: TShiftState; X, Y, AItemNo, ADItemNo: Integer;
       ADrawRect: TRect);
-    function GetFontSize(AFontSize: string): Integer;              //获取字体大小
-    function GetFontSizeStr(AFontSize: Integer): string;
-    function GetPaperSizeStr(APaperSize: Integer): string;
     procedure GetPagesAndActive;
     procedure DoCaretChange(Sender: TObject);
     procedure DoVerScroll(Sender: TObject);
@@ -381,6 +380,7 @@ end;
 
 procedure TfrmHCViewDemo.btnNewClick(Sender: TObject);
 begin
+  FFileName := '';
   FHCView.ClearData;
 end;
 
@@ -389,14 +389,14 @@ begin
   FHCView.Print('');
 end;
 
-procedure TfrmHCViewDemo.btn10Click(Sender: TObject);
+procedure TfrmHCViewDemo.btn4Click(Sender: TObject);
 begin
-  FHCView.MergeTableSelectCells;
+  FHCView.Undo;
 end;
 
-procedure TfrmHCViewDemo.btn11Click(Sender: TObject);
+procedure TfrmHCViewDemo.btn5Click(Sender: TObject);
 begin
-  // FHCView.SaveToBitmap('C:\Users\Thinkpad\Desktop\a.bmp');
+  FHCView.Redo;
 end;
 
 procedure TfrmHCViewDemo.btnAlignLeftClick(Sender: TObject);
@@ -433,80 +433,11 @@ begin
   FHCView.SetFocus;
 end;
 
-function TfrmHCViewDemo.GetFontSize(AFontSize: string): Integer;
-begin
-  Result := 10;
-  if not TryStrToInt(AFontSize, Result) then
-  begin
-    if AFontSize = '初号' then Result := 42
-    else
-    if AFontSize = '小初' then Result := 36
-    else
-    if AFontSize = '一号' then Result := 26
-    else
-    if AFontSize = '小一' then Result := 24
-    else
-    if AFontSize = '二号' then Result := 22
-    else
-    if AFontSize = '小二' then Result := 18
-    else
-    if AFontSize = '三号' then Result := 16
-    else
-    if AFontSize = '小三' then Result := 15
-    else
-    if AFontSize = '四号' then Result := 14
-    else
-    if AFontSize = '小四' then Result := 12
-    else
-    if AFontSize = '五号' then Result := Round(10.5)//Trunc(10.5)
-    else
-    if AFontSize = '小五' then Result := 9
-    else
-    if AFontSize = '六号' then Result := Round(7.5)
-    else
-    if AFontSize = '小六' then Result := Round(6.5)
-    else
-    if AFontSize = '七号' then Result := Round(5.5);
-  end;
-end;
-
-function TfrmHCViewDemo.GetFontSizeStr(AFontSize: Integer): string;
-begin
-  Result := IntToStr(AFontSize);
-  if AFontSize = 42 then Result := '初号';
-  if AFontSize = 36 then Result := '小初';
-  if AFontSize = 26 then Result := '一号';
-  if AFontSize = 24 then Result := '小一';
-  if AFontSize = 22 then Result := '二号';
-  if AFontSize = 18 then Result := '小二';
-  if AFontSize = 16 then Result := '三号';
-  if AFontSize = 15 then Result := '小三';
-  if AFontSize = 14 then Result := '四号';
-  if AFontSize = 12 then Result := '小四';
-  if AFontSize = 11 then Result := '五号';
-  if AFontSize = 9 then Result := '小五';
-  if AFontSize = 7 then Result := '六号';
-  if AFontSize = 6 then Result := '小六';
-  if AFontSize = 5 then Result := '七号';
-end;
-
 procedure TfrmHCViewDemo.GetPagesAndActive;
 begin
   statbar.Panels[0].Text := '预览' + IntToStr(FHCView.PagePreviewFirst + 1)
     + '页 光标' + IntToStr(FHCView.ActivePageIndex + 1)
     + '页 共' + IntToStr(FHCView.PageCount) + '页';
-end;
-
-function TfrmHCViewDemo.GetPaperSizeStr(APaperSize: Integer): string;
-begin
-  case APaperSize of
-    DMPAPER_A3: Result := 'A3';
-    DMPAPER_A4: Result := 'A4';
-    DMPAPER_A5: Result := 'A5';
-    DMPAPER_B5: Result := 'B5';
-  else
-    Result := '自定义';
-  end;
 end;
 
 procedure TfrmHCViewDemo.mniC1Click(Sender: TObject);
@@ -522,21 +453,6 @@ begin
   FHCView.Copy;
 end;
 
-procedure TfrmHCViewDemo.mniInsertTableClick(Sender: TObject);
-var
-  vFrmInsertTable: TfrmInsertTable;
-begin
-  vFrmInsertTable := TfrmInsertTable.Create(Self);
-  try
-    vFrmInsertTable.ShowModal;
-    if vFrmInsertTable.ModalResult = mrOk then
-      FHCView.InsertTable(StrToInt(vFrmInsertTable.edtRows.Text),
-        StrToInt(vFrmInsertTable.edtCols.Text));
-  finally
-    FreeAndNil(vFrmInsertTable);
-  end;
-end;
-
 procedure TfrmHCViewDemo.mniLineSpaceClick(Sender: TObject);
 begin
   if Sender is TMenuItem then
@@ -547,6 +463,11 @@ begin
       2: FHCView.ApplyParaLineSpace(16);
     end;
   end;
+end;
+
+procedure TfrmHCViewDemo.mniMergeClick(Sender: TObject);
+begin
+  FHCView.MergeTableSelectCells;
 end;
 
 procedure TfrmHCViewDemo.mniCutClick(Sender: TObject);
@@ -623,14 +544,14 @@ begin
   FHCView.ActiveTableInsertColAfter(1);
 end;
 
-procedure TfrmHCViewDemo.mniDeleteRowClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniDeleteCurRowClick(Sender: TObject);
 begin
-  FHCView.ActiveTableDeleteRow(1);
+  FHCView.ActiveTableDeleteCurRow;
 end;
 
-procedure TfrmHCViewDemo.mniDeleteColClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniDeleteCurColClick(Sender: TObject);
 begin
-  FHCView.ActiveTableDeleteCol(1);
+  FHCView.ActiveTableDeleteCurCol;
 end;
 
 procedure TfrmHCViewDemo.mniN26Click(Sender: TObject);
@@ -672,6 +593,21 @@ begin
   FHCView.InsertSectionBreak;
 end;
 
+procedure TfrmHCViewDemo.mniInsertTableClick(Sender: TObject);
+var
+  vFrmInsertTable: TfrmInsertTable;
+begin
+  vFrmInsertTable := TfrmInsertTable.Create(Self);
+  try
+    vFrmInsertTable.ShowModal;
+    if vFrmInsertTable.ModalResult = mrOk then
+      FHCView.InsertTable(StrToInt(vFrmInsertTable.edtRows.Text),
+        StrToInt(vFrmInsertTable.edtCols.Text));
+  finally
+    FreeAndNil(vFrmInsertTable);
+  end;
+end;
+
 procedure TfrmHCViewDemo.mniN30Click(Sender: TObject);
 begin
   FHCView.DeleteSelected;
@@ -685,14 +621,36 @@ end;
 procedure TfrmHCViewDemo.mniN32Click(Sender: TObject);
 var
   vMemory: TMemoryStream;
+  vOpenDlg: TOpenDialog;
 begin
-  vMemory := TMemoryStream.Create;
+  vOpenDlg := TOpenDialog.Create(Self);
   try
-    vMemory.LoadFromFile('C:\Users\jingtong\Desktop\a.cff');
-    FHCView.InsertStream(vMemory);
+    vOpenDlg.Filter := '文件|*' + HC_EXT;
+    if vOpenDlg.Execute then
+    begin
+      if vOpenDlg.FileName <> '' then
+      begin
+        vMemory := TMemoryStream.Create;
+        try
+          vMemory.LoadFromFile(vOpenDlg.FileName);
+          FHCView.InsertStream(vMemory);
+        finally
+          FreeAndNil(vMemory);
+        end;
+      end;
+    end;
   finally
-    FreeAndNil(vMemory);
+    FreeAndNil(vOpenDlg);
   end;
+end;
+
+procedure TfrmHCViewDemo.mniN4Click(Sender: TObject);
+var
+  vText: string;
+begin
+  vText := InputBox('插入文本', '', '');
+  if vText <> '' then
+    FHCView.InsertText(vText);
 end;
 
 procedure TfrmHCViewDemo.mniN5Click(Sender: TObject);
@@ -790,12 +748,12 @@ var
 begin
   vDlg := TSaveDialog.Create(Self);
   try
-    vDlg.Filter := '文件|*.cff';
+    vDlg.Filter := '文件|*' + HC_EXT;
     vDlg.Execute;
     if vDlg.FileName <> '' then
     begin
-      if ExtractFileName(vDlg.FileName) <> '.cff' then
-        vDlg.FileName := vDlg.FileName + '.cff';
+      if ExtractFileName(vDlg.FileName) <> HC_EXT then
+        vDlg.FileName := vDlg.FileName + HC_EXT;
       FHCView.SaveToFile(vDlg.FileName);
       SetFileName(vDlg.FileName);
     end;
@@ -828,14 +786,10 @@ begin
   end;
 end;
 
-procedure TfrmHCViewDemo.N2Click(Sender: TObject);
-begin
-  FHCView.MergeTableSelectCells;
-end;
-
 procedure TfrmHCViewDemo.pmRichEditPopup(Sender: TObject);
 var
   vItem: THCCustomItem;
+  vTableItem: THCTableItem;
   vData: THCCustomRichData;
 begin
   vData := FHCView.ActiveSection.ActiveData;
@@ -843,12 +797,14 @@ begin
   mniTable.Enabled := vItem.StyleNo = THCStyle.RsTable;
   if mniTable.Enabled then
   begin
-    mniInsertRowTop.Enabled := (vItem as THCTableItem).GetEditCell <> nil;
+    vTableItem := vItem as THCTableItem;
+    mniInsertRowTop.Enabled := vTableItem.GetEditCell <> nil;
     mniInsertRowBottom.Enabled := mniInsertRowTop.Enabled;
     mniInsertColLeft.Enabled := mniInsertRowTop.Enabled;
     mniInsertColRight.Enabled := mniInsertRowTop.Enabled;
-    mniDeleteRow.Enabled := mniInsertRowTop.Enabled;
-    mniDeleteCol.Enabled := mniInsertRowTop.Enabled;
+    mniDeleteCurRow.Enabled := vTableItem.CurRowCanDelete;
+    mniDeleteCurCol.Enabled := vTableItem.CurColCanDelete;
+    mniMerge.Enabled := vTableItem.SelectedCellCanMerge;
   end;
   mniCut.Enabled := vData.SelectExists;
   mniCopy.Enabled := mniCut.Enabled;

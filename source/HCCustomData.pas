@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Types, Controls, Graphics, HCItem, HCDrawItem,
-  HCStyle, HCParaStyle, HCTextStyle, HCStyleMatch, HCCommon;
+  HCStyle, HCParaStyle, HCTextStyle, HCStyleMatch, HCCommon, HCUndo;
 
 type
   TSelectInfo = class
@@ -51,6 +51,7 @@ type
     FSelectInfo: TSelectInfo;
     FDrawOptions: TDrawOptions;
     FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
+    FOnGetUndoList: TGetUndoListEvent;
     procedure DrawItemPaintBefor(const AData: THCCustomData; const ADrawItemIndex: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -110,6 +111,10 @@ type
     /// <returns></returns>
     function GetDrawItemText(const ADrawItemNo: Integer): string;
 
+    procedure SetCaretDrawItemNo(const Value: Integer);
+
+    function GetUndoList: THCUndoList;
+
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemIndex: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
@@ -122,12 +127,16 @@ type
     //
     procedure Clear; virtual;
 
+    procedure InitializeField; virtual;
+
     /// <summary>
     /// 当前Data是不是无内容(仅有一个Item且内容为空)
     /// </summary>
     /// <returns></returns>
     function IsEmptyData: Boolean;
 
+    /// <summary> 嵌套时获取根级Data </summary>
+    function GetRootData: THCCustomData; virtual;
     function CreateDefaultTextItem: THCCustomItem; virtual;
     function CreateDefaultDomainItem: THCCustomItem; virtual;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); virtual;
@@ -326,7 +335,19 @@ type
     property DrawItems: THCDrawItems read FDrawItems;
     property SelectInfo: TSelectInfo read FSelectInfo;
     property DrawOptions: TDrawOptions read FDrawOptions write FDrawOptions;
-    property CaretDrawItemNo: Integer read FCaretDrawItemNo write FCaretDrawItemNo;
+    property CaretDrawItemNo: Integer read FCaretDrawItemNo write SetCaretDrawItemNo;
+    property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
+  end;
+
+type
+  TTraverseItemEvent = procedure(const AData: THCCustomData;
+    const AItemNo, ATag: Integer; var AStop: Boolean) of object;
+
+  TItemTraverse = class(TObject)
+  public
+    Tag: Integer;
+    Stop: Boolean;
+    Process: TTraverseItemEvent;
   end;
 
 implementation
@@ -340,7 +361,7 @@ uses
 /// <param name="AText">要计算的字符串</param>
 /// <param name="ACharIndexs">记录各分隔的起始位置</param>
 /// <returns>分散分隔数量</returns>
-function GetJustifyCount(const AText: string; const ACharIndexs: THCList): Integer;
+function GetJustifyCount(const AText: string; const ACharIndexs: THCIntegerList): Integer;
 
   function IsCharSameType(const A, B: Char): Boolean;
   begin
@@ -515,6 +536,7 @@ procedure THCCustomData.Clear;
 begin
   //DisSelect;  用不着DisSelect吧
   FSelectInfo.Initialize;
+  FCaretDrawItemNo := -1;
   FDrawItems.Clear;
   FItems.Clear;
 end;
@@ -831,8 +853,8 @@ var
   vMod: Integer;
   vItem: THCCustomItem;
 
-  vParaStyle: TParaStyle;
-  vSplitList: THCList;
+  vParaStyle: THCParaStyle;
+  vSplitList: THCIntegerList;
 begin
   Result := 0;
   vDrawItem := FDrawItems[ADrawItemNo];
@@ -864,7 +886,7 @@ begin
           vMod := 0;
           viSplitW := vDrawItem.Width - FStyle.DefCanvas.TextWidth(vText);  // 当前DItem的Rect中用于分散的空间
           // 计算当前Ditem内容分成几份，每一份在内容中的起始位置
-          vSplitList := THCList.Create;
+          vSplitList := THCIntegerList.Create;
           try
             vSplitCount := GetJustifyCount(vText, vSplitList);
             vLineLast := IsLineLastDrawItem(ADrawItemNo);
@@ -945,7 +967,7 @@ var
   vAlignHorz: TParaAlignHorz;
   vDItem: THCCustomDrawItem;
 
-  vSplitList: THCList;
+  vSplitList: THCIntegerList;
   vLineLast: Boolean;
   vText, vS: string;
   i, j, viSplitW, vSplitCount, vMod, vCharWidth, vDOffset
@@ -988,7 +1010,7 @@ begin
           viSplitW := vDItem.Width - FStyle.DefCanvas.TextWidth(vText);  // 当前DItem的Rect中用于分散的空间
           vMod := 0;
           // 计算当前Ditem内容分成几份，每一份在内容中的起始位置
-          vSplitList := THCList.Create;
+          vSplitList := THCIntegerList.Create;
           try
             vSplitCount := GetJustifyCount(vText, vSplitList);
             vLineLast := IsLineLastDrawItem(ADrawItemNo);
@@ -1363,6 +1385,11 @@ begin
   Dec(Result);
 end;
 
+function THCCustomData.GetRootData: THCCustomData;
+begin
+  Result := Self;
+end;
+
 function THCCustomData.GetSelectEndDrawItemNo: Integer;
 begin
   if FSelectInfo.EndItemNo < 0 then
@@ -1379,6 +1406,14 @@ begin
   else
     Result := GetDrawItemNoByOffset(FSelectInfo.StartItemNo,
       FSelectInfo.StartItemOffset);
+end;
+
+function THCCustomData.GetUndoList: THCUndoList;
+begin
+  if Assigned(FOnGetUndoList) then
+    Result := FOnGetUndoList
+  else
+    Result := nil;
 end;
 
 procedure THCCustomData._FormatItemToDrawItems(const AItemNo, AOffset, AContentWidth: Integer;
@@ -1822,7 +1857,7 @@ var
     : Integer;
   vItem: THCCustomItem;
   vRectItem: THCCustomRectItem;
-  vParaStyle: TParaStyle;
+  vParaStyle: THCParaStyle;
   vParaFirst, vLineFirst: Boolean;
   vCharWidths: array of Cardinal;
 
@@ -1858,11 +1893,13 @@ var
   procedure DoFormatTextItemToDrawItems(const ACharOffset, APlaceWidth, ABasePos: Integer);
   var
     i, viPlaceOffset,  // 能放下第几个字符
-    viBreakOffset  // 第几个字符放不下
+    viBreakOffset,  // 第几个字符放不下
+    vFirstCharWidth  // 第一个字符的宽度
       : Integer;
   begin
     vLineFirst := APos.X = 0;
     viBreakOffset := 0;  // 换行位置，第几个字符放不下
+    vFirstCharWidth := vCharWidths[ACharOffset - 1] - ABasePos;  // 第一个字符的宽度
 
     for i := ACharOffset - 1 to viLen - 1 do
     begin
@@ -1887,22 +1924,52 @@ var
     else
     if viBreakOffset = 1 then  // 当前行剩余空间连第一个字符也放不下
     begin
-      vRemainderWidth := APlaceWidth;
-      FinishLine(ALastDNo, vRemainderWidth);
-      // 偏移到下一行开始计算
-      APos.X := 0;
-      APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
-      //if not vLineFirst then
-      DoFormatTextItemToDrawItems(ACharOffset, AContentWidth, ABasePos);
+      if vFirstCharWidth > AContentWidth then  // Data的宽度不足一个字符
+      begin
+        vRect.Left := APos.X;
+        vRect.Top := APos.Y;
+        vRect.Right := vRect.Left + vCharWidths[viLen - 1] - ABasePos;  // 使用自定义测量的结果
+        vRect.Bottom := vRect.Top + vItemHeight;
+        NewDrawItem(AItemNo, ACharOffset, 1, vRect, vParaFirst, vLineFirst);
+        vParaFirst := False;
+
+        vRemainderWidth := AContentWidth - vRect.Right;  // 放入最多后的剩余量
+        FinishLine(ALastDNo, vRemainderWidth);
+
+        // 偏移到下一行顶端，准备另起一行
+        APos.X := 0;
+        APos.Y := FDrawItems[ALastDNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正vRect.Bottom
+
+        if viBreakOffset < viLen then
+          DoFormatTextItemToDrawItems(viBreakOffset + 1, AContentWidth, vCharWidths[viBreakOffset - 1]);
+      end
+      else
+      begin
+        vRemainderWidth := APlaceWidth;
+        FinishLine(ALastDNo, vRemainderWidth);
+        // 偏移到下一行开始计算
+        APos.X := 0;
+        APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
+        //if not vLineFirst then
+        DoFormatTextItemToDrawItems(ACharOffset, AContentWidth, ABasePos);
+      end;
     end
     else  // 当前行剩余宽度能放下当前Text的一部分
     begin
-      viPlaceOffset := viBreakOffset - 1;  // 第viBreakOffset个字符放不下，前一个能放下
+      if vFirstCharWidth > AContentWidth then  // Data的宽度不足一个字符
+        viPlaceOffset := viBreakOffset
+      else
+        viPlaceOffset := viBreakOffset - 1;  // 第viBreakOffset个字符放不下，前一个能放下
 
       FindLineBreak(vText, ACharOffset, viPlaceOffset);  // 判断从viPlaceOffset后打断是否合适
 
       if viPlaceOffset < ACharOffset then  // 找不到截断位置，就在原位置截断(如整行文本都是逗号)
-        viPlaceOffset := viBreakOffset - 1;
+      begin
+        if vFirstCharWidth > AContentWidth then  // Data的宽度不足一个字符
+          viPlaceOffset := viBreakOffset
+        else
+          viPlaceOffset := viBreakOffset - 1;
+      end;
 
       vRect.Left := APos.X;
       vRect.Top := APos.Y;
@@ -1919,7 +1986,8 @@ var
       APos.X := 0;
       APos.Y := FDrawItems[ALastDNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正vRect.Bottom
 
-      DoFormatTextItemToDrawItems(viPlaceOffset + 1, AContentWidth, vCharWidths[viPlaceOffset - 1]);
+      if viPlaceOffset < viLen then
+        DoFormatTextItemToDrawItems(viPlaceOffset + 1, AContentWidth, vCharWidths[viPlaceOffset - 1]);
     end;
   end;
 
@@ -2234,7 +2302,7 @@ var
   procedure DrawTextJsutify(const ARect: TRect; const AText: string; const ALineLast: Boolean);
   var
     vSplitCount, vX, vLen, viSplitW, vMod: Integer;
-    vSplitList: THCList;
+    vSplitList: THCIntegerList;
     i: Integer;
     vS: string;
     //vRect: TRect;
@@ -2243,7 +2311,7 @@ var
     vX := ARect.Left;
     viSplitW := (ARect.Right - ARect.Left) - FStyle.DefCanvas.TextWidth(AText);
     // 计算当前Ditem内容分成几份，每一份在内容中的起始位置
-    vSplitList := THCList.Create;
+    vSplitList := THCIntegerList.Create;
     try
       vSplitCount := GetJustifyCount(AText, vSplitList);
       if ALineLast and (vSplitCount > 0) then  // 行最后DItem，少分一个
@@ -2283,25 +2351,6 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION ' DrawLineLastMrak 段尾的换行符 '}
-  procedure DrawLineLastMrak(const ADrawRect: TRect);
-  begin
-    ACanvas.Pen.Style := psSolid;
-    ACanvas.Pen.Color := clActiveBorder;
-    ACanvas.MoveTo(ADrawRect.Right + 4, ADrawRect.Bottom - 8);
-    ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 8);
-    ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 3);
-
-    ACanvas.MoveTo(ADrawRect.Right,     ADrawRect.Bottom - 3);
-    ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 3);
-
-    ACanvas.MoveTo(ADrawRect.Right + 1, ADrawRect.Bottom - 4);
-    ACanvas.LineTo(ADrawRect.Right + 1, ADrawRect.Bottom - 1);
-    ACanvas.MoveTo(ADrawRect.Right + 2, ADrawRect.Bottom - 5);
-    ACanvas.LineTo(ADrawRect.Right + 2, ADrawRect.Bottom);
-  end;
-  {$ENDREGION}
-
 var
   i, vSelStartDNo, vSelStartDOffs, vSelEndDNo, vSelEndDOffs,
   vPrioStyleNo, vPrioParaNo, vVOffset, vTextHeight: Integer;
@@ -2334,7 +2383,7 @@ begin
     vSelStartDOffs := -1
   else
     vSelStartDOffs := FSelectInfo.StartItemOffset - FDrawItems[vSelStartDNo].CharOffs + 1;
-  vSelEndDNo := GetSelectEndDrawItemNo;      // 选中结束DItem
+  vSelEndDNo := GetSelectEndDrawItemNo;      // 选中结束DrawItem
   if vSelEndDNo < 0 then
     vSelEndDOffs := -1
   else
@@ -2516,15 +2565,6 @@ begin
 
       DrawItemPaintAfter(Self, i, vDrawRect, ADataDrawLeft, ADataDrawBottom,
         ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);  // 绘制内容后
-
-      if (not APaintInfo.Print) and FStyle.ShowLineLastMark then
-      begin
-        if (i < FDrawItems.Count - 1) and FDrawItems[i + 1].ParaFirst then
-          DrawLineLastMrak(vDrawRect)  // 段尾的换行符
-        else
-        if i = FDrawItems.Count - 1 then
-          DrawLineLastMrak(vDrawRect);  // 段尾的换行符
-      end;
     end;
   finally
     RestoreDC(ACanvas.Handle, vDCState);
@@ -2730,8 +2770,14 @@ function THCCustomData.SelectedAll: Boolean;
 begin
   Result := (FSelectInfo.StartItemNo = 0)
     and (FSelectInfo.StartItemOffset = 0)
-    and (FSelectInfo.EndItemNo = FItems.Count - 1)
-    and (FSelectInfo.EndItemOffset = FItems.Last.Length);
+    and (FSelectInfo.EndItemNo = FItems.Count - 1);
+  if Result then
+  begin
+    if FItems[FSelectInfo.EndItemNo].StyleNo < THCStyle.RsNull then
+      Result := FSelectInfo.EndItemOffset = OffsetAfter
+    else
+      Result := FSelectInfo.EndItemOffset = FItems.Last.Length;
+  end;
 end;
 
 function THCCustomData.SelectExists(const AIfRectItem: Boolean = True): Boolean;
@@ -2770,6 +2816,28 @@ begin
       Result := FItems[FDrawItems[vStartDNo].ItemNo].IsSelectComplate and (FSelectInfo.EndItemNo < 0)
     else
       Result := vStartDNo = GetSelectEndDrawItemNo;
+  end;
+end;
+
+procedure THCCustomData.SetCaretDrawItemNo(const Value: Integer);
+begin
+  if FCaretDrawItemNo <> Value then
+  begin
+    if FCaretDrawItemNo >= 0 then
+      FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := False;
+
+    FCaretDrawItemNo := Value;
+
+    if FCaretDrawItemNo >= 0 then
+    begin
+      if FItems[FDrawItems[FCaretDrawItemNo].ItemNo].StyleNo < THCStyle.RsNull then
+      begin
+        if FSelectInfo.StartItemOffset = OffsetInner then
+          FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True
+      end
+      else
+        FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;
+    end;
   end;
 end;
 
@@ -2828,6 +2896,11 @@ begin
       + GetDrawItemOffsetWidth(vDrawItemNo, AOffset - vDrawItem.CharOffs + 1);
 
   ACaretInfo.Y := ACaretInfo.Y + vDrawItem.Rect.Top;
+end;
+
+procedure THCCustomData.InitializeField;
+begin
+  FCaretDrawItemNo := -1;
 end;
 
 function THCCustomData.InsertStream(const AStream: TStream;

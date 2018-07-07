@@ -36,7 +36,13 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
+
+    /// <summary> 约束到指定大小范围内 </summary>
+    procedure RestrainSize(const AWidth, AHeight: Integer); override;
     procedure LoadFromBmpFile(const AFileName: string);
+
+    /// <summary> 恢复到原始尺寸 </summary>
+    procedure RecoverOrigianlSize;
     property Image: TBitmap read FImage;
   end;
 
@@ -59,43 +65,6 @@ begin
 end;
 
 procedure THCImageItem.DoImageChange(Sender: TObject);
-begin
-  Self.Width := FImage.Width;
-  Self.Height := FImage.Height;
-end;
-
-procedure THCImageItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-begin
-  ACanvas.StretchDraw(ADrawRect, FImage);
-
-  inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
-    ADataScreenBottom, ACanvas, APaintInfo);
-end;
-
-function THCImageItem.GetHeight: Integer;
-begin
-  Result := inherited GetHeight;
-  if Result = 0 then
-    Result := FImage.Height;
-end;
-
-function THCImageItem.GetWidth: Integer;
-begin
-  Result := inherited GetWidth;
-  if Result = 0 then
-    Result := FImage.Width;
-end;
-
-procedure THCImageItem.LoadFromBmpFile(const AFileName: string);
-begin
-  FImage.LoadFromFile(AFileName);  // 会触发OnChange
-  FImage.PixelFormat := pf24bit;
-end;
-
-procedure THCImageItem.LoadFromStream(const AStream: TStream;
-  const AStyle: THCStyle; const AFileVersion: Word);
 
   {$REGION ' TurnUpDown图像上下翻转(已废弃) '}
   // pf32位时图像数据是按行存放，每行按双字对齐，行按倒序方式存放
@@ -158,15 +127,52 @@ procedure THCImageItem.LoadFromStream(const AStream: TStream;
   {$ENDREGION}
 
 begin
-  inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  FImage.LoadFromStream(AStream);  // 会触发OnChange
-  if FImage.PixelFormat = pf32bit then
+  if FImage.PixelFormat <> pf24bit then
   begin
     FImage.PixelFormat := pf24bit;
-    //TurnUpDown;
-    //FImage.Canvas.CopyMode:= cmSrcCopy;
-    FImage.Canvas.CopyRect(FImage.Canvas.ClipRect, FImage.Canvas, Rect(0, FImage.Height, FImage.Width, 0));
+    {if FImage.PixelFormat = pf32bit then
+      //TurnUpDown;
+      //FImage.Canvas.CopyMode:= cmSrcCopy;
+      FImage.Canvas.CopyRect(FImage.Canvas.ClipRect, FImage.Canvas, Rect(0, FImage.Height, FImage.Width, 0));}
   end;
+end;
+
+procedure THCImageItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
+  ACanvas.StretchDraw(ADrawRect, FImage);
+
+  inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+    ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
+function THCImageItem.GetHeight: Integer;
+begin
+  Result := inherited GetHeight;
+  if Result = 0 then
+    Result := FImage.Height;
+end;
+
+function THCImageItem.GetWidth: Integer;
+begin
+  Result := inherited GetWidth;
+  if Result = 0 then
+    Result := FImage.Width;
+end;
+
+procedure THCImageItem.LoadFromBmpFile(const AFileName: string);
+begin
+  FImage.LoadFromFile(AFileName);  // 会触发OnChange
+  Self.Width := FImage.Width;
+  Self.Height := FImage.Height;
+end;
+
+procedure THCImageItem.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  FImage.LoadFromStream(AStream);  // 会触发OnChange
 end;
 
 procedure THCImageItem.PaintTop(const ACanvas: TCanvas);
@@ -192,6 +198,31 @@ begin
                      vBlendFunction
                      );
   inherited PaintTop(ACanvas);
+end;
+
+procedure THCImageItem.RecoverOrigianlSize;
+begin
+  Width := FImage.Width;
+  Height := FImage.Height;
+end;
+
+procedure THCImageItem.RestrainSize(const AWidth, AHeight: Integer);
+var
+  vBL: Single;
+begin
+  if Width > AWidth then
+  begin
+    vBL := Width / AWidth;
+    Width := AWidth;
+    Height := Round(Height / vBL);
+  end;
+
+  if Height > AHeight then
+  begin
+    vBL := Height / AHeight;
+    Height := AHeight;
+    Width := Round(Width / vBL);
+  end;
 end;
 
 procedure THCImageItem.SaveToStream(const AStream: TStream; const AStart,

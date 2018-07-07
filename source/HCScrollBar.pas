@@ -613,7 +613,11 @@ end;
 procedure THCScrollBar.UpdateRangRect;
 begin
   if HandleAllocated then
+  begin
     InvalidateRect(Handle, ClientRect, False);
+    UpdateWindow(Handle);
+    //RedrawWindow(Handle, nil, 0, RDW_INVALIDATE);
+  end;
 end;
 
 end.

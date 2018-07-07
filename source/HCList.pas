@@ -23,7 +23,7 @@ type
   PIntegerList = ^TIntegerList;
   TIntegerList = array[0..MaxListSize - 1] of Integer;
 
-  THCList = class(TObject)
+  THCIntegerList = class(TObject)
   private
     FList: PIntegerList;
     FCount: Integer;
@@ -43,11 +43,35 @@ type
     property Items[Index: Integer]: Integer read GetItems write SetItems; default;
   end;
 
+  PPointerList = ^TPointerList;
+  TPointerList = array[0..MaxListSize - 1] of Pointer;
+  THCObjectList = class(TObject)
+  private
+    FOwnsObjects: Boolean;
+    FList: PPointerList;
+    FCount: Integer;
+    FCapacity: Integer;
+    procedure SetCapacity(const Value: Integer);
+    procedure SetCount(const Value: Integer);
+    function GetItems(Index: Integer): Pointer;
+    procedure SetItems(Index: Integer; const Value: Pointer);
+  public
+    constructor Create(const AOwnsObjects: Boolean = True); virtual;
+    destructor Destroy; override;
+    function Add(Item: Pointer): Integer;
+    procedure Clear;
+    procedure Delete(Index: Integer);
+    property Capacity: Integer read FCapacity write SetCapacity;
+    property Count: Integer read FCount write SetCount;
+    property List: PPointerList read FList;
+    //property Items[Index: Integer]: Pointer read GetItems write SetItems; default;
+  end;
+
 implementation
 
-{ THCList }
+{ THCIntegerList }
 
-function THCList.Add(Item: Integer): Integer;
+function THCIntegerList.Add(Item: Integer): Integer;
 begin
   if FCount = FCapacity then
     SetCapacity(FCapacity + 4);
@@ -56,13 +80,13 @@ begin
   Inc(FCount);
 end;
 
-procedure THCList.Clear;
+procedure THCIntegerList.Clear;
 begin
   SetCount(0);
   SetCapacity(0);
 end;
 
-procedure THCList.Delete(Index: Integer);
+procedure THCIntegerList.Delete(Index: Integer);
 begin
   if (Index < 0) or (Index >= FCount) then
     raise Exception.CreateFmt('非法的 Index:%d', [Index]);
@@ -71,13 +95,13 @@ begin
   Dec(FCount);
 end;
 
-destructor THCList.Destroy;
+destructor THCIntegerList.Destroy;
 begin
   Clear;
   inherited;
 end;
 
-procedure THCList.SetCapacity(const Value: Integer);
+procedure THCIntegerList.SetCapacity(const Value: Integer);
 begin
   if (Value < FCount) or (Value > MaxListSize) then
     raise Exception.CreateFmt('非法数据:%d', [Value]);
@@ -88,7 +112,7 @@ begin
   end;
 end;
 
-procedure THCList.SetCount(const Value: Integer);
+procedure THCIntegerList.SetCount(const Value: Integer);
 var
   i: Integer;
 begin
@@ -101,19 +125,111 @@ begin
   else
   begin
     for i := FCount - 1 downto Value do
-      Delete(I);
+      Delete(i);
   end;
   FCount := Value;
 end;
 
-function THCList.GetItems(Index: Integer): Integer;
+function THCIntegerList.GetItems(Index: Integer): Integer;
 begin
   if (Index < 0) or (Index >= FCount) then
     raise Exception.CreateFmt('异常:%d', [Index]);
   Result := FList^[Index];
 end;
 
-procedure THCList.SetItems(Index: Integer; const Value: Integer);
+procedure THCIntegerList.SetItems(Index: Integer; const Value: Integer);
+begin
+  if (Index < 0) or (Index >= FCount) then
+    raise Exception.CreateFmt('异常:%d', [Index]);
+
+  if Value <> FList^[Index] then
+    FList^[Index] := Value;
+end;
+
+{ THCObjectList }
+
+function THCObjectList.Add(Item: Pointer): Integer;
+begin
+  if FCount = FCapacity then
+    SetCapacity(FCapacity + 4);
+  FList^[FCount] := Item;
+  Result := FCount;
+  Inc(FCount);
+end;
+
+procedure THCObjectList.Clear;
+begin
+  SetCount(0);
+  SetCapacity(0);
+end;
+
+constructor THCObjectList.Create(const AOwnsObjects: Boolean = True);
+begin
+  FOwnsObjects := AOwnsObjects;
+end;
+
+procedure THCObjectList.Delete(Index: Integer);
+begin
+  if (Index < 0) or (Index >= FCount) then
+    raise Exception.CreateFmt('非法的 Index:%d', [Index]);
+
+  if Index < FCount then
+  begin
+    if FOwnsObjects then
+      TObject(GetItems(Index)).Free;
+
+    System.Move(FList^[Index + 1], FList^[Index], (FCount - Index)* SizeOf(Pointer));
+  end;
+
+  Dec(FCount);
+end;
+
+destructor THCObjectList.Destroy;
+begin
+  Clear;
+  inherited Destroy;
+end;
+
+function THCObjectList.GetItems(Index: Integer): Pointer;
+begin
+  if (Index < 0) or (Index >= FCount) then
+    raise Exception.CreateFmt('异常:%d', [Index]);
+  Result := FList^[Index];
+end;
+
+procedure THCObjectList.SetCapacity(const Value: Integer);
+begin
+  if (Value < FCount) or (Value > MaxListSize) then
+    raise Exception.CreateFmt('非法数据:%d', [Value]);
+
+  if FCapacity <> Value then
+  begin
+    ReallocMem(FList, Value * SizeOf(Pointer));
+    FCapacity := Value;
+  end;
+end;
+
+procedure THCObjectList.SetCount(const Value: Integer);
+var
+  i: Integer;
+begin
+  if (Value < 0) or (Value > MaxListSize) then
+    raise Exception.CreateFmt('非法数据:%d', [Value]);
+
+  if Value > FCapacity then SetCapacity(Value);
+
+  if Value > FCount then
+    FillChar(FList^[FCount], (Value - FCount) * SizeOf(Pointer), 0)
+  else
+  begin
+    for i := FCount - 1 downto Value do
+      Delete(i);
+  end;
+
+  FCount := Value;
+end;
+
+procedure THCObjectList.SetItems(Index: Integer; const Value: Pointer);
 begin
   if (Index < 0) or (Index >= FCount) then
     raise Exception.CreateFmt('异常:%d', [Index]);

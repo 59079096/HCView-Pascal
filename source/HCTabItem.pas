@@ -40,7 +40,7 @@ begin
   inherited Create(AOwnerData);
   StyleNo := THCStyle.RsTab;
   AOwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(AOwnerData.Style.DefCanvas);
-  vSize := AOwnerData.Style.DefCanvas.TextExtent('ºº×Ö');
+  vSize := AOwnerData.Style.DefCanvas.TextExtent('ºº×Ö');  // Ä¬ÈÏ2¸öºº×Ö
   Width := vSize.cx;
   Height := vSize.cy;
 end;

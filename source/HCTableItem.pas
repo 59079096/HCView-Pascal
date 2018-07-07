@@ -14,9 +14,9 @@ unit HCTableItem;
 interface
 
 uses
-  Classes, SysUtils, Types, Graphics, Controls, Generics.Collections, HCDrawItem, HCRectItem,
-  HCTableRow, HCCustomData, HCCustomRichData, HCTableCell, HCTableCellData, HCTextStyle, HCCommon,
-  HCParaStyle, HCStyleMatch, HCItem, HCStyle, HCDataCommon;
+  Classes, SysUtils, Types, Graphics, Controls, Generics.Collections, HCDrawItem,
+  HCRectItem, HCTableRow, HCCustomData, HCCustomRichData, HCTableCell, HCTableCellData,
+  HCTextStyle, HCCommon, HCParaStyle, HCStyleMatch, HCItem, HCStyle, HCList, HCUndo;
 
 type
   TSelectCellRang = class
@@ -95,7 +95,10 @@ type
     FRows: TTableRows;  // 行
     FColWidths: TList<Integer>;  // 记录各列宽度(除边框、含FCellHPadding * 2)，方便有合并的单元格获取自己水平开始处的位置
     FOwnerData: THCCustomData;
+
     procedure InitializeMouseInfo;
+
+    function DoCellDataGetRootData: THCCustomData;
 
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: TTableRow);
@@ -202,10 +205,30 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
+    // 撤销重做相关方法
+    procedure DoNewUndo(const Sender: THCUndo); override;
+    procedure DoUndoDestroy(const Sender: THCUndo); override;
+    procedure DoUndo(const Sender: THCUndo); override;
+    procedure DoRedo(const Sender: THCUndo); override;
+    procedure Undo_ColResize(const ACol, AOldWidth, ANewWidth: Integer);
+    procedure Undo_MergeCells;
+
     function GetRowCount: Integer;
     //function GetColCount: Integer;
+    /// <summary> 获取指定行列范围实际对应的行列范围
+    /// </summary>
+    /// <param name="AStartRow"></param>
+    /// <param name="AStartCol"></param>
+    /// <param name="AEndRow"></param>
+    /// <param name="AEndCol"></param>
+    procedure AdjustCellRange(const AStartRow, AStartCol: Integer;
+      var AEndRow, AEndCol: Integer);
     function MergeCells(const AStartRow, AStartCol, AEndRow, AEndCol: Integer):Boolean;
     function GetCells(ARow, ACol: Integer): THCTableCell;
+    function InsertCol(const ACol, ACount: Integer): Boolean;
+    function InsertRow(const ARow, ACount: Integer): Boolean;
+    function DeleteCol(const ACol: Integer): Boolean;
+    function DeleteRow(const ARow: Integer): Boolean;
   public
     //DrawItem: TCustomDrawItem;
     constructor Create(const AOwnerData: TCustomData; const ARowCount, AColCount,
@@ -223,8 +246,10 @@ type
       const AReDest: Boolean = True): TResizeInfo;
 
     procedure GetDestCell(const ARow, ACol: Cardinal; var ADestRow, ADestCol: Integer);
+    procedure GetSourceCell(const ARow, ACol: Cardinal; var ASrcRow, ASrcCol: Integer);
 
     procedure SelectAll;
+
     /// <summary> 判断指定范围内的单元格是否可以合并(为了给界面合并菜单控制可用状态放到public域中) </summary>
     /// <param name="AStartRow"></param>
     /// <param name="AStartCol"></param>
@@ -233,27 +258,32 @@ type
     /// <returns></returns>
     function CellsCanMerge(const AStartRow, AStartCol, AEndRow, AEndCol: Integer): Boolean;
 
+    /// <summary> 指定行是否能删除 </summary>
+    function RowCanDelete(const ARow: Integer): Boolean;
+    function CurRowCanDelete: Boolean;
+
+    /// <summary> 指定列是否能删除 </summary>
+    function ColCanDelete(const ACol: Integer): Boolean;
+    function CurColCanDelete: Boolean;
+
     /// <summary> 获取指定单元格合并后的单元格 </summary>
     procedure GetMergeDest(const ARow, ACol: Integer; var ADestRow, ADestCol: Integer);
 
     /// <summary> 获取指定单元格合并后单元格的Data </summary>
     //function GetMergeDestCellData(const ARow, ACol: Integer): THCTableCellData;
 
-    /// <summary> 单元格是否处于全选中状态(非内容全选中) </summary>
-    /// <param name="ARow"></param>
-    /// <param name="ACol"></param>
-    /// <returns>true:当前是选中状态</returns>
-    function CellSelectComplate(const ARow, ACol: Integer): Boolean;
     function MergeSelectCells: Boolean;
+    function SelectedCellCanMerge: Boolean;
+
     function GetEditCell: THCTableCell; overload;
     procedure GetEditCell(var ARow, ACol: Integer); overload;
 
-    function InsertRowAfter(const ACount: Byte): Boolean;
-    function InsertRowBefor(const ACount: Byte): Boolean;
-    function DeleteRow(const ACount: Byte): Boolean;
-    function InsertColAfter(const ACount: Byte): Boolean;
-    function InsertColBefor(const ACount: Byte): Boolean;
-    function DeleteCol(const ACount: Byte): Boolean;
+    function InsertRowAfter(const ACount: Integer): Boolean;
+    function InsertRowBefor(const ACount: Integer): Boolean;
+    function InsertColAfter(const ACount: Integer): Boolean;
+    function InsertColBefor(const ACount: Integer): Boolean;
+    function DeleteCurCol: Boolean;
+    function DeleteCurRow: Boolean;
 
     property Cells[ARow, ACol: Integer]: THCTableCell read GetCells;
     property RowCount: Integer read GetRowCount;
@@ -408,25 +438,29 @@ var
   i, vDataWidth: Integer;
 begin
   inherited Create(AOwnerData);
-  FOwnerData := AOwnerData;
-  GripSize := 2;
-  FCellHPadding := 2;
-  FCellVPadding := 0;
-  FDraging := False;
-  //
-  StyleNo := THCStyle.RsTable;
-  ParaNo := FOwnerData.Style.CurParaNo;
+
   if ARowCount = 0 then
     raise Exception.Create('异常：不能创建行数为0的表格！');
   if AColCount = 0 then
     raise Exception.Create('异常：不能创建列数为0的表格！');
+
+  GripSize := 2;
+  FCellHPadding := 5;
+  FCellVPadding := 0;
+  FDraging := False;
   FBorderWidth := 1;
   FBorderColor := clBlack;
   FBorderVisible := True;
+
+  StyleNo := THCStyle.RsTable;
+  FOwnerData := AOwnerData;
+  ParaNo := FOwnerData.Style.CurParaNo;
+  CanBreak := True;
+
   //FWidth := FRows[0].ColCount * (MinColWidth + FBorderWidth) + FBorderWidth;
   Height := ARowCount * (MinRowHeight + FBorderWidth) + FBorderWidth;
   FRows := TTableRows.Create;
-  FRows.OnRowAdd := DoRowAdd;
+  FRows.OnRowAdd := DoRowAdd;  // 添加行时触发的事件
   FSelectCellRang := TSelectCellRang.Create;
   Self.InitializeMouseInfo;
   //
@@ -442,69 +476,104 @@ begin
     FColWidths.Add(FRows[0].Cols[i].Width);
 end;
 
-function THCTableItem.DeleteCol(const ACount: Byte): Boolean;
+function THCTableItem.CurColCanDelete: Boolean;
+begin
+  Result := FSelectCellRang.SameCol and ColCanDelete(FSelectCellRang.StartCol);
+end;
+
+function THCTableItem.CurRowCanDelete: Boolean;
+begin
+  Result := FSelectCellRang.SameRow and RowCanDelete(FSelectCellRang.StartRow);
+end;
+
+function THCTableItem.DeleteCol(const ACol: Integer): Boolean;
 var
-  i, j, vDelCount: Integer;
-  //viDestRow, viDestCol: Integer;
-  //vTableRow: TTableRow;
-  vCell: THCTableCell;
+  i, vRow: Integer;
+  viDestRow, viDestCol: Integer;
 begin
   Result := False;
-  vCell := GetEditCell;
-  if vCell = nil then Exit;
 
-  vCell.CellData.InitializeField;
-  if FSelectCellRang.StartCol + ACount > FColWidths.Count - 1 then
-    vDelCount := FColWidths.Count - FSelectCellRang.StartCol
-  else
-    vDelCount := ACount;
+  if not ColCanDelete(ACol) then Exit;
 
-  for i := 0 to vDelCount - 1 do
+  for vRow := 0 to RowCount - 1 do
   begin
-    for j := 0 to RowCount - 1 do
+    if FRows[vRow].Cols[ACol].ColSpan < 0 then  // 合并源
     begin
-      { TODO : 合并单元格的处理 }
-      FRows[j].Delete(FSelectCellRang.StartCol);
+      GetDestCell(vRow, ACol, viDestRow, viDestCol);  // 目标行、列
+      for i := ACol + 1 to viDestCol + FRows[viDestRow].Cols[viDestCol].ColSpan do  // 当前列右面的合并源列离目标近1
+        FRows[vRow].Cols[i].ColSpan := FRows[vRow].Cols[i].ColSpan + 1;
+
+      if vRow = viDestRow then  // 目标行列跨度减少1
+        FRows[viDestRow].Cols[viDestCol].ColSpan := FRows[viDestRow].Cols[viDestCol].ColSpan - 1;
+    end
+    else
+    if FRows[vRow].Cols[ACol].ColSpan > 0 then  // 合并目标
+    begin
+
     end;
-    FColWidths.Delete(FSelectCellRang.StartCol);
+
+    FRows[vRow].Delete(ACol);
   end;
+  FColWidths.Delete(ACol);
+
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
   Result := True;
 end;
 
-function THCTableItem.DeleteRow(const ACount: Byte): Boolean;
+function THCTableItem.DeleteCurCol: Boolean;
 var
-  i, j, k, vDelCount: Integer;
-  viDestRow, viDestCol: Integer;
-  //vTableRow: TTableRow;
   vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
   if vCell = nil then Exit;
-
   vCell.CellData.InitializeField;
-  if FSelectCellRang.StartRow + ACount > RowCount - 1 then
-    vDelCount := RowCount - FSelectCellRang.StartRow
-  else
-    vDelCount := ACount;
 
-  for i := 0 to vDelCount - 1 do
+  if FColWidths.Count > 1 then
+    Result := DeleteCol(FSelectCellRang.StartCol)
+end;
+
+function THCTableItem.DeleteCurRow: Boolean;
+var
+  vCell: THCTableCell;
+begin
+  Result := False;
+  vCell := GetEditCell;
+  if vCell = nil then Exit;
+  vCell.CellData.InitializeField;
+
+  if FRows.Count > 1 then
+    Result := DeleteRow(FSelectCellRang.StartRow)
+end;
+
+function THCTableItem.DeleteRow(const ARow: Integer): Boolean;
+var
+  i, vCol: Integer;
+  viDestRow, viDestCol: Integer;
+begin
+  Result := False;
+
+  if not RowCanDelete(ARow) then Exit;
+
+  for vCol := 0 to FColWidths.Count - 1 do
   begin
-    for j := FColWidths.Count - 1 downto 0 do
+    if FRows[ARow].Cols[vCol].RowSpan < 0 then  // 合并源
     begin
-      if FRows[FSelectCellRang.StartRow].Cols[j].RowSpan <> 0 then  // 删除的单元格是合并源
-      begin
-        GetDestCell(FSelectCellRang.StartRow, j, viDestRow, viDestCol);
+      GetDestCell(ARow, vCol, viDestRow, viDestCol);  // 目标行、列
+      for i := ARow + 1 to viDestCol + FRows[viDestRow].Cols[viDestCol].RowSpan do  // 当前行下面的合并源行离目标近1
+        FRows[i].Cols[vCol].RowSpan := FRows[i].Cols[vCol].RowSpan + 1;
 
-        for k := 0 to Cells[viDestRow, viDestCol].RowSpan + FRows[FSelectCellRang.StartRow].Cols[j].RowSpan do  // 目标的行跨度 - 已经跨的
-          FRows[FSelectCellRang.StartRow + k].Cols[j].RowSpan := FRows[FSelectCellRang.StartRow + k].Cols[j].RowSpan - 1;  // 离目标行远1
-        FRows[viDestRow].Cols[j].RowSpan := FRows[viDestRow].Cols[j].RowSpan + 1;  // 目标行包含的合并源增加1    }
-      end;
+      if vCol = viDestCol then  // 目标列行跨度减少1
+        FRows[viDestRow].Cols[viDestCol].RowSpan := FRows[viDestRow].Cols[viDestCol].RowSpan - 1;
+    end
+    else
+    if FRows[ARow].Cols[vCol].ColSpan > 0 then  // 合并目标
+    begin
+
     end;
   end;
-  FRows.DeleteRange(FSelectCellRang.StartRow, vDelCount);
+  FRows.Delete(ARow);
 
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
@@ -573,8 +642,11 @@ begin
     else
     begin
       vCellData := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData;
-      vCellData.DisSelect;
-      vCellData.InitializeField;
+      if vCellData <> nil then
+      begin
+        vCellData.DisSelect;
+        vCellData.InitializeField;
+      end;
     end;
 
     for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
@@ -594,6 +666,25 @@ begin
         end;
       end;
     end;
+  end;
+end;
+
+function THCTableItem.DoCellDataGetRootData: THCCustomData;
+begin
+  Result := FOwnerData.GetRootData;
+end;
+
+procedure THCTableItem.DoNewUndo(const Sender: THCUndo);
+var
+  vCell: THCTableCell;
+  vUndoCell: THCUndoCell;
+begin
+  if FSelectCellRang.EditCell then  // 在同一单元格中编辑
+  begin
+    vUndoCell := THCUndoCell.Create;
+    vUndoCell.Row := FSelectCellRang.StartRow;
+    vUndoCell.Col := FSelectCellRang.StartCol;
+    Sender.Data := vUndoCell;
   end;
 end;
 
@@ -743,7 +834,7 @@ begin
             vCellScreenBottom - vMergeCellDataDrawTop,
             vFristDItemNo, vLastDItemNo);
 
-          vSelectAll := Self.IsSelectComplate or CellSelectComplate(vR, vC);  // 表格全选中或单元格全选中
+          vSelectAll := Self.IsSelectComplate or vCellData.CellSelectedAll;  // 表格全选中或单元格全选中
           if vSelectAll then  // 是全选中
           begin
             ACanvas.Brush.Color := FOwnerData.Style.SelColor;
@@ -764,7 +855,7 @@ begin
             ACanvas.Font.Color := clGray;
             ACanvas.Font.Style := [];
             ACanvas.Font.Size := 8;
-            ACanvas.TextOut(vCellDrawLeft + 1, vMergeCellDataDrawTop, IntToStr(vC) + '/' + IntToStr(vR));
+            ACanvas.TextOut(vCellDrawLeft + 1, vMergeCellDataDrawTop, IntToStr(vR) + '/' + IntToStr(vC));
             {$ENDIF}
 
             vCellData.PaintData(vCellDrawLeft + FCellHPadding, vMergeCellDataDrawTop,
@@ -916,6 +1007,51 @@ begin
   end;
 end;
 
+procedure THCTableItem.DoRedo(const Sender: THCUndo);
+var
+  vRedoCell: THCUndoCell;
+  vColSize: THCUndoColSize;
+  vMirror: THCUndoMirror;
+  vStream: TMemoryStream;
+  vStyleNo: Integer;
+begin
+  if Sender.Data is THCUndoCell then
+  begin
+    vRedoCell := Sender.Data as THCUndoCell;
+    Cells[vRedoCell.Row, vRedoCell.Col].CellData.Redo(Sender);
+  end
+  else
+  if Sender.Data is THCUndoColSize then
+  begin
+    vColSize := Sender.Data as THCUndoColSize;
+    if vColSize.Col < FColWidths.Count - 1 then
+    begin
+      FColWidths[vColSize.Col + 1] := FColWidths[vColSize.Col + 1] +
+        FColWidths[vColSize.Col] - vColSize.NewWidth;
+    end;
+    FColWidths[vColSize.Col] := vColSize.NewWidth;
+  end
+  else
+  if Sender.Data is THCUndoMirror then
+  begin
+    vStream := TMemoryStream.Create;
+    try
+      Self.SaveToStream(vStream);  // 记录恢复前状态
+
+      vMirror := Sender.Data as THCUndoMirror;
+      vMirror.Stream.Position := 0;
+      vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
+      Self.LoadFromStream(vMirror.Stream, FOwnerData.Style, HC_FileVersionInt);
+
+      vMirror.Stream.CopyFrom(vStream, 0);  // 保存恢复前状态
+    finally
+      vStream.Free;
+    end;
+  end
+  else
+    inherited DoRedo(Sender);
+end;
+
 procedure THCTableItem.DoRowAdd(const ARow: TTableRow);
 var
   i: Integer;
@@ -925,12 +1061,68 @@ begin
     if ARow.Cols[i].CellData <> nil then
     begin
       ARow.Cols[i].CellData.OnInsertItem := (FOwnerData as THCCustomRichData).OnInsertItem;
+      ARow.Cols[i].CellData.OnItemResized := (FOwnerData as THCCustomRichData).OnItemResized;
       ARow.Cols[i].CellData.OnItemPaintAfter := (FOwnerData as THCCustomRichData).OnItemPaintAfter;
       ARow.Cols[i].CellData.OnItemPaintBefor := (FOwnerData as THCCustomRichData).OnItemPaintBefor;
-
       ARow.Cols[i].CellData.OnCreateItem := (FOwnerData as THCCustomRichData).OnCreateItem;
+      ARow.Cols[i].CellData.OnGetUndoList := Self.GetSelfUndoList;
+      ARow.Cols[i].CellData.OnGetRootData := DoCellDataGetRootData;
     end;
   end;
+end;
+
+procedure THCTableItem.DoUndo(const Sender: THCUndo);
+var
+  vCell: THCUndoCell;
+  vColSize: THCUndoColSize;
+  vMirror: THCUndoMirror;
+  vStyleNo: Integer;
+  vStream: TMemoryStream;
+begin
+  if Sender.Data is THCUndoCell then
+  begin
+    vCell := Sender.Data as THCUndoCell;
+    Cells[vCell.Row, vCell.Col].CellData.Undo(Sender);
+  end
+  else
+  if Sender.Data is THCUndoColSize then
+  begin
+    vColSize := Sender.Data as THCUndoColSize;
+    if vColSize.Col < FColWidths.Count - 1 then
+    begin
+      FColWidths[vColSize.Col + 1] := FColWidths[vColSize.Col + 1] +
+        FColWidths[vColSize.Col] - vColSize.OldWidth;
+    end;
+    FColWidths[vColSize.Col] := vColSize.OldWidth;
+  end
+  else
+  if Sender.Data is THCUndoMirror then
+  begin
+    vStream := TMemoryStream.Create;
+    try
+      Self.SaveToStream(vStream);  // 记录撤销前状态
+
+      // 恢复原样
+      vMirror := Sender.Data as THCUndoMirror;
+      vMirror.Stream.Position := 0;
+      vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
+      Self.LoadFromStream(vMirror.Stream, FOwnerData.Style, HC_FileVersionInt);
+
+      vMirror.Stream.CopyFrom(vStream, 0);  // 保存撤销前状态
+    finally
+      vStream.Free;
+    end;
+  end
+  else
+    inherited DoUndo(Sender);
+end;
+
+procedure THCTableItem.DoUndoDestroy(const Sender: THCUndo);
+begin
+  if Sender.Data is THCUndoCell then
+    (Sender.Data as THCUndoCell).Free;
+
+  inherited DoUndoDestroy(Sender);
 end;
 
 procedure THCTableItem.KeyDown(var Key: Word; Shift: TShiftState);
@@ -1251,7 +1443,7 @@ begin
   inherited;
   if (FMouseMoveRow < 0) or (FMouseMoveCol < 0) then Exit;
   if FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData <> nil then
-    FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData.MouseMove([], -1, -1);  // 处理鼠标移上高亮在迅速移出表格后不能恢复的问题
+    FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData.MouseLeave;  // .MouseMove([], -1, -1);  // 处理鼠标移上高亮在迅速移出表格后不能恢复的问题
 
   if not SelectExists then
     Self.InitializeMouseInfo;
@@ -1346,7 +1538,7 @@ var
         FSelectCellRang.StartCol := FMouseMoveCol;
         FSelectCellRang.EndCol := FMouseDownCol;
       end
-      else
+      else  // 移动列在按下前后面
       begin
         FSelectCellRang.StartCol := FMouseDownCol;
         FSelectCellRang.EndCol := FMouseMoveCol;
@@ -1373,6 +1565,20 @@ var
         FSelectCellRang.StartCol := FMouseDownCol;
         FSelectCellRang.EndCol := FMouseMoveCol;
       end;
+    end;
+
+    if FRows[FSelectCellRang.StartRow].Cols[FSelectCellRang.StartCol].IsMergeSource then  // 起始选择在合并源
+    begin
+      GetDestCell(FSelectCellRang.StartRow, FSelectCellRang.StartCol, vRow, vCol);
+      FSelectCellRang.StartRow := vRow;
+      FSelectCellRang.StartCol := vCol;
+    end;
+
+    if FRows[FSelectCellRang.EndRow].Cols[FSelectCellRang.EndCol].IsMergeDest then
+    begin
+      GetSourceCell(FSelectCellRang.EndRow, FSelectCellRang.EndCol, vRow, vCol);  // 获取目标方法如果传递的是目标得到的是源
+      FSelectCellRang.EndRow := vRow;
+      FSelectCellRang.EndCol := vCol;
     end;
 
     if (FSelectCellRang.StartRow = FSelectCellRang.EndRow)
@@ -1472,7 +1678,7 @@ begin
         if (FMouseMoveRow >= 0) and (FMouseMoveCol >= 0) then
         begin
           if FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData <> nil then
-            FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData.MouseMove(Shift, -1, -1);  // 旧单元格移出
+            FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData.MouseLeave;  // .MouseMove(Shift, -1, -1);  // 旧单元格移出
         end;
 
         FMouseMoveRow := vMoveRow;
@@ -1486,12 +1692,12 @@ begin
         X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
     end;
   end
-  else
+  else  // 鼠标不在单元格中
   begin
     if (FMouseMoveRow >= 0) and (FMouseMoveCol >= 0) then
     begin
       if FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData <> nil then
-        FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData.MouseMove(Shift, -1, -1);  // 旧单元格移出
+        FRows[FMouseMoveRow].Cols[FMouseMoveCol].CellData.MouseLeave;  // .MouseMove(Shift, -1, -1);  // 旧单元格移出
     end;
 
     FMouseMoveRow := -1;
@@ -1546,6 +1752,8 @@ begin
 
               if vPt.X <> 0 then
               begin
+                Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vPt.X);
+
                 FColWidths[vUpCol] := FColWidths[vUpCol] + vPt.X;  // 当前列变化
                 if vUpCol < FColWidths.Count - 1 then  // 右侧的弥补变化
                   FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vPt.X;
@@ -1558,6 +1766,8 @@ begin
 
               if vPt.X <> 0 then}
                 FColWidths[vUpCol] := FColWidths[vUpCol] + vPt.X;  // 当前列变化
+
+              Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vPt.X);
             end;
           end
           else  // 拖窄了
@@ -1567,6 +1777,8 @@ begin
 
             if vPt.X <> 0 then
             begin
+              Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vPt.X);
+
               FColWidths[vUpCol] := FColWidths[vUpCol] + vPt.X;  // 当前列变化
               if vUpCol < FColWidths.Count - 1 then  // 右侧的弥补变化
                 FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vPt.X;
@@ -1626,8 +1838,13 @@ begin
 
     if vResizeInfo.TableSite = TTableSite.tsCell then  // 拖到了某单元格中
     begin
-      DisSelectSelectedCell(vUpRow, vUpCol);  // 取消除弹起处之外的所有拖拽选中单元格的状态
-      FSelectCellRang.Initialize;  // 准备重新赋值
+      DisSelect;
+      FMouseMoveRow := vUpRow;  // 拖拽时的单元格定位使用的是MouseMove相关数据
+      FMouseMoveCol := vUpCol;
+      // 原始由下面三行实现
+      //DisSelectSelectedCell(vUpRow, vUpCol);  // 取消除弹起处之外的所有拖拽选中单元格的状态
+      //FRows[vUpRow].Cols[vUpCol].CellData.CellSelectedAll := False;
+      //FSelectCellRang.Initialize;  // 准备重新赋值
 
       // 不管是否在在选中单元格中弹起，拖拽弹起都需要编辑到选中单元格，
       FSelectCellRang.StartRow := vUpRow;
@@ -1647,6 +1864,19 @@ begin
     Cells[FMouseDownRow, FMouseDownCol].CellData.MouseUp(Button, Shift,
       X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
   end;
+end;
+
+function THCTableItem.RowCanDelete(const ARow: Integer): Boolean;
+var
+  vCol: Integer;
+begin
+  Result := False;
+  for vCol := 0 to FColWidths.Count - 1 do
+  begin
+    if FRows[ARow].Cols[vCol].RowSpan > 0 then  // 有合并目标的列暂时不支持
+      Exit;
+  end;
+  Result := True;
 end;
 
 function THCTableItem.ClearFormatExtraHeight: Integer;
@@ -1948,6 +2178,13 @@ begin
     and (FSelectCellRang.EndCol = FColWidths.Count - 1);
 end;
 
+procedure THCTableItem.GetSourceCell(const ARow, ACol: Cardinal; var ASrcRow,
+  ASrcCol: Integer);
+begin
+  ASrcRow := ARow + FRows[ARow].Cols[ACol].RowSpan;
+  ASrcCol := ACol + FRows[ARow].Cols[ACol].ColSpan;
+end;
+
 function THCTableItem.GetTopLevelDataAt(const X, Y: Integer): THCCustomData;
 var
   vResizeInfo: TResizeInfo;
@@ -1972,40 +2209,42 @@ begin
   FMouseLBDowning := False;
 end;
 
-function THCTableItem.InsertColAfter(const ACount: Byte): Boolean;
+function THCTableItem.InsertCol(const ACol, ACount: Integer): Boolean;
 var
-  i, j, k: Integer;
+  i, j, vRow, vWidth: Integer;
   viDestRow, viDestCol: Integer;
-  //vTableRow: TTableRow;
   vCell: THCTableCell;
 begin
   Result := False;
-  vCell := GetEditCell;
-  if vCell = nil then Exit;
+  { TODO : 根据各行当前列平均减少一定的宽度给要插入的列 }
+  vWidth := MinColWidth - FBorderWidth;
 
-  vCell.CellData.InitializeField;
   for i := 0 to ACount - 1 do
   begin
-    FColWidths.Insert(FSelectCellRang.StartCol + 1, 50);
-    for j := 0 to RowCount - 1 do
+    for vRow := 0 to RowCount - 1 do
     begin
       vCell := THCTableCell.Create(FOwnerData.Style);
-      vCell.Width := 50;
-      vCell.RowSpan := FRows[j].Cols[FSelectCellRang.StartCol].RowSpan;
-      vCell.ColSpan := FRows[j].Cols[FSelectCellRang.StartCol].ColSpan;
+      vCell.Width := vWidth;
 
-      if FRows[j].Cols[FSelectCellRang.StartCol].ColSpan <> 0 then  // 合并的源
+      if (ACol < FColWidths.Count) and (FRows[vRow].Cols[ACol].ColSpan < 0) then  // 合并的源列
       begin
-        GetDestCell(j, FSelectCellRang.StartCol, viDestRow, viDestCol);
+        GetDestCell(vRow, ACol, viDestRow, viDestCol);  // 目标行列
+
+        // 新插入的列在当前列后面，也做为被合并的列
         vCell.CellData.Free;
         vCell.CellData := nil;
-        vCell.ColSpan := FRows[j].Cols[FSelectCellRang.StartCol].ColSpan - 1;
+        vCell.RowSpan := FRows[vRow].Cols[ACol].RowSpan;
+        vCell.ColSpan := FRows[vRow].Cols[ACol].ColSpan;
 
-        for k := 1 to Cells[viDestRow, viDestCol].ColSpan do  // 目标的列跨度 - 已经跨的
-          FRows[j].Cols[FSelectCellRang.StartCol + k].ColSpan := FRows[j].Cols[FSelectCellRang.StartCol + k].ColSpan - 1;  // 离目标列远1
+        for j := ACol to viDestCol + Cells[viDestRow, viDestCol].ColSpan do  // 后续列离目标远1
+          FRows[vRow].Cols[j].ColSpan := FRows[vRow].Cols[j].ColSpan - 1;  // 离目标列远1
+
+        FRows[viDestRow].Cols[viDestCol].ColSpan := FRows[viDestRow].Cols[viDestCol].ColSpan + 1;
       end;
-      FRows[j].Insert(FSelectCellRang.StartCol + 1, vCell);
+      FRows[vRow].Insert(ACol, vCell);
     end;
+
+    FColWidths.Insert(ACol, vWidth);  // 右侧插入列
   end;
 
   Self.InitializeMouseInfo;
@@ -2013,43 +2252,32 @@ begin
   Result := True;
 end;
 
-function THCTableItem.InsertColBefor(const ACount: Byte): Boolean;
+function THCTableItem.InsertColAfter(const ACount: Integer): Boolean;
 var
-  i, j, k: Integer;
-  viDestRow, viDestCol: Integer;
-  //vTableRow: TTableRow;
+  vCell: THCTableCell;
+begin
+  Result := False;
+  vCell := GetEditCell;
+  if vCell = nil then Exit;
+
+  vCell.CellData.InitializeField;
+
+  if vCell.ColSpan > 0 then
+    Result := InsertCol(FSelectCellRang.StartCol + vCell.ColSpan + 1, ACount)
+  else
+    Result := InsertCol(FSelectCellRang.StartCol + 1, ACount);
+end;
+
+function THCTableItem.InsertColBefor(const ACount: Integer): Boolean;
+var
   vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
   if vCell = nil then Exit;
   vCell.CellData.InitializeField;
-  for i := 0 to ACount - 1 do
-  begin
-    for j := 0 to RowCount - 1 do
-    begin
-      vCell := THCTableCell.Create(FOwnerData.Style);
-      vCell.Width := 50;
-      vCell.RowSpan := FRows[j].Cols[FSelectCellRang.StartCol].RowSpan;
-      vCell.ColSpan := FRows[j].Cols[FSelectCellRang.StartCol].ColSpan;
 
-      if FRows[j].Cols[FSelectCellRang.StartCol].ColSpan < 0 then  // 合并的源
-      begin
-        GetDestCell(j, FSelectCellRang.StartCol, viDestRow, viDestCol);
-        vCell.CellData.Free;
-        vCell.CellData := nil;
-        vCell.ColSpan := FRows[j].Cols[FSelectCellRang.StartCol].ColSpan;
-
-        for k := 0 to Cells[viDestRow, viDestCol].ColSpan + FRows[j].Cols[FSelectCellRang.StartCol].ColSpan do  // 目标的列跨度 - 已经跨的
-          FRows[j].Cols[FSelectCellRang.StartCol + k].ColSpan := FRows[j].Cols[FSelectCellRang.StartCol + k].ColSpan - 1;  // 离目标列远1
-      end;
-      FRows[j].Insert(FSelectCellRang.StartCol, vCell);
-    end;
-  end;
-
-  Self.InitializeMouseInfo;
-  FSelectCellRang.Initialize;
-  Result := True;
+  Result := InsertCol(FSelectCellRang.StartCol, ACount)
 end;
 
 function THCTableItem.InsertItem(const AItem: THCCustomItem): Boolean;
@@ -2059,10 +2287,48 @@ begin
   Result := False;
   vCell := GetEditCell;
   if vCell <> nil then
+  begin
+    //DoGetSelfUndoList.NewUndo(0, 0);
+    //Self.Undo_StartRecord;
     Result := vCell.CellData.InsertItem(AItem);
+  end;
 end;
 
-function THCTableItem.InsertRowAfter(const ACount: Byte): Boolean;
+function THCTableItem.InsertRow(const ARow, ACount: Integer): Boolean;
+var
+  i, j, vCol, viDestRow, viDestCol: Integer;
+  vTableRow: TTableRow;
+begin
+  Result := False;
+  for i := 0 to ACount - 1 do
+  begin
+    vTableRow := TTableRow.Create(FOwnerData.Style, FColWidths.Count);
+    for vCol := 0 to FColWidths.Count - 1 do
+    begin
+      vTableRow.Cols[vCol].Width := FColWidths[vCol];
+
+      if FRows[ARow].Cols[vCol].RowSpan < 0 then  // 在合并的源单元格前面插入
+      begin
+        GetDestCell(ARow, vCol, viDestRow, viDestCol);
+        vTableRow.Cols[vCol].CellData.Free;
+        vTableRow.Cols[vCol].CellData := nil;
+        vTableRow.Cols[vCol].RowSpan := FRows[ARow].Cols[vCol].RowSpan;
+
+        for j := ARow to viDestRow + Cells[viDestRow, viDestCol].RowSpan do  // 目标的行跨度 - 已经跨的
+          FRows[j].Cols[vCol].RowSpan := FRows[j].Cols[vCol].RowSpan - 1;  // 离目标行远1
+
+        FRows[viDestRow].Cols[viDestCol].RowSpan := FRows[viDestRow].Cols[viDestCol].RowSpan + 1;  // 目标行包含的合并源增加1
+      end;
+    end;
+    FRows.Insert(ARow, vTableRow);
+  end;
+
+  Self.InitializeMouseInfo;
+  FSelectCellRang.Initialize;
+  Result := True;
+end;
+
+function THCTableItem.InsertRowAfter(const ACount: Integer): Boolean;
 var
   i, j, k: Integer;
   viDestRow, viDestCol: Integer;
@@ -2074,86 +2340,24 @@ begin
   if vCell = nil then Exit;
 
   vCell.CellData.InitializeField;
-  for i := 1 to ACount do
-  begin
-    vTableRow := TTableRow.Create(FOwnerData.Style, FColWidths.Count);
 
-    for j := 0 to FColWidths.Count - 1 do
-    begin
-      vTableRow.Cols[j].Width := FColWidths[j];
-
-      if FRows[FSelectCellRang.StartRow].Cols[j].RowSpan > 0 then  // 在合并的目标单元格下面插
-      begin
-        // 目标单元格下面的单元格
-        vTableRow.Cols[j].CellData.Free;
-        vTableRow.Cols[j].CellData := nil;
-        vTableRow.Cols[j].RowSpan := -1;
-        if FRows[FSelectCellRang.StartRow].Cols[j].ColSpan < 0 then
-          vTableRow.Cols[j].ColSpan := FRows[FSelectCellRang.StartRow].Cols[j].ColSpan;
-
-        for k := 1 to FRows[FSelectCellRang.StartRow].Cols[j].RowSpan do
-          FRows[FSelectCellRang.StartRow + k].Cols[j].RowSpan := FRows[FSelectCellRang.StartRow + k].Cols[j].RowSpan - 1;
-
-        FRows[FSelectCellRang.StartRow].Cols[j].RowSpan := FRows[FSelectCellRang.StartRow].Cols[j].RowSpan + 1;  // 目标单元格行跨度增1
-      end
-      else
-      if FRows[FSelectCellRang.StartRow].Cols[j].RowSpan < 0 then  // 合并源单元格下页插
-      begin
-        vTableRow.Cols[j].CellData.Free;
-        vTableRow.Cols[j].CellData := nil;
-
-        for k := 0 to Cells[viDestRow, viDestCol].RowSpan + FRows[FSelectCellRang.StartRow].Cols[j].RowSpan do  // 目标的行跨度 - 已经跨的
-          FRows[FSelectCellRang.StartRow + k].Cols[j].RowSpan := FRows[FSelectCellRang.StartRow + k].Cols[j].RowSpan - 1;  // 离目标行远1
-        FRows[viDestRow].Cols[j].RowSpan := FRows[viDestRow].Cols[j].RowSpan + 1;  // 目标行包含的合并源增加1
-      end;
-    end;
-
-    FSelectCellRang.StartRow := FSelectCellRang.StartRow + 1;
-    FRows.Insert(FSelectCellRang.StartRow, vTableRow);
-  end;
-
-  Self.InitializeMouseInfo;
-  FSelectCellRang.Initialize;
-  Result := True;
+  if vCell.RowSpan > 0 then
+    Result := InsertRow(FSelectCellRang.StartRow + vCell.RowSpan + 1, ACount)
+  else
+    Result := InsertRow(FSelectCellRang.StartRow + 1, ACount)
 end;
 
-function THCTableItem.InsertRowBefor(const ACount: Byte): Boolean;
+function THCTableItem.InsertRowBefor(const ACount: Integer): Boolean;
 var
-  i, j, k: Integer;
-  viDestRow, viDestCol: Integer;
-  vTableRow: TTableRow;
   vCell: THCTableCell;
 begin
   Result := False;
   vCell := GetEditCell;
-  if vCell <> nil then
-    vCell.CellData.InitializeField;
+  if vCell = nil then Exit;
 
-  for i := 0 to ACount - 1 do
-  begin
-    vTableRow := TTableRow.Create(FOwnerData.Style, FColWidths.Count);
-    for j := 0 to FColWidths.Count - 1 do
-    begin
-      vTableRow.Cols[j].Width := FColWidths[j];
+  vCell.CellData.InitializeField;
 
-      if FRows[FSelectCellRang.StartRow].Cols[j].RowSpan < 0 then  // 在合并的源单元格前面插入
-      begin
-        GetDestCell(FSelectCellRang.StartRow, j, viDestRow, viDestCol);
-        vTableRow.Cols[j].CellData.Free;
-        vTableRow.Cols[j].CellData := nil;
-        vTableRow.Cols[j].RowSpan := FRows[FSelectCellRang.StartRow].Cols[j].RowSpan;
-
-        for k := 0 to Cells[viDestRow, viDestCol].RowSpan + FRows[FSelectCellRang.StartRow].Cols[j].RowSpan do  // 目标的行跨度 - 已经跨的
-          FRows[FSelectCellRang.StartRow + k].Cols[j].RowSpan := FRows[FSelectCellRang.StartRow + k].Cols[j].RowSpan - 1;  // 离目标行远1
-        FRows[viDestRow].Cols[j].RowSpan := FRows[viDestRow].Cols[j].RowSpan + 1;  // 目标行包含的合并源增加1
-      end;
-    end;
-    FRows.Insert(FSelectCellRang.StartRow, vTableRow);
-  end;
-
-  Self.InitializeMouseInfo;
-  FSelectCellRang.Initialize;
-  Result := True;
+  Result := InsertRow(FSelectCellRang.StartRow, ACount);
 end;
 
 function THCTableItem.InsertStream(const AStream: TStream;
@@ -2274,114 +2478,97 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
   end;
 
 var
-  vR, vC, vR1, vC1, vRowSpan, vColSpan, vNewColSpan, vNewRowSpan: Integer;
+  vR, vC, vR1, vC1, vRowSpan, vColSpan, vNewColSpan, vNewRowSpan,
+  vEndRow, vEndCol: Integer;  // 真正的结束位置
 begin
-  Result := CellsCanMerge(AStartRow, AStartCol, AEndRow, AEndCol);
+  Result := False;
+  vEndRow := AEndRow;
+  vEndCol := AEndCol;
+
+  AdjustCellRange(AStartRow, AStartCol, vEndRow, vEndCol);
+
+  Result := CellsCanMerge(AStartRow, AStartCol, vEndRow, vEndCol);
   if not Result then Exit;
-  if AStartRow = AEndRow then  // 同一行合并，CellsCanMerge里判断好了同一行肯定不同列
+
+  // 经过上面的校验和判断后，起始行、列和结束行、列组成一个矩形区域
+  if AStartRow = vEndRow then  // 同一行合并
   begin
-    for vC := AStartCol + 1 to AEndCol do  // 合并列
+    for vC := AStartCol + 1 to vEndCol do  // 合并列
     begin
       if FRows[AStartRow].Cols[vC].CellData <> nil then  // 防止已经合并的重复再合并
       begin
         Cells[AStartRow, AStartCol].CellData.AddData(Cells[AStartRow, vC].CellData);
-        Cells[AStartRow, AStartCol].ColSpan := Cells[AStartRow, AStartCol].ColSpan
-          + Cells[AStartRow, vC].ColSpan + 1;
-
-        {FRows[AStartRow].Cols[AStartCol].Width :=
-          FRows[AStartRow].Cols[AStartCol].Width
-          + FRows[AStartRow].Cols[vC].Width + FBorderWidth;}
         Cells[AStartRow, vC].CellData.Free;
         Cells[AStartRow, vC].CellData := nil;
-        // 记录被合并到左侧(便于20161109001绘制时处理其后单元格位置)
-        vNewColSpan := AStartCol - vC;
-        vRowSpan := Cells[AStartRow, vC].RowSpan;  // 源单元格原来行跨度
-        vColSpan := Cells[AStartRow, vC].ColSpan;  // 源单元格原来列跨度
-        for vC1 := vC + 1 to vC + vColSpan do  // 源单元格做为目标单元格合并的同行源单元格增加列负跨度
-          Cells[AStartRow, vC1].ColSpan := Cells[AStartRow, vC1].ColSpan + vNewColSpan;
-        // 源单元格做为目标单元格合并的不同行源单元格增加列负跨度
-        for vR1 := AStartRow + 1 to AStartRow + vRowSpan do
-        begin
-          for vC1 := vC to vC + vColSpan do
-            Cells[vR1, vC1].ColSpan := Cells[vR1, vC1].ColSpan + vNewColSpan;
-        end;
-
-        Cells[AStartRow, vC].ColSpan := vNewColSpan;
-        Cells[AStartRow, vC].RowSpan := 0;
+        //Cells[AStartRow, vC].RowSpan := 0;
       end;
+
+      Cells[AStartRow, vC].ColSpan := AStartCol - vC;
     end;
-    DeleteEmptyCols(AStartCol + 1, AEndCol);
+
+    Cells[AStartRow, AStartCol].ColSpan := vEndCol - AStartCol;  // 合并源增加
+
+    DeleteEmptyCols(AStartCol + 1, vEndCol);
     Result := True;
   end
   else
-  if AStartCol = AEndCol then  // 同列合并
+  if AStartCol = vEndCol then  // 同列合并
   begin
-    for vR := AStartRow + 1 to AEndRow do  // 合并各行
+    for vR := AStartRow + 1 to vEndRow do  // 合并各行
     begin
       if FRows[vR].Cols[AStartCol].CellData <> nil then  // 防止已经合并的重复再合并
       begin
         FRows[AStartRow].Cols[AStartCol].CellData.AddData(FRows[vR].Cols[AStartCol].CellData);
-        FRows[AStartRow].Cols[AStartCol].RowSpan := FRows[AStartRow].Cols[AStartCol].RowSpan
-          + Cells[vR, AStartCol].RowSpan + 1;
         FRows[vR].Cols[AStartCol].CellData.Free;
         FRows[vR].Cols[AStartCol].CellData := nil;
-
-        vNewRowSpan := AStartRow - vR;
-        vRowSpan := Cells[vR, AStartCol].RowSpan;  // 源单元格原来行跨度
-        vColSpan := Cells[vR, AStartCol].ColSpan;  // 源单元格原来列跨度
-        for vR1 := vR + 1 to vR + vRowSpan do  // 源单元格做为目标单元格合并的同列源单元格增加行负跨度
-          Cells[vR1, AStartCol].RowSpan := Cells[vR1, AStartCol].RowSpan + vNewRowSpan;
-        // 源单元格做为目标单元格合并的不同列源单元格增加行负跨度
-        for vC1 := AStartCol + 1 to AStartCol + vColSpan do
-        begin
-          for vR1 := vR to vR + vRowSpan do
-            Cells[vR1, vC1].RowSpan := Cells[vR1, vC1].RowSpan + vNewRowSpan;
-        end;
-
-        Cells[vR, AStartCol].RowSpan := vNewRowSpan;
-        Cells[vR, AStartCol].ColSpan := 0;
+        //Cells[vR, AStartCol].ColSpan := 0;
       end;
+
+      Cells[vR, AStartCol].RowSpan := AStartRow - vR;
     end;
-    DeleteEmptyRows(AStartRow + 1, AEndRow);
+
+    FRows[AStartRow].Cols[AStartCol].RowSpan := vEndRow - AStartRow;
+
+    DeleteEmptyRows(AStartRow + 1, vEndRow);
     Result := True;
   end
   else  // 不同行，不同列
   begin
-    // 起始行各列合并(2)
-    for vC := AStartCol + 1 to AEndCol do
+    for vC := AStartCol + 1 to vEndCol do  // 起始行各列合并
     begin
       if FRows[AStartRow].Cols[vC].CellData <> nil then  // 防止已经合并的重复再合并
       begin
         FRows[AStartRow].Cols[AStartCol].CellData.AddData(FRows[AStartRow].Cols[vC].CellData);
-        FRows[AStartRow].Cols[AStartCol].ColSpan := FRows[AStartRow].Cols[AStartCol].ColSpan + 1;
         FRows[AStartRow].Cols[vC].CellData.Free;
         FRows[AStartRow].Cols[vC].CellData := nil;
-        // 记录被合并到左侧(便于20161109001绘制时处理其后单元格位置)
-        FRows[AStartRow].Cols[vC].ColSpan := AStartCol - vC;
       end;
+
+      FRows[AStartRow].Cols[vC].RowSpan := 0;
+      FRows[AStartRow].Cols[vC].ColSpan := AStartCol - vC;
     end;
-    // 剩余行各列合并
-    for vR := AStartRow + 1 to AEndRow do  // 循环行
+
+    for vR := AStartRow + 1 to vEndRow do  // 剩余行各列合并
     begin
-      //vEmptyRow := True;
-      for vC := AStartCol to AEndCol do
+      for vC := AStartCol to vEndCol do
       begin
         if FRows[vR].Cols[vC].CellData <> nil then
         begin
           FRows[AStartRow].Cols[AStartCol].CellData.AddData(FRows[vR].Cols[vC].CellData);
           FRows[vR].Cols[vC].CellData.Free;
           FRows[vR].Cols[vC].CellData := nil;
-          FRows[vR].Cols[vC].ColSpan := AStartCol - vC;
-          FRows[vR].Cols[vC].RowSpan := AStartRow - vR;
-          //vEmptyRow := False;
         end;
+
+        FRows[vR].Cols[vC].ColSpan := AStartCol - vC;
+        FRows[vR].Cols[vC].RowSpan := AStartRow - vR;
       end;
-      //if not vEmptyRow then
-        FRows[AStartRow].Cols[AStartCol].RowSpan := FRows[AStartRow].Cols[AStartCol].RowSpan + 1;
     end;
-    DeleteEmptyRows(AStartRow + 1, AEndRow);
+
+    FRows[AStartRow].Cols[AStartCol].RowSpan := vEndRow - AStartRow;
+    FRows[AStartRow].Cols[AStartCol].ColSpan := vEndCol - AStartCol;
+
+    DeleteEmptyRows(AStartRow + 1, vEndRow);
     // 删除空列
-    DeleteEmptyCols(AStartCol + 1, AEndCol);
+    DeleteEmptyCols(AStartCol + 1, vEndCol);
 
     Result := True;
   end;
@@ -2391,6 +2578,8 @@ function THCTableItem.MergeSelectCells: Boolean;
 begin
   if (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.EndRow >= 0) then
   begin
+    Undo_MergeCells;
+
     Result := MergeCells(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       FSelectCellRang.EndRow, FSelectCellRang.EndCol);
     if Result then
@@ -2424,35 +2613,41 @@ end;
 
 function THCTableItem.CellsCanMerge(const AStartRow, AStartCol, AEndRow,
   AEndCol: Integer): Boolean;
-begin
-  if AStartRow = AEndRow then  // 同一行
-    Result := AStartCol <> AEndCol  // 不同列
-  else  // 不同行
-  begin
-    Result := (Cells[AStartRow, AStartCol].Width = Cells[AEndRow, AStartCol].Width)
-      and (Cells[AStartRow, AEndCol].Width = Cells[AEndRow, AEndCol].Width);
-  end;
-end;
-
-function THCTableItem.CellSelectComplate(const ARow, ACol: Integer): Boolean;
+var
+  vR, vC: Integer;
 begin
   Result := False;
-  if FRows[ARow].Cols[ACol].CellData = nil then Exit;
 
-  if FSelectCellRang.SameRow then  // 同一行
-    Result := (ARow = FSelectCellRang.StartRow)
-      and (ACol >= FSelectCellRang.StartCol)
-      and (ACol <= FSelectCellRang.EndCol)
+  for vR := AStartRow to AEndRow do
+  begin
+    for vC := AStartCol to AEndCol do
+    begin
+      if FRows[vR].Cols[vC].CellData <> nil then
+      begin
+        if not FRows[vR].Cols[vC].CellData.CellSelectedAll then
+          Exit;
+      end;
+    end;
+  end;
+
+  Result := True;
+
+  {GetDestCell(AStartRow, AStartCol, vStartDestRow, vStartDestCol);
+  vCell := FRows[vStartDestRow].Cols[vStartDestCol];
+  vStartDestRow := vStartDestRow + vCell.RowSpan;
+  vStartDestCol := vStartDestCol + vCell.ColSpan;
+
+  // 结束单元格的有效范围
+  GetDestCell(AEndRow, AEndCol, vEndDestRow, vEndDestCol);
+  vCell := FRows[vEndDestRow].Cols[vEndDestCol];
+  vEndDestRow := vEndDestRow + vCell.RowSpan;
+  vEndDestCol := vEndDestCol + vCell.ColSpan;
+
+  if vStartDestRow = vEndDestRow then
+    Result := vStartDestCol < vEndDestCol
   else
-  if FSelectCellRang.SameCol then  // 同一列
-    Result := (ACol = FSelectCellRang.StartCol)
-      and (ARow >= FSelectCellRang.StartRow)
-      and (ARow <= FSelectCellRang.EndRow)
-  else  // 不同行不同列
-    Result := (ACol >= FSelectCellRang.StartCol)
-      and (ACol <= FSelectCellRang.EndCol)
-      and (ARow >= FSelectCellRang.StartRow)
-      and (ARow <= FSelectCellRang.EndRow);
+  if vStartDestRow < vEndDestRow then
+    Result := vStartDestCol <= vEndDestCol;}
 end;
 
 procedure THCTableItem.CheckFormatPage(const ADrawItemRectTop, ADrawItemRectBottom,
@@ -2476,7 +2671,7 @@ var
   vCellCross: TCellCross;
   vCellCrosses: TObjectList<TCellCross>;
 begin
-  ABreakRow := 0;
+  ABreakRow := -1;
   AFmtOffset := 0;
   ACellMaxInc := 0;  // vCellInc的最大值，表示当前行各列为避开分页额外增加的格式化高度中最高的
 
@@ -2500,14 +2695,16 @@ begin
     Inc(i);
   end;
 
-//  if ABreakRow = 0 then  // 表格在当前页一行也放不下，开启后可以实现表格第一行在当前页显示不下时整体下移
-//  begin
-//    //if vRowDataFmtTop < APageDataFmtTop then  // 这样判断，当表格在第2页第1个时不准确 当前页开始Item不是当前表格（表格是当前页第一个Item，和分页不同，分页虽然也是第一个，但表格的起始位置并不在分页后的页）
-//    begin
-//      AFmtOffset := APageDataFmtBottom - ADrawItemRectTop;
-//      Exit;
-//    end;
-//  end;
+  if ABreakRow < 0 then Exit;  // 都能放下
+
+  {if ABreakRow = 0 then  // 表格在当前页一行也放不下，开启后可以实现表格第一行在当前页显示不下时整体下移，而不再判断从哪行内容截断
+  begin
+    //if vRowDataFmtTop < APageDataFmtTop then  // 这样判断，当表格在第2页第1个时不准确 当前页开始Item不是当前表格（表格是当前页第一个Item，和分页不同，分页虽然也是第一个，但表格的起始位置并不在分页后的页）
+    begin
+      AFmtOffset := APageDataFmtBottom - ADrawItemRectTop;
+      Exit;
+    end;
+  end;}
 
   { 放不下，则判断分页位置 }
   { -分页位置是各单元格第一行的，处理是否存在可以留在分页位置上面的内容- }
@@ -2519,59 +2716,6 @@ begin
 
   vCellCrosses := TObjectList<TCellCross>.Create;
   try
-
-    {$REGION '先计算没有合并的单元格，已注释掉'}
-//    // 先计算没有合并的单元格，防止 201703241150.bmp 的情况下第2行第2列第一行能在第1页置下，但不能计算出超过了第2行的高度
-//    for i := 0 to FRows[ABreakRow].ColCount - 1 do
-//    begin
-//      if FRows[ABreakRow].Cols[i].ColSpan < 0 then  // 合并目标只需由正下方的单元格处理合并内容，不用重复处理
-//        Continue;
-//      if FRows[ABreakRow].Cols[i].RowSpan < 0 then  // 先处理没有合并行操作的
-//        Continue;
-//
-//      vCellData := FRows[ABreakRow].Cols[i].CellData;
-//      // 处理图 2016-4-15_1.bmp 第2行第2列的情况
-//      vLastDFromRowBottom :=  // 原最后一个DItem底部距离行底部的空白距离
-//        FRows[ABreakRow].Cols[i].Height - vCellData.Height;
-//      vRealCellDataFmtTop := vRowDataFmtTop;
-//
-//      vCellCross := TCellCross.Create;
-//      vCellCross.Col := i;
-//
-//      for j := 0 to vCellData.DrawItems.Count - 1 do
-//      begin
-//        vDItem := vCellData.DrawItems[j];
-//        if not vDItem.LineFirst then  // 只需要判断行第一个
-//          Continue;
-//
-//        if j <> vCellData.DrawItems.Count - 1 then  // 最后一行的DItem要将边框算上
-//          vBottomBorder := 0
-//        else
-//          vBottomBorder := FBorderWidth;
-//
-//        if vRealCellDataFmtTop + vDItem.Rect.Bottom + vBottomBorder > APageDataFmtBottom then // 当前DItem底部超过页底部了 20160323002 // 行底部的边框线显示不下时也向下偏移
-//        begin
-//          if j = 0 then
-//            vFirstLinePlace := False;
-//
-//          // 计算分页的DItem向下偏移多少可在下一页全显示该DItem
-//          vH := APageDataFmtBottom - (vRealCellDataFmtTop + vDItem.Rect.Top{ + vBottomBorder}) // 页Data底部 - 当前DItem在页的相对位置
-//            + FBorderWidth;  // 增加分页后上一页预留出边框
-//          vCellInc := vH - vLastDFromRowBottom;  // 实际增加的高度 = 分页向下偏移的距离 - 原最后一个DItem底部距离行底部的空白距离
-//
-//          vCellCross.DItemNo := j;
-//          vCellCross.VOffset := vH;
-//
-//          Break;
-//        end;
-//      end;
-//      if ACellMaxInc < vCellInc then
-//        ACellMaxInc := vCellInc;  // 记录各单元格中分页向下偏移的最大增量
-//
-//      vCellCrosses.Add(vCellCross);
-//    end;
-    {$ENDREGION}
-
     {$REGION '再计算有行合并的单元格'}
     for i := 0 to FRows[ABreakRow].ColCount - 1 do  // 遍历所有单元格中DItem，向下偏移vH
     begin
@@ -2624,134 +2768,18 @@ begin
     end;
     {$ENDREGION}
 
-    {$REGION '旧方法2017-1-15日注释掉'}
-
-  //  if not vFirstLinePlace then  // 存在某单元格，在分页处第一行就需要放到下一页(整行从下一页开始)
-  //  begin
-  //    vH := vCheckBottom - vCheckTop;  // 整体向下移动到下一页
-  //    for i := 0 to FRows[ABreakRow].ColCount - 1 do  // 遍历所有单元格中DItem，向下偏移vH
-  //    begin
-  //      if FRows[ABreakRow].Cols[i].ColSpan < 0 then  // 合并目标只需由正下方的单元格处理合并内容，不用重复处理
-  //        Continue;
-  //
-  //      GetMergeDest(ABreakRow, i, vMergeDestRow, vMergeDestCol);
-  //      vCellData := FRows[vMergeDestRow].Cols[vMergeDestCol].CellData;
-  //      for j := 0 to vCellData.DrawItems.Count - 1 do  // 向下偏移vH
-  //        OffsetRect(vCellData.DrawItems[j].Rect, 0, vH);
-  //    end;
-  //    ACellMaxInc := vH;
-  //  end
-  //  else  // 每一列都可以放下第一行内容，各单元格部分内容在当前页，部分内容从下一页开始
-  //  begin
-  //    // 当前分页行各单元格处理分页位置
-  //    vCellInc := 0;  // 行各内容为避开分页额外增加的格式化高度
-  //    ACellMaxInc := 0;  // vCellInc的最大值，表示当前行为避开分页额外增加的格式化高度
-  //
-  //    { 处理没有发生合并或合并目标单元格跨页 }
-  //    for i := 0 to FRows[ABreakRow].ColCount - 1 do  // 遍历各列，判断分页位置
-  //    begin
-  //      if FRows[ABreakRow].Cols[i].ColSpan < 0 then  // 合并目标只需由正下方的单元格处理合并内容，不用重复处理
-  //        Continue;
-  //
-  //      vRealCellDataFmtTop := vRowDataFmtTop;
-  //
-  //      GetMergeDest(ABreakRow, i, vMergeDestRow, vMergeDestCol);
-  //      vCellData := FRows[vMergeDestRow].Cols[vMergeDestCol].CellData;
-  //      // 处理图 2016-4-15_1.bmp 第2行第2列的情况
-  //      vLastDFromRowBottom :=  // 原最后一个DItem底部距离行底部的空白距离
-  //        FRows[vMergeDestRow].Cols[vMergeDestCol].Height - vCellData.Height;
-  //      while vMergeDestRow < ABreakRow do  // 恢复到目标单元格
-  //      begin
-  //        vRealCellDataFmtTop := vRealCellDataFmtTop - FBorderWidth - FRows[vMergeDestRow].Height;
-  //        Inc(vMergeDestRow);
-  //      end;
-  //
-  //      for j := 0 to vCellData.DrawItems.Count - 1 do
-  //      begin
-  //        vDItem := vCellData.DrawItems[j];
-  //        if not vDItem.LineFirst then  // 只需要判断行第一个
-  //          Continue;
-  //        if vRealCellDataFmtTop + vDItem.Rect.Bottom > APageDataFmtBottom then // 当前DItem底部超过页底部了 20160323002 // 行底部的边框线显示不下时也向下偏移
-  //        begin
-  //          // 计算分页的DItem向下偏移多少可在下一页全显示该DItem
-  //          vH := APageDataFmtBottom - (vRealCellDataFmtTop + vDItem.Rect.Top); // 页Data底部 - 当前DItem在页的相对位置
-  //            //+ FBorderWidth;  // 分页后下一页预留出边框
-  //          // 从当前DItem开始，向下偏移到下一页
-  //          for k := j to vCellData.DrawItems.Count - 1 do
-  //            OffsetRect(vCellData.DrawItems[k].Rect, 0, vH);
-  //
-  //          vCellInc := vH - vLastDFromRowBottom;  // 实际增加的高度 = 分页向下偏移的距离 - 原最后一个DItem底部距离行底部的空白距离
-  //          Break;
-  //        end;
-  //      end;
-  //      if ACellMaxInc < vCellInc then
-  //        ACellMaxInc := vCellInc;  // 记录各单元格中分页向下偏移的最大增量
-  //    end;
-
-  //    for i := 0 to FRows[ABreakRow].ColCount - 1 do  // 遍历列，判断分页位置
-  //    begin
-  //      vRealCellDataFmtTop := vRowDataFmtTop;
-  //      vRowMergedHeight := 0;
-  //      if FRows[ABreakRow].Cols[i].CellData = nil then  // 被合并
-  //      begin
-  //        if FRows[ABreakRow].Cols[i].ColSpan < 0 then  // 合并目标只需由正下方的单元格处理合并内容，不用重复处理
-  //          Continue;
-  //
-  //        GetMergeDest(ABreakRow, i, vMergeDestRow, vMergeDestCol);
-  //        vCellData := Cells[vMergeDestRow, vMergeDestCol].CellData;
-  //        while vMergeDestRow < ABreakRow do
-  //        begin
-  //          vRowMergedHeight := vRowMergedHeight + FRows[vMergeDestRow].Height + FBorderWidth;
-  //          Inc(vMergeDestRow);
-  //        end;
-  //        vRealCellDataFmtTop := vRealCellDataFmtTop - vRowMergedHeight;
-  //      end
-  //      else  // 没有被合并
-  //      begin
-  //        vCellData := FRows[ABreakRow].Cols[i].CellData;
-  //      end;
-  //
-  //      for j := 0 to vCellData.DrawItems.Count - 1 do
-  //      begin
-  //        vDItem := vCellData.DrawItems[j];
-  //        if not vDItem.LineFirst then  // 只需要判断行第一个
-  //          Continue;
-  //        if vRealCellDataFmtTop + vDItem.Rect.Bottom > APageDataFmtBottom then // 当前DItem底部超过页底部了 20160323002 // 行底部的边框线显示不下时也向下偏移
-  //        begin
-  //          // 计算向下偏移多少可在下一页全显示该DItem
-  //          vH := APageDataFmtBottom - (vRealCellDataFmtTop + vDItem.Rect.Top); // 页Data底部 - 当前DItem在页的相对位置
-  //            //+ FBorderWidth;  // 分页后下一页预留出边框
-  //          // 处理图 2016-4-15_1.bmp 第2行第2列的情况
-  //          vLastDFromRowBottom :=  // 原最后一个DItem底部距离行底部的空白距离
-  //            FRows[ABreakRow].Height + vRowMergedHeight - vCellData.LastDItem.Rect.Bottom;
-  //          { TODO : DItem不是行第一个时，其前面的各DItem随着行垂直对齐方式不同是否也要向下偏移 }
-  //          // 目前仅考虑从当前DItem所在行下一行的各DItem都向下偏移
-  //          for k := j to vCellData.DrawItems.Count - 1 do
-  //            OffsetRect(vCellData.DrawItems[k].Rect, 0, vH);
-  //
-  //          vCellInc := vH - vLastDFromRowBottom;  // 实际增加的高度 = 分页向下偏移的距离 - 原最后一个DItem底部距离行底部的空白距离
-  //          Break;
-  //        end{
-  //        else
-  //          vCellData.DrawItems[j].FmtTopOffset := 0};
-  //      end;
-  //      if ACellMaxInc < vCellInc then
-  //        ACellMaxInc := vCellInc;  // 记录各单元格中分页向下偏移的最大增量
-  //    end;
-    {$ENDREGION}
-
     if ACellMaxInc > 0 then  // 跨页行各列为跨页额外增加的最大量
     begin
-      if not vFirstLinePlace then  // 某单元格第一行就在当前页放不下了，即跨页行整行需要下移到下一页
+      if not vFirstLinePlace then  // 某单元格第一行内容就在当前页放不下了，即表格跨页行整行需要下移到下一页
       begin
-        if ABreakRow = 0 then
+        if ABreakRow = 0 then  // 表格第一行所有单元格都在当前页放不下，需要整体下移
         begin
           AFmtOffset := APageDataFmtBottom - ADrawItemRectTop;
           ACellMaxInc := 0;  // 整体向下偏移时，就代表了第一行的向下偏移，或者说第一行的FmtOffset永远是0，因为整体向下偏移的依据是判断第一行
           Exit;
         end;
 
-        FRows[ABreakRow].FmtOffset := ACellMaxInc;  // 整行下移，普通单元格跨页增加的偏移依据此行的偏移处理了
+        FRows[ABreakRow].FmtOffset := ACellMaxInc;  // 表格行向下偏移ACellMaxInc后整行起始在下一页显示
         // 行合并源单元格，需要处理从目标到此，和整行下移分页行的 上一行的 底部对齐
         for i := 0 to vCellCrosses.Count - 1 do
         begin
@@ -2798,7 +2826,7 @@ begin
       end
       else  // 不需要整行都下移到下一页
       begin
-        for i := 0 to vCellCrosses.Count - 1 do  // 遍历所有单元格中DItem，向下偏移vH
+        for i := 0 to vCellCrosses.Count - 1 do  // 遍历所有单元格中DrawItem，向下偏移vH
         begin
           //if FRows[ABreakRow].Cols[vCellCrosses[i].Col].ColSpan < 0 then  // 合并目标只需由正下方的单元格处理合并内容，不用重复处理
           //  Continue;
@@ -2824,6 +2852,19 @@ begin
   finally
     FreeAndNil(vCellCrosses);
   end;
+end;
+
+function THCTableItem.ColCanDelete(const ACol: Integer): Boolean;
+var
+  vRow: Integer;
+begin
+  Result := False;
+  for vRow := 0 to RowCount - 1 do
+  begin
+    if FRows[vRow].Cols[ACol].ColSpan > 0 then  // 有合并目标的行暂时不支持
+      Exit;
+  end;
+  Result := True;
 end;
 
 function THCTableItem.CoordInSelect(const X, Y: Integer): Boolean;
@@ -2936,10 +2977,7 @@ end;
 
 procedure THCTableItem.SelectAll;
 begin
-  FSelectCellRang.StartRow := 0;
-  FSelectCellRang.StartCol := 0;
-  FSelectCellRang.EndRow := RowCount - 1;
-  FSelectCellRang.EndCol := FRows[FSelectCellRang.EndRow].ColCount - 1;
+  SelectComplate;
 end;
 
 function THCTableItem.SelectExists: Boolean;
@@ -3007,6 +3045,17 @@ begin
   end;
 end;
 
+function THCTableItem.SelectedCellCanMerge: Boolean;
+var
+  vEndRow, vEndCol: Integer;
+begin
+  Result := False;
+  vEndRow := FSelectCellRang.EndRow;
+  vEndCol := FSelectCellRang.EndCol;
+  AdjustCellRange(FSelectCellRang.StartRow, FSelectCellRang.StartCol, vEndRow, vEndCol);
+  Result := CellsCanMerge(FSelectCellRang.StartRow, FSelectCellRang.StartCol, vEndRow, vEndCol);
+end;
+
 procedure THCTableItem.TraverseItem(const ATraverse: TItemTraverse);
 var
   vR, vC: Integer;
@@ -3025,6 +3074,41 @@ begin
   end;
 end;
 
+procedure THCTableItem.Undo_ColResize(const ACol, AOldWidth,
+  ANewWidth: Integer);
+var
+  vUndo: THCUndo;
+  vUndoColSize: THCUndoColSize;
+begin
+  Undo_StartRecord;
+  vUndo := GetSelfUndoList.Last;
+  if vUndo <> nil then
+  begin
+    vUndoColSize := THCUndoColSize.Create;
+    vUndoColSize.Col := ACol;
+    vUndoColSize.OldWidth := AOldWidth;
+    vUndoColSize.NewWidth := ANewWidth;
+
+    vUndo.Data := vUndoColSize;
+  end;
+end;
+
+procedure THCTableItem.Undo_MergeCells;
+var
+  vUndo: THCUndo;
+  vMirror: THCUndoMirror;
+begin
+  Undo_StartRecord;
+  vUndo := GetSelfUndoList.Last;
+  if vUndo <> nil then
+  begin
+    vMirror := THCUndoMirror.Create;
+    Self.SaveToStream(vMirror.Stream);
+
+    vUndo.Data := vMirror;
+  end;
+end;
+
 function THCTableItem.WantKeyDown(const Key: Word;
   const Shift: TShiftState): Boolean;
 begin
@@ -3036,6 +3120,38 @@ begin
   Result := False;
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
     Result := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData.SelectedResizing
+end;
+
+procedure THCTableItem.AdjustCellRange(const AStartRow, AStartCol: Integer;
+  var AEndRow, AEndCol: Integer);
+var
+  vR, vC, vLastRow, vLastCol, vDestRow, vDestCol: Integer;
+  vCell: THCTableCell;
+begin
+  // 根据起始单元格和选中结束确定的矩形有效范围
+  vLastRow := AEndRow;
+  vLastCol := AEndCol;
+  for vR := AStartRow to AEndRow do
+  begin
+    for vC := AStartCol to AEndCol do
+    begin
+      vCell := FRows[vR].Cols[vC];
+      if (vCell.RowSpan > 0) or (vCell.ColSpan > 0) then
+      begin
+        GetDestCell(vR, vC, vDestRow, vDestCol);
+        vCell := FRows[vDestRow].Cols[vDestCol];
+        vDestRow := vDestRow + vCell.RowSpan;
+        vDestCol := vDestCol + vCell.ColSpan;
+        if vLastRow < vDestRow then
+          vLastRow := vDestRow;
+        if vLastCol < vDestCol then
+          vLastCol := vDestCol;
+      end;
+    end;
+  end;
+
+  AEndRow := vLastRow;
+  AEndCol := vLastCol;
 end;
 
 procedure THCTableItem.ApplySelectParaStyle(const AStyle: THCStyle;
@@ -3051,7 +3167,10 @@ begin
       begin
         { TODO -jingtong : 当单元格SelectComplate时，处理全部应用样式 }
         for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
-          Cells[vR, vC].CellData.ApplySelectParaStyle(AMatchStyle);
+        begin
+          if Assigned(Cells[vR, vC].CellData) then
+            Cells[vR, vC].CellData.ApplySelectParaStyle(AMatchStyle);
+        end;
       end;
     end
     else  // 在同一单元格
@@ -3161,7 +3280,7 @@ begin
       Exit;
     end;  
     vCaretCell.CellData.GetCaretInfo(vCaretCell.CellData.MouseMoveItemNo,
-      vCaretCell.CellData.MouseMoveItemOffset, ACaretInfo)  
+      vCaretCell.CellData.MouseMoveItemOffset, ACaretInfo)
   end
   else
   begin

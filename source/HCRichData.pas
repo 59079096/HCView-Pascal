@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, HCCustomData, HCCustomRichData,
   HCItem, HCStyle, HCParaStyle, HCTextStyle, HCTextItem, HCRectItem, HCCommon,
-  HCDataCommon;
+  HCUndoRichData;
 
 type
   TDomain = class
@@ -30,11 +30,13 @@ type
     property EndNo: Integer read FEndNo write FEndNo;
   end;
 
-  THCRichData = class(THCCustomRichData)  // 富文本数据类，可做为其他显示富文本类的基类
+  THCRichData = class(THCUndoRichData)  // 富文本数据类，可做为其他显示富文本类的基类
   private
-    FHotDomain, FActiveDomain: TDomain;
+    FHotDomain,  // 当前高亮域
+    FActiveDomain  // 当前激活域
+      : TDomain;
     FHotDomainRGN, FActiveDomainRGN: HRGN;
-    FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;
+    FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     procedure GetDomainFrom(const AItemNo, AOffset: Integer;
       const ADomain: TDomain);
     function GetActiveDomain: TDomain;
@@ -53,6 +55,10 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
 
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemIndex: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+
+    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemIndex: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
@@ -81,7 +87,9 @@ implementation
 
 function THCRichData.CanDeleteItem(const AItemNo: Integer): Boolean;
 begin
-  Result := Items[AItemNo].StyleNo <> THCStyle.RsDomain;
+  Result := inherited CanDeleteItem(AItemNo);
+  if Result then
+    Result := Items[AItemNo].StyleNo <> THCStyle.RsDomain;
 end;
 
 constructor THCRichData.Create(const AStyle: THCStyle);
@@ -120,6 +128,55 @@ begin
   FHotDomain.Free;
   FActiveDomain.Free;
   inherited;
+end;
+
+procedure THCRichData.DoDrawItemPaintAfter(const AData: THCCustomData;
+  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+
+  {$REGION ' DrawLineLastMrak 段尾的换行符 '}
+  procedure DrawLineLastMrak(const ADrawRect: TRect);
+  var
+    vPt: TPoint;
+  begin
+    ACanvas.Pen.Style := psSolid;
+    ACanvas.Pen.Color := clActiveBorder;
+
+    SetViewportExtEx(ACanvas.Handle, APaintInfo.WindowWidth, APaintInfo.WindowHeight, @vPt);
+    try
+      ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 4,
+        APaintInfo.GetScaleY(ADrawRect.Bottom) - 8);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 8);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
+
+      ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right),     APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
+
+      ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 1, APaintInfo.GetScaleY(ADrawRect.Bottom) - 4);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 1, APaintInfo.GetScaleY(ADrawRect.Bottom) - 1);
+
+      ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 2, APaintInfo.GetScaleY(ADrawRect.Bottom) - 5);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 2, APaintInfo.GetScaleY(ADrawRect.Bottom));
+    finally
+      SetViewportExtEx(ACanvas.Handle, APaintInfo.GetScaleX(APaintInfo.WindowWidth),
+        APaintInfo.GetScaleY(APaintInfo.WindowHeight), @vPt);
+    end;
+  end;
+  {$ENDREGION}
+
+begin
+  inherited DoDrawItemPaintAfter(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft,
+    ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+
+  if (not APaintInfo.Print) and AData.Style.ShowLineLastMark then
+  begin
+    if (ADrawItemIndex < DrawItems.Count - 1) and DrawItems[ADrawItemIndex + 1].ParaFirst then
+      DrawLineLastMrak(ADrawRect)  // 段尾的换行符
+    else
+    if ADrawItemIndex = DrawItems.Count - 1 then
+      DrawLineLastMrak(ADrawRect);  // 段尾的换行符
+  end;
 end;
 
 procedure THCRichData.DoDrawItemPaintBefor(const AData: THCCustomData;
@@ -310,6 +367,7 @@ begin
   begin
     Style.UpdateInfoRePaint;
     Style.UpdateInfoReCaret;
+    Style.UpdateInfoReScroll;
   end;
 end;
 
@@ -328,6 +386,7 @@ begin
   begin
     Style.UpdateInfoRePaint;
     Style.UpdateInfoReCaret;
+    Style.UpdateInfoReScroll;
   end;
 end;
 

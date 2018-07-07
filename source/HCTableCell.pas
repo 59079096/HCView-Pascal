@@ -33,8 +33,8 @@ type
   public
     constructor Create(const AStyle: THCStyle);
     destructor Destroy; override;
-    function MergeSource: Boolean;
-    function MergeDest: Boolean;
+    function IsMergeSource: Boolean;
+    function IsMergeDest: Boolean;
 
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer;
@@ -118,12 +118,12 @@ begin
   end;
 end;
 
-function THCTableCell.MergeDest: Boolean;
+function THCTableCell.IsMergeDest: Boolean;
 begin
   Result := (FRowSpan > 0) or (FColSpan > 0);
 end;
 
-function THCTableCell.MergeSource: Boolean;
+function THCTableCell.IsMergeSource: Boolean;
 begin
   Result := FCellData = nil;
 end;

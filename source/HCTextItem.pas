@@ -35,6 +35,9 @@ type
   public
     constructor CreateByText(const AText: string); virtual;
 
+    /// <summaryy 可接受输入 </summary>
+    function CanAccept: Boolean; virtual;
+
     /// <summaryy 复制一部分文本 </summary>
     /// <param name="AStartOffs">复制的起始位置(大于0)</param>
     /// <param name="ALength">众起始位置起复制的长度</param>
@@ -51,6 +54,11 @@ uses
   HCCommon, HCTextStyle;
 
 { THCTextItem }
+
+function THCTextItem.CanAccept: Boolean;
+begin
+  Result := True;
+end;
 
 constructor THCTextItem.CreateByText(const AText: string);
 begin
@@ -95,14 +103,22 @@ procedure THCTextItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vSize: Word;
+  vDSize: DWORD;
   vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  AStream.ReadBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
+  if AFileVersion < 11 then  // 兼容65536级别的字符数量
   begin
-    SetLength(vBuffer, vSize);
-    AStream.Read(vBuffer[0], vSize);
+    AStream.ReadBuffer(vSize, SizeOf(Word));
+    vDSize := vSize;
+  end
+  else
+    AStream.ReadBuffer(vDSize, SizeOf(DWORD));
+
+  if vDSize > 0 then
+  begin
+    SetLength(vBuffer, vDSize);
+    AStream.Read(vBuffer[0], vDSize);
     FText := StringOf(vBuffer);
   end;
 end;
@@ -110,18 +126,18 @@ end;
 procedure THCTextItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vBuffer: TBytes;
-  vSize: Word;  // 最多65536个字节，如果超过65536，可使用写入文本后再写一个结束标识(如#9)，解析时遍历直到此标识
+  vDSize: DWORD;  // 最多HC_TEXTMAXSIZE = 4294967295个字节，如果超过，可使用写入文本后再写一个结束标识(如#9)，解析时遍历直到此标识
   vS: string;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   vS := GetTextPart(AStart + 1, AEnd - AStart);
   vBuffer := BytesOf(vS);
-  if System.Length(vBuffer) > MAXWORD then
+  if System.Length(vBuffer) > HC_TEXTMAXSIZE then
     raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-  vSize := System.Length(vBuffer);
-  AStream.WriteBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-    AStream.WriteBuffer(vBuffer[0], vSize);
+  vDSize := System.Length(vBuffer);
+  AStream.WriteBuffer(vDSize, SizeOf(vDSize));
+  if vDSize > 0 then
+    AStream.WriteBuffer(vBuffer[0], vDSize);
 end;
 
 procedure THCTextItem.SetText(const Value: string);

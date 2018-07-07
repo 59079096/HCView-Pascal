@@ -60,6 +60,7 @@ type
   protected
     procedure Notify(Ptr: Pointer; Action: TListNotification); override;
   public
+    procedure Clear; override;
     /// <summary> 在格式化前标记要删除的起始和结束DrawItemNo </summary>
     procedure MarkFormatDelete(const AStartDrawItemNo, AEndDrawItemNo: Integer);
 
@@ -124,6 +125,12 @@ end;
 
 { THCDrawItems }
 
+procedure THCDrawItems.Clear;
+begin
+  inherited Clear;
+  ClearFormatMark;
+end;
+
 procedure THCDrawItems.ClearFormatMark;
 begin
   FDeleteStartDrawItemNo := -1;
@@ -159,7 +166,7 @@ end;
 
 procedure THCDrawItems.Insert(const AIndex: Integer; const AItem: THCCustomDrawItem);
 begin
-  if FDeleteCount = 0 then
+  if FDeleteCount = 0 then  // 需要删除的已经被下面替换完了
     inherited Insert(AIndex, AItem)
   else
   begin

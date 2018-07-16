@@ -309,7 +309,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00500010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D005C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1316,6 +1316,10 @@ object frmHCViewDemo: TfrmHCViewDemo
           Caption = 'CheckBox'
           OnClick = mniC1Click
         end
+        object mniEdit1: TMenuItem
+          Caption = 'Edit'
+          OnClick = mniEdit1Click
+        end
       end
       object mniN27: TMenuItem
         Caption = #20998#39029#31526
@@ -1426,6 +1430,11 @@ object frmHCViewDemo: TfrmHCViewDemo
       Caption = '2.0'
       GroupIndex = 1
       OnClick = mniLineSpaceClick
+    end
+    object mniN2: TMenuItem
+      Caption = #22266#23450#20540
+      GroupIndex = 1
+      OnClick = mniN2Click
     end
   end
   object actlst: TActionList

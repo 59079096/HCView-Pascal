@@ -59,6 +59,7 @@ type
     FDisplayFirstSection, FDisplayLastSection,
     FUpdateCount: Integer;
     FZoom: Single;
+    FAutoZoom,  // 自动缩放
     FShowAnnotation: Boolean;  // 显示批注
     FIsChanged: Boolean;  // 是否发生了改变
     FAnnotations: TAnnotations;  // 批注
@@ -355,6 +356,8 @@ type
     /// <summary> 是否显示批注 </summary>
     property ShowAnnotation: Boolean read FShowAnnotation write SetShowAnnotation;
 
+    property AutoZoom: Boolean read FAutoZoom write FAutoZoom;
+
     /// <summary> 所有Section是否只读 </summary>
     property ReadOnly: Boolean read GetReadOnly write SetReadOnly;
     property OnMouseDown: TMouseEvent read FOnMouseDown write FOnMouseDown;
@@ -532,6 +535,7 @@ begin
   FIsChanged := False;
   FZoom := 1;
   FShowAnnotation := False;
+  FAutoZoom := False;
   FViewModel := vmPage;
   FPageScrollModel := psmVertical;  //psmHorizontal;
 
@@ -1746,6 +1750,14 @@ begin
 
   if (vDisplayWidth > 0) and (vDisplayHeight > 0) then
     FDataBmp.SetSize(vDisplayWidth, vDisplayHeight);  // Bitmap设置为0时会出错
+
+  if FAutoZoom then
+  begin
+    if FShowAnnotation then  // 显示批注
+      FZoom := (vDisplayWidth - MinPadding * 2) / (ActiveSection.PageWidthPix + AnnotationWidth)
+    else
+      FZoom := (vDisplayWidth - MinPadding * 2) / ActiveSection.PageWidthPix;
+  end;
 
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then

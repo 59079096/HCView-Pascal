@@ -87,7 +87,10 @@ type
     FMouseDownX, FMouseDownY: Integer;
 
     FResizeInfo: TResizeInfo;
-    FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto: Boolean;
+
+    FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto,
+      FEnableUndo: Boolean;
+
     { 选中信息(只有选中起始和结束行都>=0才说明有选中多个单元格
      在单个单元格中选择时结束行、列信息为-1 }
     FSelectCellRang: TSelectCellRang;
@@ -99,6 +102,7 @@ type
     procedure InitializeMouseInfo;
 
     function DoCellDataGetRootData: THCCustomData;
+    function DoCellDataGetEnableUndo: Boolean;
 
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: TTableRow);
@@ -448,6 +452,7 @@ begin
   FCellHPadding := 5;
   FCellVPadding := 0;
   FDraging := False;
+  FEnableUndo := True;
   FBorderWidth := 1;
   FBorderColor := clBlack;
   FBorderVisible := True;
@@ -672,6 +677,11 @@ end;
 function THCTableItem.DoCellDataGetRootData: THCCustomData;
 begin
   Result := FOwnerData.GetRootData;
+end;
+
+function THCTableItem.DoCellDataGetEnableUndo: Boolean;
+begin
+  Result := FEnableUndo;
 end;
 
 procedure THCTableItem.DoNewUndo(const Sender: THCUndo);
@@ -1041,8 +1051,14 @@ begin
       vMirror := Sender.Data as THCUndoMirror;
       vMirror.Stream.Position := 0;
       vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
-      Self.LoadFromStream(vMirror.Stream, FOwnerData.Style, HC_FileVersionInt);
+      FEnableUndo := False;
+      try
+        Self.LoadFromStream(vMirror.Stream, FOwnerData.Style, HC_FileVersionInt);
+      finally
+        FEnableUndo := True;
+      end;
 
+      vMirror.Stream.Clear;
       vMirror.Stream.CopyFrom(vStream, 0);  // 保存恢复前状态
     finally
       vStream.Free;
@@ -1067,6 +1083,7 @@ begin
       ARow.Cols[i].CellData.OnCreateItem := (FOwnerData as THCCustomRichData).OnCreateItem;
       ARow.Cols[i].CellData.OnGetUndoList := Self.GetSelfUndoList;
       ARow.Cols[i].CellData.OnGetRootData := DoCellDataGetRootData;
+      ARow.Cols[i].CellData.OnGetEnableUndo := DoCellDataGetEnableUndo;
     end;
   end;
 end;
@@ -1106,8 +1123,14 @@ begin
       vMirror := Sender.Data as THCUndoMirror;
       vMirror.Stream.Position := 0;
       vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
-      Self.LoadFromStream(vMirror.Stream, FOwnerData.Style, HC_FileVersionInt);
+      FEnableUndo := False;
+      try
+        Self.LoadFromStream(vMirror.Stream, FOwnerData.Style, HC_FileVersionInt);
+      finally
+        FEnableUndo := True;
+      end;
 
+      vMirror.Stream.Clear;
       vMirror.Stream.CopyFrom(vStream, 0);  // 保存撤销前状态
     finally
       vStream.Free;

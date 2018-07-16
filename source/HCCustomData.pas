@@ -584,7 +584,16 @@ begin
   AX := AX - vDrawRect.Left;
   AY := AY - vDrawRect.Top;
   if FItems[AItemNo].StyleNo < THCStyle.RsNull then
-    AY := AY - FStyle.ParaStyles[Items[AItemNo].ParaNo].LineSpaceHalf;
+  begin
+    AY := AY - FStyle.ParaStyles[FItems[AItemNo].ParaNo].LineSpaceHalf;
+    case FStyle.ParaStyles[FItems[AItemNo].ParaNo].AlignVert of  // 垂直对齐方式
+      pavCenter: AY := AY - (vDrawRect.Height - (FItems[AItemNo] as THCCustomRectItem).Height) div 2;
+
+      pavTop: ;
+    else
+      AY := AY - (vDrawRect.Height - (FItems[AItemNo] as THCCustomRectItem).Height);
+    end;
+  end;
 end;
 
 constructor THCCustomData.Create(const AStyle: THCStyle);
@@ -1404,8 +1413,15 @@ begin
   if FSelectInfo.StartItemNo < 0 then
     Result := -1
   else
+  begin
     Result := GetDrawItemNoByOffset(FSelectInfo.StartItemNo,
       FSelectInfo.StartItemOffset);
+
+    if (FSelectInfo.EndItemNo >= 0)
+      and (FDrawItems[Result].CharOffsetEnd = FSelectInfo.StartItemOffset)
+    then  // 有选中时，SelectInfo.StartItemOffset在本行最后时，要转为下一行行首
+      Inc(Result);
+  end;
 end;
 
 function THCCustomData.GetUndoList: THCUndoList;
@@ -2430,7 +2446,7 @@ begin
           vDrawRect.Right := vDrawRect.Left + vRectItem.Width;
 
         case FStyle.ParaStyles[vItem.ParaNo].AlignVert of  // 垂直对齐方式
-          pavCenter: InflateRect(vDrawRect, 0, -(vDrawRect.Bottom - vDrawRect.Top - vRectItem.Height) div 2);
+          pavCenter: InflateRect(vDrawRect, 0, -(vDrawRect.Height - vRectItem.Height) div 2);
           pavTop: ;
         else
           vDrawRect.Top := vDrawRect.Bottom - vRectItem.Height;
@@ -2886,7 +2902,13 @@ begin
     begin
       (FItems[AItemNo] as THCCustomRectItem).GetCaretInfo(ACaretInfo);
       ACaretInfo.X := ACaretInfo.X + vDrawItem.Rect.Left;
-      ACaretInfo.Y := ACaretInfo.Y + FStyle.ParaStyles[FItems[AItemNo].ParaNo].LineSpaceHalf;
+      case FStyle.ParaStyles[FItems[AItemNo].ParaNo].AlignVert of  // 垂直对齐方式
+        pavCenter: ACaretInfo.Y := ACaretInfo.Y + (vDrawItem.Rect.Height - (FItems[AItemNo] as THCCustomRectItem).Height) div 2;
+
+        pavTop: ACaretInfo.Y := ACaretInfo.Y + FStyle.ParaStyles[FItems[AItemNo].ParaNo].LineSpaceHalf;
+      else
+        ACaretInfo.Y := ACaretInfo.Y + vDrawItem.Rect.Height - (FItems[AItemNo] as THCCustomRectItem).Height;
+      end;
     end
     else  // 在其右侧
       ACaretInfo.X := ACaretInfo.X + vDrawItem.Rect.Right;

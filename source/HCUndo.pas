@@ -171,6 +171,7 @@ type
   THCUndoList = class(TObjectList<THCUndo>)
   private
     FSeek: Integer;
+    FMaxUndoCount: Cardinal;
     FOnUndo, FOnRedo, FOnNewUndo, FOnUndoDestroy: TUndoEvent;
 
     procedure DoNewUndo(const AUndo: THCUndo);
@@ -185,6 +186,7 @@ type
     procedure Undo;
     procedure Redo;
 
+    property MaxUndoCount: Cardinal read FMaxUndoCount write FMaxUndoCount;
     property OnNewUndo: TUndoEvent read FOnNewUndo write FOnNewUndo;
     property OnUndoDestroy: TUndoEvent read FOnUndoDestroy write FOnUndoDestroy;
 
@@ -227,6 +229,7 @@ constructor THCUndoList.Create;
 begin
   inherited Create;
   FSeek := -1;
+  FMaxUndoCount := 99;
 end;
 
 destructor THCUndoList.Destroy;
@@ -235,6 +238,8 @@ begin
 end;
 
 procedure THCUndoList.DoNewUndo(const AUndo: THCUndo);
+//var
+//  i, vIndex: Integer;
 begin
   if (FSeek >= 0) and (FSeek < Count - 1) then
   begin
@@ -243,8 +248,25 @@ begin
     Self.DeleteRange(FSeek, Count - FSeek);
   end;
 
-  if Count > 99 then
-    Self.Delete(0);
+  if Count > FMaxUndoCount then
+  begin
+    {默认支持找不到组起始时，按第0个做为起始
+    if Items[0] is THCUndoGroupStart then
+    begin
+      for i := 1 to Self.Count - 1 do
+      begin
+        if Items[i] is THCUndoGroupEnd then
+        begin
+          vIndex := i;
+          Break;
+        end;
+      end;
+
+      Self.DeleteRange(0, vIndex + 1);
+    end
+    else}
+      Self.Delete(0);
+  end;
 
   if Assigned(FOnNewUndo) then
     FOnNewUndo(AUndo);

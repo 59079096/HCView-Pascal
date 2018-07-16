@@ -91,6 +91,8 @@ type
     mniInsertTable: TMenuItem;
     btn4: TToolButton;
     btn5: TToolButton;
+    mniEdit1: TMenuItem;
+    mniN2: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -137,6 +139,8 @@ type
     procedure mniInsertTableClick(Sender: TObject);
     procedure btn4Click(Sender: TObject);
     procedure btn5Click(Sender: TObject);
+    procedure mniEdit1Click(Sender: TObject);
+    procedure mniN2Click(Sender: TObject);
   private
     { Private declarations }
     FFileName: TFileName;
@@ -163,7 +167,7 @@ implementation
 
 uses
   frm_InsertTable, frm_PageSet, HCStyle, HCTableItem, HCTextItem, HCDrawItem,
-  HCExpressItem, HCLineItem, HCCheckBoxItem, HCImageItem, EmrGroupItem,
+  HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem, EmrGroupItem,
   frm_Paragraph, HCGifItem;
 
 {$R *.dfm}
@@ -443,8 +447,10 @@ end;
 procedure TfrmHCViewDemo.mniC1Click(Sender: TObject);
 var
   vCheckBox: THCCheckBoxItem;
+  vS: string;
 begin
-  vCheckBox := THCCheckBoxItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData, '勾选框', False);
+  vS := InputBox('勾选框', '文本', '');
+  vCheckBox := THCCheckBoxItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData, vS, False);
   FHCView.InsertItem(vCheckBox);
 end;
 
@@ -458,9 +464,9 @@ begin
   if Sender is TMenuItem then
   begin
     case (Sender as TMenuItem).Tag of
-      0: FHCView.ApplyParaLineSpace(8);
-      1: FHCView.ApplyParaLineSpace(12);
-      2: FHCView.ApplyParaLineSpace(16);
+      0: FHCView.ApplyParaLineSpace(8);   // 单倍
+      1: FHCView.ApplyParaLineSpace(12);  // 1.5倍
+      2: FHCView.ApplyParaLineSpace(16);  // 双倍
     end;
   end;
 end;
@@ -499,6 +505,16 @@ begin
     vTable.BorderVisible := not vTable.BorderVisible;
     FHCView.UpdateBuffer;
   end;
+end;
+
+procedure TfrmHCViewDemo.mniEdit1Click(Sender: TObject);
+var
+  vEdit: THCEditItem;
+  vS: string;
+begin
+  vS := InputBox('勾选框', '文本', '');
+  vEdit := THCEditItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData, vS);
+  FHCView.InsertItem(vEdit);
 end;
 
 procedure TfrmHCViewDemo.mnigif1Click(Sender: TObject);
@@ -591,6 +607,19 @@ end;
 procedure TfrmHCViewDemo.mniN28Click(Sender: TObject);
 begin
   FHCView.InsertSectionBreak;
+end;
+
+procedure TfrmHCViewDemo.mniN2Click(Sender: TObject);
+var
+  vsLineSpace: string;
+  vSpace: Integer;
+begin
+  vsLineSpace := InputBox('行间距', '固定值(>5)', '20');
+  if TryStrToInt(vsLineSpace, vSpace) then
+  begin
+    if vSpace >= 5 then
+      FHCView.ApplyParaLineSpace(vSpace);  // 固定值
+  end;
 end;
 
 procedure TfrmHCViewDemo.mniInsertTableClick(Sender: TObject);

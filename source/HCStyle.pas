@@ -69,6 +69,7 @@ type
     RsCheckBox = -10;
     RsGif = -11;
     RsControl = -12;
+    RsEdit = -13;
     RsCustom = -100;  // 自定义类型分界线
   public
     constructor Create; virtual;

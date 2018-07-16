@@ -22,6 +22,7 @@ type
   private
     FText: string;
     FChecked, FMouseIn: Boolean;
+    FMargin: Byte;
     function GetBoxRect: TRect;
   protected
     procedure SetChecked(const Value: Boolean);
@@ -50,23 +51,23 @@ uses
 
 const
   CheckBoxSize = 14;
-  BoxSpliter = 2;
 
 { THCCheckBoxItem }
 
 function THCCheckBoxItem.GetBoxRect: TRect;
 begin
-  Result := Classes.Bounds(BoxSpliter, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize)
+  Result := Classes.Bounds(FMargin, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize)
 end;
 
 constructor THCCheckBoxItem.Create(const AOwnerData: THCCustomData; const AText: string;
   const AChecked: Boolean);
 begin
   inherited Create(AOwnerData);
-  FMouseIn := False;
   Self.StyleNo := THCStyle.RsCheckBox;
   FChecked := AChecked;
   FText := AText;
+  FMouseIn := False;
+  FMargin := 2;
 end;
 
 procedure THCCheckBoxItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -85,7 +86,7 @@ begin
     ACanvas.FillRect(ADrawRect);
   end;
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
-  ACanvas.TextOut(ADrawRect.Left + BoxSpliter + CheckBoxSize + BoxSpliter,
+  ACanvas.TextOut(ADrawRect.Left + FMargin + CheckBoxSize + FMargin,
     ADrawRect.Top + (Height - ACanvas.TextHeight('×Ö')) div 2 + 1, FText);
 
   if FChecked then  // ¹´Ñ¡
@@ -120,7 +121,7 @@ var
 begin
   ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
   vSize := ARichData.Style.DefCanvas.TextExtent(FText);
-  Width := BoxSpliter + CheckBoxSize + BoxSpliter + vSize.cx;  // ¼ä¾à
+  Width := FMargin + CheckBoxSize + FMargin + vSize.cx;  // ¼ä¾à
   Height := Max(vSize.cy, CheckBoxSize);
 end;
 

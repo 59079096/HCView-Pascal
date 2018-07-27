@@ -40,9 +40,6 @@ type
     property EndItemOffset: Integer read FEndItemOffset write FEndItemOffset;
   end;
 
-  TDrawOption = (doFontBackColor {绘制文本背景，避免全选中时不必要的绘制});
-  TDrawOptions = set of TDrawOption;
-
   THCCustomData = class(TObject)  // 为支持域，所以不能有太多属性，以免和CustomRichData冲突
   private
     FStyle: THCStyle;
@@ -52,10 +49,10 @@ type
     FDrawOptions: TDrawOptions;
     FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
     FOnGetUndoList: TGetUndoListEvent;
-    procedure DrawItemPaintBefor(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DrawItemPaintAfter(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
   protected
@@ -115,10 +112,10 @@ type
 
     function GetUndoList: THCUndoList;
 
-    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
-    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
   public
@@ -585,11 +582,10 @@ begin
   AY := AY - vDrawRect.Top;
   if FItems[AItemNo].StyleNo < THCStyle.RsNull then
   begin
-    AY := AY - FStyle.ParaStyles[FItems[AItemNo].ParaNo].LineSpaceHalf;
     case FStyle.ParaStyles[FItems[AItemNo].ParaNo].AlignVert of  // 垂直对齐方式
       pavCenter: AY := AY - (vDrawRect.Height - (FItems[AItemNo] as THCCustomRectItem).Height) div 2;
 
-      pavTop: ;
+      pavTop: AY := AY - FStyle.ParaStyles[FItems[AItemNo].ParaNo].LineSpaceHalf;
     else
       AY := AY - (vDrawRect.Height - (FItems[AItemNo] as THCCustomRectItem).Height);
     end;
@@ -725,6 +721,13 @@ begin
     end;
     SelectInfo.EndItemNo := -1;
     SelectInfo.EndItemOffset := -1;
+  end
+  else  // 没有选中
+  if SelectInfo.StartItemNo >= 0 then
+  begin
+    vItem := FItems[SelectInfo.StartItemNo];
+    vItem.DisSelect;
+    vItem.Active := False;
   end;
 
   SelectInfo.StartItemNo := -1;
@@ -732,21 +735,21 @@ begin
 end;
 
 procedure THCCustomData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
 end;
 
 procedure THCCustomData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
 end;
 
 procedure THCCustomData.DrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -754,7 +757,7 @@ var
 begin
   vDCState := SaveDC(ACanvas.Handle);
   try
-    DoDrawItemPaintAfter(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft, ADataDrawBottom,
+    DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
     ReleaseDC(ACanvas.Handle, vDCState);
@@ -762,7 +765,7 @@ begin
 end;
 
 procedure THCCustomData.DrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -770,7 +773,7 @@ var
 begin
   vDCState := SaveDC(ACanvas.Handle);
   try
-    DoDrawItemPaintBefor(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft, ADataDrawBottom,
+    DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
     ReleaseDC(ACanvas.Handle, vDCState);
@@ -1436,17 +1439,6 @@ procedure THCCustomData._FormatItemToDrawItems(const AItemNo, AOffset, AContentW
   var APos: TPoint; var ALastDNo: Integer);
 
 type
-  TCharType = (
-    jctBreak,  //  截断点
-    jctHZ,  // 汉字
-    jctZM,  // 半角字母
-    //jctCNZM,  // 全角字母
-    jctSZ,  // 半角数字
-    //jctCNSZ,  // 全角数字
-    jctFH  // 半角符号
-    //jctCNFH   // 全角符号
-    );
-
   TBreakPosition = (  // 截断位置
     jbpNone,  // 不截断
     jbpPrev  // 在前一个后面截断
@@ -1473,6 +1465,7 @@ type
       : Integer;
     vDrawItemSplitCounts: array of Word;  // 当前行各DItem分几份
   begin
+    { 根据行中最高的DrawItem处理其他DrawItem的高度 }
     vLineBegDItemNo := ALineEndDItemNo;
     for i := ALineEndDItemNo downto 0 do  // 得到行起始DItemNo
     begin
@@ -1758,29 +1751,6 @@ type
   /// <param name="AText"></param>
   /// <param name="APos">在第X个后面断开 X > 0</param>
   procedure FindLineBreak(const AText: string; const AStartPos: Integer; var APos: Integer);
-
-    {$REGION 'GetCharType 获取字符类型'}
-    function GetCharType(const AChar: Word): TCharType;
-    begin
-      case AChar of
-        $4E00..$9FA5: Result := jctHZ;  // 汉字
-
-        $21..$2F,  // !"#$%&'()*+,-./
-        $3A..$40,  // :;<=>?@
-        $5B..$60,  // [\]^_`
-        $7B..$7E   // {|}~
-          : Result := jctFH;
-
-        //$FF01..$FF0F,  // ！“＃￥％＆‘（）×＋，－。、
-
-        $30..$39: Result := jctSZ;  // 0..9
-
-        $41..$5A, $61..$7A: Result := jctZM;  // A..Z, a..z
-      else
-        Result := jctBreak;
-      end;
-    end;
-    {$ENDREGION}
 
     {$REGION 'GetHeadTailBreak 根据行首、尾对字符的约束条件，获取截断位置'}
     procedure GetHeadTailBreak(const AText: string; var APos: Integer);
@@ -2147,7 +2117,7 @@ end;
 
 procedure THCCustomData.MatchItemSelectState;
 
-  {$REGION '检测某个Item的选中状态'}
+  {$REGION ' CheckItemSelectedState检测某个Item的选中状态 '}
   procedure CheckItemSelectedState(const AItemNo: Integer);
   begin
     if (AItemNo > SelectInfo.StartItemNo) and (AItemNo < SelectInfo.EndItemNo) then  // 在选中范围之间
@@ -2201,37 +2171,6 @@ procedure THCCustomData.MatchItemSelectState;
           Items[AItemNo].SelectPart;
       end;
     end;
-    {
-    //////////////////////////////////////////////////////
-    if (AItemNo = SelectInfo.StartItemNo) and (SelectInfo.StartItemOffset = 0) then
-    begin
-      if SelectInfo.StartItemNo = SelectInfo.EndItemNo then
-      begin
-        if Items[SelectInfo.EndItemNo].StyleNo < THCStyle.RsNull then
-          Result := SelectInfo.EndItemOffset = OffsetAfter
-        else
-          Result := SelectInfo.EndItemOffset = Items[SelectInfo.EndItemNo].Length;
-      end
-      else
-        Result := SelectInfo.StartItemNo < SelectInfo.EndItemNo;
-    end
-    else
-    if AItemNo = SelectInfo.EndItemNo then
-    begin
-      if Items[AItemNo].StyleNo < THCStyle.RsNull then
-        Result := SelectInfo.EndItemOffset = OffsetAfter
-      else
-        Result := SelectInfo.EndItemOffset = Items[SelectInfo.EndItemNo].Length;
-      if Result then
-      begin
-        if SelectInfo.StartItemNo = SelectInfo.EndItemNo then
-          Result := SelectInfo.StartItemOffset = 0
-        else
-          Result := SelectInfo.StartItemNo < SelectInfo.EndItemNo;
-      end;
-    end
-    else
-      Result := (SelectInfo.StartItemNo < AItemNo) and (AItemNo < SelectInfo.EndItemNo);}
   end;
   {$ENDREGION}
 
@@ -2464,14 +2403,12 @@ begin
           FStyle.TextStyles[vPrioStyleNo].ApplyStyle(FStyle.DefCanvas);
           vTextHeight := FStyle.DefCanvas.TextHeight('字');
         end;
+
         // 文字背景
-        if doFontBackColor in FDrawOptions then
+        if ACanvas.Brush.Style <> bsClear then
         begin
-          if ACanvas.Brush.Style <> bsClear then
-          begin
-            ACanvas.Brush.Color := FStyle.TextStyles[vPrioStyleNo].BackColor;
-            ACanvas.FillRect(Rect(vDrawRect.Left, vDrawRect.Top, vDrawRect.Left + vDItem.Width, vDrawRect.Bottom));
-          end;
+          ACanvas.Brush.Color := FStyle.TextStyles[vPrioStyleNo].BackColor;
+          ACanvas.FillRect(Rect(vDrawRect.Left, vDrawRect.Top, vDrawRect.Left + vDItem.Width, vDrawRect.Bottom));
         end;
 
         { 绘制文字、段、选中情况下的背景 }
@@ -2836,15 +2773,22 @@ begin
 end;
 
 procedure THCCustomData.SetCaretDrawItemNo(const Value: Integer);
+var
+  vItemNo: Integer;
 begin
   if FCaretDrawItemNo <> Value then
   begin
-    if FCaretDrawItemNo >= 0 then
-      FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := False;
+    if (FCaretDrawItemNo >= 0) and (FCaretDrawItemNo < FDrawItems.Count) then
+    begin
+      vItemNo := FDrawItems[FCaretDrawItemNo].ItemNo;
+      FItems[vItemNo].Active := False;
+    end
+    else
+      vItemNo := -1;
 
     FCaretDrawItemNo := Value;
 
-    if FCaretDrawItemNo >= 0 then
+    if (FCaretDrawItemNo >= 0) and (FDrawItems[FCaretDrawItemNo].ItemNo <> vItemNo) then
     begin
       if FItems[FDrawItems[FCaretDrawItemNo].ItemNo].StyleNo < THCStyle.RsNull then
       begin
@@ -2922,6 +2866,9 @@ end;
 
 procedure THCCustomData.InitializeField;
 begin
+  if FCaretDrawItemNo >= 0 then
+    FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := False;
+
   FCaretDrawItemNo := -1;
 end;
 

@@ -36,7 +36,7 @@ type
     constructor CreateByText(const AText: string); virtual;
 
     /// <summaryy 可接受输入 </summary>
-    function CanAccept: Boolean; virtual;
+    function CanAccept(const AOffset: Integer): Boolean; virtual;
 
     /// <summaryy 复制一部分文本 </summary>
     /// <param name="AStartOffs">复制的起始位置(大于0)</param>
@@ -55,7 +55,7 @@ uses
 
 { THCTextItem }
 
-function THCTextItem.CanAccept: Boolean;
+function THCTextItem.CanAccept(const AOffset: Integer): Boolean;
 begin
   Result := True;
 end;

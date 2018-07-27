@@ -5,7 +5,7 @@ interface
 uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCCustomRichData, HCItem,
-  HCControlItem, HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
+  HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
   System.Actions, System.ImageList;
 
 type
@@ -93,6 +93,8 @@ type
     btn5: TToolButton;
     mniEdit1: TMenuItem;
     mniN2: TMenuItem;
+    mniN18: TMenuItem;
+    mniN19: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -113,7 +115,6 @@ type
     procedure cbbZoomChange(Sender: TObject);
     procedure mniN9Click(Sender: TObject);
     procedure mniN14Click(Sender: TObject);
-    procedure mniN13Click(Sender: TObject);
     procedure mniC1Click(Sender: TObject);
     procedure mniLineSpaceClick(Sender: TObject);
     procedure mniDisBorderClick(Sender: TObject);
@@ -141,9 +142,10 @@ type
     procedure btn5Click(Sender: TObject);
     procedure mniEdit1Click(Sender: TObject);
     procedure mniN2Click(Sender: TObject);
+    procedure mniN18Click(Sender: TObject);
+    procedure mniN19Click(Sender: TObject);
   private
     { Private declarations }
-    FFileName: TFileName;
     FHCView: THCView;
     procedure SetFileName(const AFileName: string);
     procedure DrawItemClick(Shift: TShiftState; X, Y, AItemNo, ADItemNo: Integer;
@@ -384,8 +386,8 @@ end;
 
 procedure TfrmHCViewDemo.btnNewClick(Sender: TObject);
 begin
-  FFileName := '';
-  FHCView.ClearData;
+  FHCView.FileName := '';
+  FHCView.Clear;
 end;
 
 procedure TfrmHCViewDemo.btnprintClick(Sender: TObject);
@@ -481,18 +483,24 @@ begin
   FHCView.Cut;
 end;
 
-procedure TfrmHCViewDemo.mniN13Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN14Click(Sender: TObject);
+begin
+  FHCView.InsertLine(1);
+end;
+
+procedure TfrmHCViewDemo.mniN18Click(Sender: TObject);
+begin
+  if FHCView.ActiveSection.ActiveData.SelectExists then
+    FHCView.InsertAnnotate('aaaa')
+end;
+
+procedure TfrmHCViewDemo.mniN19Click(Sender: TObject);
 var
   vExpressItem: THCExperssItem;
 begin
   vExpressItem := THCExperssItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData,
     '12', '5-6', '2017-6-3', '28-30');
   FHCView.InsertItem(vExpressItem);
-end;
-
-procedure TfrmHCViewDemo.mniN14Click(Sender: TObject);
-begin
-  FHCView.InsertLine(1);
 end;
 
 procedure TfrmHCViewDemo.mniDisBorderClick(Sender: TObject);
@@ -503,7 +511,7 @@ begin
   begin
     vTable := FHCView.ActiveSection.ActiveData.GetCurItem as THCTableItem;
     vTable.BorderVisible := not vTable.BorderVisible;
-    FHCView.UpdateBuffer;
+    FHCView.UpdateView;
   end;
 end;
 
@@ -512,7 +520,7 @@ var
   vEdit: THCEditItem;
   vS: string;
 begin
-  vS := InputBox('勾选框', '文本', '');
+  vS := InputBox('文本框', '文本', '');
   vEdit := THCEditItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData, vS);
   FHCView.InsertItem(vEdit);
 end;
@@ -756,9 +764,8 @@ begin
     begin
       if vOpenDlg.FileName <> '' then
       begin
-        FFileName := vOpenDlg.FileName;
         Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
-        FHCView.LoadFromFile(FFileName);
+        FHCView.LoadFromFile(vOpenDlg.FileName);
       end;
     end;
   finally
@@ -795,8 +802,8 @@ procedure TfrmHCViewDemo.mniSaveClick(Sender: TObject);
 var
   vDlg: TSaveDialog;
 begin
-  if FFileName <> '' then
-    FHCView.SaveToFile(FFileName)
+  if FHCView.FileName <> '' then
+    FHCView.SaveToFile(FHCView.FileName)
   else
   begin
     vDlg := TSaveDialog.Create(Self);
@@ -842,8 +849,8 @@ end;
 
 procedure TfrmHCViewDemo.SetFileName(const AFileName: string);
 begin
-  FFileName := AFileName;
-  statbar.Panels[1].Text := FFileName;
+  FHCView.FileName := AFileName;
+  statbar.Panels[1].Text := FHCView.FileName;
 end;
 
 end.

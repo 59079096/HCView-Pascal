@@ -128,7 +128,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       Left = 271
       Top = 0
       Width = 65
-      Height = 21
+      Height = 22
       Style = csDropDownList
       DropDownCount = 20
       TabOrder = 1
@@ -167,24 +167,30 @@ object frmHCViewDemo: TfrmHCViewDemo
         #20116#21495
         #23567#20116)
     end
-    object cbbBackColor: TColorBox
+    object cbbFontColor: TColorBox
       Left = 395
       Top = 0
-      Width = 73
+      Width = 43
       Height = 22
-      TabOrder = 3
-      OnChange = cbbBackColorChange
-    end
-    object cbbFontColor: TColorBox
-      Left = 468
-      Top = 0
-      Width = 73
-      Height = 22
+      DropDownCount = 20
       TabOrder = 4
       OnChange = cbbFontColorChange
     end
+    object cbbBackColor: TColorBox
+      Left = 438
+      Top = 0
+      Width = 43
+      Height = 22
+      DefaultColorColor = clWhite
+      NoneColorColor = clWhite
+      Selected = clWhite
+      Color = clWhite
+      DropDownCount = 20
+      TabOrder = 3
+      OnChange = cbbBackColorChange
+    end
     object btnBold: TToolButton
-      Left = 541
+      Left = 481
       Top = 0
       Caption = 'btnBold'
       ImageIndex = 13
@@ -192,7 +198,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnItalic: TToolButton
       Tag = 1
-      Left = 565
+      Left = 505
       Top = 0
       Caption = 'btnItalic'
       ImageIndex = 14
@@ -200,7 +206,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnUnderLine: TToolButton
       Tag = 2
-      Left = 589
+      Left = 529
       Top = 0
       Caption = 'btnUnderLine'
       ImageIndex = 15
@@ -208,7 +214,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnStrikeOut: TToolButton
       Tag = 3
-      Left = 613
+      Left = 553
       Top = 0
       Caption = 'btnStrikeOut'
       ImageIndex = 16
@@ -216,7 +222,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnSuperScript: TToolButton
       Tag = 4
-      Left = 637
+      Left = 577
       Top = 0
       Caption = 'btnSuperScript'
       ImageIndex = 11
@@ -224,14 +230,14 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnSubScript: TToolButton
       Tag = 5
-      Left = 661
+      Left = 601
       Top = 0
       Caption = 'btnSubScript'
       ImageIndex = 12
       OnClick = btnBoldClick
     end
     object btn2: TToolButton
-      Left = 685
+      Left = 625
       Top = 0
       Width = 8
       Caption = 'btn2'
@@ -239,7 +245,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       Style = tbsSeparator
     end
     object btnAlignLeft: TToolButton
-      Left = 693
+      Left = 633
       Top = 0
       Hint = #24038#23545#40784
       Caption = 'btnAlignLeft'
@@ -248,7 +254,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnAlignCenter: TToolButton
       Tag = 1
-      Left = 717
+      Left = 657
       Top = 0
       Hint = #23621#20013#23545#40784
       Caption = 'btnAlignCenter'
@@ -257,7 +263,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnAlignRight: TToolButton
       Tag = 2
-      Left = 741
+      Left = 681
       Top = 0
       Hint = #21491#23545#40784
       Caption = 'btnAlignRight'
@@ -266,7 +272,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnAlignJustify: TToolButton
       Tag = 3
-      Left = 765
+      Left = 705
       Top = 0
       Hint = #20004#31471#23545#40784
       Caption = 'btnAlignJustify'
@@ -275,14 +281,14 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnAlignScatter: TToolButton
       Tag = 4
-      Left = 789
+      Left = 729
       Top = 0
       Hint = #20998#25955#23545#40784
       ImageIndex = 4
       OnClick = btnAlignLeftClick
     end
     object btnLineSpace: TToolButton
-      Left = 813
+      Left = 753
       Top = 0
       Hint = #34892#38388#36317
       Caption = 'btnLineSpace'
@@ -309,7 +315,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D005C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00880010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1304,7 +1310,10 @@ object frmHCViewDemo: TfrmHCViewDemo
       end
       object mniN13: TMenuItem
         Caption = #20844#24335
-        OnClick = mniN13Click
+        object mniN19: TMenuItem
+          Caption = #20998#25968
+          OnClick = mniN19Click
+        end
       end
       object mniN14: TMenuItem
         Caption = #27178#32447
@@ -1336,6 +1345,10 @@ object frmHCViewDemo: TfrmHCViewDemo
       object mniN4: TMenuItem
         Caption = #25991#26412
         OnClick = mniN4Click
+      end
+      object mniN18: TMenuItem
+        Caption = #25209#27880
+        OnClick = mniN18Click
       end
     end
   end

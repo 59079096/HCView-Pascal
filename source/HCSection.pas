@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, HCRichData, HCSectionData,
   HCCustomRichData, HCTextStyle, HCParaStyle, HCItem, HCDrawItem, HCPage,
-  HCCommon, HCStyle, HCCustomSectionData, HCCustomData, HCUndo;
+  HCCommon, HCStyle, HCCustomData, HCUndo;
 
 type
   TPrintResult = (prOk, prNoPrinter, prError);
@@ -46,7 +46,7 @@ type
     FPageSize: THCPageSize;
     FHeader: THCHeaderData;
     FFooter: THCFooterData;
-    FPageData: THCSectionData;
+    FPageData: THCPageData;
     FActiveData: THCRichData;  // 页眉、正文、页脚
 
     FPageNoVisible: Boolean;  // 是否显示页码
@@ -66,9 +66,11 @@ type
 
     FOnPaintHeader, FOnPaintFooter, FOnPaintData, FOnPaintPage: TSectionPagePaintEvent;
     FOnItemPaintBefor, FOnItemPaintAfter: TItemPaintEvent;
+    FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnInsertItem: TItemNotifyEvent;
     FOnItemResized: TDataItemEvent;
     FOnCreateItem: TNotifyEvent;
+    FOnCreateItemByStyle: TStyleItemEvent;
     FOnGetUndoList: TGetUndoListEvent;
 
     /// <summary> 当前Data内容变动完成后 </summary>
@@ -82,11 +84,16 @@ type
 
     procedure DoDataReadOnlySwitch(Sender: TObject);
     procedure DoDataItemPaintBefor(const AData: THCCustomData;
-      const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure DoDataItemPaintAfter(const AData: THCCustomData;
-      const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+
+    procedure DoDataDrawItemPaintAfter(const AData: THCCustomData;
+      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
@@ -94,12 +101,11 @@ type
 
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
+    function DoDataCreateStyleItem(const AStyleNo: Integer): THCCustomItem;
     procedure DoDataCreateItem(Sender: TObject);
     function DoDataGetUndoList: THCUndoList;
 
-    /// <summary>
-    /// 返回页面指定DrawItem所在的页(跨页的按最后位置所在页)
-    /// </summary>
+    /// <summary> 返回页面指定DrawItem所在的页(跨页的按最后位置所在页) </summary>
     /// <param name="ADrawItemNo"></param>
     /// <returns></returns>
     function GetPageDataDrawItemPageIndex(const ADrawItemNo: Integer): Integer;
@@ -158,9 +164,7 @@ type
     function GetActiveArea: TSectionArea;
     procedure SetActiveData(const Value: THCRichData);
 
-    /// <summary>
-    /// 返回数据格式化AVertical位置在胶卷中的位置
-    /// </summary>
+    /// <summary> 返回数据格式化AVertical位置在胶卷中的位置 </summary>
     /// <param name="AVertical"></param>
     /// <returns></returns>
     function GetDataFmtTopFilm(const AVertical: Integer): Integer;
@@ -172,7 +176,6 @@ type
     /// <summary> 修改纸张边距 </summary>
     procedure ReMarginPaper;
     procedure Clear;
-    procedure SetEmptyData;
     procedure DisActive;
     function SelectExists: Boolean;
     procedure SelectAll;
@@ -184,9 +187,8 @@ type
     function GetCurrentPage: Integer;
     procedure PaintDisplayPage(const AFilmOffsetX, AFilmOffsetY: Integer;
       const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    /// <summary>
-    /// 绘制指定页到指定的位置，为配合打印，开放ADisplayWidth, ADisplayHeight参数
-    /// </summary>
+
+    /// <summary> 绘制指定页到指定的位置，为配合打印，开放ADisplayWidth, ADisplayHeight参数 </summary>
     /// <param name="APageIndex">要绘制的页码</param>
     /// <param name="ALeft">绘制X偏移</param>
     /// <param name="ATop">绘制Y偏移</param>
@@ -218,6 +220,9 @@ type
 
     /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
+
+    /// <summary> 当前选中的内容添加批注 </summary>
+    function InsertAnnotate(const AText: string): Boolean;
     //
     function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
     function ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
@@ -226,29 +231,23 @@ type
     function ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
     function ActiveTableDeleteCurCol: Boolean;
     //
-    // 节坐标转换到指定页坐标
+    //// <summary>  节坐标转换到指定页坐标 </summary>
     procedure SectionCoordToPage(const APageIndex, X, Y: Integer; var
       APageX, APageY: Integer);
 
-    /// <summary>
-    /// 为段应用对齐方式
-    /// </summary>
+    /// <summary> 为段应用对齐方式 </summary>
     /// <param name="AAlign">对方方式</param>
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
     procedure ApplyParaLineSpace(const ASpace: Integer);
 
-    /// <summary>
-    /// 获取光标在Dtat中的位置信息并映射到指定页面
-    /// </summary>
+    /// <summary> 获取光标在Dtat中的位置信息并映射到指定页面 </summary>
     /// <param name="APageIndex">要映射到的页序号</param>
     /// <param name="ACaretInfo">光标位置信息</param>
     procedure GetPageCaretInfo(var ACaretInfo: TCaretInfo);
 
-    /// <summary>
-    /// 返回当前节指定的垂直偏移处对应的页
-    /// </summary>
+    /// <summary> 返回当前节指定的垂直偏移处对应的页 </summary>
     /// <param name="AVOffset">垂直偏移</param>
     /// <returns>页序号，-1表示无对应页</returns>
     function GetPageByFilm(const AVOffset: Integer): Integer;
@@ -258,9 +257,7 @@ type
     /// <returns></returns>
     function GetPageTopFilm(const APageIndex: Integer): Integer;
 
-    /// <summary>
-    /// 返回指定页数据起始位置在整个Data中的Top，注意 20161216001
-    /// </summary>
+    /// <summary> 返回指定页数据起始位置在整个Data中的Top，注意 20161216001 </summary>
     /// <param name="APageIndex"></param>
     /// <returns></returns>
     function GetPageDataFmtTop(const APageIndex: Integer): Integer;
@@ -269,26 +266,21 @@ type
     /// <returns></returns>
     function GetHeaderPageDrawTop: Integer;
 
-    /// <summary>
-    /// 获取格式化垂直位置在数据的哪一页(目前只在GetPageCaretInfo中用到了，是否具有通用性？)
-    /// </summary>
+    /// <summary> 获取格式化垂直位置在数据的哪一页(目前只在GetPageCaretInfo中用到了，是否具有通用性？) </summary>
     /// <param name="AVertical">垂直位置</param>
     /// <returns>页序号</returns>
     //function GetPageByDataFmt(const AVertical: Integer): Integer;
 
     function GetPageMarginLeft(const APageIndex: Integer): Integer;
 
-    /// <summary>
-    /// 根据页面对称属性，获取指定页的左右边距
-    /// </summary>
+    /// <summary> 根据页面对称属性，获取指定页的左右边距 </summary>
     /// <param name="APageIndex"></param>
     /// <param name="AMarginLeft"></param>
     /// <param name="AMarginRight"></param>
     procedure GetPageMarginLeftAndRight(const APageIndex: Integer;
       var AMarginLeft, AMarginRight: Integer);
-    /// <summary>
-    /// 从正文指定Item开始重新计算页
-    /// </summary>
+
+    /// <summary> 从正文指定Item开始重新计算页 </summary>
     /// <param name="AStartItemNo"></param>
     procedure BuildSectionPages(const AStartItemNo: Integer);
     function DeleteSelected: Boolean;
@@ -301,9 +293,7 @@ type
     function GetFilmHeight: Cardinal;  // 所有页面高+分隔条
     function GetFilmWidth: Cardinal;
 
-    /// <summary>
-    /// 标记样式是否在用或删除不使用的样式后修正样式序号
-    /// </summary>
+    /// <summary> 标记样式是否在用或删除不使用的样式后修正样式序号 </summary>
     /// <param name="AMark">True:标记样式是否在用，Fasle:修正原样式因删除不使用样式后的新序号</param>
     procedure MarkStyleUsed(const AMark: Boolean;
       const AParts: TSaveParts = [saHeader, saData, saFooter]);
@@ -337,7 +327,7 @@ type
     property HeaderOffset: Integer read FHeaderOffset write SetHeaderOffset;
     property Header: THCHeaderData read FHeader;
     property Footer: THCFooterData read FFooter;
-    property PageData: THCSectionData read FPageData;
+    property PageData: THCPageData read FPageData;
 
     /// <summary> 当前文档激活区域(页眉、页脚、页面)的数据对象 </summary>
     property ActiveData: THCRichData read FActiveData write SetActiveData;
@@ -367,7 +357,9 @@ type
     property OnPaintPage: TSectionPagePaintEvent read FOnPaintPage write FOnPaintPage;
     property OnItemPaintBefor: TItemPaintEvent read FOnItemPaintBefor write FOnItemPaintBefor;
     property OnItemPaintAfter: TItemPaintEvent read FOnItemPaintAfter write FOnItemPaintAfter;
+    property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
+    property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
   end;
 
@@ -515,10 +507,12 @@ var
     AData.Width := vWidth;
     AData.OnInsertItem := DoDataInsertItem;
     AData.OnItemResized := DoDataItemResized;
+    AData.OnCreateItemByStyle := DoDataCreateStyleItem;
     AData.OnCreateItem := DoDataCreateItem;
     AData.OnReadOnlySwitch := DoDataReadOnlySwitch;
     AData.OnItemPaintBefor := DoDataItemPaintBefor;
     AData.OnItemPaintAfter := DoDataItemPaintAfter;
+    AData.OnDrawItemPaintAfter := DoDataDrawItemPaintAfter;
     AData.OnGetUndoList := DoDataGetUndoList;
   end;
 
@@ -534,7 +528,7 @@ begin
   FPageSize := THCPageSize.Create(AStyle.PixelsPerInchX, AStyle.PixelsPerInchY);
   vWidth := GetContentWidth;
 
-  FPageData := THCSectionData.Create(AStyle);
+  FPageData := THCPageData.Create(AStyle);
   SetDataProperty(FPageData);
 
   // FData.PageHeight := PageHeightPix - PageMarginBottomPix - GetHeaderAreaHeight;
@@ -621,6 +615,24 @@ begin
     FOnCreateItem(Sender);
 end;
 
+function THCSection.DoDataCreateStyleItem(const AStyleNo: Integer): THCCustomItem;
+begin
+  if Assigned(FOnCreateItemByStyle) then
+    Result := FOnCreateItemByStyle(AStyleNo)
+  else
+    Result := nil;
+end;
+
+procedure THCSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
+  if Assigned(FOnDrawItemPaintAfter) then
+    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
 procedure THCSection.DoDataInsertItem(const AItem: THCCustomItem);
 begin
   if Assigned(FOnInsertItem) then
@@ -628,25 +640,25 @@ begin
 end;
 
 procedure THCSection.DoDataItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnItemPaintAfter) then
   begin
-    FOnItemPaintAfter(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft,
+    FOnItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCSection.DoDataItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnItemPaintBefor) then
   begin
-    FOnItemPaintBefor(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft,
+    FOnItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
@@ -702,13 +714,6 @@ begin
     FActiveData := Value;
     FStyle.UpdateInfoReScroll;
   end;
-end;
-
-procedure THCSection.SetEmptyData;
-begin
-  FHeader.SetEmptyData;
-  FFooter.SetEmptyData;
-  FPageData.SetEmptyData;
 end;
 
 procedure THCSection.FormatData;
@@ -1079,6 +1084,14 @@ begin
   Result := FPageSize.PaperWidth;
 end;
 
+function THCSection.InsertAnnotate(const AText: string): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FPageData.InsertAnnotate(AText);
+    end);
+end;
+
 function THCSection.InsertBreak: Boolean;
 begin
   Result := ActiveDataChangeByAction(function(): Boolean
@@ -1350,10 +1363,14 @@ var
 begin
   // 默认光标
   GetPageMarginLeftAndRight(FMousePageIndex, vMarginLeft, vMarginRight);
-  if (X > vMarginLeft) and (X < FPageSize.PageWidthPix - vMarginRight) then
-    GCursor := crIBeam
+
+  if X < vMarginLeft then
+    GCursor := crDefault  { to do: 向右上角箭头 }
   else
-    GCursor := crDefault;
+  if X > FPageSize.PageWidthPix - vMarginRight then
+    GCursor := crDefault
+  else
+    GCursor := crIBeam;
 
   FMousePageIndex := GetPageByFilm(Y);
   if FMousePageIndex < 0 then Exit;
@@ -1415,18 +1432,19 @@ var
   viTemp: Integer;
 begin
   AX := AX - GetPageMarginLeft(APageIndex);
-  if ARestrain then  // 为避免边界(激活正文，在页眉页脚点击时判断仍是在正文位置造成光标错误)约束后都偏移1
+  if ARestrain then  // 为避免左右边界，不往里约束1，否则无法点到行首光标，尤其是行首是RectItem
   begin
     if AX < 0 then
-      AX := 1
+      AX := 0
     else
     begin
       viTemp := FPageSize.PageWidthPix - FPageSize.PageMarginRightPix;
       if AX > viTemp then
-        AX := viTemp - 1;
+        AX := viTemp;
     end;
   end;
 
+  // 为避免边界(激活正文，在页眉页脚点击时判断仍是在正文位置造成光标错误)约束后都偏移1
   if AData = FHeader then
   begin
     AY := AY - GetHeaderPageDrawTop;

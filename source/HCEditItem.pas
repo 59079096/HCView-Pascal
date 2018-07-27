@@ -20,7 +20,6 @@ uses
 type
   THCEditItem = class(THCTextRectItem)
   private
-    FOwnerData: THCCustomData;
     FText: string;
     FMouseIn, FReadOnly: Boolean;
     FMargin, FMinWidth: Byte;
@@ -63,7 +62,6 @@ uses
 constructor THCEditItem.Create(const AOwnerData: THCCustomData; const AText: string);
 begin
   inherited Create(AOwnerData);
-  FOwnerData := AOwnerData;
   Self.StyleNo := THCStyle.RsEdit;
   FText := AText;
   FMouseIn := False;
@@ -123,18 +121,18 @@ var
   vS: string;
 begin
   vS := Copy(FText, 1, FCaretOffset);
-  FOwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(FOwnerData.Style.DefCanvas);
+  OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
 
   if vS <> '' then
   begin
-    vSize := FOwnerData.Style.DefCanvas.TextExtent(vS);
+    vSize := OwnerData.Style.DefCanvas.TextExtent(vS);
     ACaretInfo.Height := vSize.cy;
-    ACaretInfo.X := FMargin + vSize.cx + (Width - FMargin - FOwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
+    ACaretInfo.X := FMargin + vSize.cx + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   end
   else
   begin
-    ACaretInfo.Height := FOwnerData.Style.DefCanvas.TextHeight('H');
-    ACaretInfo.X := FMargin + (Width - FMargin - FOwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
+    ACaretInfo.Height := OwnerData.Style.DefCanvas.TextHeight('H');
+    ACaretInfo.X := FMargin + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   end;
 
   ACaretInfo.Y := FMargin;
@@ -142,10 +140,10 @@ end;
 
 function THCEditItem.GetOffsetAt(const X: Integer): Integer;
 begin
-  if X < 0 then
+  if X <= 0 then
     Result := OffsetBefor
   else
-  if X > Width then
+  if X >= Width then
     Result := OffsetAfter
   else
     Result := OffsetInner;
@@ -221,13 +219,13 @@ var
   vOffset: Integer;
 begin
   inherited;
-  FOwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(FOwnerData.Style.DefCanvas);
-  vX := X - FMargin - (Width - FMargin - FOwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
-  vOffset := GetCharOffsetByX(FOwnerData.Style.DefCanvas, FText, vX);
+  OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
+  vX := X - FMargin - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
+  vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, FText, vX);
   if vOffset <> FCaretOffset then
   begin
     FCaretOffset := vOffset;
-    FOwnerData.Style.UpdateInfoReCaret;
+    OwnerData.Style.UpdateInfoReCaret;
   end;
 end;
 

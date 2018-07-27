@@ -32,7 +32,7 @@ type
   strict private
     FWidth, FHeight: Integer;
     FTextWrapping: Boolean;  // 文本环绕
-
+    FOwnerData: THCCustomData;
     // 标识内部高度是否发生了变化，用于此Item内部格式化时给其所属的Data标识需要重新格式化此Item
     // 如表格的一个单元格内容变化在没有引起表格整体变化时，不需要重新格式化表格，也不需要重新计算页数
     // 由拥有此Item的Data使用完后应该立即赋值为False，可参考TableItem.KeyPress的使用
@@ -132,6 +132,7 @@ type
 
     /// <summary> 在当前页显示不下时是否可以分页截断显示 </summary>
     property CanBreak: Boolean read FCanBreak write FCanBreak;
+    property OwnerData: THCCustomData read FOwnerData;
   end;
 
   THCDomainItemClass = class of THCDomainItem;
@@ -288,6 +289,7 @@ end;
 constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create;
+  FOwnerData := AOwnerData;
   Self.ParaNo := AOwnerData.Style.CurParaNo;
   FOnGetMainUndoList := (AOwnerData as THCCustomData).OnGetUndoList;
   FWidth := 100;   // 默认尺寸
@@ -374,10 +376,10 @@ end;
 
 function THCCustomRectItem.GetOffsetAt(const X: Integer): Integer;
 begin
-  if X < 0 then
+  if X <= 0 then
     Result := OffsetBefor
   else
-  if X > Width then
+  if X >= Width then
     Result := OffsetAfter
   else
     Result := OffsetInner;
@@ -502,7 +504,8 @@ end;
 
 procedure THCCustomRectItem.Undo_StartRecord;
 begin
-  GetSelfUndoList.NewUndo;
+  if FOwnerData.Style.EnableUndo then
+    GetSelfUndoList.NewUndo;
 end;
 
 function THCCustomRectItem.WantKeyDown(const Key: Word;
@@ -816,17 +819,20 @@ var
   vUndo: THCUndo;
   vUndoSize: THCUndoSize;
 begin
-  Undo_StartRecord;
-  vUndo := GetSelfUndoList.Last;
-  if vUndo <> nil then
+  if OwnerData.Style.EnableUndo then
   begin
-    vUndoSize := THCUndoSize.Create;
-    vUndoSize.OldWidth := Self.Width;
-    vUndoSize.OldHeight := Self.Height;
-    vUndoSize.NewWidth := ANewWidth;
-    vUndoSize.NewHeight := ANewHeight;
+    Undo_StartRecord;
+    vUndo := GetSelfUndoList.Last;
+    if vUndo <> nil then
+    begin
+      vUndoSize := THCUndoSize.Create;
+      vUndoSize.OldWidth := Self.Width;
+      vUndoSize.OldHeight := Self.Height;
+      vUndoSize.NewWidth := ANewWidth;
+      vUndoSize.NewHeight := ANewHeight;
 
-    vUndo.Data := vUndoSize;
+      vUndo.Data := vUndoSize;
+    end;
   end;
 end;
 
@@ -933,7 +939,7 @@ begin
   Self.Height := 10;  // 默认大小
   if Self.MarkType = TMarkType.cmtBeg then  // 域起始标识
   begin
-    //if AItemNo < ARichData.Items.Count - 1 then  // 因为是配对，所以后面肯定有
+    if AItemNo < ARichData.Items.Count - 1 then  // 插入时可能是在Data最后面插入起始，后面不一定有结束
     begin
       vItem := ARichData.Items[AItemNo + 1];
       if (vItem.StyleNo = Self.StyleNo)  // 下一个是组标识
@@ -946,14 +952,16 @@ begin
         ARichData.Style.TextStyles[vItem.StyleNo].ApplyStyle(ARichData.Style.DefCanvas);
         Self.Height := ARichData.Style.DefCanvas.TextExtent('H').cy;
       end;
-    end;
+    end
+    else
+      Self.Width := 10;
   end
   else  // 域结束标识
   begin
     vItem := ARichData.Items[AItemNo - 1];
     if (vItem.StyleNo = Self.StyleNo)
       and ((vItem as THCDomainItem).MarkType = TMarkType.cmtBeg)
-    then
+    then  // 前一个是起始标识
       Self.Width := 10
     else
     if vItem.StyleNo > THCStyle.RsNull then  // 前面是文本，距离前面的高度

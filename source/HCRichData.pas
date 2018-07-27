@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, HCCustomData, HCCustomRichData,
   HCItem, HCStyle, HCParaStyle, HCTextStyle, HCTextItem, HCRectItem, HCCommon,
-  HCUndoRichData;
+  HCUndoRichData, HCList;
 
 type
   TDomain = class
@@ -30,13 +30,23 @@ type
     property EndNo: Integer read FEndNo write FEndNo;
   end;
 
+  TDrawItemPaintEvent = procedure (const AData: THCCustomData;
+    const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+    ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+    const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
+
+  TStyleItemEvent = function (const AStyleNo: Integer): THCCustomItem of object;
+
   THCRichData = class(THCUndoRichData)  // 富文本数据类，可做为其他显示富文本类的基类
   private
+    FDomainStartDeletes: THCIntegerList;  // 仅用于选中删除时，当域起始结束都选中时，删除了结束后标明起始的可删除
     FHotDomain,  // 当前高亮域
     FActiveDomain  // 当前激活域
       : TDomain;
     FHotDomainRGN, FActiveDomainRGN: HRGN;
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
+    FOnDrawItemPaintAfter: TDrawItemPaintEvent;
+    FOnCreateItemByStyle: TStyleItemEvent;
     procedure GetDomainFrom(const AItemNo, AOffset: Integer;
       const ADomain: TDomain);
     function GetActiveDomain: TDomain;
@@ -50,15 +60,19 @@ type
     procedure InitializeField; override;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); override;
     function CanDeleteItem(const AItemNo: Integer): Boolean; override;
+    function DeleteSelected: Boolean; override;
+
+    /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
+    function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; override;
     //
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
 
-    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
-    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
@@ -69,16 +83,24 @@ type
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
 
+    /// <summary> 设置选中范围，仅供外部使用内部不使用 </summary>
+    procedure SetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer);
+
     /// <summary> 选到指定Item的最后面 </summary>
     procedure SelectItemAfter(const AItemNo: Integer);
 
     /// <summary> 选到最后一个Item的最后面 </summary>
     procedure SelectLastItemAfter;
 
+    /// <summary> 获取DomainItem配对的另一个ItemNo </summary>
+    function GetDomainAnother(const AItemNo: Integer): Integer;
+
     procedure GetCaretInfoCur(var ACaretInfo: TCaretInfo);
     procedure TraverseItem(const ATraverse: TItemTraverse);
     property HotDomain: TDomain read FHotDomain;
     property ActiveDomain: TDomain read GetActiveDomain;
+    property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
+    property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
   end;
 
 implementation
@@ -86,14 +108,104 @@ implementation
 { THCRichData }
 
 function THCRichData.CanDeleteItem(const AItemNo: Integer): Boolean;
+var
+  vItemNo: Integer;
 begin
   Result := inherited CanDeleteItem(AItemNo);
   if Result then
-    Result := Items[AItemNo].StyleNo <> THCStyle.RsDomain;
+  begin
+    if Items[AItemNo].StyleNo = THCStyle.RsDomain then  // 是域标识
+    begin
+      if (Items[AItemNo] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 域结束标识
+      begin
+        vItemNo := GetDomainAnother(AItemNo);  // 找起始
+        Result := (vItemNo >= SelectInfo.StartItemNo) and (vItemNo <= SelectInfo.EndItemNo);
+        if Result then  // 起始也在选中删除范围内
+          FDomainStartDeletes.Add(vItemNo);  // 记录下来
+      end
+      else  // 域起始标记
+        Result := FDomainStartDeletes.IndexOf(AItemNo) >= 0;  // 结束标识已经删除了
+    end;
+  end;
+end;
+
+function THCRichData.CheckInsertItemCount(const AStartNo,
+  AEndNo: Integer): Integer;
+var
+  i, vDelCount: Integer;
+begin
+  Result := inherited CheckInsertItemCount(AStartNo, AEndNo);
+
+  // 检查加载或粘贴等从流插入Items不匹配的域起始结束标识并删除
+  vDelCount := 0;
+  for i := AStartNo to AEndNo do  // 从前往后找没有插入起始标识的域，删除单独的域结束标识
+  begin
+    if Items[i] is THCDomainItem then  // 域标识
+    begin
+      if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结束，说明没有插入对应的起始
+      begin
+        if i < AEndNo then  // 不是最后，后面继承其段起始属性
+          Items[i + 1].ParaFirst := Items[i].ParaFirst;
+
+        Items.Delete(i);
+        Inc(vDelCount);
+
+        if (i > AStartNo) and (i <= AEndNo - vDelCount) then  // 删除了中间的
+        begin
+          if (not Items[i - 1].ParaFirst)
+            and (not Items[i].ParaFirst)
+            and MergeItemText(Items[i - 1], Items[i])  // 前后都不是段首，且能合并
+          then
+          begin
+            Items.Delete(i);
+            Inc(vDelCount);
+          end;
+        end;
+
+        Break;
+      end
+      else  // 是起始域标记，不用担心了
+        Break;
+    end;
+  end;
+
+  for i := AEndNo - vDelCount downto AStartNo do  // 从后往前，找没有插入结束标识的域
+  begin
+    if Items[i] is THCDomainItem then  // 域标识
+    begin
+      if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始，说明没有插入对应的结束
+      begin
+        if i < AEndNo - vDelCount then  // 不是最后，后面继承其段起始属性
+          Items[i + 1].ParaFirst := Items[i].ParaFirst;
+
+        Items.Delete(i);
+        Inc(vDelCount);
+
+        if (i > AStartNo) and (i <= AEndNo - vDelCount) then  // 删除了中间的
+        begin
+          if (not Items[i - 1].ParaFirst)
+            and (not Items[i].ParaFirst)
+            and MergeItemText(Items[i - 1], Items[i])  // 前后都不是段首，且能合并
+          then
+          begin
+            Items.Delete(i);
+            Inc(vDelCount);
+          end;
+        end;
+
+        Break;
+      end
+      else  // 是结束域标记，不用担心了
+        Break;
+    end;
+  end;
+
+  Result := Result - vDelCount;
 end;
 
 constructor THCRichData.Create(const AStyle: THCStyle);
 begin
+  FDomainStartDeletes := THCIntegerList.Create;
   FHotDomain := TDomain.Create;
   FActiveDomain := TDomain.Create;
   inherited Create(AStyle);
@@ -119,19 +231,31 @@ end;
 
 function THCRichData.CreateItemByStyle(const AStyleNo: Integer): THCCustomItem;
 begin
-  // 自定义的类型在此处解析
-  Result := inherited CreateItemByStyle(AStyleNo);
+  Result := nil;
+
+  if Assigned(FOnCreateItemByStyle) then  // 自定义的类型在此处解析
+    Result := FOnCreateItemByStyle(AStyleNo);
+
+  if not Assigned(Result) then
+    Result := inherited CreateItemByStyle(AStyleNo);
+end;
+
+function THCRichData.DeleteSelected: Boolean;
+begin
+  FDomainStartDeletes.Clear;
+  Result := inherited DeleteSelected;
 end;
 
 destructor THCRichData.Destroy;
 begin
   FHotDomain.Free;
   FActiveDomain.Free;
-  inherited;
+  FDomainStartDeletes.Free;
+  inherited Destroy;
 end;
 
 procedure THCRichData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
@@ -166,21 +290,30 @@ procedure THCRichData.DoDrawItemPaintAfter(const AData: THCCustomData;
   {$ENDREGION}
 
 begin
-  inherited DoDrawItemPaintAfter(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft,
+  inherited DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
-  if (not APaintInfo.Print) and AData.Style.ShowLineLastMark then
+  if not APaintInfo.Print then
   begin
-    if (ADrawItemIndex < DrawItems.Count - 1) and DrawItems[ADrawItemIndex + 1].ParaFirst then
-      DrawLineLastMrak(ADrawRect)  // 段尾的换行符
-    else
-    if ADrawItemIndex = DrawItems.Count - 1 then
-      DrawLineLastMrak(ADrawRect);  // 段尾的换行符
+    if AData.Style.ShowLineLastMark then
+    begin
+      if (ADrawItemNo < DrawItems.Count - 1) and DrawItems[ADrawItemNo + 1].ParaFirst then
+        DrawLineLastMrak(ADrawRect)  // 段尾的换行符
+      else
+      if ADrawItemNo = DrawItems.Count - 1 then
+        DrawLineLastMrak(ADrawRect);  // 段尾的换行符
+    end;
+  end;
+
+  if Assigned(FOnDrawItemPaintAfter) then
+  begin
+    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCRichData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -188,13 +321,13 @@ var
   vItemNo: Integer;
   vDliRGN: HRGN;
 begin
-  inherited DoDrawItemPaintBefor(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft,
+  inherited DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);;
   if not APaintInfo.Print then
   begin
     vDrawHotDomainBorde := False;
     vDrawActiveDomainBorde := False;
-    vItemNo := DrawItems[ADrawItemIndex].ItemNo;
+    vItemNo := DrawItems[ADrawItemNo].ItemNo;
 
     if FHotDomain.BeginNo >= 0 then
       vDrawHotDomainBorde := FHotDomain.Contain(vItemNo);
@@ -212,6 +345,60 @@ begin
           CombineRgn(FActiveDomainRGN, FActiveDomainRGN, vDliRGN, RGN_OR);
       finally
         DeleteObject(vDliRGN);
+      end;
+    end;
+  end;
+end;
+
+function THCRichData.GetDomainAnother(const AItemNo: Integer): Integer;
+var
+  vDomain: THCDomainItem;
+  i, vIgnore: Integer;
+begin
+  Result := -1;
+  vIgnore := 0;
+
+  // 请外部保证AItemNo对应的是THCDomainItem
+  vDomain := Self.Items[AItemNo] as THCDomainItem;
+  if vDomain.MarkType = TMarkType.cmtEnd then  // 是结束标识
+  begin
+    for i := AItemNo - 1 downto 0 do  // 找起始标识
+    begin
+      if Items[i].StyleNo = THCStyle.RsDomain then
+      begin
+        if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始标识
+        begin
+          if vIgnore = 0 then
+          begin
+            Result := i;
+            Break;
+          end
+          else
+            Dec(vIgnore);
+        end
+        else
+          Inc(vIgnore);
+      end;
+    end;
+  end
+  else  // 是起始标识
+  begin
+    for i := AItemNo + 1 to Self.Items.Count - 1 do  // 找结束标识
+    begin
+      if Items[i].StyleNo = THCStyle.RsDomain then
+      begin
+        if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结束标识
+        begin
+          if vIgnore = 0 then
+          begin
+            Result := i;
+            Break;
+          end
+          else
+            Dec(vIgnore);
+        end
+        else
+          Inc(vIgnore);
       end;
     end;
   end;
@@ -481,6 +668,71 @@ end;
 procedure THCRichData.SelectLastItemAfter;
 begin
   SelectItemAfter(Items.Count - 1);
+end;
+
+procedure THCRichData.SetSelectBound(const AStartNo, AStartOffset, AEndNo,
+  AEndOffset: Integer);
+var
+  vStartNo, vEndNo, vStartOffset, vEndOffset: Integer;
+begin
+  if AEndNo < 0 then  // 选择一部分
+  begin
+    vStartNo := AStartNo;
+    vStartOffset := AStartOffset;
+    vEndNo := -1;
+    vEndOffset := -1;
+  end
+  else
+  if AEndNo >= AStartNo then  // 从前往后选择
+  begin
+    vStartNo := AStartNo;
+    vEndNo := AEndNo;
+
+    if AEndNo = AStartNo then  // 同一个Item
+    begin
+      if AEndOffset >= AStartOffset then  // 结束位置在起始后面
+      begin
+        vStartOffset := AStartOffset;
+        vEndOffset := AEndOffset;
+      end
+      else  // 结束位置在起始前面
+      begin
+        vStartOffset := AEndOffset;
+        vEndOffset := AStartOffset;
+      end;
+    end
+    else  // 不在同一个Item
+    begin
+      vStartOffset := AStartOffset;
+      vEndOffset := AEndOffset;
+    end;
+  end
+  else  // AEndNo < AStartNo 从后往前选择
+  begin
+    vStartNo := AEndNo;
+    vStartOffset := AEndOffset;
+
+    vEndNo := AStartNo;
+    vEndOffset := vStartOffset;
+  end;
+
+  SelectInfo.StartItemNo := AStartNo;
+  SelectInfo.StartItemOffset := AStartOffset;
+
+  if (vEndNo < 0)
+    or ((vEndNo = vStartNo) and (vEndOffset = vStartOffset))
+  then
+  begin
+    SelectInfo.EndItemNo := -1;
+    SelectInfo.EndItemOffset := -1;
+  end
+  else
+  begin
+    SelectInfo.EndItemNo := vEndNo;
+    SelectInfo.EndItemOffset := vEndOffset;
+  end;
+
+  //FSelectSeekNo  如果需要确定 FSelectSeekNo，此方法得移动到CustomRichData
 end;
 
 procedure THCRichData.TraverseItem(const ATraverse: TItemTraverse);

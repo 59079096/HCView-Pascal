@@ -171,8 +171,8 @@ end;
 
 procedure THCCustomItem.Assign(Source: THCCustomItem);
 begin
-  Self.FParaNo := Source.ParaNo;
   Self.FStyleNo := Source.StyleNo;
+  Self.FParaNo := Source.ParaNo;
   Self.FOptions := Source.Options;
 end;
 
@@ -198,6 +198,7 @@ begin
   FParaNo := THCStyle.RsNull;
   FFirstDItemNo := -1;
   FVisible := True;
+  FActive := False;
 end;
 
 procedure THCCustomItem.DblClick(const X, Y: Integer);

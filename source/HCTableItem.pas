@@ -16,7 +16,8 @@ interface
 uses
   Classes, SysUtils, Types, Graphics, Controls, Generics.Collections, HCDrawItem,
   HCRectItem, HCTableRow, HCCustomData, HCCustomRichData, HCTableCell, HCTableCellData,
-  HCTextStyle, HCCommon, HCParaStyle, HCStyleMatch, HCItem, HCStyle, HCList, HCUndo;
+  HCRichData, HCTextStyle, HCCommon, HCParaStyle, HCStyleMatch, HCItem, HCStyle,
+  HCList, HCUndo;
 
 type
   TSelectCellRang = class
@@ -97,7 +98,6 @@ type
     FBorderColor: TColor;  // 边框颜色
     FRows: TTableRows;  // 行
     FColWidths: TList<Integer>;  // 记录各列宽度(除边框、含FCellHPadding * 2)，方便有合并的单元格获取自己水平开始处的位置
-    FOwnerData: THCCustomData;
 
     procedure InitializeMouseInfo;
 
@@ -458,8 +458,7 @@ begin
   FBorderVisible := True;
 
   StyleNo := THCStyle.RsTable;
-  FOwnerData := AOwnerData;
-  ParaNo := FOwnerData.Style.CurParaNo;
+  ParaNo := OwnerData.Style.CurParaNo;
   CanBreak := True;
 
   //FWidth := FRows[0].ColCount * (MinColWidth + FBorderWidth) + FBorderWidth;
@@ -472,7 +471,7 @@ begin
   vDataWidth := AWidth - (AColCount + 1) * FBorderWidth;
   for i := 0 to ARowCount - 1 do
   begin
-    vRow := TTableRow.Create(FOwnerData.Style, AColCount);
+    vRow := TTableRow.Create(OwnerData.Style, AColCount);
     vRow.SetRowWidth(vDataWidth);
     FRows.Add(vRow);
   end;
@@ -676,12 +675,12 @@ end;
 
 function THCTableItem.DoCellDataGetRootData: THCCustomData;
 begin
-  Result := FOwnerData.GetRootData;
+  Result := OwnerData.GetRootData;
 end;
 
 function THCTableItem.DoCellDataGetEnableUndo: Boolean;
 begin
-  Result := FEnableUndo;
+  Result := OwnerData.Style.EnableUndo and FEnableUndo;
 end;
 
 procedure THCTableItem.DoNewUndo(const Sender: THCUndo);
@@ -846,15 +845,9 @@ begin
 
           vSelectAll := Self.IsSelectComplate or vCellData.CellSelectedAll;  // 表格全选中或单元格全选中
           if vSelectAll then  // 是全选中
-          begin
-            ACanvas.Brush.Color := FOwnerData.Style.SelColor;
-            vCellData.DrawOptions := vCellData.DrawOptions - [doFontBackColor];
-          end
+            ACanvas.Brush.Color := OwnerData.Style.SelColor
           else
-          begin
             ACanvas.Brush.Color := FRows[vMergeDestRow].Cols[vMergeDestCol].BackgroundColor;
-            vCellData.DrawOptions := vCellData.DrawOptions + [doFontBackColor];
-          end;
 
           ACanvas.FillRect(Rect(vCellDrawLeft, vCellScreenTop,  // + FRows[vR].Height,
             vCellDrawLeft + FRows[vR].Cols[vC].Width, vCellScreenBottom));
@@ -1053,7 +1046,7 @@ begin
       vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
       FEnableUndo := False;
       try
-        Self.LoadFromStream(vMirror.Stream, FOwnerData.Style, HC_FileVersionInt);
+        Self.LoadFromStream(vMirror.Stream, OwnerData.Style, HC_FileVersionInt);
       finally
         FEnableUndo := True;
       end;
@@ -1071,19 +1064,23 @@ end;
 procedure THCTableItem.DoRowAdd(const ARow: TTableRow);
 var
   i: Integer;
+  vCellData: THCTableCellData;
 begin
   for i := 0 to ARow.ColCount - 1 do
   begin
-    if ARow.Cols[i].CellData <> nil then
+    vCellData := ARow.Cols[i].CellData;
+    if vCellData <> nil then
     begin
-      ARow.Cols[i].CellData.OnInsertItem := (FOwnerData as THCCustomRichData).OnInsertItem;
-      ARow.Cols[i].CellData.OnItemResized := (FOwnerData as THCCustomRichData).OnItemResized;
-      ARow.Cols[i].CellData.OnItemPaintAfter := (FOwnerData as THCCustomRichData).OnItemPaintAfter;
-      ARow.Cols[i].CellData.OnItemPaintBefor := (FOwnerData as THCCustomRichData).OnItemPaintBefor;
-      ARow.Cols[i].CellData.OnCreateItem := (FOwnerData as THCCustomRichData).OnCreateItem;
-      ARow.Cols[i].CellData.OnGetUndoList := Self.GetSelfUndoList;
-      ARow.Cols[i].CellData.OnGetRootData := DoCellDataGetRootData;
-      ARow.Cols[i].CellData.OnGetEnableUndo := DoCellDataGetEnableUndo;
+      vCellData.OnInsertItem := (OwnerData as THCCustomRichData).OnInsertItem;
+      vCellData.OnItemResized := (OwnerData as THCCustomRichData).OnItemResized;
+      vCellData.OnItemPaintAfter := (OwnerData as THCCustomRichData).OnItemPaintAfter;
+      vCellData.OnItemPaintBefor := (OwnerData as THCCustomRichData).OnItemPaintBefor;
+      vCellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
+      vCellData.OnCreateItemByStyle := (OwnerData as THCRichData).OnCreateItemByStyle;
+      vCellData.OnCreateItem := (OwnerData as THCCustomRichData).OnCreateItem;
+      vCellData.OnGetUndoList := Self.GetSelfUndoList;
+      vCellData.OnGetRootData := DoCellDataGetRootData;
+      vCellData.OnGetEnableUndo := DoCellDataGetEnableUndo;
     end;
   end;
 end;
@@ -1125,7 +1122,7 @@ begin
       vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
       FEnableUndo := False;
       try
-        Self.LoadFromStream(vMirror.Stream, FOwnerData.Style, HC_FileVersionInt);
+        Self.LoadFromStream(vMirror.Stream, OwnerData.Style, HC_FileVersionInt);
       finally
         FEnableUndo := True;
       end;
@@ -1299,7 +1296,7 @@ begin
     begin
       if DoCrossCellKey(vOldKey) then
       begin
-        FOwnerData.Style.UpdateInfoReCaret;
+        OwnerData.Style.UpdateInfoReCaret;
         Key := vOldKey;
       end;
     end;
@@ -1347,7 +1344,7 @@ begin
   { 创建行、列 }
   for i := 0 to vR - 1 do
   begin
-    vRow := TTableRow.Create(FOwnerData.Style, vC);  // 注意行创建时是table拥有者的Style，加载时是传入的AStyle
+    vRow := TTableRow.Create(OwnerData.Style, vC);  // 注意行创建时是table拥有者的Style，加载时是传入的AStyle
     FRows.Add(vRow);
   end;
 
@@ -1398,7 +1395,7 @@ begin
     FMouseDownCol := vMouseDownCol;
     FMouseDownX := X;
     FMouseDownY := Y;
-    FOwnerData.Style.UpdateInfoRePaint;
+    OwnerData.Style.UpdateInfoRePaint;
     Exit;
   end;
 
@@ -1437,7 +1434,7 @@ begin
         vCell := GetEditCell;
         if vCell <> nil then  // 取消原来编辑
           vCell.Active := False;
-        FOwnerData.Style.UpdateInfoReCaret;
+        OwnerData.Style.UpdateInfoReCaret;
       end;
 
       DisSelect;  // 清除原选中
@@ -1651,7 +1648,7 @@ begin
   begin
     FResizeInfo.DestX := X;
     FResizeInfo.DestY := Y;
-    FOwnerData.Style.UpdateInfoRePaint;
+    OwnerData.Style.UpdateInfoRePaint;
 
     Exit;
   end;
@@ -1662,7 +1659,7 @@ begin
   begin
     if FMouseLBDowning or (Shift = [ssLeft]) then  // 左键按下移动，按下时在表格上 or 没有在表格上按下(划选进入)
     begin
-      if FDraging or FOwnerData.Style.UpdateInfo.Draging then
+      if FDraging or OwnerData.Style.UpdateInfo.Draging then
       begin
         FMouseMoveRow := vMoveRow;
         FMouseMoveCol := vMoveCol;
@@ -1823,13 +1820,13 @@ begin
 
     Resizing := False;
     GCursor := crDefault;
-    FOwnerData.Style.UpdateInfoRePaint;
-    FOwnerData.Style.UpdateInfoReCaret;
+    OwnerData.Style.UpdateInfoRePaint;
+    OwnerData.Style.UpdateInfoReCaret;
 
     Exit;
   end;
 
-  if FSelecting or FOwnerData.Style.UpdateInfo.Selecting then  // 划选完成
+  if FSelecting or OwnerData.Style.UpdateInfo.Selecting then  // 划选完成
   begin
     FSelecting := False;
 
@@ -1853,7 +1850,7 @@ begin
     end;
   end
   else
-  if FDraging or FOwnerData.Style.UpdateInfo.Draging then  // 拖拽弹起
+  if FDraging or OwnerData.Style.UpdateInfo.Draging then  // 拖拽弹起
   begin
     FDraging := False;
 
@@ -2246,7 +2243,7 @@ begin
   begin
     for vRow := 0 to RowCount - 1 do
     begin
-      vCell := THCTableCell.Create(FOwnerData.Style);
+      vCell := THCTableCell.Create(OwnerData.Style);
       vCell.Width := vWidth;
 
       if (ACol < FColWidths.Count) and (FRows[vRow].Cols[ACol].ColSpan < 0) then  // 合并的源列
@@ -2325,7 +2322,7 @@ begin
   Result := False;
   for i := 0 to ACount - 1 do
   begin
-    vTableRow := TTableRow.Create(FOwnerData.Style, FColWidths.Count);
+    vTableRow := TTableRow.Create(OwnerData.Style, FColWidths.Count);
     for vCol := 0 to FColWidths.Count - 1 do
     begin
       vTableRow.Cols[vCol].Width := FColWidths[vCol];
@@ -2396,10 +2393,10 @@ end;
 
 function THCTableItem.InsertText(const AText: string): Boolean;
 begin
-  Result := False;
-  inherited;
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
-    Result := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData.InsertText(AText);
+    Result := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData.InsertText(AText)
+  else
+    Result := inherited InsertText(AText);
 end;
 
 procedure THCTableItem.MarkStyleUsed(const AMark: Boolean);
@@ -3103,16 +3100,19 @@ var
   vUndo: THCUndo;
   vUndoColSize: THCUndoColSize;
 begin
-  Undo_StartRecord;
-  vUndo := GetSelfUndoList.Last;
-  if vUndo <> nil then
+  if OwnerData.Style.EnableUndo then
   begin
-    vUndoColSize := THCUndoColSize.Create;
-    vUndoColSize.Col := ACol;
-    vUndoColSize.OldWidth := AOldWidth;
-    vUndoColSize.NewWidth := ANewWidth;
+    Undo_StartRecord;
+    vUndo := GetSelfUndoList.Last;
+    if vUndo <> nil then
+    begin
+      vUndoColSize := THCUndoColSize.Create;
+      vUndoColSize.Col := ACol;
+      vUndoColSize.OldWidth := AOldWidth;
+      vUndoColSize.NewWidth := ANewWidth;
 
-    vUndo.Data := vUndoColSize;
+      vUndo.Data := vUndoColSize;
+    end;
   end;
 end;
 
@@ -3200,7 +3200,7 @@ begin
       GetEditCell.CellData.ApplySelectParaStyle(AMatchStyle);
   end
   else
-    Self.ParaNo := AMatchStyle.GetMatchParaNo(FOwnerData.Style, Self.ParaNo);
+    Self.ParaNo := AMatchStyle.GetMatchParaNo(OwnerData.Style, Self.ParaNo);
 end;
 
 function THCTableItem.ApplySelectTextStyle(const AStyle: THCStyle;
@@ -3274,7 +3274,7 @@ var
   vPos: TPoint;
   vCaretCell: THCTableCell;
 begin
-  if FOwnerData.Style.UpdateInfo.Draging then
+  if OwnerData.Style.UpdateInfo.Draging then
   begin
     vRow := FMouseMoveRow;
     vCol := FMouseMoveCol;
@@ -3293,7 +3293,7 @@ begin
   else
     vCaretCell := Cells[vRow, vCol];
 
-  if FOwnerData.Style.UpdateInfo.Draging then
+  if OwnerData.Style.UpdateInfo.Draging then
   begin
     if (vCaretCell.CellData.MouseMoveItemNo < 0)
       or (vCaretCell.CellData.MouseMoveItemOffset < 0)

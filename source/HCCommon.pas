@@ -47,6 +47,17 @@ type
   TSectionArea = (saHeader, saData, saFooter);  // 当前激活的是文档哪一部分
   TSaveParts = set of TSectionArea;  // 保存时存哪几部分内容
 
+  TCharType = (
+    jctBreak,  //  截断点
+    jctHZ,  // 汉字
+    jctZM,  // 半角字母
+    //jctCNZM,  // 全角字母
+    jctSZ,  // 半角数字
+    //jctCNSZ,  // 全角数字
+    jctFH  // 半角符号
+    //jctCNFH   // 全角符号
+    );
+
   TPaperSize = (psCustom, ps4A0, ps2A0, psA0, psA1, psA2,
     psA3, psA4, psA5, psA6, psA7, psA8,
     psA9, psA10, psB0, psB1, psB2, psB3,
@@ -104,7 +115,11 @@ type
   function IsKeyPressWant(const AKey: Char): Boolean;
   function IsKeyDownWant(const AKey: Word): Boolean;
 
+  /// <summary> 效率更高的返回字符在字符串位置函数 </summary>
   function PosCharHC(const AChar: Char; const AStr: string{; const Offset: Integer = 1}): Integer;
+
+  /// <summary> 返回字符类型 </summary>
+  function GetCharType(const AChar: Word): TCharType;
 
   /// <summary>
   /// 返回指定位置在字符串哪个字符后面(0：第一个前面)
@@ -161,6 +176,27 @@ begin
   end;
 end;
 {$ENDIF}
+
+function GetCharType(const AChar: Word): TCharType;
+begin
+  case AChar of
+    $4E00..$9FA5: Result := jctHZ;  // 汉字
+
+    $21..$2F,  // !"#$%&'()*+,-./
+    $3A..$40,  // :;<=>?@
+    $5B..$60,  // [\]^_`
+    $7B..$7E   // {|}~
+      : Result := jctFH;
+
+    //$FF01..$FF0F,  // ！“＃￥％＆‘（）×＋，－。、
+
+    $30..$39: Result := jctSZ;  // 0..9
+
+    $41..$5A, $61..$7A: Result := jctZM;  // A..Z, a..z
+  else
+    Result := jctBreak;
+  end;
+end;
 
 function IsKeyPressWant(const AKey: Char): Boolean;
 begin

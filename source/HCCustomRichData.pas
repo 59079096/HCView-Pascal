@@ -22,7 +22,7 @@ type
   TInsertProc = reference to function(const AItem: THCCustomItem): Boolean;
 
   TItemPaintEvent = procedure(const AData: THCCustomData;
-    const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+    const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
@@ -61,6 +61,9 @@ type
     FOnItemPaintBefor, FOnItemPaintAfter: TItemPaintEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
 
+    /// <summary> 初始化为只有一个空Item的Data</summary>
+    procedure SetEmptyData;
+
     /// <summary> Data只有空行Item时插入Item(用于替换当前空行Item的情况) </summary>
     function EmptyDataInsertItem(const AItem: THCCustomItem): Boolean;
     /// <summary>
@@ -72,6 +75,11 @@ type
 
     /// <summary> 为避免表格插入行、列大量重复代码，使用匿名方法，但不支持D7 </summary>
     function TableInsertRC(const AProc: TInsertProc): Boolean;
+
+    procedure InitializeMouseField;
+
+    /// <summary> 划完完成后最后操作位置是否在选中范围起始 </summary>
+    function IsSelectSeekStart: Boolean;
 
     { 撤销恢复相关方法+ }
     procedure Undo_StartGroup(const AItemNo, AOffset: Integer);
@@ -101,9 +109,15 @@ type
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
     procedure Clear; override;
 
-    // <summary> 根据AItem，初始化私有变量并重新设置选中位置和确定光标，一般用于Data变动后修正光标和选中位置 </summary>
+    // <summary> 设置光标位置到指定的Item最后面 </summary>
     procedure ReSetSelectAndCaret(const AItemNo: Integer); overload;
-    procedure ReSetSelectAndCaret(const AItemNo, AOffset: Integer); overload;
+
+    /// <summary> 设置光标位置到指定的Item指定位置 </summary>
+    /// <param name="AItemNo">指定ItemNo</param>
+    /// <param name="AOffset">指定位置</param>
+    /// <param name="ANextWhenMid">如果此位置前后的DrawItem正好分行，True后一个DrawItem前面，False前一个后面</param>
+    procedure ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
+      const ANextWhenMid: Boolean = False); overload;
 
     /// <summary> 当前Item对应的格式化起始Item和结束Item(段最后一个Item) </summary>
     /// <param name="AFirstItemNo">起始ItemNo</param>
@@ -127,24 +141,24 @@ type
     function ApplySelectTextStyle(const AMatchStyle: TStyleMatch): Integer; override;
     function ApplySelectParaStyle(const AMatchStyle: TParaMatch): Integer; override;
 
-    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
     function DisSelect: Boolean; override;
     function CanDeleteItem(const AItemNo: Integer): Boolean; virtual;
 
-    /// <summary> 删除选中内容(内部已经判断了是否有选中) </summary>
-    /// <returns>True:有选中且删除成功</returns>
-    function DeleteSelected: Boolean; override;
+    /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
+    function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; virtual;
 
     procedure DoItemInsert(const AItem: THCCustomItem); virtual;
     procedure DoItemMouseLeave(const AItemNo: Integer); virtual;
     procedure DoItemMouseEnter(const AItemNo: Integer); virtual;
     procedure DoItemResized(const AItemNo: Integer);
+    function DoInsertText(const AText: string): Boolean;
     function GetWidth: Cardinal; virtual;
     procedure SetWidth(const Value: Cardinal);
     function GetHeight: Cardinal; virtual;
@@ -172,14 +186,19 @@ type
   public
     constructor Create(const AStyle: THCStyle); override;
 
+    /// <summary> 删除选中内容(内部已经判断了是否有选中) </summary>
+    /// <returns>True:有选中且删除成功</returns>
+    function DeleteSelected: Boolean; override;
+
     /// <summary> 在光标处插入Item </summary>
     /// <param name="AItem"></param>
     /// <returns></returns>
     function InsertItem(const AItem: THCCustomItem): Boolean; overload; virtual;
 
     /// <summary> 在指定的位置插入Item </summary>
-    /// <param name="AIndex"></param>
-    /// <param name="AItem"></param>
+    /// <param name="AIndex">插入位置</param>
+    /// <param name="AItem">插入的Item</param>
+    /// <param name="AOffsetBefor">插入时在原位置Item前面(True)或后面(False)</param>
     /// <returns></returns>
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
       const AOffsetBefor: Boolean = True): Boolean; overload; virtual;
@@ -204,9 +223,6 @@ type
     //
     procedure DblClick(X, Y: Integer);
     function CanEdit: Boolean;
-
-    /// <summary> 初始化为只有一个空Item的Data</summary>
-    procedure SetEmptyData;
 
     /// <summary> 在光标处换行 </summary>
     function InsertBreak: Boolean;
@@ -328,27 +344,62 @@ end;
 
 procedure THCCustomRichData.DblClick(X, Y: Integer);
 var
-  vItemNo, vItemOffset, vDrawItemNo, vX, vY: Integer;
+  i, vItemNo, vItemOffset, vDrawItemNo, vX, vY, vStartOffset, vEndOffset: Integer;
   vRestrain: Boolean;
+  vText: string;
+  vPosType: TCharType;
 begin
   FMouseLBDouble := True;
 
   GetItemAt(X, Y, vItemNo, vItemOffset, vDrawItemNo, vRestrain);
   if vItemNo < 0 then Exit;
-  CoordToItemOffset(X, Y, vItemNo, vItemOffset, vX, vY);
+
   if Items[vItemNo].StyleNo < THCStyle.RsNull then
-    Items[vItemNo].DblClick(vX, vY)
-  else
   begin
+    CoordToItemOffset(X, Y, vItemNo, vItemOffset, vX, vY);
+    Items[vItemNo].DblClick(vX, vY);
+  end
+  else  // 双击时根据光标处内容，选中范围
+  if Items[vItemNo].Length > 0 then
+  begin
+    vText := Items[vItemNo].Text;
+
+    if vItemOffset > 0 then
+      vPosType := GetCharType(Word(vText[vItemOffset]))
+    else
+      vPosType := GetCharType(Word(vText[1]));
+
+    vStartOffset := 0;
+    for i := vItemOffset - 1 downto 1 do
+    begin
+      if GetCharType(Word(vText[i])) <> vPosType then
+      begin
+        vStartOffset := i;
+        Break;
+      end;
+    end;
+
+    vEndOffset := Length(vText);
+    for i := vItemOffset + 1 to Length(vText) do
+    begin
+      if GetCharType(Word(vText[i])) <> vPosType then
+      begin
+        vEndOffset := i - 1;
+        Break;
+      end;
+    end;
+
     Self.SelectInfo.StartItemNo := vItemNo;
-    Self.SelectInfo.StartItemOffset := 0;
-    if Items[vItemNo].Length > 0 then
+    Self.SelectInfo.StartItemOffset := vStartOffset;
+
+    if vStartOffset <> vEndOffset then
     begin
       Self.SelectInfo.EndItemNo := vItemNo;
-      Self.SelectInfo.EndItemOffset := Items[vItemNo].Length;
+      Self.SelectInfo.EndItemOffset := vEndOffset;
+
+      MatchItemSelectState;
     end;
   end;
-  MatchItemSelectState;
 
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret(False);
@@ -486,6 +537,7 @@ var
 var
   i: Integer;
   vText: string;
+  vSelectSeekStart,   // 选中范围游标在选中起始
   vSelStartComplate,  // 选中范围内的起始Item全选中了
   vSelEndComplate,    // 选中范围内的结束Item全选中了
   vSelStartParaFirst  // 选中起始是段首
@@ -497,10 +549,13 @@ begin
 
   if SelectExists then
   begin
+    vSelectSeekStart := IsSelectSeekStart;
+
     vDelCount := 0;
     Self.InitializeField;  // 删除后原鼠标处可能已经没有了
 
-    if (SelectInfo.EndItemNo < 0) and (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull)
+    if (SelectInfo.EndItemNo < 0)
+      and (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull)
     then  // 选择发生在RectItem内部
     begin
       // 如果变动会引起RectItem的宽度变化，则需要格式化到段最后一个Item
@@ -573,7 +628,7 @@ begin
         // 先处理选中结束Item
         if vEndItem.StyleNo < THCStyle.RsNull then  // RectItem
         begin
-          if vSelEndComplate then  // 最后面  SelectInfo.EndItemOffset = OffsetAfter
+          if vSelEndComplate then  // 选中在最后面，即全选  SelectInfo.EndItemOffset = OffsetAfter
           begin
             if CanDeleteItem(SelectInfo.EndItemNo) then  // 允许删除
             begin
@@ -584,6 +639,7 @@ begin
             end;
           end
           else
+          if SelectInfo.EndItemOffset = OffsetInner then  // 在其上
             (vEndItem as THCCustomRectItem).DeleteSelected;
         end
         else  // TextItem
@@ -622,7 +678,7 @@ begin
         vStartItem := Items[SelectInfo.StartItemNo];  // 选中起始Item
         if vStartItem.StyleNo < THCStyle.RsNull then  // 起始是RectItem
         begin
-          if SelectInfo.StartItemOffset < OffsetInner then  // 在其前
+          if SelectInfo.StartItemOffset = OffsetBefor then  // 在其前
           begin
             if CanDeleteItem(SelectInfo.StartItemNo) then  // 允许删除
             begin
@@ -633,7 +689,8 @@ begin
             if SelectInfo.StartItemNo > vFormatFirstItemNo then
               SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
           end
-          else  // 在其上
+          else
+          if SelectInfo.StartItemOffset = OffsetInner then  // 在其上
             (vStartItem as THCCustomRectItem).DeleteSelected;
         end
         else  // 选中起始是TextItem
@@ -760,7 +817,7 @@ begin
 
       inherited DeleteSelected;
 
-      ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+      ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, not vSelectSeekStart);
       Result := True;
     end;
   end;
@@ -883,29 +940,182 @@ begin
 end;
 
 procedure THCCustomRichData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   inherited;
   if Assigned(FOnItemPaintAfter) then
   begin
-    FOnItemPaintAfter(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft,
+    FOnItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCCustomRichData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   inherited;
   if Assigned(FOnItemPaintBefor) then
   begin
-    FOnItemPaintBefor(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft,
+    FOnItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
+end;
+
+function THCCustomRichData.DoInsertText(const AText: string): Boolean;
+var
+  vCarteItemNo, vFormatFirstItemNo, vFormatLastItemNo: Integer;
+  vNewItem: THCCustomItem;
+
+  {$REGION ' DoTextItemInsert 在文本Item前后或中间插入文本 '}
+  function DoTextItemInsert: Boolean;
+  var
+    vTextItem: THCTextItem;
+    vS: string;
+    vLen: Integer;
+  begin
+    Result := False;
+
+    vTextItem := Items[vCarteItemNo] as THCTextItem;
+
+    if vTextItem.StyleNo = Self.Style.CurStyleNo then  // 当前样式和插入位置TextItem样式相同
+    begin
+      if vTextItem.CanAccept(SelectInfo.StartItemOffset) then  // TextItem此偏移位置可接受输入
+      begin
+        Undo_StartRecord;
+        Undo_InsertText(vCarteItemNo, SelectInfo.StartItemOffset + 1, AText);
+
+        GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
+        FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+
+        if SelectInfo.StartItemOffset = 0 then  // 在最前面插入
+        begin
+          vTextItem.Text := AText + vTextItem.Text;
+          vLen := Length(AText);
+        end
+        else
+        if (SelectInfo.StartItemOffset = vTextItem.Length) then  // 在TextItem最后插入
+        begin
+          vTextItem.Text := vTextItem.Text + AText;
+          vLen := vTextItem.Length;
+        end
+        else  // 在Item中间
+        begin
+          vLen := SelectInfo.StartItemOffset + Length(AText);
+          vS := vTextItem.Text;
+          Insert(AText, vS, SelectInfo.StartItemOffset + 1);
+          vTextItem.Text := vS;
+        end;
+
+        ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
+
+        ReSetSelectAndCaret(vCarteItemNo, vLen);
+
+        Result := True;
+      end
+      else  // 此位置不可接受输入
+      begin
+        if (SelectInfo.StartItemOffset = 0)
+          or (SelectInfo.StartItemOffset = vTextItem.Length)   // 在首尾不可接受时，插入到前后位置
+        then
+        begin
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.Text := AText;
+
+          if SelectInfo.StartItemOffset = 0 then
+            Result := InsertItem(vCarteItemNo, vNewItem, True)
+          else
+            Result := InsertItem(vCarteItemNo + 1, vNewItem, False);
+        end;
+      end;
+    end
+    else  // 插入位置TextItem样式和当前样式不同，在TextItem头、中、尾没选中，但应用了新样式，以新样式处理
+    begin
+      vNewItem := CreateDefaultTextItem;
+      vNewItem.Text := AText;
+      Result := InsertItem(vNewItem);
+    end;
+  end;
+  {$ENDREGION}
+
+var
+  vCarteItem: THCCustomItem;
+  vRectItem: THCCustomRectItem;
+begin
+  Result := False;
+  if AText <> '' then
+  begin
+    vCarteItemNo := GetCurItemNo;
+    vCarteItem := Items[vCarteItemNo];
+
+    if vCarteItem.StyleNo < THCStyle.RsNull then  // 当前位置是 RectItem
+    begin
+      if SelectInfo.StartItemOffset = OffsetInner then  // 在其上输入内容
+      begin
+        Undo_StartRecord;
+        Undo_ItemSelf(SelectInfo.StartItemNo, OffsetInner);
+
+        vRectItem := vCarteItem as THCCustomRectItem;
+        Result := vRectItem.InsertText(AText);
+        if vRectItem.SizeChanged then
+        begin
+          vRectItem.SizeChanged := False;
+          GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
+          FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+          ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
+        end;
+      end
+      else  // 其后或其前
+      if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后输入内容
+      begin
+        if (vCarteItemNo < Items.Count - 1)
+          and (Items[vCarteItemNo + 1].StyleNo > THCStyle.RsNull)
+          and (not Items[vCarteItemNo + 1].ParaFirst)
+        then  // 下一个是TextItem且不是段首，则合并到下一个开始
+        begin
+          Inc(vCarteItemNo);
+          SelectInfo.StartItemNo := vCarteItemNo;
+          SelectInfo.StartItemOffset := 0;
+          Self.Style.CurStyleNo := Items[vCarteItemNo].StyleNo;
+          Result := DoTextItemInsert;  // 在下一个TextItem前面插入
+        end
+        else  // 最后或下一个还是RectItem或当前是段尾
+        begin
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.Text := AText;
+          SelectInfo.StartItemNo := vCarteItemNo + 1;
+          Result := InsertItem(SelectInfo.StartItemNo, vNewItem, False);  // 在两个RectItem中间插入
+        end;
+      end
+      else  // 在其前输入内容
+      begin
+        if (vCarteItemNo > 0)
+          and (Items[vCarteItemNo - 1].StyleNo > THCStyle.RsNull)
+          and (not Items[vCarteItemNo].ParaFirst)
+        then  // 前一个是TextItem，当前不是段首，合并到前一个尾
+        begin
+          Dec(vCarteItemNo);
+          SelectInfo.StartItemNo := vCarteItemNo;
+          SelectInfo.StartItemOffset := Items[vCarteItemNo].Length;
+          Self.Style.CurStyleNo := Items[vCarteItemNo].StyleNo;
+          Result := DoTextItemInsert  // 在前一个后面插入
+        end
+        else  // 最前或前一个还是RectItem
+        begin
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.Text := AText;
+          Result := InsertItem(SelectInfo.StartItemNo, vNewItem, True);  // 在两个RectItem中间插入
+        end;
+      end;
+    end
+    else
+      Result := DoTextItemInsert;
+  end
+  else
+    Result := InsertBreak;  // 空的按回车新行处理
 end;
 
 procedure THCCustomRichData.DoItemInsert(const AItem: THCCustomItem);
@@ -952,7 +1162,7 @@ end;
 
 function THCCustomRichData.EnableUndo: Boolean;
 begin
-  Result := True;
+  Result := Style.EnableUndo;
 end;
 
 procedure THCCustomRichData.Redo(const ARedo: THCCustomUndo);
@@ -1012,6 +1222,7 @@ begin
   end;
 
   inherited Clear;
+  SetEmptyData;
   InitializeField;
 end;
 
@@ -1631,7 +1842,19 @@ begin
     Beep; //MessageBeep(MB_OK);
 end;
 
+function THCCustomRichData.CheckInsertItemCount(const AStartNo,
+  AEndNo: Integer): Integer;
+begin
+  Result := AEndNo - AStartNo + 1;  // 默认原数返回
+end;
+
 procedure THCCustomRichData.InitializeField;
+begin
+  InitializeMouseField;
+  inherited InitializeField;
+end;
+
+procedure THCCustomRichData.InitializeMouseField;
 begin
   FMouseLBDowning := False;
   FMouseDownItemNo := -1;
@@ -1639,10 +1862,8 @@ begin
   FMouseMoveItemNo := -1;
   FMouseMoveItemOffset := -1;
   FMouseMoveRestrain := False;
-  //CaretDrawItemNo := -1;  // 直接在这里处理的话，表格上某单元格回车，导致单元格失去光标
   FSelecting := False;
   FDraging := False;
-  inherited InitializeField;
 end;
 
 function THCCustomRichData.InsertBreak: Boolean;
@@ -1671,7 +1892,7 @@ begin
 
   //-------- 在指定的Index处插入Item --------//
 
-  //DeleteSelection;  // 如果正在选中区域中那么有歧义所以暂时不删除选中
+  //DeleteSelection;  // 如果正在选中区域中那么删除后AIndex会越界，所以调用此方法前需要处于未选中状态
   AItem.ParaNo := Style.CurParaNo;
   {if AItem is THCTextItem then  // 插入TextItem Item创建时处理好当前样式了
   begin
@@ -1801,19 +2022,33 @@ begin
           Items[AIndex].Text := AItem.Text + Items[AIndex].Text;
 
           ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo, 0);
-          ReSetSelectAndCaret(AIndex);
+          ReSetSelectAndCaret(AIndex, AItem.Length);
 
           vMerged := True;
         end;
       end;
     end;
 
-    if not vMerged then  // 不和插入位置前后Item合并
+    if not vMerged then  // 不能和插入位置前及插入位置处的Item合并
     begin
-      if (AIndex < Items.Count)
+      if AOffsetBefor and (not AItem.ParaFirst) then  // 在原位置Item前面插入，且没标明是否段起始，根据环境自适应
+      begin
+        AItem.ParaFirst := Items[AIndex].ParaFirst;
+        if Items[AIndex].ParaFirst then  // 下一段开始变为非开始，如果要独立为一段去掉此判断即可
+        begin
+          Undo_ItemParaFirst(AIndex, 0, False);
+          Items[AIndex].ParaFirst := False;
+        end;
+      end;
+
+      Items.Insert(AIndex, AItem);
+      Undo_InsertItem(AIndex, 0);
+      ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + 1, 1);
+
+      {if (AIndex < Items.Count)
         and (Items[AIndex].StyleNo > THCStyle.RsNull)
         and (Items[AIndex].Text = '')
-      then  // 插入位置处是空行，替换当前
+      then  // 插入位置处现在的Item是空行，替换当前
       begin
         AItem.ParaFirst := Items[AIndex].ParaFirst;
 
@@ -1840,7 +2075,7 @@ begin
         Items.Insert(AIndex, AItem);
         Undo_InsertItem(AIndex, 0);
         ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + 1, 1);
-      end;
+      end; }
 
       ReSetSelectAndCaret(AIndex);
     end;
@@ -1968,7 +2203,8 @@ function THCCustomRichData.InsertStream(const AStream: TStream;
 var
   vInsPos, vFormatFirstItemNo, vFormatLastItemNo: Integer;
   vItem, vAfterItem: THCCustomItem;
-  i, vItemCount, vStyleNo: Integer;
+  i, vItemCount, vStyleNo, vOffsetStart, vInsetLastNo, vCaretOffse: Integer;
+  vInsertBefor: Boolean;
   vDataSize: Int64;
 begin
   Result := False;
@@ -1976,6 +2212,7 @@ begin
   if not CanEdit then Exit;
 
   vAfterItem := nil;
+  vInsertBefor := False;
 
   Undo_StartGroup(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
@@ -2001,7 +2238,7 @@ begin
         end
         else
         if SelectInfo.StartItemOffset = OffsetBefor then  // 其前
-          //vIns := vCurItemNo
+          vInsertBefor := True
         else  // 其后
           vInsPos := vInsPos + 1;
       end
@@ -2012,7 +2249,7 @@ begin
           vInsPos := vInsPos + 1
         else
         if SelectInfo.StartItemOffset = 0 then  // 其前
-          //vIns := vCurItemNo
+          vInsertBefor := Items[vInsPos].Length <> 0
         else  // 其中
         begin
           Undo_StartRecord;
@@ -2062,32 +2299,52 @@ begin
         vItem.ParaNo := Style.CurParaNo;
       end;
 
-      if (i = 0) and (vInsPos > 0) then  // 第一个不是在开始插入(粘贴)
-        vItem.ParaFirst := False;
+      if i = 0 then  // 插入的第一个Item
+      begin
+        if vInsertBefor then  // 第一个在某Item最前面插入(粘贴)
+        begin
+          vItem.ParaFirst := Items[vInsPos].ParaFirst;
+
+          if Items[vInsPos].ParaFirst then
+          begin
+            Undo_ItemParaFirst(vInsPos, 0, False);
+            Items[vInsPos].ParaFirst := False;
+          end;
+        end
+        else
+          vItem.ParaFirst := False
+      end;
 
       Items.Insert(vInsPos + i, vItem);
       Undo_InsertItem(vInsPos + i, 0);
     end;
 
+    vItemCount := CheckInsertItemCount(vInsPos, vInsPos + vItemCount - 1);  // 检查插入的Item是否合格并删除不合格
+
+    vInsetLastNo := vInsPos + vItemCount - 1;  // 光标在最后一个Item
+    if Items[vInsetLastNo].StyleNo < THCStyle.RsNull then
+      vCaretOffse := OffsetAfter
+    else
+      vCaretOffse := Items[vInsetLastNo].Length;  // 最后一个Item后面
+
     if vAfterItem <> nil then  // 插入操作是在Item中间，原Item补拆分成2个
     begin
-      if MergeItemText(Items[vInsPos + vItemCount - 1], vAfterItem) then
+      if MergeItemText(Items[vInsetLastNo], vAfterItem) then  // 插入最后一个和后半部分能合并
       begin
-        Undo_InsertText(vInsPos + vItemCount - 1,
-          Items[vInsPos + vItemCount - 1].Length - vAfterItem.Length + 1, vAfterItem.Text);
+        Undo_InsertText(vInsetLastNo, Items[vInsetLastNo].Length - vAfterItem.Length + 1, vAfterItem.Text);
 
         FreeAndNil(vAfterItem);
       end
-      else
+      else  // 插入最后一个和后半部分不能合并
       begin
-        Items.Insert(vInsPos + vItemCount, vAfterItem);
-        Undo_InsertItem(vInsPos + vItemCount, 0);
+        Items.Insert(vInsetLastNo + 1, vAfterItem);
+        Undo_InsertItem(vInsetLastNo + 1, 0);
 
         Inc(vItemCount);
       end;
     end;
 
-    if (vInsPos > vFormatFirstItemNo) and (vInsPos > 0) then
+    if {(vInsPos > vFormatFirstItemNo) and} (vInsPos > 0) then  // 在格式化起始位置后插入且不是第0个位置
     begin
       if Items[vInsPos - 1].Length = 0 then  // 插入位置前面是空行Item
       begin
@@ -2095,24 +2352,56 @@ begin
         Items[vInsPos].ParaFirst := Items[vInsPos - 1].ParaFirst;
 
         Undo_DeleteItem(vInsPos - 1, 0);
-        Items.Delete(vInsPos - 1);
+        Items.Delete(vInsPos - 1);  // 删除空行
 
         Dec(vItemCount);
+        Dec(vInsetLastNo);
       end
-      else
-      if MergeItemText(Items[vInsPos - 1], Items[vInsPos]) then  // 插入的和前面的合并
+      else  // 插入位置前面不是空行Item
       begin
-        Undo_InsertText(vInsPos - 1, Items[vInsPos - 1].Length + 1, Items[vInsPos].Text);
-        Undo_DeleteItem(vInsPos, 0);
+        vOffsetStart := Items[vInsPos - 1].Length;
+        if (not Items[vInsPos].ParaFirst)
+          and MergeItemText(Items[vInsPos - 1], Items[vInsPos])
+        then  // 插入的和前面的合并
+        begin
+          Undo_InsertText(vInsPos - 1, Items[vInsPos - 1].Length + 1, Items[vInsPos].Text);
+          Undo_DeleteItem(vInsPos, 0);
 
-        Items.Delete(vInsPos);
+          if vItemCount = 1 then
+            vCaretOffse := vOffsetStart + vCaretOffse;
+
+          Items.Delete(vInsPos);
+          Dec(vItemCount);
+          Dec(vInsetLastNo);
+        end;
+      end;
+
+      if (vInsetLastNo < Items.Count - 1)  // 插入最后Item和后面的能合并
+        and (not Items[vInsetLastNo + 1].ParaFirst)
+        and MergeItemText(Items[vInsetLastNo], Items[vInsetLastNo + 1])
+      then
+      begin
+        Undo_DeleteItem(vInsetLastNo + 1, 0);
+
+        Items.Delete(vInsetLastNo + 1);
+        Dec(vItemCount);
+      end;
+    end
+    else  // 在最开始第0个位置处插入
+    //if (vInsetLastNo < Items.Count - 1) then
+    begin
+      if MergeItemText(Items[vInsetLastNo], Items[vInsetLastNo + 1 {vInsPos + vItemCount}]) then  // 可以和插入前0位置的合并
+      begin
+        Undo_DeleteItem(vInsPos + vItemCount, 0);
+
+        Items.Delete(vInsPos + vItemCount);
         Dec(vItemCount);
       end;
     end;
 
     ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + vItemCount, vItemCount);
 
-    ReSetSelectAndCaret(vInsPos + vItemCount - 1);  // 选中插入内容最后Item位置
+    ReSetSelectAndCaret(vInsetLastNo, vCaretOffse);  // 选中插入内容最后Item位置
   finally
     Undo_EndGroup(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   end;
@@ -2258,27 +2547,6 @@ end;
 
 function THCCustomRichData.InsertText(const AText: string): Boolean;
 var
-  vNewPara: Boolean;
-
-  {$REGION ' InsertTextItem '}
-  procedure InsertTextItem(const AText: string);
-  var
-    vItem: THCCustomItem;
-  begin
-    if AText <> '' then
-    begin
-      vItem := CreateDefaultTextItem;
-      vItem.Text := AText;
-      vItem.ParaFirst := vNewPara;
-      Result := InsertItem(vItem);
-      vNewPara := True;
-    end
-    else  // 通过#13#10的过滤后为空的按回车处理
-      InsertBreak;
-  end;
-  {$ENDREGION}
-
-var
   vPCharStart, vPCharEnd, vPtr: PChar;
   vS: string;
 begin
@@ -2286,7 +2554,8 @@ begin
 
   if not CanEdit then Exit;
 
-  vNewPara := False;
+  DeleteSelected;
+
   vPCharStart := PChar(AText);
   vPCharEnd := vPCharStart + Length(AText);
   if vPCharStart = vPCharEnd then Exit;
@@ -2297,7 +2566,7 @@ begin
       #13:
         begin
           System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-          InsertTextItem(vS);
+          Result := DoInsertText(vS);
           Inc(vPtr);
           vPCharStart := vPtr;
           Continue;
@@ -2313,9 +2582,20 @@ begin
 
     Inc(vPtr);
   end;
+
   System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-  InsertTextItem(vS);
-  Result := True;
+
+  Result := DoInsertText(vS);
+
+  Style.UpdateInfoRePaint;
+  Style.UpdateInfoReCaret;
+  Style.UpdateInfoReScroll;
+end;
+
+function THCCustomRichData.IsSelectSeekStart: Boolean;
+begin
+  Result := (FSelectSeekNo = SelectInfo.StartItemNo) and
+    (FSelectSeekOffset = SelectInfo.StartItemOffset);
 end;
 
 procedure THCCustomRichData.KeyDown(var Key: Word; Shift: TShiftState);
@@ -2327,17 +2607,13 @@ procedure THCCustomRichData.KeyDown(var Key: Word; Shift: TShiftState);
       and (SelectInfo.StartItemOffset = SelectInfo.EndItemOffset)
     then
     begin
+      Items[SelectInfo.EndItemNo].DisSelect;
+
       SelectInfo.EndItemNo := -1;
       SelectInfo.EndItemOffset := -1;
     end;
   end;
   {$ENDREGION}
-
-  function IsSelectSeekStart: Boolean;
-  begin
-    Result := (FSelectSeekNo = SelectInfo.StartItemNo) and
-      (FSelectSeekOffset = SelectInfo.StartItemOffset);
-  end;
 
   procedure SetSelectSeekStart;
   begin
@@ -2383,21 +2659,22 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION 'LeftKeyDown 左方向键，此处不会涉及表格，表格在RectItemKeyDown中处理了'}
+  {$REGION ' LeftKeyDown 左方向键 '}
   procedure LeftKeyDown;
 
     procedure SelectPrio(var AItemNo, AOffset: Integer);
     begin
-      if AOffset > 0 then
+      if AOffset > 0 then  // 偏移不在最开始，当前Item往前
       begin
-        if Items[AItemNo].StyleNo < THCStyle.RsNull then
-          AOffset := OffsetBefor
+        if Items[AItemNo].StyleNo > THCStyle.RsNull then
+          AOffset := AOffset - 1
         else
-          AOffset := AOffset - 1;
+          AOffset := OffsetBefor;
       end
       else
-      if AItemNo > 0 then
+      if AItemNo > 0then  // 在最开头，往前一个最后
       begin
+        Items[AItemNo].DisSelect;
         AItemNo := AItemNo - 1;
         if Items[AItemNo].StyleNo < THCStyle.RsNull then
           AOffset := OffsetBefor
@@ -2448,6 +2725,15 @@ var
       end
       else  // 没有选中
       begin
+        if (SelectInfo.StartItemNo > 0) and (SelectInfo.StartItemOffset = 0) then  // 在Item最前面往前
+        begin
+          SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+          if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull then
+            SelectInfo.StartItemOffset := OffsetAfter
+          else
+            SelectInfo.StartItemOffset := Items[SelectInfo.StartItemNo].Length;
+        end;
+
         SelectInfo.EndItemNo := SelectInfo.StartItemNo;
         SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
 
@@ -2585,6 +2871,24 @@ var
       end
       else   // 没有选中
       begin
+        if SelectInfo.StartItemNo < Items.Count - 1 then
+        begin
+          if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull then
+          begin
+            if SelectInfo.StartItemOffset = OffsetAfter then
+            begin
+              SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+              SelectInfo.StartItemOffset := 0;
+            end;
+          end
+          else
+          if SelectInfo.StartItemOffset = Items[SelectInfo.StartItemNo].Length then
+          begin
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+            SelectInfo.StartItemOffset := 0;
+          end;
+        end;
+
         SelectInfo.EndItemNo := SelectInfo.StartItemNo;
         SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
 
@@ -2646,6 +2950,460 @@ var
   end;
   {$ENDREGION}
 
+  {$REGION 'HomeKeyDown 按键'}
+  procedure HomeKeyDown;
+  var
+    vFirstDItemNo, vLastDItemNo: Integer;
+  begin
+    if Shift = [ssShift] then  // Shift+Home
+    begin
+      // 取行首DrawItem
+      vFirstDItemNo := GetDrawItemNoByOffset(FSelectSeekNo, FSelectSeekOffset);  // GetSelectStartDrawItemNo
+      while vFirstDItemNo > 0 do
+      begin
+        if DrawItems[vFirstDItemNo].LineFirst then
+          Break
+        else
+          Dec(vFirstDItemNo);
+      end;
+
+      if SelectInfo.EndItemNo >= 0 then  // 有选中内容
+      begin
+        if IsSelectSeekStart then  // 游标在选中起始
+        begin
+          SelectInfo.StartItemNo := DrawItems[vFirstDItemNo].ItemNo;
+          SelectInfo.StartItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
+          SetSelectSeekStart;
+        end
+        else  // 游标在选中结束
+        begin
+          if DrawItems[vFirstDItemNo].ItemNo > SelectInfo.StartItemNo then
+          begin
+            SelectInfo.EndItemNo := DrawItems[vFirstDItemNo].ItemNo;
+            SelectInfo.EndItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
+            SetSelectSeekEnd;
+          end
+          else
+          if DrawItems[vFirstDItemNo].ItemNo = SelectInfo.StartItemNo then
+          begin
+            if DrawItems[vFirstDItemNo].CharOffs - 1 > SelectInfo.StartItemOffset then
+            begin
+              SelectInfo.EndItemNo := SelectInfo.StartItemNo;
+              SelectInfo.EndItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
+              SetSelectSeekEnd;
+            end;
+          end
+          else
+          begin
+            SelectInfo.EndItemNo := SelectInfo.StartItemNo;
+            SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
+            SelectInfo.StartItemNo := DrawItems[vFirstDItemNo].ItemNo;
+            SelectInfo.StartItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
+            SetSelectSeekStart;
+          end;
+        end;
+      end
+      else   // 没有选中
+      begin
+        SelectInfo.EndItemNo := SelectInfo.StartItemNo;
+        SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
+        SelectInfo.StartItemNo := DrawItems[vFirstDItemNo].ItemNo;
+        SelectInfo.StartItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
+        SetSelectSeekStart;
+      end;
+
+      CheckSelectEndEff;
+      MatchItemSelectState;
+      Style.UpdateInfoRePaint;
+    end
+    else
+    begin
+      if vSelectExist then  // 有选中内容
+      begin
+        SelectInfo.EndItemNo := -1;
+        SelectInfo.EndItemOffset := -1;
+      end
+      else  // 无选中内容
+      begin
+        vFirstDItemNo := GetSelectStartDrawItemNo;
+        GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);
+        SelectInfo.StartItemNo := DrawItems[vFirstDItemNo].ItemNo;
+        SelectInfo.StartItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
+      end;
+
+      if Key <> 0 then
+        CaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+    end;
+  end;
+  {$ENDREGION}
+
+  {$REGION 'EndKeyDown 按键'}
+  procedure EndKeyDown;
+  var
+    vFirstDItemNo, vLastDItemNo: Integer;
+  begin
+    if Shift = [ssShift] then  // Shift+End
+    begin
+      // 取行尾DrawItem
+      vLastDItemNo := GetDrawItemNoByOffset(FSelectSeekNo, FSelectSeekOffset);// GetSelectEndDrawItemNo;
+      vLastDItemNo := vLastDItemNo + 1;
+      while vLastDItemNo < DrawItems.Count do
+      begin
+        if DrawItems[vLastDItemNo].LineFirst then
+          Break
+        else
+          Inc(vLastDItemNo);
+      end;
+      Dec(vLastDItemNo);
+
+      if SelectInfo.EndItemNo >= 0 then  // 有选中内容
+      begin
+        if IsSelectSeekStart then  // 游标在选中起始
+        begin
+          if DrawItems[vLastDItemNo].ItemNo > SelectInfo.EndItemNo then  // 仍然在结束前面
+          begin
+            SelectInfo.StartItemNo := DrawItems[vLastDItemNo].ItemNo;
+            SelectInfo.StartItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+            SetSelectSeekStart;
+          end
+          else
+          if DrawItems[vLastDItemNo].ItemNo = SelectInfo.EndItemNo then
+          begin
+            SelectInfo.StartItemNo := SelectInfo.EndItemNo;
+            if DrawItems[vLastDItemNo].CharOffsetEnd < SelectInfo.EndItemOffset then
+            begin
+              SelectInfo.StartItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+              SetSelectSeekStart;
+            end
+            else
+            begin
+              SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
+              SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+              SetSelectSeekEnd;
+            end;
+          end
+          else
+          begin
+            SelectInfo.StartItemNo := SelectInfo.EndItemNo;
+            SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
+            SelectInfo.EndItemNo := DrawItems[vLastDItemNo].ItemNo;
+            SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+            SetSelectSeekEnd;
+          end;
+        end
+        else  // 游标在选中结束
+        begin
+          SelectInfo.EndItemNo := DrawItems[vLastDItemNo].ItemNo;
+          SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+          SetSelectSeekEnd;
+        end;
+      end
+      else   // 没有选中
+      begin
+        SelectInfo.EndItemNo := DrawItems[vLastDItemNo].ItemNo;
+        SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+        SetSelectSeekEnd;
+      end;
+
+      CheckSelectEndEff;
+      MatchItemSelectState;
+      Style.UpdateInfoRePaint;
+    end
+    else
+    begin
+      if vSelectExist then  // 有选中内容
+      begin
+        SelectInfo.StartItemNo := SelectInfo.EndItemNo;
+        SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
+        SelectInfo.EndItemNo := -1;
+        SelectInfo.EndItemOffset := -1;
+      end
+      else  // 无选中内容
+      begin
+        vFirstDItemNo := GetSelectStartDrawItemNo;
+        GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);
+        SelectInfo.StartItemNo := DrawItems[vLastDItemNo].ItemNo;
+        SelectInfo.StartItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+      end;
+
+      if Key <> 0 then
+        CaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+    end;
+  end;
+  {$ENDREGION}
+
+  {$REGION 'UpKeyDown 上方向按键'}
+  procedure UpKeyDown;
+
+    function GetUpDrawItemNo(var ADrawItemNo, ADrawItemOffset: Integer): Boolean;
+    var
+      i, vFirstDItemNo, vLastDItemNo, vX: Integer;
+    begin
+      Result := False;
+      vFirstDItemNo := ADrawItemNo;
+      GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);  // 当前行起始结束DrawItemNo
+      if vFirstDItemNo > 0 then  // 当前行不是第一行
+      begin
+        Result := True;
+        // 获取当前光标X位置
+        vX := DrawItems[ADrawItemNo].Rect.Left + GetDrawItemOffsetWidth(ADrawItemNo, ADrawItemOffset);
+
+        // 获取上一行在X位置对应的DItem和Offset
+        vFirstDItemNo := vFirstDItemNo - 1;
+        GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);  // 上一行起始和结束DItem
+
+        for i := vFirstDItemNo to vLastDItemNo do
+        begin
+          if DrawItems[i].Rect.Right > vX then
+          begin
+            ADrawItemNo := i;
+            ADrawItemOffset := DrawItems[i].CharOffs + GetDrawItemOffset(i, vX) - 1;
+
+            Exit;  // 有合适，则退出
+          end;
+        end;
+
+        // 没合适则选择到最后
+        ADrawItemNo := vLastDItemNo;
+        ADrawItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+      end
+    end;
+
+  var
+    vDrawItemNo, vDrawItemOffset: Integer;
+  begin
+    if Shift = [ssShift] then  // Shift+Up
+    begin
+      if SelectInfo.EndItemNo >= 0 then  // 有选中内容
+      begin
+        if IsSelectSeekStart then  // 游标在选中起始
+        begin
+          vDrawItemNo := GetSelectStartDrawItemNo;
+          vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
+          if GetUpDrawItemNo(vDrawItemNo, vDrawItemOffset) then
+          begin
+            SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
+            SelectInfo.StartItemOffset := vDrawItemOffset;
+            SetSelectSeekStart;
+          end;
+        end
+        else  // 游标在选中结束
+        begin
+          vDrawItemNo := GetSelectEndDrawItemNo;
+          vDrawItemOffset := SelectInfo.EndItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
+          if GetUpDrawItemNo(vDrawItemNo, vDrawItemOffset) then
+          begin
+            if DrawItems[vDrawItemNo].ItemNo > SelectInfo.StartItemNo then  // 移动到起始后面的Item上
+            begin
+              SelectInfo.EndItemNo := vDrawItemNo;
+              SelectInfo.EndItemOffset := vDrawItemOffset;
+              SetSelectSeekEnd;
+            end
+            else
+            if DrawItems[vDrawItemNo].ItemNo = SelectInfo.StartItemNo then  // 移动到起始Item中
+            begin
+              SelectInfo.EndItemNo := SelectInfo.StartItemNo;
+              if vDrawItemOffset > SelectInfo.StartItemOffset then  // 移动在起始Offset后面
+              begin
+                SelectInfo.EndItemOffset := vDrawItemOffset;
+                SetSelectSeekEnd;
+              end
+              else  // 移动到起始Offset前面
+              begin
+                SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
+                SelectInfo.StartItemOffset := vDrawItemOffset;
+                SetSelectSeekStart;
+              end;
+            end
+            else  // 移动到起始Item前面了
+            begin
+              SelectInfo.EndItemNo := SelectInfo.StartItemNo;
+              SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
+              SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
+              SelectInfo.StartItemOffset := vDrawItemOffset;
+              SetSelectSeekStart;
+            end;
+          end;
+        end;
+      end
+      else   // 没有选中
+      begin
+        vDrawItemNo := CaretDrawItemNo;
+        vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
+        if GetUpDrawItemNo(vDrawItemNo, vDrawItemOffset) then
+        begin
+          SelectInfo.EndItemNo := SelectInfo.StartItemNo;
+          SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
+          SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
+          SelectInfo.StartItemOffset := vDrawItemOffset;
+          SetSelectSeekStart;
+        end;
+      end;
+
+      CheckSelectEndEff;
+      MatchItemSelectState;
+      Style.UpdateInfoRePaint;
+    end
+    else  // 无Shift按下
+    begin
+      if vSelectExist then  // 有选中内容
+      begin
+        SelectInfo.EndItemNo := -1;
+        SelectInfo.EndItemOffset := -1;
+      end
+      else  // 无选中内容
+      begin
+        vDrawItemNo := CaretDrawItemNo;  // GetSelectStartDrawItemNo;
+        vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
+        if GetUpDrawItemNo(vDrawItemNo, vDrawItemOffset) then
+        begin
+          SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
+          SelectInfo.StartItemOffset := vDrawItemOffset;
+          CaretDrawItemNo := vDrawItemNo;
+        end
+        else
+          Key := 0;
+      end;
+    end;
+  end;
+  {$ENDREGION}
+
+  {$REGION 'DownKeyDown 下方向键'}
+  procedure DownKeyDown;
+
+    function GetDownDrawItemNo(var ADrawItemNo, ADrawItemOffset: Integer): Boolean;
+    var
+      i, vFirstDItemNo, vLastDItemNo, vX: Integer;
+    begin
+      Result := False;
+      vFirstDItemNo := ADrawItemNo;  // GetSelectStartDrawItemNo;
+      GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);  // 当前行起始结束DItemNo
+      if vLastDItemNo < DrawItems.Count - 1 then  // 当前行不是最后一行
+      begin
+        Result := True;
+        { 获取当前光标X位置 }
+        vX := DrawItems[ADrawItemNo].Rect.Left + GetDrawItemOffsetWidth(ADrawItemNo, ADrawItemOffset);
+
+        { 获取下一行在X位置对应的DItem和Offset }
+        vFirstDItemNo := vLastDItemNo + 1;
+        GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);  // 下一行起始和结束DItem
+
+        for i := vFirstDItemNo to vLastDItemNo do
+        begin
+          if DrawItems[i].Rect.Right > vX then
+          begin
+            ADrawItemNo := i;
+            ADrawItemOffset := DrawItems[i].CharOffs + GetDrawItemOffset(i, vX) - 1;
+
+            Exit;  // 有合适，则退出
+          end;
+        end;
+
+        { 没合适则选择到最后 }
+        ADrawItemNo := vLastDItemNo;
+        ADrawItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
+      end
+    end;
+
+  var
+    vDrawItemNo, vDrawItemOffset: Integer;
+  begin
+    if Shift = [ssShift] then  // Shift+Up
+    begin
+      if SelectInfo.EndItemNo >= 0 then  // 有选中内容
+      begin
+        if IsSelectSeekStart then  // 游标在选中起始
+        begin
+          vDrawItemNo := GetSelectStartDrawItemNo;
+          vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
+          if GetDownDrawItemNo(vDrawItemNo, vDrawItemOffset) then
+          begin
+            if DrawItems[vDrawItemNo].ItemNo < SelectInfo.EndItemNo then  // 移动到结束ItemNo前面
+            begin
+              SelectInfo.StartItemNo := SelectInfo.EndItemNo;
+              SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
+              SetSelectSeekStart;
+            end
+            else
+            if DrawItems[vDrawItemNo].ItemNo = SelectInfo.EndItemNo then  // 移动到和结束Item
+            begin
+              SelectInfo.StartItemNo := SelectInfo.EndItemNo;
+              if vDrawItemOffset < SelectInfo.EndItemOffset then  // 位置在结束Offset前面
+              begin
+                SelectInfo.StartItemOffset := vDrawItemOffset;
+                SetSelectSeekStart;
+              end
+              else  // 位置在结束Offset后面
+              begin
+                SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
+                SelectInfo.EndItemOffset := vDrawItemOffset;
+                SetSelectSeekEnd;
+              end;
+            end
+            else  // 移动到结束Item后面，交换
+            begin
+              SelectInfo.StartItemNo := SelectInfo.EndItemNo;
+              SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
+              SelectInfo.EndItemNo := DrawItems[vDrawItemNo].ItemNo;
+              SelectInfo.EndItemOffset := vDrawItemOffset;
+              SetSelectSeekEnd;
+            end;
+          end;
+        end
+        else  // 游标在选中结束
+        begin
+          vDrawItemNo := GetSelectEndDrawItemNo;
+          vDrawItemOffset := SelectInfo.EndItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
+          if GetDownDrawItemNo(vDrawItemNo, vDrawItemOffset) then
+          begin
+            SelectInfo.EndItemNo := DrawItems[vDrawItemNo].ItemNo;
+            SelectInfo.EndItemOffset := vDrawItemOffset;
+            SetSelectSeekEnd;
+          end;
+        end;
+      end
+      else   // 没有选中
+      begin
+        vDrawItemNo := CaretDrawItemNo;
+        vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
+        if GetDownDrawItemNo(vDrawItemNo, vDrawItemOffset) then
+        begin
+          SelectInfo.EndItemNo := DrawItems[vDrawItemNo].ItemNo;
+          SelectInfo.EndItemOffset := vDrawItemOffset;
+          SetSelectSeekEnd;
+        end;
+      end;
+
+      CheckSelectEndEff;
+      MatchItemSelectState;
+      Style.UpdateInfoRePaint;
+    end
+    else  // 无Shift按下
+    begin
+      if vSelectExist then  // 有选中内容
+      begin
+        SelectInfo.StartItemNo := SelectInfo.EndItemNo;
+        SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
+        SelectInfo.EndItemNo := -1;
+        SelectInfo.EndItemOffset := -1;
+      end
+      else  // 无选中内容
+      begin
+        vDrawItemNo := CaretDrawItemNo;  // GetSelectStartDrawItemNo;
+        vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
+        if GetDownDrawItemNo(vDrawItemNo, vDrawItemOffset) then
+        begin
+          SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
+          SelectInfo.StartItemOffset := vDrawItemOffset;
+          CaretDrawItemNo := vDrawItemNo;
+        end
+        else  // 当前行是最后一行
+          Key := 0;
+      end;
+    end;
+  end;
+  {$ENDREGION}
+
   {$REGION 'RectItemKeyDown Rect类型Item的KeyDown事件'}
   procedure RectItemKeyDown;
   var
@@ -2693,19 +3451,22 @@ var
 
         VK_RIGHT:
           begin
-            if vRectItem.WantKeyDown(Key, Shift) then
-              SelectInfo.StartItemOffset := OffsetInner
+            if Shift = [ssShift] then  // Shift+方向键选择
+              RightKeyDown
             else
-              SelectInfo.StartItemOffset := OffsetAfter;
+            begin
+              if vRectItem.WantKeyDown(Key, Shift) then
+                SelectInfo.StartItemOffset := OffsetInner
+              else
+                SelectInfo.StartItemOffset := OffsetAfter;
 
-            CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+              CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+            end;
           end;
 
-        VK_END:
-          begin
-            SelectInfo.StartItemOffset := OffsetAfter;
-            CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
-          end;
+        VK_END: EndKeyDown;
+
+        VK_HOME: HomeKeyDown;
 
         VK_RETURN:
           begin
@@ -2833,6 +3594,8 @@ var
                   SelectInfo.StartItemOffset := Items[SelectInfo.StartItemNo].Length;
               end;
             end;
+
+            ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
           end;
 
         VK_TAB:
@@ -2905,22 +3668,24 @@ var
 
         VK_LEFT:
           begin
-            if vRectItem.WantKeyDown(Key, Shift) then
-              SelectInfo.StartItemOffset := OffsetInner
+            if Shift = [ssShift] then  // Shift+方向键选择
+              LeftKeyDown
             else
-              SelectInfo.StartItemOffset := OffsetBefor;
+            begin
+              if vRectItem.WantKeyDown(Key, Shift) then
+                SelectInfo.StartItemOffset := OffsetInner
+              else
+                SelectInfo.StartItemOffset := OffsetBefor;
 
-            CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+              CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+            end;
           end;
 
-        VK_RIGHT:
-          RightKeyDown;
+        VK_RIGHT: RightKeyDown;
 
-        VK_HOME:
-          begin
-            SelectInfo.StartItemOffset := OffsetBefor;
-            CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
-          end;
+        VK_END: EndKeyDown;
+
+        VK_HOME: HomeKeyDown;
 
         VK_RETURN:
           begin
@@ -3479,463 +4244,11 @@ var
 
         System.Delete(vText, SelectInfo.StartItemOffset, 1);
         vCurItem.Text := vText;
-        SelectInfo.StartItemOffset := SelectInfo.StartItemOffset - 1;
 
         ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
-      end;
-    end;
-  end;
-  {$ENDREGION}
 
-  {$REGION 'HomeKeyDown 按键'}
-  procedure HomeKeyDown;
-  var
-    vFirstDItemNo, vLastDItemNo: Integer;
-  begin
-    if Shift = [ssShift] then  // Shift+Home
-    begin
-      // 取行首DrawItem
-      vFirstDItemNo := GetDrawItemNoByOffset(FSelectSeekNo, FSelectSeekOffset);  // GetSelectStartDrawItemNo
-      while vFirstDItemNo > 0 do
-      begin
-        if DrawItems[vFirstDItemNo].LineFirst then
-          Break
-        else
-          Dec(vFirstDItemNo);
-      end;
-
-      if SelectInfo.EndItemNo >= 0 then  // 有选中内容
-      begin
-        if IsSelectSeekStart then  // 游标在选中起始
-        begin
-          SelectInfo.StartItemNo := DrawItems[vFirstDItemNo].ItemNo;
-          SelectInfo.StartItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
-          SetSelectSeekStart;
-        end
-        else  // 游标在选中结束
-        begin
-          if DrawItems[vFirstDItemNo].ItemNo > SelectInfo.StartItemNo then
-          begin
-            SelectInfo.EndItemNo := DrawItems[vFirstDItemNo].ItemNo;
-            SelectInfo.EndItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
-            SetSelectSeekEnd;
-          end
-          else
-          if DrawItems[vFirstDItemNo].ItemNo = SelectInfo.StartItemNo then
-          begin
-            if DrawItems[vFirstDItemNo].CharOffs - 1 > SelectInfo.StartItemOffset then
-            begin
-              SelectInfo.EndItemNo := SelectInfo.StartItemNo;
-              SelectInfo.EndItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
-              SetSelectSeekEnd;
-            end;
-          end
-          else
-          begin
-            SelectInfo.EndItemNo := SelectInfo.StartItemNo;
-            SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
-            SelectInfo.StartItemNo := DrawItems[vFirstDItemNo].ItemNo;
-            SelectInfo.StartItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
-            SetSelectSeekStart;
-          end;
-        end;
-      end
-      else   // 没有选中
-      begin
-        SelectInfo.EndItemNo := SelectInfo.StartItemNo;
-        SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
-        SelectInfo.StartItemNo := DrawItems[vFirstDItemNo].ItemNo;
-        SelectInfo.StartItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
-        SetSelectSeekStart;
-      end;
-
-      CheckSelectEndEff;
-      MatchItemSelectState;
-      Style.UpdateInfoRePaint;
-    end
-    else
-    begin
-      if vSelectExist then  // 有选中内容
-      begin
-        SelectInfo.EndItemNo := -1;
-        SelectInfo.EndItemOffset := -1;
-      end
-      else  // 无选中内容
-      begin
-        vFirstDItemNo := GetSelectStartDrawItemNo;
-        GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);
-        SelectInfo.StartItemNo := DrawItems[vFirstDItemNo].ItemNo;
-        SelectInfo.StartItemOffset := DrawItems[vFirstDItemNo].CharOffs - 1;
-      end;
-
-      if Key <> 0 then
-        CaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
-    end;
-  end;
-  {$ENDREGION}
-
-  {$REGION 'EndKeyDown 按键'}
-  procedure EndKeyDown;
-  var
-    vFirstDItemNo, vLastDItemNo: Integer;
-  begin
-    if Shift = [ssShift] then  // Shift+End
-    begin
-      // 取行尾DrawItem
-      vLastDItemNo := GetDrawItemNoByOffset(FSelectSeekNo, FSelectSeekOffset);// GetSelectEndDrawItemNo;
-      vLastDItemNo := vLastDItemNo + 1;
-      while vLastDItemNo < DrawItems.Count do
-      begin
-        if DrawItems[vLastDItemNo].LineFirst then
-          Break
-        else
-          Inc(vLastDItemNo);
-      end;
-      Dec(vLastDItemNo);
-
-      if SelectInfo.EndItemNo >= 0 then  // 有选中内容
-      begin
-        if IsSelectSeekStart then  // 游标在选中起始
-        begin
-          if DrawItems[vLastDItemNo].ItemNo > SelectInfo.EndItemNo then  // 仍然在结束前面
-          begin
-            SelectInfo.StartItemNo := DrawItems[vLastDItemNo].ItemNo;
-            SelectInfo.StartItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-            SetSelectSeekStart;
-          end
-          else
-          if DrawItems[vLastDItemNo].ItemNo = SelectInfo.EndItemNo then
-          begin
-            SelectInfo.StartItemNo := SelectInfo.EndItemNo;
-            if DrawItems[vLastDItemNo].CharOffsetEnd < SelectInfo.EndItemOffset then
-            begin
-              SelectInfo.StartItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-              SetSelectSeekStart;
-            end
-            else
-            begin
-              SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
-              SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-              SetSelectSeekEnd;
-            end;
-          end
-          else
-          begin
-            SelectInfo.StartItemNo := SelectInfo.EndItemNo;
-            SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
-            SelectInfo.EndItemNo := DrawItems[vLastDItemNo].ItemNo;
-            SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-            SetSelectSeekEnd;
-          end;
-        end
-        else  // 游标在选中结束
-        begin
-          SelectInfo.EndItemNo := DrawItems[vLastDItemNo].ItemNo;
-          SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-          SetSelectSeekEnd;
-        end;
-      end
-      else   // 没有选中
-      begin
-        SelectInfo.EndItemNo := DrawItems[vLastDItemNo].ItemNo;
-        SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-        SetSelectSeekEnd;
-      end;
-
-      CheckSelectEndEff;
-      MatchItemSelectState;
-      Style.UpdateInfoRePaint;
-    end
-    else
-    begin
-      if vSelectExist then  // 有选中内容
-      begin
-        SelectInfo.StartItemNo := SelectInfo.EndItemNo;
-        SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
-        SelectInfo.EndItemNo := -1;
-        SelectInfo.EndItemOffset := -1;
-      end
-      else  // 无选中内容
-      begin
-        vFirstDItemNo := GetSelectStartDrawItemNo;
-        GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);
-        SelectInfo.StartItemNo := DrawItems[vLastDItemNo].ItemNo;
-        SelectInfo.StartItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-      end;
-
-      if Key <> 0 then
-        CaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
-    end;
-  end;
-  {$ENDREGION}
-
-  {$REGION 'UpKeyDown 上方向按键'}
-  procedure UpKeyDown;
-
-    function GetUpDrawItemNo(var ADrawItemNo, ADrawItemOffset: Integer): Boolean;
-    var
-      i, vFirstDItemNo, vLastDItemNo, vX: Integer;
-    begin
-      Result := False;
-      vFirstDItemNo := ADrawItemNo;
-      GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);  // 当前行起始结束DrawItemNo
-      if vFirstDItemNo > 0 then  // 当前行不是第一行
-      begin
-        Result := True;
-        // 获取当前光标X位置
-        vX := DrawItems[ADrawItemNo].Rect.Left + GetDrawItemOffsetWidth(ADrawItemNo, ADrawItemOffset);
-
-        // 获取上一行在X位置对应的DItem和Offset
-        vFirstDItemNo := vFirstDItemNo - 1;
-        GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);  // 上一行起始和结束DItem
-
-        for i := vFirstDItemNo to vLastDItemNo do
-        begin
-          if DrawItems[i].Rect.Right > vX then
-          begin
-            ADrawItemNo := i;
-            ADrawItemOffset := DrawItems[i].CharOffs + GetDrawItemOffset(i, vX) - 1;
-
-            Exit;  // 有合适，则退出
-          end;
-        end;
-
-        // 没合适则选择到最后
-        ADrawItemNo := vLastDItemNo;
-        ADrawItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-      end
-    end;
-
-  var
-    vDrawItemNo, vDrawItemOffset: Integer;
-  begin
-    if Shift = [ssShift] then  // Shift+Up
-    begin
-      if SelectInfo.EndItemNo >= 0 then  // 有选中内容
-      begin
-        if IsSelectSeekStart then  // 游标在选中起始
-        begin
-          vDrawItemNo := GetSelectStartDrawItemNo;
-          vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
-          if GetUpDrawItemNo(vDrawItemNo, vDrawItemOffset) then
-          begin
-            SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
-            SelectInfo.StartItemOffset := vDrawItemOffset;
-            SetSelectSeekStart;
-          end;
-        end
-        else  // 游标在选中结束
-        begin
-          vDrawItemNo := GetSelectEndDrawItemNo;
-          vDrawItemOffset := SelectInfo.EndItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
-          if GetUpDrawItemNo(vDrawItemNo, vDrawItemOffset) then
-          begin
-            if DrawItems[vDrawItemNo].ItemNo > SelectInfo.StartItemNo then  // 移动到起始后面的Item上
-            begin
-              SelectInfo.EndItemNo := vDrawItemNo;
-              SelectInfo.EndItemOffset := vDrawItemOffset;
-              SetSelectSeekEnd;
-            end
-            else
-            if DrawItems[vDrawItemNo].ItemNo = SelectInfo.StartItemNo then  // 移动到起始Item中
-            begin
-              SelectInfo.EndItemNo := SelectInfo.StartItemNo;
-              if vDrawItemOffset > SelectInfo.StartItemOffset then  // 移动在起始Offset后面
-              begin
-                SelectInfo.EndItemOffset := vDrawItemOffset;
-                SetSelectSeekEnd;
-              end
-              else  // 移动到起始Offset前面
-              begin
-                SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
-                SelectInfo.StartItemOffset := vDrawItemOffset;
-                SetSelectSeekStart;
-              end;
-            end
-            else  // 移动到起始Item前面了
-            begin
-              SelectInfo.EndItemNo := SelectInfo.StartItemNo;
-              SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
-              SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
-              SelectInfo.StartItemOffset := vDrawItemOffset;
-              SetSelectSeekStart;
-            end;
-          end;
-        end;
-      end
-      else   // 没有选中
-      begin
-        vDrawItemNo := CaretDrawItemNo;
-        vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
-        if GetUpDrawItemNo(vDrawItemNo, vDrawItemOffset) then
-        begin
-          SelectInfo.EndItemNo := SelectInfo.StartItemNo;
-          SelectInfo.EndItemOffset := SelectInfo.StartItemOffset;
-          SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
-          SelectInfo.StartItemOffset := vDrawItemOffset;
-          SetSelectSeekStart;
-        end;
-      end;
-
-      CheckSelectEndEff;
-      MatchItemSelectState;
-      Style.UpdateInfoRePaint;
-    end
-    else  // 无Shift按下
-    begin
-      if vSelectExist then  // 有选中内容
-      begin
-        SelectInfo.EndItemNo := -1;
-        SelectInfo.EndItemOffset := -1;
-      end
-      else  // 无选中内容
-      begin
-        vDrawItemNo := CaretDrawItemNo;  // GetSelectStartDrawItemNo;
-        vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
-        if GetUpDrawItemNo(vDrawItemNo, vDrawItemOffset) then
-        begin
-          SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
-          SelectInfo.StartItemOffset := vDrawItemOffset;
-          CaretDrawItemNo := vDrawItemNo;
-        end
-        else
-          Key := 0;
-      end;
-    end;
-  end;
-  {$ENDREGION}
-
-  {$REGION 'DownKeyDown 下方向键'}
-  procedure DownKeyDown;
-
-    function GetDownDrawItemNo(var ADrawItemNo, ADrawItemOffset: Integer): Boolean;
-    var
-      i, vFirstDItemNo, vLastDItemNo, vX: Integer;
-    begin
-      Result := False;
-      vFirstDItemNo := ADrawItemNo;  // GetSelectStartDrawItemNo;
-      GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);  // 当前行起始结束DItemNo
-      if vLastDItemNo < DrawItems.Count - 1 then  // 当前行不是最后一行
-      begin
-        Result := True;
-        { 获取当前光标X位置 }
-        vX := DrawItems[ADrawItemNo].Rect.Left + GetDrawItemOffsetWidth(ADrawItemNo, ADrawItemOffset);
-
-        { 获取下一行在X位置对应的DItem和Offset }
-        vFirstDItemNo := vLastDItemNo + 1;
-        GetLineDrawItemRang(vFirstDItemNo, vLastDItemNo);  // 下一行起始和结束DItem
-
-        for i := vFirstDItemNo to vLastDItemNo do
-        begin
-          if DrawItems[i].Rect.Right > vX then
-          begin
-            ADrawItemNo := i;
-            ADrawItemOffset := DrawItems[i].CharOffs + GetDrawItemOffset(i, vX) - 1;
-
-            Exit;  // 有合适，则退出
-          end;
-        end;
-
-        { 没合适则选择到最后 }
-        ADrawItemNo := vLastDItemNo;
-        ADrawItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
-      end
-    end;
-
-  var
-    vDrawItemNo, vDrawItemOffset: Integer;
-  begin
-    if Shift = [ssShift] then  // Shift+Up
-    begin
-      if SelectInfo.EndItemNo >= 0 then  // 有选中内容
-      begin
-        if IsSelectSeekStart then  // 游标在选中起始
-        begin
-          vDrawItemNo := GetSelectStartDrawItemNo;
-          vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
-          if GetDownDrawItemNo(vDrawItemNo, vDrawItemOffset) then
-          begin
-            if DrawItems[vDrawItemNo].ItemNo < SelectInfo.EndItemNo then  // 移动到结束ItemNo前面
-            begin
-              SelectInfo.StartItemNo := SelectInfo.EndItemNo;
-              SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
-              SetSelectSeekStart;
-            end
-            else
-            if DrawItems[vDrawItemNo].ItemNo = SelectInfo.EndItemNo then  // 移动到和结束Item
-            begin
-              SelectInfo.StartItemNo := SelectInfo.EndItemNo;
-              if vDrawItemOffset < SelectInfo.EndItemOffset then  // 位置在结束Offset前面
-              begin
-                SelectInfo.StartItemOffset := vDrawItemOffset;
-                SetSelectSeekStart;
-              end
-              else  // 位置在结束Offset后面
-              begin
-                SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
-                SelectInfo.EndItemOffset := vDrawItemOffset;
-                SetSelectSeekEnd;
-              end;
-            end
-            else  // 移动到结束Item后面，交换
-            begin
-              SelectInfo.StartItemNo := SelectInfo.EndItemNo;
-              SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
-              SelectInfo.EndItemNo := DrawItems[vDrawItemNo].ItemNo;
-              SelectInfo.EndItemOffset := vDrawItemOffset;
-              SetSelectSeekEnd;
-            end;
-          end;
-        end
-        else  // 游标在选中结束
-        begin
-          vDrawItemNo := GetSelectEndDrawItemNo;
-          vDrawItemOffset := SelectInfo.EndItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
-          if GetDownDrawItemNo(vDrawItemNo, vDrawItemOffset) then
-          begin
-            SelectInfo.EndItemNo := DrawItems[vDrawItemNo].ItemNo;
-            SelectInfo.EndItemOffset := vDrawItemOffset;
-            SetSelectSeekEnd;
-          end;
-        end;
-      end
-      else   // 没有选中
-      begin
-        vDrawItemNo := CaretDrawItemNo;
-        vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
-        if GetDownDrawItemNo(vDrawItemNo, vDrawItemOffset) then
-        begin
-          SelectInfo.EndItemNo := DrawItems[vDrawItemNo].ItemNo;
-          SelectInfo.EndItemOffset := vDrawItemOffset;
-          SetSelectSeekEnd;
-        end;
-      end;
-
-      CheckSelectEndEff;
-      MatchItemSelectState;
-      Style.UpdateInfoRePaint;
-    end
-    else  // 无Shift按下
-    begin
-      if vSelectExist then  // 有选中内容
-      begin
-        SelectInfo.StartItemNo := SelectInfo.EndItemNo;
-        SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
-        SelectInfo.EndItemNo := -1;
-        SelectInfo.EndItemOffset := -1;
-      end
-      else  // 无选中内容
-      begin
-        vDrawItemNo := CaretDrawItemNo;  // GetSelectStartDrawItemNo;
-        vDrawItemOffset := SelectInfo.StartItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;
-        if GetDownDrawItemNo(vDrawItemNo, vDrawItemOffset) then
-        begin
-          SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
-          SelectInfo.StartItemOffset := vDrawItemOffset;
-          CaretDrawItemNo := vDrawItemNo;
-        end
-        else  // 当前行是最后一行
-          Key := 0;
+        SelectInfo.StartItemOffset := SelectInfo.StartItemOffset - 1;
+        ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
       end;
     end;
   end;
@@ -3945,7 +4258,7 @@ begin
   if not CanEdit then Exit;
 
   if Key in [VK_BACK, VK_DELETE, VK_RETURN, VK_TAB] then
-    Self.InitializeField;  // 如果Item删除完了，原MouseMove处ItemNo可能不存在了，再MouseMove时清除旧的出错
+    Self.InitializeMouseField;  // 如果Item删除完了，原MouseMove处ItemNo可能不存在了，再MouseMove时清除旧的出错
 
   vCurItem := GetCurItem;
   if vCurItem = nil then Exit;
@@ -4000,96 +4313,39 @@ end;
 
 procedure THCCustomRichData.KeyPress(var Key: Char);
 var
-  vCurItem, vNewItem: THCCustomItem;
+  vCarteItem: THCCustomItem;
+  vRectItem: THCCustomRectItem;
   vFormatFirstItemNo, vFormatLastItemNo: Integer;
-
-  {$REGION 'RectItemKeyPress'}
-  procedure RectItemKeyPress;
-  var
-    vRectItem: THCCustomRectItem;
-  begin
-    if SelectInfo.StartItemOffset = OffsetInner then  // 在其上输入内容
-    begin
-      Undo_StartRecord;
-      Undo_ItemSelf(SelectInfo.StartItemNo, OffsetInner);
-
-      vRectItem := vCurItem as THCCustomRectItem;
-      vRectItem.KeyPress(Key);
-      if vRectItem.SizeChanged then
-      begin
-        vRectItem.SizeChanged := False;
-        GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
-        FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
-        if Key <> #0 then
-          ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
-      end;
-    end
-    else  // 其后或其前
-    begin
-      vNewItem := CreateDefaultTextItem;
-      vNewItem.Text := Key;
-      if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后输入内容
-      begin
-        { TODO : 这里需要处理其后有文本的合并问题吗？ }
-        //vNewItem.ParaFirst := False;  // 如果非占整行的Item，此处不应该为True
-        SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-        InsertItem(SelectInfo.StartItemNo, vNewItem, False);
-      end
-      else  // 在其前输入内容，补充TextItem
-      begin
-        {if vCurItem.ParaFirst then
-        begin
-          vNewItem.ParaFirst := True;
-          vCurItem.ParaFirst := False;
-        end;}
-        InsertItem(SelectInfo.StartItemNo, vNewItem);
-      end;
-    end;
-  end;
-  {$ENDREGION}
-
-var
-  vText: string;
 begin
   if not CanEdit then Exit;
 
   DeleteSelected;
 
-  vCurItem := GetCurItem;
-  if vCurItem.StyleNo < THCStyle.RsNull then
-    RectItemKeyPress
-  else  // 在TextItem中增加字符
+  vCarteItem := GetCurItem;
+  if (vCarteItem.StyleNo < THCStyle.RsNull)  // 当前位置是 RectItem
+    and (SelectInfo.StartItemOffset = OffsetInner)  // 在其上输入内容
+  then
   begin
-    if vCurItem.StyleNo = Self.Style.CurStyleNo then  // 当前样式相同
+    Undo_StartRecord;
+    Undo_ItemSelf(SelectInfo.StartItemNo, OffsetInner);
+
+    vRectItem := vCarteItem as THCCustomRectItem;
+    vRectItem.KeyPress(Key);
+    if vRectItem.SizeChanged then
     begin
-      if (vCurItem as THCTextItem).CanAccept then  // 可接受输入
-      begin
-        Undo_StartRecord;
-        Undo_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, Key);
-        vText := vCurItem.Text;
-        // 行起始为TextItem，同一行后面有RectItem时，编辑TextItem后格式化可能会将RectItem分到下一行，
-        // 所以不能直接 FormatItemPrepare(SelectInfo.StartItemNo)否则会因为格式化范围太小，
-        // 没有进行FiniLine调整行高，所以从段最后或行最后开始
-        GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
-        FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
-        Insert(Key, vText, SelectInfo.StartItemOffset + 1);
-        vCurItem.Text := vText;
-        SelectInfo.StartItemOffset := SelectInfo.StartItemOffset + 1;
+      vRectItem.SizeChanged := False;
+      GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
+      FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+      if Key <> #0 then
         ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo);
 
-        Self.InitializeField;
-        ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
-      end
-      else  // 不接受输入
-        InsertText(Key);
-    end
-    else  // 在TextItem头、中、尾没选中，但应用了新样式，以新样式处理
-      InsertText(Key);
-  end;
-
-  Style.UpdateInfoRePaint;
-  Style.UpdateInfoReCaret(False);
-  Style.UpdateInfoReScroll;
+      Style.UpdateInfoRePaint;
+      Style.UpdateInfoReCaret;
+      Style.UpdateInfoReScroll;
+    end;
+  end
+  else
+    InsertText(Key);
 end;
 
 procedure THCCustomRichData.KeyUp(var Key: Word; Shift: TShiftState);
@@ -4289,12 +4545,13 @@ end;
 
 procedure THCCustomRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
-  vOldMouseMoveItemOffset: Integer;
+  //vOldMouseMoveItemOffset,
+  vMoveDrawItemNo: Integer;
 
-  {$REGION 'AdjustSelectRang'}
+  {$REGION ' AdjustSelectRang '}
   procedure AdjustSelectRang;
 
-    {$REGION 'Item的指定偏移在最后面'}
+    {$REGION ' Item的指定偏移在最后面 '}
     function OffsetInItemAfter(const AItemNo, AOffset: Integer): Boolean;
     begin
       Result := False;
@@ -4306,16 +4563,19 @@ var
     {$ENDREGION}
 
   var
-    i, vOldStartItemNo, vOldEndItemNo, vMouseMoveItemOffset: Integer;
+    i, vOldStartItemNo, vOldEndItemNo: Integer;
+    vLeftToRight: Boolean;
   begin
+    vLeftToRight := False;
     // 记录原来选中范围
     vOldStartItemNo := SelectInfo.StartItemNo;
     vOldEndItemNo := SelectInfo.EndItemNo;
-    vMouseMoveItemOffset := FMouseMoveItemOffset;
 
     if FMouseDownItemNo < FMouseMoveItemNo then  // 从前往后选择在不同的Item
     begin
-      if OffsetInItemAfter(FMouseDownItemNo, FMouseDownItemOffset) then  // 起始在Item最后面
+      vLeftToRight := True;
+
+      if OffsetInItemAfter(FMouseDownItemNo, FMouseDownItemOffset) then  // 起始在Item最后面，改为下一个Item开始
       begin
         if FMouseDownItemNo < Items.Count - 1 then  // 起始改为下一个Item开始
         begin
@@ -4324,92 +4584,57 @@ var
         end;
       end;
 
-      if (FMouseMoveItemNo = FMouseDownItemNo)
-        and (FMouseMoveItemOffset = FMouseDownItemOffset)
-      then  // 按下位置在Item最后面，移动到按下位置后一个最前面了，处理为起始选择位置在后一个最前面
+      if (FMouseDownItemNo <> FMouseMoveItemNo) and (FMouseMoveItemNo >= 0)
+        and (FMouseMoveItemOffset = 0)
+      then  // 结束在Item最前面，改为上一个Item结束
       begin
-        SelectInfo.StartItemNo := FMouseMoveItemNo;
-        SelectInfo.StartItemOffset := FMouseMoveItemOffset;
-        SelectInfo.EndItemNo := -1;
-        SelectInfo.EndItemOffset := -1;
+        Items[FMouseMoveItemNo].DisSelect;  // 从前往后选，鼠标移动到前一次前面，原鼠标处被移出选中范围
 
-        CaretDrawItemNo := CaretDrawItemNo + 1;
-      end
-      else  // 移动和按下不在同一位置
-      begin
-        if (FMouseMoveItemOffset = 0) and (FMouseMoveItemNo >= 0) then  // 结束在Item最前面，改为上一个Item结束
-        begin
-          Items[FMouseMoveItemNo].DisSelect;  // 从前往后选，鼠标移动到前一次前面，原鼠标处被移出选中范围
-
-          FMouseMoveItemNo := FMouseMoveItemNo - 1;
-          if Items[FMouseMoveItemNo].StyleNo < THCStyle.RsNull then
-            FMouseMoveItemOffset := OffsetAfter
-          else
-            FMouseMoveItemOffset := Items[FMouseMoveItemNo].Length;
-        end;
-
-        SelectInfo.StartItemNo := FMouseDownItemNo;
-        SelectInfo.StartItemOffset := FMouseDownItemOffset;
-        SelectInfo.EndItemNo := FMouseMoveItemNo;
-        SelectInfo.EndItemOffset := FMouseMoveItemOffset;
+        FMouseMoveItemNo := FMouseMoveItemNo - 1;
+        if Items[FMouseMoveItemNo].StyleNo < THCStyle.RsNull then
+          FMouseMoveItemOffset := OffsetAfter
+        else
+          FMouseMoveItemOffset := Items[FMouseMoveItemNo].Length;
       end;
     end
     else
-    if (FMouseMoveItemNo >= 0) and (FMouseMoveItemNo < FMouseDownItemNo) then  // 从后往前选择在不同的Item
+    if FMouseMoveItemNo < FMouseDownItemNo then  // 从后往前选择在不同的Item
     begin
-      if OffsetInItemAfter(FMouseMoveItemNo, FMouseMoveItemOffset) then  // 结束在Item最后面
-      begin
-        Items[FMouseMoveItemNo].DisSelect;  // 从后往前选，鼠标移动到前一次后面，原鼠标处被移出选中范围
+      vLeftToRight := False;
 
-        if FMouseMoveItemNo < Items.Count - 1 then  // 起始改为下一个Item开始
+      if (FMouseDownItemNo > 0) and (FMouseDownItemOffset = 0) then  // 起始在Item最前面，改为上一个Item结束
+      begin
+        FMouseDownItemNo := FMouseDownItemNo - 1;
+        if Items[FMouseDownItemNo].StyleNo < THCStyle.RsNull then
+          FMouseDownItemOffset := OffsetAfter
+        else
+          FMouseDownItemOffset := Items[FMouseDownItemNo].Length;
+      end;
+
+      if (FMouseDownItemNo <> FMouseMoveItemNo)
+        and OffsetInItemAfter(FMouseMoveItemNo, FMouseMoveItemOffset)
+      then  // 结束在Item最后面，改为下一个Item开始
+      begin
+        Items[FMouseMoveItemNo].DisSelect;  // 从后往前选，鼠标移动到前一个后面，原鼠标处被移出选中范围
+
+        if FMouseMoveItemNo < Items.Count - 1 then  // 改为下一个Item开始
         begin
           FMouseMoveItemNo := FMouseMoveItemNo + 1;
           FMouseMoveItemOffset := 0;
         end;
       end;
+    end;
 
-      if (FMouseMoveItemNo = FMouseDownItemNo)
-        and (FMouseMoveItemOffset = FMouseDownItemOffset)
-      then  // 按下位置在Item最前面，移动到按下位置前一个最后面了，处理为起始选择位置在上一个最后面
-      begin
-        FMouseMoveItemNo := FMouseMoveItemNo - 1;  // 恢复上面的 + 1
-        FMouseMoveItemOffset := vMouseMoveItemOffset;
-        FMouseDownItemNo := FMouseMoveItemNo;
-        FMouseDownItemOffset := FMouseMoveItemOffset;
-
-        SelectInfo.StartItemNo := FMouseMoveItemNo;
-        SelectInfo.StartItemOffset := FMouseMoveItemOffset;
-        SelectInfo.EndItemNo := -1;
-        SelectInfo.EndItemOffset := -1;
-
-        CaretDrawItemNo := CaretDrawItemNo - 1;  // 光标在前一个最后
-      end
-      else  // 移动和按下不在同一位置
-      begin
-        if (FMouseDownItemOffset = 0) and (FMouseDownItemNo > 0) then  // 起始在Item最前面，改为上一个Item结束
-        begin
-          FMouseDownItemNo := FMouseDownItemNo - 1;
-          if Items[FMouseDownItemNo].StyleNo < THCStyle.RsNull then
-            FMouseDownItemOffset := OffsetAfter
-          else
-            FMouseDownItemOffset := Items[FMouseDownItemNo].Length;
-        end;
-
-        SelectInfo.StartItemNo := FMouseMoveItemNo;
-        SelectInfo.StartItemOffset := FMouseMoveItemOffset;
-        SelectInfo.EndItemNo := FMouseDownItemNo;
-        SelectInfo.EndItemOffset := FMouseDownItemOffset;
-      end;
-    end
-    else  // FMouseDownItemNo = FMouseMoveItemNo  // 选择操作在同一个Item中进行
+    if FMouseDownItemNo = FMouseMoveItemNo then  // 选择操作在同一个Item中进行
     begin
       if FMouseMoveItemOffset > FMouseDownItemOffset then  // 选中结束位置大于起始位置
       begin
-        SelectInfo.StartItemNo := FMouseDownItemNo;
-        SelectInfo.StartItemOffset := FMouseDownItemOffset;
-        if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull then  // RectItem
+        if Items[FMouseDownItemNo].StyleNo < THCStyle.RsNull then  // RectItem
         begin
-          if FMouseMoveItemOffset > FMouseDownItemOffset then  // 从RectItem最前面选择到了最后面(全选中)
+          SelectInfo.StartItemNo := FMouseDownItemNo;
+          SelectInfo.StartItemOffset := FMouseDownItemOffset;
+
+          if FMouseMoveItemOffset = OffsetAfter then  // 从RectItem最前面选择到了最后面(全选中)
           begin
             SelectInfo.EndItemNo := FMouseMoveItemNo;
             SelectInfo.EndItemOffset := FMouseMoveItemOffset;
@@ -4418,58 +4643,89 @@ var
           begin
             SelectInfo.EndItemNo := -1;
             SelectInfo.EndItemOffset := -1;
+            CaretDrawItemNo := vMoveDrawItemNo;
           end;
         end
         else  // TextItem
         begin
-          SelectInfo.EndItemNo := FMouseMoveItemNo;
+          SelectInfo.StartItemNo := FMouseDownItemNo;
+          SelectInfo.StartItemOffset := FMouseDownItemOffset;
+          SelectInfo.EndItemNo := FMouseDownItemNo;
           SelectInfo.EndItemOffset := FMouseMoveItemOffset;
         end;
       end
       else
       if FMouseMoveItemOffset < FMouseDownItemOffset then  // 选中结束位置小于起始位置
       begin
-        SelectInfo.StartItemNo := FMouseDownItemNo;
-        SelectInfo.StartItemOffset := FMouseMoveItemOffset;
-        if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull then  // RectItem
+        if Items[FMouseDownItemNo].StyleNo < THCStyle.RsNull then  // RectItem
         begin
-          if FMouseMoveItemOffset = OffsetBefor then
+          if FMouseMoveItemOffset = OffsetBefor then  // 从后往前选到最前面了
           begin
-            SelectInfo.EndItemNo := FMouseMoveItemNo;
+            SelectInfo.StartItemNo := FMouseDownItemNo;
+            SelectInfo.StartItemOffset := FMouseMoveItemOffset;
+            SelectInfo.EndItemNo := FMouseDownItemNo;
             SelectInfo.EndItemOffset := FMouseDownItemOffset;
           end
-          else
+          else  // 从后往前选到OffsetInner了
           begin
+            SelectInfo.StartItemNo := FMouseDownItemNo;
+            SelectInfo.StartItemOffset := FMouseDownItemOffset;
             SelectInfo.EndItemNo := -1;
             SelectInfo.EndItemOffset := -1;
+
+            CaretDrawItemNo := vMoveDrawItemNo;
           end;
         end
-        else
+        else  // TextItem
         begin
+          SelectInfo.StartItemNo := FMouseMoveItemNo;
+          SelectInfo.StartItemOffset := FMouseMoveItemOffset;
           SelectInfo.EndItemNo := FMouseMoveItemNo;
           SelectInfo.EndItemOffset := FMouseDownItemOffset;
         end;
       end
-      else  // 结束位置和起始位置相同(选择操作在同一个Item中进行)
+      else  // 结束位置和起始位置相同(同一个Item)
       begin
-        //Items[SelectInfo.StartItemNo].Active := not FMouseMoveRestrain;
         if SelectInfo.EndItemNo >= 0 then  // 同一Item中划选回到起始位置
-        begin
-          if vOldMouseMoveItemOffset < FMouseMoveItemOffset then  // 同一Item从后往前选，从前面回到起始位置
-          begin
-            //SelectInfo.StartItemNo := SelectInfo.EndItemNo;
-            SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
-          end;
-        end;
+          Items[SelectInfo.EndItemNo].DisSelect;
 
+        SelectInfo.StartItemNo := FMouseDownItemNo;
+        SelectInfo.StartItemOffset := FMouseDownItemOffset;
         SelectInfo.EndItemNo := -1;
         SelectInfo.EndItemOffset := -1;
+
+        CaretDrawItemNo := vMoveDrawItemNo;
+      end;
+    end
+    else  // 选择操作不在同一个Item
+    begin
+      if vLeftToRight then
+      begin
+        SelectInfo.StartItemNo := FMouseDownItemNo;
+        SelectInfo.StartItemOffset := FMouseDownItemOffset;
+        SelectInfo.EndItemNo := FMouseMoveItemNo;
+        SelectInfo.EndItemOffset := FMouseMoveItemOffset;
+      end
+      else
+      begin
+        SelectInfo.StartItemNo := FMouseMoveItemNo;
+        SelectInfo.StartItemOffset := FMouseMoveItemOffset;
+        SelectInfo.EndItemNo := FMouseDownItemNo;
+        SelectInfo.EndItemOffset := FMouseDownItemOffset;
       end;
     end;
 
     // 新选中范围外的清除选中
-    for i := vOldStartItemNo to SelectInfo.StartItemNo - 1 do
-      Items[i].DisSelect;
+    if vOldStartItemNo > SelectInfo.StartItemNo then
+    begin
+      for i := vOldStartItemNo downto SelectInfo.StartItemNo + 1 do
+        Items[i].DisSelect;
+    end
+    else
+    begin
+      for i := vOldStartItemNo to SelectInfo.StartItemNo - 1 do
+        Items[i].DisSelect;
+    end;
 
     if SelectInfo.EndItemNo < 0 then  // 有选中变成无选中
     begin
@@ -4496,7 +4752,7 @@ var
   {$ENDREGION}
 
 var
-  vMouseMoveItemNo, vMouseMoveItemOffset, vDrawItemNo: Integer;
+  vMouseMoveItemNo, vMouseMoveItemOffset: Integer;
   vRestrain: Boolean;
 begin
   if SelectedResizing then  // RectItem缩放ing，继续缩放
@@ -4510,9 +4766,9 @@ begin
     Exit;
   end;
 
-  vOldMouseMoveItemOffset := FMouseMoveItemOffset;
+  //vOldMouseMoveItemOffset := FMouseMoveItemOffset;
 
-  GetItemAt(X, Y, vMouseMoveItemNo, vMouseMoveItemOffset, vDrawItemNo, vRestrain);
+  GetItemAt(X, Y, vMouseMoveItemNo, vMouseMoveItemOffset, vMoveDrawItemNo, vRestrain);
 
   if FDraging or Style.UpdateInfo.Draging then  // 拖拽
   begin
@@ -4521,7 +4777,7 @@ begin
     FMouseMoveItemNo := vMouseMoveItemNo;
     FMouseMoveItemOffset := vMouseMoveItemOffset;
     FMouseMoveRestrain := vRestrain;
-    CaretDrawItemNo := vDrawItemNo;
+    CaretDrawItemNo := vMoveDrawItemNo;
 
     Style.UpdateInfoReCaret;
 
@@ -4794,11 +5050,23 @@ begin
   end;
 end;
 
-procedure THCCustomRichData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer);
+procedure THCCustomRichData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
+  const ANextWhenMid: Boolean = False);
+var
+  vDrawItemNo: Integer;
 begin
   SelectInfo.StartItemNo := AItemNo;
   SelectInfo.StartItemOffset := AOffset;
-  CaretDrawItemNo := GetDrawItemNoByOffset(AItemNo, AOffset);
+
+  vDrawItemNo := GetDrawItemNoByOffset(AItemNo, AOffset);
+  if ANextWhenMid
+    and (vDrawItemNo < DrawItems.Count - 1)
+    and (DrawItems[vDrawItemNo + 1].ItemNo = AItemNo)
+    and (DrawItems[vDrawItemNo + 1].CharOffs = AOffset + 1)
+  then
+    Inc(vDrawItemNo);
+
+  CaretDrawItemNo := vDrawItemNo;
 end;
 
 procedure THCCustomRichData.ReSetSelectAndCaret(const AItemNo: Integer);

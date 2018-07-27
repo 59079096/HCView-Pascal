@@ -15,22 +15,38 @@ interface
 
 uses
   Windows, Classes, Graphics, SysUtils, Controls, HCCustomRichData, HCCustomData,
-  HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCCustomSectionData,
-  Generics.Collections, HCParaStyle, HCTextStyle, HCRichData;
+  HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle,
+  HCTextStyle, HCRichData;
 
 type
-  THCSectionData = class(THCCustomSectionData)  // 此类中主要处理表格单元格Data不需要而正文需要的属性或事件
+  // 用于文档页眉、页脚、页面Data基类，主要用于处理文档级Data变化时特有的属性或事件
+  // 如只读状态切换，页眉、页脚、页面切换时需要通知外部控件以做界面控件状态变化，
+  // 而单元格只读切换时不需要
+  THCCustomSectionData = class(THCRichData)
+  private
+    FOnReadOnlySwitch: TNotifyEvent;
+  protected
+    procedure SetReadOnly(const Value: Boolean); override;
+  public
+    property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
+  end;
+
+  THCHeaderData = class(THCCustomSectionData);
+
+  THCFooterData = class(THCCustomSectionData);
+
+  THCPageData = class(THCCustomSectionData)  // 此类中主要处理表格单元格Data不需要而正文需要的属性或事件
   private
     FShowLineActiveMark: Boolean;  // 当前激活的行前显示标识
     FShowUnderLine: Boolean;  // 下划线
     FShowLineNo: Boolean;  // 行号
     function GetPageDataFmtTop(const APageIndex: Integer): Integer;
   protected
-    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     {$IFDEF DEBUG}
-    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemIndex: Integer;
+    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     {$ENDIF}
@@ -45,6 +61,9 @@ type
 
     /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
+
+    /// <summary> 插入批注 </summary>
+    function InsertAnnotate(const AText: string): Boolean;
     //
     // 保存
     function GetTextStr: string;
@@ -66,9 +85,9 @@ implementation
 uses
   Math, HCTextItem, HCRectItem, HCImageItem, HCTableItem, HCPageBreakItem;
 
-{ THCSectionData }
+{ THCPageData }
 
-constructor THCSectionData.Create(const AStyle: THCStyle);
+constructor THCPageData.Create(const AStyle: THCStyle);
 begin
   inherited Create(AStyle);
   FShowLineActiveMark := False;
@@ -76,13 +95,13 @@ begin
   FShowLineNo := False;
 end;
 
-procedure THCSectionData.SaveToStream(const AStream: TStream);
+procedure THCPageData.SaveToStream(const AStream: TStream);
 begin
   AStream.WriteBuffer(FShowUnderLine, SizeOf(FShowUnderLine));
   inherited SaveToStream(AStream);
 end;
 
-procedure THCSectionData.SaveToText(const AFileName: string; const AEncoding: TEncoding);
+procedure THCPageData.SaveToText(const AFileName: string; const AEncoding: TEncoding);
 var
   Stream: TStream;
 begin
@@ -94,7 +113,7 @@ begin
   end;
 end;
 
-procedure THCSectionData.SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
+procedure THCPageData.SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
 var
   Buffer, Preamble: TBytes;
 begin
@@ -106,29 +125,29 @@ begin
 end;
 
 {$IFDEF DEBUG}
-procedure THCSectionData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+procedure THCPageData.DoDrawItemPaintAfter(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   inherited;
   {$IFDEF SHOWITEMNO}
-  if ADrawItemIndex = Items[DrawItems[ADrawItemIndex].ItemNo].FirstDItemNo then  //
+  if ADrawItemNo = Items[DrawItems[ADrawItemNo].ItemNo].FirstDItemNo then  //
   {$ENDIF}
   begin
     {$IFDEF SHOWITEMNO}
-    DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr(DrawItems[ADrawItemIndex].ItemNo));
+    DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr(DrawItems[ADrawItemNo].ItemNo));
     {$ENDIF}
 
     {$IFDEF SHOWDRAWITEMNO}
-    DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr(ADrawItemIndex));
+    DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr(ADrawItemNo));
     {$ENDIF}
   end;
 end;
 {$ENDIF}
 
-procedure THCSectionData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemIndex: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+procedure THCPageData.DoDrawItemPaintBefor(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -136,17 +155,17 @@ var
   vFont: TFont;
   i, vLineNo: Integer;
 begin
-  inherited DoDrawItemPaintBefor(AData, ADrawItemIndex, ADrawRect, ADataDrawLeft,
+  inherited DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   if not APaintInfo.Print then
   begin
     if FShowLineActiveMark then  // 绘制行指示符
     begin
-      if ADrawItemIndex = GetSelectStartDrawItemNo then  // 是选中的起始DrawItem
+      if ADrawItemNo = GetSelectStartDrawItemNo then  // 是选中的起始DrawItem
       begin
         ACanvas.Pen.Color := clBlue;
         ACanvas.Pen.Style := psSolid;
-        vTop := ADrawRect.Top + DrawItems[ADrawItemIndex].Height div 2;
+        vTop := ADrawRect.Top + DrawItems[ADrawItemNo].Height div 2;
 
         ACanvas.MoveTo(ADataDrawLeft - 10, vTop);
         ACanvas.LineTo(ADataDrawLeft - 11, vTop);
@@ -168,7 +187,7 @@ begin
 
     if FShowUnderLine then  // 下划线
     begin
-      if DrawItems[ADrawItemIndex].LineFirst then
+      if DrawItems[ADrawItemNo].LineFirst then
       begin
         ACanvas.Pen.Color := clActiveBorder;
         ACanvas.Pen.Style := psSolid;
@@ -179,10 +198,10 @@ begin
 
     if FShowLineNo then  // 行号
     begin
-      if DrawItems[ADrawItemIndex].LineFirst then
+      if DrawItems[ADrawItemNo].LineFirst then
       begin
         vLineNo := 0;
-        for i := 0 to ADrawItemIndex do
+        for i := 0 to ADrawItemNo do
         begin
           if DrawItems[i].LineFirst then
             Inc(vLineNo);
@@ -208,7 +227,7 @@ begin
   end;
 end;
 
-function THCSectionData.GetTextStr: string;
+function THCPageData.GetTextStr: string;
 var
   i: Integer;
 begin
@@ -217,7 +236,16 @@ begin
     Result := Result + Items[i].Text;
 end;
 
-function THCSectionData.InsertPageBreak: Boolean;
+function THCPageData.InsertAnnotate(const AText: string): Boolean;
+//var
+//  vAnnotaeItem: TAnnotaeItem;
+begin
+  Result := False;
+  // 当前选中的内容添加批注，暂时未完成
+//  Self.InsertItem(vAnnotaeItem);
+end;
+
+function THCPageData.InsertPageBreak: Boolean;
 var
   vPageBreak: TPageBreakItem;
   vKey: Word;
@@ -236,7 +264,7 @@ begin
   Result := Self.InsertItem(vPageBreak);
 end;
 
-function THCSectionData.InsertStream(const AStream: TStream;
+function THCPageData.InsertStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word): Boolean;
 begin
   // 因为复制粘贴时并不需要FShowUnderLine，为兼容粘贴所以FShowUnderLine在LoadFromStrem时处理
@@ -244,14 +272,14 @@ begin
   inherited InsertStream(AStream, AStyle, AFileVersion);
 end;
 
-procedure THCSectionData.LoadFromStream(const AStream: TStream;
+procedure THCPageData.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   AStream.ReadBuffer(FShowUnderLine, SizeOf(FShowUnderLine));
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
 end;
 
-function THCSectionData.GetPageDataFmtTop(const APageIndex: Integer): Integer;
+function THCPageData.GetPageDataFmtTop(const APageIndex: Integer): Integer;
 //var
 //  i, vContentHeight: Integer;
 begin
@@ -266,7 +294,7 @@ begin
 //  end;
 end;
 
-procedure THCSectionData.LoadFromText(const AFileName: string; const AEncoding: TEncoding);
+procedure THCPageData.LoadFromText(const AFileName: string; const AEncoding: TEncoding);
 var
   vStream: TStream;
   vFileFormat: string;
@@ -282,7 +310,7 @@ begin
   end;
 end;
 
-procedure THCSectionData.LoadFromTextStream(AStream: TStream; AEncoding: TEncoding);
+procedure THCPageData.LoadFromTextStream(AStream: TStream; AEncoding: TEncoding);
 var
   vSize: Integer;
   vBuffer: TBytes;
@@ -298,7 +326,7 @@ begin
     InsertText(vS);
 end;
 
-procedure THCSectionData.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+procedure THCPageData.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var
   vMouseDownItemNo, vMouseDownItemOffset: Integer;
@@ -313,6 +341,19 @@ begin
   end
   else
     inherited MouseDown(Button, Shift, X, Y);
+end;
+
+{ THCCustomSectionData }
+
+procedure THCCustomSectionData.SetReadOnly(const Value: Boolean);
+begin
+  if Self.ReadOnly <> Value then
+  begin
+    inherited SetReadOnly(Value);
+
+    if Assigned(FOnReadOnlySwitch) then
+      FOnReadOnlySwitch(Self);
+  end;
 end;
 
 end.

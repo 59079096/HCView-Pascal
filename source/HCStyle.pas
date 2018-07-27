@@ -48,6 +48,7 @@ type
     FPixelsPerInchX, FPixelsPerInchY: Single;  // ÆÁÄ»1Ó¢´çdpiÊý
     FUpdateInfo: TUpdateInfo;
     FShowLineLastMark: Boolean;  // ÊÇ·ñÏÔÊ¾»»ÐÐ·û
+    FEnableUndo: Boolean;
 
     FOnInvalidateRect: TInvalidateRectEvent;
   protected
@@ -109,6 +110,7 @@ type
     property PixelsPerInchY: single read FPixelsPerInchY;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowLineLastMark: Boolean read FShowLineLastMark write SetShowLineLastMark;
+    property EnableUndo: Boolean read FEnableUndo write FEnableUndo;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
   end;
 
@@ -155,6 +157,7 @@ begin
   FBackgroudColor := $00FFFFFE;
   FSelColor := clSkyBlue;
   FShowLineLastMark := True;
+  FEnableUndo := False;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;
   FParaStyles := TObjectList<THCParaStyle>.Create;

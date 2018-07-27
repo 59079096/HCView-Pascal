@@ -30,17 +30,18 @@ type
     FCapacity: Integer;
     procedure SetCapacity(const Value: Integer);
     procedure SetCount(const Value: Integer);
-    function GetItems(Index: Integer): Integer;
-    procedure SetItems(Index: Integer; const Value: Integer);
+    function GetItem(Index: Integer): Integer;
+    procedure SetItem(Index: Integer; const Value: Integer);
   public
     destructor Destroy; override;
     function Add(Item: Integer): Integer;
     procedure Clear;
     procedure Delete(Index: Integer);
+    function IndexOf(const AItem: Integer): Integer;
     property Capacity: Integer read FCapacity write SetCapacity;
     property Count: Integer read FCount write SetCount;
     property List: PIntegerList read FList;
-    property Items[Index: Integer]: Integer read GetItems write SetItems; default;
+    property Items[Index: Integer]: Integer read GetItem write SetItem; default;
   end;
 
   PPointerList = ^TPointerList;
@@ -53,8 +54,8 @@ type
     FCapacity: Integer;
     procedure SetCapacity(const Value: Integer);
     procedure SetCount(const Value: Integer);
-    function GetItems(Index: Integer): Pointer;
-    procedure SetItems(Index: Integer; const Value: Pointer);
+    function GetItem(Index: Integer): Pointer;
+    procedure SetItem(Index: Integer; const Value: Pointer);
   public
     constructor Create(const AOwnsObjects: Boolean = True); virtual;
     destructor Destroy; override;
@@ -98,7 +99,7 @@ end;
 destructor THCIntegerList.Destroy;
 begin
   Clear;
-  inherited;
+  inherited Destroy;
 end;
 
 procedure THCIntegerList.SetCapacity(const Value: Integer);
@@ -130,14 +131,28 @@ begin
   FCount := Value;
 end;
 
-function THCIntegerList.GetItems(Index: Integer): Integer;
+function THCIntegerList.GetItem(Index: Integer): Integer;
 begin
   if (Index < 0) or (Index >= FCount) then
     raise Exception.CreateFmt('异常:%d', [Index]);
   Result := FList^[Index];
 end;
 
-procedure THCIntegerList.SetItems(Index: Integer; const Value: Integer);
+function THCIntegerList.IndexOf(const AItem: Integer): Integer;
+var
+  P: PInteger;
+begin
+  P := PInteger(FList);
+  for Result := 0 to FCount - 1 do
+  begin
+    if P^ = AItem then
+      Exit;
+    Inc(P);
+  end;
+  Result := -1;
+end;
+
+procedure THCIntegerList.SetItem(Index: Integer; const Value: Integer);
 begin
   if (Index < 0) or (Index >= FCount) then
     raise Exception.CreateFmt('异常:%d', [Index]);
@@ -176,7 +191,7 @@ begin
   if Index < FCount then
   begin
     if FOwnsObjects then
-      TObject(GetItems(Index)).Free;
+      TObject(GetItem(Index)).Free;
 
     System.Move(FList^[Index + 1], FList^[Index], (FCount - Index)* SizeOf(Pointer));
   end;
@@ -190,7 +205,7 @@ begin
   inherited Destroy;
 end;
 
-function THCObjectList.GetItems(Index: Integer): Pointer;
+function THCObjectList.GetItem(Index: Integer): Pointer;
 begin
   if (Index < 0) or (Index >= FCount) then
     raise Exception.CreateFmt('异常:%d', [Index]);
@@ -229,7 +244,7 @@ begin
   FCount := Value;
 end;
 
-procedure THCObjectList.SetItems(Index: Integer; const Value: Pointer);
+procedure THCObjectList.SetItem(Index: Integer; const Value: Pointer);
 begin
   if (Index < 0) or (Index >= FCount) then
     raise Exception.CreateFmt('异常:%d', [Index]);

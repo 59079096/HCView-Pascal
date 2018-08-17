@@ -15,36 +15,21 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData,
-  HCCommon;
+  HCCommon, HCFractionItem;
 
 type
-  TExpressArea = (ceaNone, ceaLeft, ceaTop, ceaRight, ceaBottom);
-
-  // 公式(上、下、左、右文本，带分数线)
-  THCExperssItem = class(THCTextRectItem)
+  THCExperssItem = class(THCFractionItem)  // 公式(上、下、左、右文本，带分数线)
   private
-    FLeftText, FTopText, FRightText, FBottomText: string;
-    FLeftRect, FTopRect, FRightRect, FBottomRect: TRect;
-    FPadding: Byte;
-    FActiveArea, FMouseMoveArea: TExpressArea;
-    FCaretOffset: ShortInt;
-    FMouseLBDowning, FOutSelectInto: Boolean;
-    function GetExpressArea(const X, Y: Integer): TExpressArea;
+    FLeftText, FRightText: string;
+    FLeftRect, FRightRect: TRect;
   protected
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    function GetOffsetAt(const X: Integer): Integer; override;
-    procedure SetActive(const Value: Boolean); override;
-    procedure MouseLeave; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
-    function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
-    procedure KeyPress(var Key: Char); override;
+    function GetExpressArea(const X, Y: Integer): TExpressArea; override;
     function InsertText(const AText: string): Boolean; override;
     procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
@@ -53,6 +38,16 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData;
       const ALeftText, ATopText, ARightText, ABottomText: string);
+
+    property LeftRect: TRect read FLeftRect;
+    property RightRect: TRect read FRightRect;
+    property LeftText: string read FLeftText write FLeftText;
+    property RightText: string read FRightText write FRightText;
+
+    property TopText;
+    property BottomText;
+    property TopRect;
+    property BottomRect;
   end;
 
 implementation
@@ -65,16 +60,11 @@ uses
 constructor THCExperssItem.Create(const AOwnerData: THCCustomData;
   const ALeftText, ATopText, ARightText, ABottomText: string);
 begin
-  inherited Create(AOwnerData);
+  inherited Create(AOwnerData, ATopText, ABottomText);
   Self.StyleNo := THCStyle.RsExpress;
-  FPadding := 5;
-  FActiveArea := TExpressArea.ceaNone;
-  FCaretOffset := -1;
 
   FLeftText := ALeftText;
-  FTopText := ATopText;
   FRightText := ARightText;
-  FBottomText := ABottomText;
 end;
 
 procedure THCExperssItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -91,21 +81,21 @@ begin
 
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
   ACanvas.TextOut(ADrawRect.Left + FLeftRect.Left, ADrawRect.Top + FLeftRect.Top, FLeftText);
-  ACanvas.TextOut(ADrawRect.Left + FTopRect.Left, ADrawRect.Top + FTopRect.Top, FTopText);
+  ACanvas.TextOut(ADrawRect.Left + TopRect.Left, ADrawRect.Top + TopRect.Top, TopText);
   ACanvas.TextOut(ADrawRect.Left + FRightRect.Left, ADrawRect.Top + FRightRect.Top, FRightText);
-  ACanvas.TextOut(ADrawRect.Left + FBottomRect.Left, ADrawRect.Top + FBottomRect.Top, FBottomText);
+  ACanvas.TextOut(ADrawRect.Left + BottomRect.Left, ADrawRect.Top + BottomRect.Top, BottomText);
 
   ACanvas.Pen.Color := clBlack;
-  ACanvas.MoveTo(ADrawRect.Left + FLeftRect.Right + FPadding, ADrawRect.Top + FTopRect.Bottom + FPadding);
-  ACanvas.LineTo(ADrawRect.Left + FRightRect.Left - FPadding, ADrawRect.Top + FTopRect.Bottom + FPadding);
+  ACanvas.MoveTo(ADrawRect.Left + FLeftRect.Right + Padding, ADrawRect.Top + TopRect.Bottom + Padding);
+  ACanvas.LineTo(ADrawRect.Left + FRightRect.Left - Padding, ADrawRect.Top + TopRect.Bottom + Padding);
 
   if FActiveArea <> ceaNone then
   begin
     case FActiveArea of
       ceaLeft: vFocusRect := FLeftRect;
-      ceaTop: vFocusRect := FTopRect;
+      ceaTop: vFocusRect := TopRect;
       ceaRight: vFocusRect := FRightRect;
-      ceaBottom: vFocusRect := FBottomRect;
+      ceaBottom: vFocusRect := BottomRect;
     end;
 
     vFocusRect.Offset(ADrawRect.Location);
@@ -118,9 +108,9 @@ begin
   begin
     case FMouseMoveArea of
       ceaLeft: vFocusRect := FLeftRect;
-      ceaTop: vFocusRect := FTopRect;
+      ceaTop: vFocusRect := TopRect;
       ceaRight: vFocusRect := FRightRect;
-      ceaBottom: vFocusRect := FBottomRect;
+      ceaBottom: vFocusRect := BottomRect;
     end;
 
     vFocusRect.Offset(ADrawRect.Location);
@@ -139,25 +129,25 @@ begin
   vStyle := ARichData.Style;
   vStyle.TextStyles[TextStyleNo].ApplyStyle(vStyle.DefCanvas);
   vH := vStyle.DefCanvas.TextHeight('字');
-  vLeftW := Max(vStyle.DefCanvas.TextWidth(FLeftText), FPadding);
-  vTopW := Max(vStyle.DefCanvas.TextWidth(FTopText), FPadding);
-  vRightW := Max(vStyle.DefCanvas.TextWidth(FRightText), FPadding);
-  vBottomW := Max(vStyle.DefCanvas.TextWidth(FBottomText), FPadding);
+  vLeftW := Max(vStyle.DefCanvas.TextWidth(FLeftText), Padding);
+  vTopW := Max(vStyle.DefCanvas.TextWidth(TopText), Padding);
+  vRightW := Max(vStyle.DefCanvas.TextWidth(FRightText), Padding);
+  vBottomW := Max(vStyle.DefCanvas.TextWidth(BottomText), Padding);
   // 计算尺寸
   if vTopW > vBottomW then  // 上面比下面宽
-    Width := vLeftW + vTopW + vRightW + 6 * FPadding
+    Width := vLeftW + vTopW + vRightW + 6 * Padding
   else
-    Width := vLeftW + vBottomW + vRightW + 6 * FPadding;
+    Width := vLeftW + vBottomW + vRightW + 6 * Padding;
 
-  Height := vH * 2 + 4 * FPadding;
+  Height := vH * 2 + 4 * Padding;
 
   // 计算各字符串位置
-  FLeftRect := Bounds(FPadding, (Height - vH) div 2, vLeftW, vH);
-  FRightRect := Bounds(Width - FPadding - vRightW, (Height - vH) div 2, vRightW, vH);
-  FTopRect := Bounds(FLeftRect.Right + FPadding + (FRightRect.Left - FPadding - (FLeftRect.Right + FPadding) - vTopW) div 2,
-    FPadding, vTopW, vH);
-  FBottomRect := Bounds(FLeftRect.Right + FPadding + (FRightRect.Left - FPadding - (FLeftRect.Right + FPadding) - vBottomW) div 2,
-    Height - FPadding - vH, vBottomW, vH);
+  FLeftRect := Bounds(Padding, (Height - vH) div 2, vLeftW, vH);
+  FRightRect := Bounds(Width - Padding - vRightW, (Height - vH) div 2, vRightW, vH);
+  TopRect := Bounds(FLeftRect.Right + Padding + (FRightRect.Left - Padding - (FLeftRect.Right + Padding) - vTopW) div 2,
+    Padding, vTopW, vH);
+  BottomRect := Bounds(FLeftRect.Right + Padding + (FRightRect.Left - Padding - (FLeftRect.Right + Padding) - vBottomW) div 2,
+    Height - Padding - vH, vBottomW, vH);
 end;
 
 procedure THCExperssItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
@@ -175,9 +165,9 @@ begin
 
       ceaTop:
         begin
-          ACaretInfo.Height := FTopRect.Bottom - FTopRect.Top;
-          ACaretInfo.X := FTopRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(FTopText, 1, FCaretOffset));
-          ACaretInfo.Y := FTopRect.Top;
+          ACaretInfo.Height := TopRect.Bottom - TopRect.Top;
+          ACaretInfo.X := TopRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(TopText, 1, FCaretOffset));
+          ACaretInfo.Y := TopRect.Top;
         end;
 
       ceaRight:
@@ -189,9 +179,9 @@ begin
 
       ceaBottom:
         begin
-          ACaretInfo.Height := FBottomRect.Bottom - FBottomRect.Top;
-          ACaretInfo.X := FBottomRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(FBottomText, 1, FCaretOffset));
-          ACaretInfo.Y := FBottomRect.Top;
+          ACaretInfo.Height := BottomRect.Bottom - BottomRect.Top;
+          ACaretInfo.X := BottomRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(BottomText, 1, FCaretOffset));
+          ACaretInfo.Y := BottomRect.Top;
         end;
     end;
   end
@@ -203,53 +193,15 @@ function THCExperssItem.GetExpressArea(const X, Y: Integer): TExpressArea;
 var
   vPt: TPoint;
 begin
-  Result := TExpressArea.ceaNone;
-  vPt := Point(X, Y);
-  if PtInRect(FLeftRect, vPt) then
-    Result := TExpressArea.ceaLeft
-  else
-  if PtInRect(FTopRect, vPt) then
-    Result := TExpressArea.ceaTop
-  else
-  if PtInRect(FRightRect, vPt) then
-    Result := TExpressArea.ceaRight
-  else
-  if PtInRect(FBottomRect, vPt) then
-    Result := TExpressArea.ceaBottom;
-
-  // 不在字符串所在的区域中
-  {if Result = TExpressArea.ceaNone then  // 没取到区域，可能是某元素字符串为空了
+  Result := inherited GetExpressArea(X, Y);
+  if Result = TExpressArea.ceaNone then
   begin
-    if (X > FLeftRect.Right + FPadding) and (X < FRightRect.Left - FPadding) then
-    begin
-      if Y < FTopRect.Bottom then
-        Result := TExpressArea.ceaTop
-      else
-      if Y > FBottomRect.Top then
-        Result := TExpressArea.ceaBottom;
-    end
-    else
-    if X < FLeftRect.Right then
+    vPt := Point(X, Y);
+    if PtInRect(FLeftRect, vPt) then
       Result := TExpressArea.ceaLeft
     else
-    if X > FRightRect.Left then
+    if PtInRect(FRightRect, vPt) then
       Result := TExpressArea.ceaRight;
-  end;}
-end;
-
-function THCExperssItem.GetOffsetAt(const X: Integer): Integer;
-begin
-  if FOutSelectInto then
-    Result := inherited GetOffsetAt(X)
-  else
-  begin
-    if X <= 0 then
-      Result := OffsetBefor
-    else
-    if X >= Width then
-      Result := OffsetAfter
-    else
-      Result := OffsetInner;
   end;
 end;
 
@@ -258,14 +210,23 @@ begin
   if FActiveArea <> ceaNone then
   begin
     case FActiveArea of
-      ceaLeft: System.Insert(AText, FLeftText, FCaretOffset + 1);
-      ceaTop: System.Insert(AText, FTopText, FCaretOffset + 1);
-      ceaRight: System.Insert(AText, FRightText, FCaretOffset + 1);
-      ceaBottom: System.Insert(AText, FBottomText, FCaretOffset + 1);
-    end;
-    Inc(FCaretOffset, System.Length(AText));
+      ceaLeft:
+        begin
+          System.Insert(AText, FLeftText, FCaretOffset + 1);
+          Inc(FCaretOffset, System.Length(AText));
+          Self.SizeChanged := True;
+        end;
 
-    Self.SizeChanged := True;
+      ceaRight:
+        begin
+          System.Insert(AText, FRightText, FCaretOffset + 1);
+          Inc(FCaretOffset, System.Length(AText));
+          Self.SizeChanged := True;
+        end;
+
+    else
+      Result := inherited InsertText(AText);
+    end;
   end;
 end;
 
@@ -283,12 +244,10 @@ procedure THCExperssItem.KeyDown(var Key: Word; Shift: TShiftState);
     end;
 
   begin
-    case FActiveArea of
-      ceaLeft: BackDeleteChar(FLeftText);
-      ceaTop: BackDeleteChar(FTopText);
-      ceaRight: BackDeleteChar(FRightText);
-      ceaBottom: BackDeleteChar(FBottomText);
-    end;
+    if FActiveArea = ceaLeft then
+      BackDeleteChar(FLeftText)
+    else
+      BackDeleteChar(FRightText);
 
     Self.SizeChanged := True;
   end;
@@ -303,12 +262,11 @@ procedure THCExperssItem.KeyDown(var Key: Word; Shift: TShiftState);
   var
     vS: string;
   begin
-    case FActiveArea of
-      ceaLeft: vS := FLeftText;
-      ceaTop: vS := FTopText;
-      ceaRight: vS := FRightText;
-      ceaBottom: vS := FBottomText;
-    end;
+    if FActiveArea = ceaLeft then
+      vS := FLeftText
+    else
+      vS := FRightText;
+
     if FCaretOffset < System.Length(vS) then
       Inc(FCaretOffset);
   end;
@@ -322,12 +280,10 @@ procedure THCExperssItem.KeyDown(var Key: Word; Shift: TShiftState);
     end;
 
   begin
-    case FActiveArea of
-      ceaLeft: DeleteChar(FLeftText);
-      ceaTop: DeleteChar(FTopText);
-      ceaRight: DeleteChar(FRightText);
-      ceaBottom: DeleteChar(FBottomText);
-    end;
+    if FActiveArea = ceaLeft then
+      DeleteChar(FLeftText)
+    else
+      DeleteChar(FRightText);
 
     Self.SizeChanged := True;
   end;
@@ -341,32 +297,28 @@ procedure THCExperssItem.KeyDown(var Key: Word; Shift: TShiftState);
   var
     vS: string;
   begin
-    case FActiveArea of
-      ceaLeft: vS := FLeftText;
-      ceaTop: vS := FTopText;
-      ceaRight: vS := FRightText;
-      ceaBottom: vS := FBottomText;
-    end;
+    if FActiveArea = ceaLeft then
+      vS := FLeftText
+    else
+      vS := FRightText;
+
     FCaretOffset := System.Length(vS);
   end;
 
 begin
-  case Key of
-    VK_BACK: BackspaceKeyDown;  // 回删
-    VK_LEFT: LeftKeyDown;       // 左方向键
-    VK_RIGHT: RightKeyDown;     // 右方向键
-    VK_DELETE: DeleteKeyDown;   // 删除键
-    VK_HOME: HomeKeyDown;       // Home键
-    VK_END: EndKeyDown;         // End键
-  end;
-end;
-
-procedure THCExperssItem.KeyPress(var Key: Char);
-begin
-  if FActiveArea <> ceaNone then
-    InsertText(Key)
+  if FActiveArea in [ceaLeft, ceaRight] then
+  begin
+    case Key of
+      VK_BACK: BackspaceKeyDown;  // 回删
+      VK_LEFT: LeftKeyDown;       // 左方向键
+      VK_RIGHT: RightKeyDown;     // 右方向键
+      VK_DELETE: DeleteKeyDown;   // 删除键
+      VK_HOME: HomeKeyDown;       // Home键
+      VK_END: EndKeyDown;         // End键
+    end;
+  end
   else
-    Key := #0;
+    inherited KeyDown(Key, Shift);
 end;
 
 procedure THCExperssItem.LoadFromStream(const AStream: TStream;
@@ -391,9 +343,7 @@ procedure THCExperssItem.LoadFromStream(const AStream: TStream;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   LoadPartText(FLeftText);
-  LoadPartText(FTopText);
   LoadPartText(FRightText);
-  LoadPartText(FBottomText);
 end;
 
 procedure THCExperssItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -423,8 +373,8 @@ begin
 
     ceaTop:
       begin
-        vS := FTopText;
-        vX := X - FTopRect.Left;
+        vS := TopText;
+        vX := X - TopRect.Left;
       end;
 
     ceaRight:
@@ -435,8 +385,8 @@ begin
 
     ceaBottom:
       begin
-        vS := FBottomText;
-        vX := X - FBottomRect.Left;
+        vS := BottomText;
+        vX := X - BottomRect.Left;
       end;
   end;
 
@@ -453,42 +403,6 @@ begin
     FCaretOffset := vOffset;
     OwnerData.Style.UpdateInfoReCaret;
   end;
-end;
-
-procedure THCExperssItem.MouseLeave;
-begin
-  inherited MouseLeave;
-  FMouseMoveArea := ceaNone;
-end;
-
-procedure THCExperssItem.MouseMove(Shift: TShiftState; X, Y: Integer);
-var
-  vArea: TExpressArea;
-begin
-  if (not FMouseLBDowning) and (Shift = [ssLeft]) then
-    FOutSelectInto := True;
-
-  if not FOutSelectInto then
-  begin
-    vArea := GetExpressArea(X, Y);
-    if vArea <> FMouseMoveArea then
-    begin
-      FMouseMoveArea := vArea;
-      OwnerData.Style.UpdateInfoRePaint;
-    end;
-  end
-  else
-    FMouseMoveArea := ceaNone;
-
-  inherited MouseMove(Shift, X, Y);
-end;
-
-procedure THCExperssItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
-begin
-  FMouseLBDowning := False;
-  FOutSelectInto := False;
-  inherited MouseUp(Button, Shift, X, Y);
 end;
 
 procedure THCExperssItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
@@ -510,22 +424,7 @@ procedure THCExperssItem.SaveToStream(const AStream: TStream; const AStart, AEnd
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   SavePartText(FLeftText);
-  SavePartText(FTopText);
   SavePartText(FRightText);
-  SavePartText(FBottomText);
-end;
-
-procedure THCExperssItem.SetActive(const Value: Boolean);
-begin
-  inherited SetActive(Value);
-  if not Value then
-    FActiveArea := ceaNone;
-end;
-
-function THCExperssItem.WantKeyDown(const Key: Word;
-  const Shift: TShiftState): Boolean;
-begin
-  Result := True;
 end;
 
 end.

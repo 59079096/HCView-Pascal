@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCCustomRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  System.Actions, System.ImageList;
+  Actions, ImageList, Printers;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -95,6 +95,19 @@ type
     mniN2: TMenuItem;
     mniN18: TMenuItem;
     mniN19: TMenuItem;
+    mniCombobox1: TMenuItem;
+    mniN20: TMenuItem;
+    mniN22: TMenuItem;
+    mniN23: TMenuItem;
+    mniN24: TMenuItem;
+    mniN33: TMenuItem;
+    mniN34: TMenuItem;
+    mniN35: TMenuItem;
+    mniN36: TMenuItem;
+    mniN37: TMenuItem;
+    mniTableProperty: TMenuItem;
+    mniN38: TMenuItem;
+    mniN39: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -144,6 +157,17 @@ type
     procedure mniN2Click(Sender: TObject);
     procedure mniN18Click(Sender: TObject);
     procedure mniN19Click(Sender: TObject);
+    procedure mniCombobox1Click(Sender: TObject);
+    procedure mniN20Click(Sender: TObject);
+    procedure mniN22Click(Sender: TObject);
+    procedure mniN23Click(Sender: TObject);
+    procedure mniN33Click(Sender: TObject);
+    procedure mniN34Click(Sender: TObject);
+    procedure mniN35Click(Sender: TObject);
+    procedure mniN36Click(Sender: TObject);
+    procedure mniN37Click(Sender: TObject);
+    procedure mniTablePropertyClick(Sender: TObject);
+    procedure mniN39Click(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -168,9 +192,10 @@ var
 implementation
 
 uses
-  frm_InsertTable, frm_PageSet, HCStyle, HCTableItem, HCTextItem, HCDrawItem,
-  HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem, EmrGroupItem,
-  frm_Paragraph, HCGifItem;
+  frm_InsertTable, frm_PageSet, HCStyle, HCRectItem, HCTableItem, HCTextItem,
+  HCDrawItem, HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem,
+  HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
+  EmrGroupItem, EmrToothItem, EmrFangJiaoItem, frm_Paragraph, frm_TableProperty;
 
 {$R *.dfm}
 
@@ -391,8 +416,17 @@ begin
 end;
 
 procedure TfrmHCViewDemo.btnprintClick(Sender: TObject);
+var
+  vDlgPrint: TPrintDialog;
 begin
-  FHCView.Print('');
+  vDlgPrint := TPrintDialog.Create(nil);
+  try
+    vDlgPrint.MaxPage := FHCView.PageCount;
+    if vDlgPrint.Execute then
+      FHCView.Print(Printer.Printers[Printer.PrinterIndex]);
+  finally
+    FreeAndNil(vDlgPrint);
+  end;
 end;
 
 procedure TfrmHCViewDemo.btn4Click(Sender: TObject);
@@ -452,8 +486,22 @@ var
   vS: string;
 begin
   vS := InputBox('勾选框', '文本', '');
-  vCheckBox := THCCheckBoxItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData, vS, False);
+  vCheckBox := THCCheckBoxItem.Create(FHCView.ActiveSectionTopLevelData, vS, False);
   FHCView.InsertItem(vCheckBox);
+end;
+
+procedure TfrmHCViewDemo.mniCombobox1Click(Sender: TObject);
+var
+  vCombobox: THCComboboxItem;
+  vS: string;
+begin
+  vS := InputBox('下拉框', '文本内容', '');
+  vCombobox := THCComboboxItem.Create(FHCView.ActiveSectionTopLevelData, vS);
+  vCombobox.Items.Add('选项1');
+  vCombobox.Items.Add('选项2');
+  vCombobox.Items.Add('选项3');
+  //vCombobox.ItemIndex := 0;
+  FHCView.InsertItem(vCombobox);
 end;
 
 procedure TfrmHCViewDemo.mniCopyClick(Sender: TObject);
@@ -498,7 +546,7 @@ procedure TfrmHCViewDemo.mniN19Click(Sender: TObject);
 var
   vExpressItem: THCExperssItem;
 begin
-  vExpressItem := THCExperssItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData,
+  vExpressItem := THCExperssItem.Create(FHCView.ActiveSectionTopLevelData,
     '12', '5-6', '2017-6-3', '28-30');
   FHCView.InsertItem(vExpressItem);
 end;
@@ -521,7 +569,7 @@ var
   vS: string;
 begin
   vS := InputBox('文本框', '文本', '');
-  vEdit := THCEditItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData, vS);
+  vEdit := THCEditItem.Create(FHCView.ActiveSectionTopLevelData, vS);
   FHCView.InsertItem(vEdit);
 end;
 
@@ -537,7 +585,7 @@ begin
     begin
       if vOpenDlg.FileName <> '' then
       begin
-        vGifItem := THCGifItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData);
+        vGifItem := THCGifItem.Create(FHCView.ActiveSectionTopLevelData);
         vGifItem.LoadFromFile(vOpenDlg.FileName);
         Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
         FHCView.InsertItem(vGifItem);
@@ -578,30 +626,39 @@ begin
   FHCView.ActiveTableDeleteCurCol;
 end;
 
+procedure TfrmHCViewDemo.mniN20Click(Sender: TObject);
+var
+  vToothItem: TEmrToothItem;
+begin
+  vToothItem := TEmrToothItem.Create(FHCView.ActiveSectionTopLevelData, '', '', '', '');
+  FHCView.InsertItem(vToothItem);
+end;
+
+procedure TfrmHCViewDemo.mniN22Click(Sender: TObject);
+var
+  vFangJiaoItem: TEmrFangJiaoItem;
+begin
+  vFangJiaoItem := TEmrFangJiaoItem.Create(FHCView.ActiveSectionTopLevelData, '', '', '', '');
+  FHCView.InsertItem(vFangJiaoItem);
+end;
+
+procedure TfrmHCViewDemo.mniN23Click(Sender: TObject);
+var
+  vQRCode: THCQRCodeItem;
+  vS: string;
+begin
+  vS := InputBox('文本框', '文本', 'HCView使用了DelphiZXingQRCode二维码控件');
+  vQRCode := THCQRCodeItem.Create(FHCView.ActiveSectionTopLevelData, vS);
+  FHCView.InsertItem(vQRCode);
+end;
+
 procedure TfrmHCViewDemo.mniN26Click(Sender: TObject);
 var
   vFrmParagraph: TfrmParagraph;
 begin
   vFrmParagraph := TfrmParagraph.Create(Self);
   try
-    vFrmParagraph.edtLineSpace.Text := IntToStr(FHCView.Style.ParaStyles[FHCView.Style.CurParaNo].LineSpace);
-    vFrmParagraph.cbbAlignHorz.ItemIndex := Ord(FHCView.Style.ParaStyles[FHCView.Style.CurParaNo].AlignHorz);
-    vFrmParagraph.cbbAlignVert.ItemIndex := Ord(FHCView.Style.ParaStyles[FHCView.Style.CurParaNo].AlignVert);
-    vFrmParagraph.clrbxBG.Color := FHCView.Style.ParaStyles[FHCView.Style.CurParaNo].BackColor;
-
-    vFrmParagraph.ShowModal;
-    if vFrmParagraph.ModalResult = mrOk then
-    begin
-      FHCView.BeginUpdate;
-      try
-        FHCView.ApplyParaLineSpace(StrToIntDef(vFrmParagraph.edtLineSpace.Text, 8));
-        FHCView.ApplyParaAlignHorz(TParaAlignHorz(vFrmParagraph.cbbAlignHorz.ItemIndex));
-        FHCView.ApplyParaAlignVert(TParaAlignVert(vFrmParagraph.cbbAlignVert.ItemIndex));
-        FHCView.ApplyParaBackColor(vFrmParagraph.clrbxBG.Color);
-      finally
-        FHCView.EndUpdate;
-      end;
-    end;
+    vFrmParagraph.SetHCView(FHCView);
   finally
     FreeAndNil(vFrmParagraph);
   end;
@@ -652,7 +709,7 @@ end;
 
 procedure TfrmHCViewDemo.mniN31Click(Sender: TObject);
 begin
-  FHCView.DeleteSection;
+  FHCView.DeleteActiveSection;
 end;
 
 procedure TfrmHCViewDemo.mniN32Click(Sender: TObject);
@@ -681,6 +738,50 @@ begin
   end;
 end;
 
+procedure TfrmHCViewDemo.mniN33Click(Sender: TObject);
+var
+  vHCBarCode: THCBarCodeItem;
+  vS: string;
+begin
+  vS := InputBox('文本框', '文本', 'HC-20180809');
+  vHCBarCode := THCBarCodeItem.Create(FHCView.ActiveSectionTopLevelData, vS);
+  FHCView.InsertItem(vHCBarCode);
+end;
+
+procedure TfrmHCViewDemo.mniN34Click(Sender: TObject);
+var
+  vFractionItem: THCFractionItem;
+begin
+  vFractionItem := THCFractionItem.Create(FHCView.ActiveSectionTopLevelData, '12', '2018');
+  //vFractionItem.LineHide := True;
+  FHCView.InsertItem(vFractionItem);
+end;
+
+procedure TfrmHCViewDemo.mniN35Click(Sender: TObject);
+begin
+  btnprintClick(Sender);
+end;
+
+procedure TfrmHCViewDemo.mniN36Click(Sender: TObject);
+begin
+  FHCView.PrintCurPageByActiveLine(False, False);
+end;
+
+procedure TfrmHCViewDemo.mniN37Click(Sender: TObject);
+begin
+  FHCView.PrintCurPageSelected(False, False);
+end;
+
+procedure TfrmHCViewDemo.mniN39Click(Sender: TObject);
+//var
+//  vFloatLineItem: THCFloatLineItem;
+begin
+//  vFloatLineItem := THCFloatLineItem.Create(FHCView.ActiveSection.ActiveData);
+//  vFloatLineItem.X := 100;
+//  vFloatLineItem.Y := 50;
+//  FHCView.InsertFloatItem(vFloatLineItem);
+end;
+
 procedure TfrmHCViewDemo.mniN4Click(Sender: TObject);
 var
   vText: string;
@@ -696,35 +797,7 @@ var
 begin
   vFrmPageSet := TFrmPageSet.Create(Self);
   try
-    vFrmPageSet.cbbPaper.ItemIndex := vFrmPageSet.cbbPaper.Items.IndexOf(GetPaperSizeStr(FHCView.ActiveSection.PaperSize));
-    if vFrmPageSet.cbbPaper.ItemIndex < 0 then
-      vFrmPageSet.cbbPaper.ItemIndex := 0;
-    vFrmPageSet.edtWidth.Text := FloatToStr(FHCView.ActiveSection.PaperWidth);
-    vFrmPageSet.edtHeight.Text := FloatToStr(FHCView.ActiveSection.PaperHeight);
-
-    vFrmPageSet.edtTop.Text := FloatToStr(FHCView.ActiveSection.PaperMarginTop);
-    vFrmPageSet.edtLeft.Text := FloatToStr(FHCView.ActiveSection.PaperMarginLeft);
-    vFrmPageSet.edtRight.Text := FloatToStr(FHCView.ActiveSection.PaperMarginRight);
-    vFrmPageSet.edtBottom.Text := FloatToStr(FHCView.ActiveSection.PaperMarginBottom);
-    vFrmPageSet.chkShowLineNo.Checked := FHCView.ShowLineNo;
-    vFrmPageSet.chkShowLineActiveMark.Checked := FHCView.ShowLineActiveMark;
-    vFrmPageSet.chkShowUnderLine.Checked := FHCView.ShowUnderLine;
-    vFrmPageSet.ShowModal;
-    if vFrmPageSet.ModalResult = mrOk then
-    begin
-      FHCView.ActiveSection.PaperSize := DMPAPER_A4;
-      FHCView.ActiveSection.PaperWidth := StrToFloat(vFrmPageSet.edtWidth.Text);
-      FHCView.ActiveSection.PaperHeight := StrToFloat(vFrmPageSet.edtHeight.Text);
-
-      FHCView.ActiveSection.PaperMarginTop := StrToFloat(vFrmPageSet.edtTop.Text);
-      FHCView.ActiveSection.PaperMarginLeft := StrToFloat(vFrmPageSet.edtLeft.Text);
-      FHCView.ActiveSection.PaperMarginRight := StrToFloat(vFrmPageSet.edtRight.Text);
-      FHCView.ActiveSection.PaperMarginBottom := StrToFloat(vFrmPageSet.edtBottom.Text);
-      FHCView.ShowLineNo := vFrmPageSet.chkShowLineNo.Checked;
-      FHCView.ShowLineActiveMark := vFrmPageSet.chkShowLineActiveMark.Checked;
-      FHCView.ShowUnderLine := vFrmPageSet.chkShowUnderLine.Checked;
-      FHCView.ReMarginPaper;
-    end;
+    vFrmPageSet.SetHCView(FHCView);
   finally
     FreeAndNil(vFrmPageSet);
   end;
@@ -742,7 +815,7 @@ begin
     begin
       if vOpenDlg.FileName <> '' then
       begin
-        vImageItem := THCImageItem.Create(FHCView.ActiveSection.ActiveData.GetTopLevelData);
+        vImageItem := THCImageItem.Create(FHCView.ActiveSectionTopLevelData);
         vImageItem.LoadFromBmpFile(vOpenDlg.FileName);
         Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
         FHCView.InsertItem(vImageItem);
@@ -781,17 +854,34 @@ end;
 procedure TfrmHCViewDemo.mniSaveAsClick(Sender: TObject);
 var
   vDlg: TSaveDialog;
+  vExt: string;
 begin
   vDlg := TSaveDialog.Create(Self);
   try
-    vDlg.Filter := '文件|*' + HC_EXT;
+    vDlg.Filter := 'hcf|*' + HC_EXT + '|pdf|*.pdf';
     vDlg.Execute;
     if vDlg.FileName <> '' then
     begin
-      if ExtractFileName(vDlg.FileName) <> HC_EXT then
-        vDlg.FileName := vDlg.FileName + HC_EXT;
-      FHCView.SaveToFile(vDlg.FileName);
-      SetFileName(vDlg.FileName);
+      vExt := '';
+      case vDlg.FilterIndex of
+        1: vExt := HC_EXT;
+        2: vExt := '.pdf';
+      else
+        Exit;
+      end;
+
+      if ExtractFileExt(vDlg.FileName) <> vExt then  // 避免重复后缀
+        vDlg.FileName := vDlg.FileName + vExt;
+
+      case vDlg.FilterIndex of
+        1:  // .hcf
+          begin
+            FHCView.SaveToFile(vDlg.FileName);
+            SetFileName(vDlg.FileName);
+          end;
+
+        2: FHCView.SaveAsPDF(vDlg.FileName);  // .pdf
+      end;
     end;
   finally
     vDlg.Free;
@@ -819,6 +909,18 @@ begin
     finally
       vDlg.Free;
     end;
+  end;
+end;
+
+procedure TfrmHCViewDemo.mniTablePropertyClick(Sender: TObject);
+var
+  vFrmTableProperty: TFrmTableProperty;
+begin
+  vFrmTableProperty := TFrmTableProperty.Create(Self);
+  try
+    vFrmTableProperty.SetHCView(FHCView);
+  finally
+    FreeAndNil(vFrmTableProperty);
   end;
 end;
 

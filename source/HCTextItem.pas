@@ -26,17 +26,18 @@ type
     function GetText: string; override;
     procedure SetText(const Value: string); override;
     function GetLength: Integer; override;
+  public
+    constructor CreateByText(const AText: string); virtual;
+
+    /// <summaryy 可接受输入 </summary>
+    function CanAccept(const AOffset: Integer): Boolean; virtual;
+
     procedure Assign(Source: THCCustomItem); override;
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     // 保存和读取
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
-  public
-    constructor CreateByText(const AText: string); virtual;
-
-    /// <summaryy 可接受输入 </summary>
-    function CanAccept(const AOffset: Integer): Boolean; virtual;
 
     /// <summaryy 复制一部分文本 </summary>
     /// <param name="AStartOffs">复制的起始位置(大于0)</param>

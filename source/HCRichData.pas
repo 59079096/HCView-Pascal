@@ -52,21 +52,10 @@ type
     function GetActiveDomain: TDomain;
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
-    function CreateDefaultDomainItem: THCCustomItem; override;
-    function CreateDefaultTextItem: THCCustomItem; override;
-    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
-      ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure InitializeField; override;
-    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); override;
     function CanDeleteItem(const AItemNo: Integer): Boolean; override;
-    function DeleteSelected: Boolean; override;
 
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; override;
-    //
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
 
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
@@ -75,13 +64,23 @@ type
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-
-    function InsertItem(const AItem: THCCustomItem): Boolean; override;
-    function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
-      const AOffsetBefor: Boolean = True): Boolean; override;
   public
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
+
+    function CreateDefaultDomainItem: THCCustomItem; override;
+    function CreateDefaultTextItem: THCCustomItem; override;
+    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+      ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+    procedure InitializeField; override;
+    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); override;
+    function DeleteSelected: Boolean; override;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    function InsertItem(const AItem: THCCustomItem): Boolean; override;
+    function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
+      const AOffsetBefor: Boolean = True): Boolean; override;
 
     /// <summary> 设置选中范围，仅供外部使用内部不使用 </summary>
     procedure SetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer);
@@ -242,7 +241,7 @@ end;
 
 function THCRichData.DeleteSelected: Boolean;
 begin
-  FDomainStartDeletes.Clear;
+  FDomainStartDeletes.Clear;  // 清空域删除时记录前后配对信息
   Result := inherited DeleteSelected;
 end;
 
@@ -264,6 +263,7 @@ procedure THCRichData.DoDrawItemPaintAfter(const AData: THCCustomData;
   var
     vPt: TPoint;
   begin
+    ACanvas.Pen.Width := 1;
     ACanvas.Pen.Style := psSolid;
     ACanvas.Pen.Color := clActiveBorder;
 

@@ -21,7 +21,7 @@ type
   THCEditItem = class(THCTextRectItem)
   private
     FText: string;
-    FMouseIn, FReadOnly: Boolean;
+    FMouseIn, FReadOnly, FAutoWidth: Boolean;
     FMargin, FMinWidth: Byte;
     FCaretOffset: ShortInt;
   protected
@@ -40,16 +40,19 @@ type
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
+
+    function InsertText(const AText: string): Boolean; override;
     procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
-    procedure SetText(const Value: string);
+    procedure SetText(const Value: string); virtual;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string);
     property Text: string read FText write SetText;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
+    property AutoWidth: Boolean read FAutoWidth write FAutoWidth;
   end;
 
 implementation
@@ -67,7 +70,9 @@ begin
   FMouseIn := False;
   FMargin := 4;
   FCaretOffset := -1;
+  FAutoWidth := False;
   FMinWidth := 20;
+  Width := 50;
 end;
 
 procedure THCEditItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -84,8 +89,12 @@ begin
   end;
 
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
-  ACanvas.TextOut(ADrawRect.Left + FMargin + (ADrawRect.Width - FMargin - ACanvas.TextWidth(FText) - FMargin) div 2,
-    ADrawRect.Top + FMargin, FText);
+
+  if not FAutoWidth then
+    ACanvas.TextRect(ADrawRect, ADrawRect.Left + FMargin, ADrawRect.Top + FMargin, FText)
+  else
+    ACanvas.TextOut(ADrawRect.Left + FMargin,// + (ADrawRect.Width - FMargin - ACanvas.TextWidth(FText) - FMargin) div 2,
+      ADrawRect.Top + FMargin, FText);
 
   if FMouseIn then  // 鼠标在其中
     ACanvas.Pen.Color := clBlue
@@ -105,12 +114,14 @@ begin
   if FText <> '' then
   begin
     vSize := ARichData.Style.DefCanvas.TextExtent(FText);
-    Width := FMargin + Max(FMinWidth, vSize.cx) + FMargin;  // 间距
+    if FAutoWidth then
+      Width := FMargin + Max(FMinWidth, vSize.cx) + FMargin;  // 间距
     Height := FMargin + vSize.cy + FMargin;
   end
   else
   begin
-    Width := FMargin + FMinWidth + FMargin;  // 间距
+    if FAutoWidth then
+      Width := FMargin + FMinWidth + FMargin;  // 间距
     Height := FMargin + ARichData.Style.DefCanvas.TextHeight('H') + FMargin;
   end;
 end;
@@ -127,15 +138,18 @@ begin
   begin
     vSize := OwnerData.Style.DefCanvas.TextExtent(vS);
     ACaretInfo.Height := vSize.cy;
-    ACaretInfo.X := FMargin + vSize.cx + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
+    ACaretInfo.X := FMargin + vSize.cx;// + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   end
   else
   begin
     ACaretInfo.Height := OwnerData.Style.DefCanvas.TextHeight('H');
-    ACaretInfo.X := FMargin + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
+    ACaretInfo.X := FMargin;// + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   end;
 
   ACaretInfo.Y := FMargin;
+
+  if (not FAutoWidth) and (ACaretInfo.X > Width) then
+    ACaretInfo.Visible := False;
 end;
 
 function THCEditItem.GetOffsetAt(const X: Integer): Integer;
@@ -147,6 +161,13 @@ begin
     Result := OffsetAfter
   else
     Result := OffsetInner;
+end;
+
+function THCEditItem.InsertText(const AText: string): Boolean;
+begin
+  System.Insert(AText, FText, FCaretOffset + 1);
+  Inc(FCaretOffset, System.Length(AText));
+  Self.SizeChanged := True;
 end;
 
 procedure THCEditItem.KeyDown(var Key: Word; Shift: TShiftState);
@@ -220,7 +241,7 @@ var
 begin
   inherited;
   OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
-  vX := X - FMargin - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
+  vX := X - FMargin;// - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, FText, vX);
   if vOffset <> FCaretOffset then
   begin
@@ -297,8 +318,14 @@ end;
 
 procedure THCEditItem.SetText(const Value: string);
 begin
-  if not FReadOnly then
+  if (not FReadOnly) and (FText <> Value) then
+  begin
     FText := Value;
+    if FCaretOffset > System.Length(FText) then
+      FCaretOffset := 0;
+
+    OwnerData.Style.UpdateInfoRePaint;
+  end;
 end;
 
 function THCEditItem.WantKeyDown(const Key: Word;

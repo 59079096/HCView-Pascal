@@ -87,7 +87,7 @@ type
     procedure Copy;
     procedure Paste;
     //
-    function DataChangeByAction(const AProc: TChangeProc): Boolean;
+    function DataChangeByAction(const AFun: THCFunction): Boolean;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -98,7 +98,7 @@ type
     procedure ApplyParaLineSpace(const ASpace: Integer);
     procedure ApplyTextStyle(const AFontStyle: TFontStyleEx);
     procedure ApplyTextFontName(const AFontName: TFontName);
-    procedure ApplyTextFontSize(const AFontSize: Integer);
+    procedure ApplyTextFontSize(const AFontSize: Single);
     procedure ApplyTextColor(const AColor: TColor);
     procedure ApplyTextBackColor(const AColor: TColor);
     function InsertItem(const AItem: THCCustomItem): Boolean; overload;
@@ -161,7 +161,7 @@ begin
   CheckUpdateInfo;
 end;
 
-procedure THCEdit.ApplyTextFontSize(const AFontSize: Integer);
+procedure THCEdit.ApplyTextFontSize(const AFontSize: Single);
 begin
   FData.ApplyTextFontSize(AFontSize);
   CheckUpdateInfo;
@@ -275,13 +275,13 @@ begin
   CheckUpdateInfo;
 end;
 
-function THCEdit.DataChangeByAction(const AProc: TChangeProc): Boolean;
+function THCEdit.DataChangeByAction(const AFun: THCFunction): Boolean;
 //var
 //  vHeight, vCruItemNo: Integer;
 begin
   //vHeight := FData.Height;
   //vCruItemNo := FData.GetCurItemNo;
-  Result := AProc;
+  Result := AFun;
   DoChange;
 end;
 

@@ -49,10 +49,10 @@ type
 
   TFontSizeStyleMatch = class(TStyleMatch)
   private
-    FFontSize: Integer;
+    FFontSize: Single;
   public
     function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer; override;
-    property FontSize: Integer read FFontSize write FFontSize;
+    property FontSize: Single read FFontSize write FFontSize;
   end;
 
   TColorStyleMatch = class(TStyleMatch)

@@ -28,7 +28,7 @@ const
   OffsetAfter = 2;
 
 type
-  THCCustomRectItem = class(THCCustomItem)
+  THCCustomRectItem = class(THCCustomItem)  // RectItem基类
   strict private
     FWidth, FHeight: Integer;
     FTextWrapping: Boolean;  // 文本环绕
@@ -37,7 +37,7 @@ type
     // 如表格的一个单元格内容变化在没有引起表格整体变化时，不需要重新格式化表格，也不需要重新计算页数
     // 由拥有此Item的Data使用完后应该立即赋值为False，可参考TableItem.KeyPress的使用
     FSizeChanged: Boolean;
-    FCanBreak: Boolean;  // 在当前页显示不下时是否可以分页截断显示
+    FCanPageBreak: Boolean;  // 在当前页显示不下时是否可以分页截断显示
     FOnGetMainUndoList: TGetUndoListEvent;
   protected
     function GetWidth: Integer; virtual;
@@ -52,12 +52,6 @@ type
     procedure DoRedo(const Sender: THCUndo); virtual;
     procedure Undo_StartRecord;
     function GetSelfUndoList: THCUndoList;
-
-    function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
-    function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
   public
     /// <summary> 适用于工作期间创建 </summary>
     constructor Create(const AOwnerData: THCCustomData); overload; virtual;
@@ -95,6 +89,8 @@ type
     /// <param name="ADItemMostBottom">最底端DItem的底部位置</param>
     //procedure GetPageFmtBottomInfo(const AHeight: Integer; var ADItemMostBottom: Integer); virtual;
 
+    procedure CheckFormatPageBreakBefor; virtual;
+
     /// <summary> 计算格式化后的分页位置 </summary>
     /// <param name="ADrawItemRectTop">对应的DrawItem的Rect.Top往下行间距一半</param>
     /// <param name="ADrawItemRectBottom">对应的DrawItem的Rect.Bottom往上行间距一半</param>
@@ -104,8 +100,8 @@ type
     /// <param name="ABreakSeat">需要分页位置</param>
     /// <param name="AFmtOffset">为了避开分页位置整体向下偏移的高度</param>
     /// <param name="AFmtHeightInc">为了避开分页位置高度增加值</param>
-    procedure CheckFormatPage(const ADrawItemRectTop, ADrawItemRectBottom,
-      APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer;
+    procedure CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
+      ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer;
       var ABreakSeat, AFmtOffset, AFmtHeightInc: Integer); virtual;
 
     function InsertItem(const AItem: THCCustomItem): Boolean; virtual;
@@ -116,14 +112,26 @@ type
 
     procedure KeyDown(var Key: Word; Shift: TShiftState); virtual;
     procedure KeyPress(var Key: Char); virtual;
+
+    /// <summary> “理论”上全选中(适用于仅RectItem点击选中情况下的选中判断) </summary>
+    function IsSelectComplateTheory: Boolean; virtual;
+
     function SelectExists: Boolean; virtual;
-    // 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomRichData类型)
+
+    /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomRichData类型) </summary>
     function GetActiveData: THCCustomData; virtual;
-    // 返回指定位置处的顶层Data(为松耦合请返回TCustomRichData类型)
+
+    /// <summary> 返回指定位置处的顶层Data(为松耦合请返回TCustomRichData类型) </summary>
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
 
     procedure TraverseItem(const ATraverse: TItemTraverse); virtual;
     //
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
+    function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
     function GetLength: Integer; override;
     property Width: Integer read GetWidth write SetWidth;
     property Height: Integer read GetHeight write SetHeight;
@@ -131,7 +139,7 @@ type
     property SizeChanged: Boolean read FSizeChanged write FSizeChanged;
 
     /// <summary> 在当前页显示不下时是否可以分页截断显示 </summary>
-    property CanBreak: Boolean read FCanBreak write FCanBreak;
+    property CanPageBreak: Boolean read FCanPageBreak write FCanPageBreak;
     property OwnerData: THCCustomData read FOwnerData;
   end;
 
@@ -142,10 +150,6 @@ type
     FLevel: Byte;
     FMarkType: TMarkType;
   protected
-    function GetOffsetAt(const X: Integer): Integer; override;
-    function JustifySplit: Boolean; override;
-    // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
-    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -154,32 +158,36 @@ type
       const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+    function GetOffsetAt(const X: Integer): Integer; override;
+    function JustifySplit: Boolean; override;
+    // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
+    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     property MarkType: TMarkType read FMarkType write FMarkType;
     property Level: Byte read FLevel write FLevel;
   end;
 
-  THCTextRectItem = class(THCCustomRectItem)
+  THCTextRectItem = class(THCCustomRectItem)  // 带文本样式的RectItem
   private
     FTextStyleNo: Integer;
   protected
-    function SelectExists: Boolean; override;
-    function GetOffsetAt(const X: Integer): Integer; override;
-    function JustifySplit: Boolean; override;
-    function ApplySelectTextStyle(const AStyle: THCStyle;
-      const AMatchStyle: TStyleMatch): Integer; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure SetTextStyleNo(const Value: Integer); virtual;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+    function GetOffsetAt(const X: Integer): Integer; override;
+    function JustifySplit: Boolean; override;
+    function ApplySelectTextStyle(const AStyle: THCStyle;
+      const AMatchStyle: TStyleMatch): Integer; override;
+    function SelectExists: Boolean; override;
     property TextStyleNo: Integer read FTextStyleNo write SetTextStyleNo;
   end;
 
   TGripType = (gtNone, gtLeftTop, gtRightTop, gtLeftBottom, gtRightBottom,
     gtLeft, gtTop, gtRight, gtBottom);
 
-  THCResizeRectItem = class(THCCustomRectItem)
+  THCResizeRectItem = class(THCCustomRectItem)  // 可改变大小的RectItem
   private
     FGripSize: Word;  // 拖动块大小
     FResizing: Boolean;  // 正在拖动改变大小
@@ -190,20 +198,10 @@ type
     FResizeWidth, FResizeHeight: Integer;  // 缩放后的宽、高
     function GetGripType(const X, Y: Integer): TGripType;
   protected
-    /// <summary> 获取坐标X、Y是否在选中区域中 </summary>
-    function CoordInSelect(const X, Y: Integer): Boolean; override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure PaintTop(const ACanvas: TCanvas); override;
-    // 继承THCCustomItem抽象方法
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    function CanDrag: Boolean; override;
-    function SelectExists: Boolean; override;
-    /// <summary> 更新光标位置 </summary>
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
 
     // 撤销恢复相关方法
     procedure Undo_Resize(const ANewWidth, ANewHeight: Integer);
@@ -217,6 +215,17 @@ type
     property ResizeRect: TRect read FResizeRect;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+    /// <summary> 获取坐标X、Y是否在选中区域中 </summary>
+    function CoordInSelect(const X, Y: Integer): Boolean; override;
+    procedure PaintTop(const ACanvas: TCanvas); override;
+    // 继承THCCustomItem抽象方法
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function CanDrag: Boolean; override;
+
+    /// <summary> 更新光标位置 </summary>
+    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    function SelectExists: Boolean; override;
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); virtual;
@@ -227,7 +236,7 @@ type
     property CanResize: Boolean read FCanResize write FCanResize;
   end;
 
-  THCAnimateRectItem = class(THCCustomRectItem)
+  THCAnimateRectItem = class(THCCustomRectItem)  // 动画RectItem
   public
     function GetOffsetAt(const X: Integer): Integer; override;
   end;
@@ -259,15 +268,15 @@ begin
   Result := False;
 end;
 
-procedure THCCustomRectItem.CheckFormatPage(const ADrawItemRectTop, ADrawItemRectBottom,
-  APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer; var ABreakSeat,
-  AFmtOffset, AFmtHeightInc: Integer);
+procedure THCCustomRectItem.CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
+  ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer;
+  var ABreakSeat, AFmtOffset, AFmtHeightInc: Integer);
 begin
   ABreakSeat := -1;
   AFmtOffset := 0;
   AFmtHeightInc := 0;
 
-  if FCanBreak then  // 可分页显示，当前页保留一部分
+  if FCanPageBreak then  // 可分页显示，当前页保留一部分
   begin
     ABreakSeat := Height - AStartSeat - (APageDataFmtBottom - ADrawItemRectTop);
     if ADrawItemRectBottom > APageDataFmtBottom then
@@ -279,6 +288,10 @@ begin
     if ADrawItemRectBottom > APageDataFmtBottom then
       AFmtOffset := APageDataFmtBottom - ADrawItemRectTop;
   end;
+end;
+
+procedure THCCustomRectItem.CheckFormatPageBreakBefor;
+begin
 end;
 
 function THCCustomRectItem.CoordInSelect(const X, Y: Integer): Boolean;
@@ -296,7 +309,7 @@ begin
   FHeight := 50;
   FTextWrapping := False;
   FSizeChanged := False;
-  FCanBreak := False;
+  FCanPageBreak := False;
 end;
 
 constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer);
@@ -440,6 +453,11 @@ function THCCustomRectItem.InsertText(const AText: string): Boolean;
 begin
 end;
 
+function THCCustomRectItem.IsSelectComplateTheory: Boolean;
+begin
+  Result := IsSelectComplate or Active;
+end;
+
 function THCCustomRectItem.JustifySplit: Boolean;
 begin
   Result := True;
@@ -465,6 +483,12 @@ end;
 
 procedure THCCustomRectItem.MarkStyleUsed(const AMark: Boolean);
 begin
+end;
+
+procedure THCCustomRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState;
+  X, Y: Integer);
+begin
+  Active := PtInRect(Rect(0, 0, FWidth, FHeight), Point(X, Y));
 end;
 
 procedure THCCustomRectItem.SaveSelectToStream(const AStream: TStream);
@@ -784,10 +808,13 @@ begin
   inherited;
   if FResizing then
   begin
+    FResizing := False;
+
+    if (FResizeWidth < 0) or (FResizeHeight < 0) then  Exit;
+
     Undo_Resize(FResizeWidth, FResizeHeight);
     Width := FResizeWidth;
     Height := FResizeHeight;
-    FResizing := False;
   end;
 end;
 
@@ -805,7 +832,7 @@ end;
 
 function THCResizeRectItem.SelectExists: Boolean;
 begin
-  Result := IsSelectComplate or Active;
+  Result := IsSelectComplateTheory;
 end;
 
 procedure THCResizeRectItem.SetResizing(const Value: Boolean);

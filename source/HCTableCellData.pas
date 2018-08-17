@@ -36,15 +36,23 @@ type
   protected
     function GetHeight: Cardinal; override;
 
-    /// <summary> 全选 </summary>
-    procedure SelectAll; override;
-
     /// <summary> 取消选中 </summary>
     /// <returns>取消时当前是否有选中，True：有选中；False：无选中</returns>
     function DisSelect: Boolean; override;
 
     /// <summary> 删除选中 </summary>
     function DeleteSelected: Boolean; override;
+
+    procedure _FormatReadyParam(const AStartItemNo: Integer;
+      var APrioDrawItemNo: Integer; var APos: TPoint); override;
+
+    function EnableUndo: Boolean; override;
+
+    procedure SetActive(const Value: Boolean);
+  public
+    //constructor Create; override;
+    /// <summary> 全选 </summary>
+    procedure SelectAll; override;
 
     /// <summary> 坐标是否在AItem的选中区域中 </summary>
     function CoordInSelect(const X, Y, AItemNo, AOffset: Integer;
@@ -53,17 +61,7 @@ type
     /// <summary> 返回指定坐标下的Item和Offset </summary>
     procedure GetItemAt(const X, Y: Integer; var AItemNo, AOffset, ADrawItemNo: Integer;
       var ARestrain: Boolean); override;
-
-    procedure _FormatReadyParam(const AStartItemNo: Integer;
-      var APrioDrawItemNo: Integer; var APos: TPoint); override;
-
     function GetRootData: THCCustomData; override;
-
-    function EnableUndo: Boolean; override;
-
-    procedure SetActive(const Value: Boolean);
-  public
-    //constructor Create; override;
 
     /// <summary> 选在第一个Item最前面 </summary>
     function SelectFirstItemOffsetBefor: Boolean;

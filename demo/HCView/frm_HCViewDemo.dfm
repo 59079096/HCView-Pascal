@@ -128,7 +128,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       Left = 271
       Top = 0
       Width = 65
-      Height = 22
+      Height = 21
       Style = csDropDownList
       DropDownCount = 20
       TabOrder = 1
@@ -315,7 +315,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00880010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00CC0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1267,6 +1267,18 @@ object frmHCViewDemo: TfrmHCViewDemo
         Caption = #39029#38754#35774#32622
         OnClick = mniN5Click
       end
+      object mniN35: TMenuItem
+        Caption = #25171#21360
+        OnClick = mniN35Click
+      end
+      object mniN36: TMenuItem
+        Caption = #20174#24403#21069#34892#25171#21360
+        OnClick = mniN36Click
+      end
+      object mniN37: TMenuItem
+        Caption = #25171#21360#24403#21069#39029#36873#20013#20869#23481
+        OnClick = mniN37Click
+      end
     end
     object mniN3: TMenuItem
       Caption = #32534#36753
@@ -1310,9 +1322,21 @@ object frmHCViewDemo: TfrmHCViewDemo
       end
       object mniN13: TMenuItem
         Caption = #20844#24335
+        object mniN34: TMenuItem
+          Caption = #20998#25968'('#20998#23376'/'#20998#27597')'
+          OnClick = mniN34Click
+        end
         object mniN19: TMenuItem
           Caption = #20998#25968
           OnClick = mniN19Click
+        end
+        object mniN20: TMenuItem
+          Caption = #29273#20301'('#21307#30103')'
+          OnClick = mniN20Click
+        end
+        object mniN22: TMenuItem
+          Caption = #25151#35282'('#21307#30103')'
+          OnClick = mniN22Click
         end
       end
       object mniN14: TMenuItem
@@ -1320,7 +1344,7 @@ object frmHCViewDemo: TfrmHCViewDemo
         OnClick = mniN14Click
       end
       object mniN15: TMenuItem
-        Caption = #25511#20214
+        Caption = #25511#20214'(HC)'
         object mniC1: TMenuItem
           Caption = 'CheckBox'
           OnClick = mniC1Click
@@ -1328,6 +1352,10 @@ object frmHCViewDemo: TfrmHCViewDemo
         object mniEdit1: TMenuItem
           Caption = 'Edit'
           OnClick = mniEdit1Click
+        end
+        object mniCombobox1: TMenuItem
+          Caption = 'Combobox'
+          OnClick = mniCombobox1Click
         end
       end
       object mniN27: TMenuItem
@@ -1349,6 +1377,24 @@ object frmHCViewDemo: TfrmHCViewDemo
       object mniN18: TMenuItem
         Caption = #25209#27880
         OnClick = mniN18Click
+      end
+      object mniN24: TMenuItem
+        Caption = #26465#30721
+        object mniN33: TMenuItem
+          Caption = #19968#32500#30721
+          OnClick = mniN33Click
+        end
+        object mniN23: TMenuItem
+          Caption = #20108#32500#30721
+          OnClick = mniN23Click
+        end
+      end
+      object mniN38: TMenuItem
+        Caption = #24418#29366
+        object mniN39: TMenuItem
+          Caption = #30452#32447
+          OnClick = mniN39Click
+        end
       end
     end
   end
@@ -1417,6 +1463,10 @@ object frmHCViewDemo: TfrmHCViewDemo
       object mniDisBorder: TMenuItem
         Caption = #26174#31034'/'#38544#34255#36793#26694
         OnClick = mniDisBorderClick
+      end
+      object mniTableProperty: TMenuItem
+        Caption = #23646#24615
+        OnClick = mniTablePropertyClick
       end
     end
     object mniN26: TMenuItem

@@ -15,33 +15,40 @@ interface
 
 uses
   Windows, Classes, Graphics, SysUtils, Controls, HCCustomRichData, HCCustomData,
-  HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle,
-  HCTextStyle, HCRichData;
+  HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle, HCTextStyle, HCRichData;
 
 type
+  TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
+
   // 用于文档页眉、页脚、页面Data基类，主要用于处理文档级Data变化时特有的属性或事件
   // 如只读状态切换，页眉、页脚、页面切换时需要通知外部控件以做界面控件状态变化，
   // 而单元格只读切换时不需要
-  THCCustomSectionData = class(THCRichData)
+  THCSectionData = class(THCRichData)
   private
     FOnReadOnlySwitch: TNotifyEvent;
+    FOnGetScreenCoord: TGetScreenCoordEvent;
   protected
+    function GetScreenCoord(const X, Y: Integer): TPoint; override;
     procedure SetReadOnly(const Value: Boolean); override;
   public
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
+    property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
   end;
 
-  THCHeaderData = class(THCCustomSectionData);
+  THCHeaderData = class(THCSectionData);
 
-  THCFooterData = class(THCCustomSectionData);
+  THCFooterData = class(THCSectionData);
 
-  THCPageData = class(THCCustomSectionData)  // 此类中主要处理表格单元格Data不需要而正文需要的属性或事件
+  THCPageData = class(THCSectionData)  // 此类中主要处理表格单元格Data不需要而正文需要的属性或事件
   private
     FShowLineActiveMark: Boolean;  // 当前激活的行前显示标识
     FShowUnderLine: Boolean;  // 下划线
     FShowLineNo: Boolean;  // 行号
+    FReFormatStartItemNo: Integer;
     function GetPageDataFmtTop(const APageIndex: Integer): Integer;
   protected
+    procedure ReFormatData_(const AStartItemNo: Integer; const ALastItemNo: Integer = -1;
+      const AExtraItemCount: Integer = 0); override;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -76,6 +83,7 @@ type
     property ShowLineActiveMark: Boolean read FShowLineActiveMark write FShowLineActiveMark;
     property ShowLineNo: Boolean read FShowLineNo write FShowLineNo;
     property ShowUnderLine: Boolean read FShowUnderLine write FShowUnderLine;
+    property ReFormatStartItemNo: Integer read FReFormatStartItemNo;
   end;
 
 implementation
@@ -189,7 +197,7 @@ begin
     begin
       if DrawItems[ADrawItemNo].LineFirst then
       begin
-        ACanvas.Pen.Color := clActiveBorder;
+        ACanvas.Pen.Color := clBlack;
         ACanvas.Pen.Style := psSolid;
         ACanvas.MoveTo(ADataDrawLeft, ADrawRect.Bottom);
         ACanvas.LineTo(ADataDrawLeft + Self.Width, ADrawRect.Bottom);
@@ -343,9 +351,22 @@ begin
     inherited MouseDown(Button, Shift, X, Y);
 end;
 
-{ THCCustomSectionData }
+procedure THCPageData.ReFormatData_(const AStartItemNo, ALastItemNo,
+  AExtraItemCount: Integer);
+begin
+  FReFormatStartItemNo := AStartItemNo;
+  inherited ReFormatData_(AStartItemNo, ALastItemNo, AExtraItemCount);
+end;
 
-procedure THCCustomSectionData.SetReadOnly(const Value: Boolean);
+{ THCSectionData }
+
+function THCSectionData.GetScreenCoord(const X, Y: Integer): TPoint;
+begin
+  if Assigned(FOnGetScreenCoord) then
+    Result := FOnGetScreenCoord(X, Y);
+end;
+
+procedure THCSectionData.SetReadOnly(const Value: Boolean);
 begin
   if Self.ReadOnly <> Value then
   begin

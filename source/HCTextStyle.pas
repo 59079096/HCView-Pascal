@@ -14,27 +14,28 @@ unit HCTextStyle;
 interface
 
 uses
-  Classes, Graphics, SysUtils;
+  Windows, Classes, Graphics, SysUtils;
 
 type
   TFontStyleEx = (tsBold, tsItalic, tsUnderline, tsStrikeOut, tsSuperscript,
     tsSubscript);
+
   TFontStyleExs = set of TFontStyleEx;
 
   THCTextStyle = class(TPersistent)
   private const
-    DefaultFontSize: Integer = 11;  // ÎåºÅ
+    DefaultFontSize: Single = 10.5;  // ÎåºÅ
     DefaultFontFamily = 'ËÎÌå';
     MaxFontSize: Single = 512;
   strict private
-    FSize: Integer;
+    FSize: Single;
     FFamily: TFontName;
     FFontStyle: TFontStyleExs;
     FColor: TColor;  // ×ÖÌåÑÕÉ«
     FBackColor: TColor;
   protected
     procedure SetFamily(const Value: TFontName);
-    procedure SetSize(const Value: Integer);
+    procedure SetSize(const Value: Single);
     procedure SetFontStyle(const Value: TFontStyleExs);
   public
     CheckSaveUsed: Boolean;
@@ -43,14 +44,14 @@ type
     destructor Destroy; override;
     function IsSizeStored: Boolean;
     function IsFamilyStored: Boolean;
-    procedure ApplyStyle(const ACanvas: TCanvas);
+    procedure ApplyStyle(const ACanvas: TCanvas; const AScale: Single = 1);
     function EqualsEx(const ASource: THCTextStyle): Boolean;
     procedure AssignEx(const ASource: THCTextStyle);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
   published
     property Family: TFontName read FFamily write SetFamily stored IsFamilyStored;
-    property Size: Integer read FSize write SetSize stored IsSizeStored nodefault;
+    property Size: Single read FSize write SetSize stored IsSizeStored nodefault;
     property FontStyle: TFontStyleExs read FFontStyle write SetFontStyle default [];
     property Color: TColor read FColor write FColor default clBlack;
     property BackColor: TColor read FBackColor write FBackColor default clWhite;
@@ -60,7 +61,10 @@ implementation
 
 { THCTextStyle }
 
-procedure THCTextStyle.ApplyStyle(const ACanvas: TCanvas);
+procedure THCTextStyle.ApplyStyle(const ACanvas: TCanvas; const AScale: Single = 1);
+var
+  vFont: TFont;
+  vLogFont: TLogFont;
 begin
   with ACanvas do
   begin
@@ -73,7 +77,7 @@ begin
     end;
     Font.Color := FColor;
     Font.Name := FFamily;
-    Font.Size := FSize;
+    Font.Size := Round(FSize);
     if tsBold in FFontStyle then
       Font.Style := Font.Style + [TFontStyle.fsBold]
     else
@@ -99,6 +103,21 @@ begin
     else
     if tsSubscript in FFontStyle then
       Font.Size := Font.Size div 2;
+
+    //if AScale <> 1 then
+    begin
+      vFont := TFont.Create;
+      try
+        vFont.Assign(ACanvas.Font);
+        GetObject(vFont.Handle, SizeOf(vLogFont), @vLogFont) ;
+        vLogFont.lfHeight := Round(FSize * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale);
+        vFont.Handle := CreateFontIndirect(vLogFont);
+
+        ACanvas.Font.Assign(vFont);
+      finally
+        vFont.Free;
+      end;
+    end;
   end;
 end;
 
@@ -148,10 +167,18 @@ end;
 
 procedure THCTextStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 var
+  vOldSize: Integer;
   vSize: Word;
   vBuffer: TBytes;
 begin
-  AStream.ReadBuffer(FSize, SizeOf(FSize));  // ×ÖºÅ
+  if AFileVersion < 12 then
+  begin
+    AStream.ReadBuffer(vOldSize, SizeOf(vOldSize));  // ×ÖºÅ
+    FSize := vOldSize;
+  end
+  else
+    AStream.ReadBuffer(FSize, SizeOf(FSize));  // ×ÖºÅ
+
   // ×ÖÌå
   AStream.ReadBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
@@ -190,7 +217,7 @@ begin
     FFamily := Value;
 end;
 
-procedure THCTextStyle.SetSize(const Value: Integer);
+procedure THCTextStyle.SetSize(const Value: Single);
 begin
   if FSize <> Value then
     FSize := Value;

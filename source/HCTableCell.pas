@@ -14,9 +14,12 @@ unit HCTableCell;
 interface
 
 uses
-  Classes, Graphics, HCStyle, HCCustomData, HCTableCellData, HCCommon;
+  Classes, Graphics, HCStyle, HCCustomData, HCTableCellData, HCItem, HCCommon;
 
 type
+  /// <summary> 垂直对齐方式：上、居中、下) </summary>
+  TAlignVert = (cavTop, cavCenter, cavBottom);
+
   THCTableCell = class
   private
     FCellData: THCTableCellData;
@@ -26,6 +29,7 @@ type
     FColSpan   // 单元格跨几列，用于合并目标单元格记录合并了几列，合并源记录合并到单元格的列号，0没有列合并
       : Integer;
     FBackgroundColor: TColor;
+    FAlignVert: TAlignVert;
   protected
     function GetActive: Boolean;
     procedure SetActive(const Value: Boolean);
@@ -43,6 +47,20 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word);
 
+    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo);
+
+    /// <summary> 绘制数据 </summary>
+    /// <param name="ADataDrawLeft">绘制目标区域Left</param>
+    /// <param name="ADataDrawTop">绘制目标区域的Top</param>
+    /// <param name="ADataDrawBottom">绘制目标区域的Bottom</param>
+    /// <param name="ADataScreenTop">屏幕区域Top</param>
+    /// <param name="ADataScreenBottom">屏幕区域Bottom</param>
+    /// <param name="AVOffset">指定从哪个位置开始的数据绘制到目标区域的起始位置</param>
+    /// <param name="ACanvas">画布</param>
+    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+      ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+
     property CellData: THCTableCellData read FCellData write FCellData;
 
     /// <summary>
@@ -56,6 +74,7 @@ type
     property BackgroundColor: TColor read FBackgroundColor write FBackgroundColor;
     // 用于表格切换编辑的单元格
     property Active: Boolean read GetActive write SetActive;
+    property AlignVert: TAlignVert read FAlignVert write FAlignVert;
   end;
 
 implementation
@@ -68,7 +87,7 @@ uses
 constructor THCTableCell.Create(const AStyle: THCStyle);
 begin
   FCellData := THCTableCellData.Create(AStyle);
-  //FCellData.ParentData := AParentData;
+  FAlignVert := cavTop;
   FBackgroundColor := AStyle.BackgroudColor;
   FRowSpan := 0;
   FColSpan := 0;
@@ -88,6 +107,24 @@ begin
     Result := False;
 end;
 
+procedure THCTableCell.GetCaretInfo(const AItemNo, AOffset: Integer;
+  var ACaretInfo: TCaretInfo);
+begin
+  if FCellData <> nil then
+  begin
+    FCellData.GetCaretInfo(AItemNo, AOffset, ACaretInfo);
+    if ACaretInfo.Visible then
+    begin
+      case FAlignVert of
+        cavBottom: ACaretInfo.Y := ACaretInfo.Y + FHeight - FCellData.Height;
+        cavCenter: ACaretInfo.Y := ACaretInfo.Y + (FHeight - FCellData.Height) div 2;
+      end;
+    end;
+  end
+  else
+    ACaretInfo.Visible := False;
+end;
+
 function THCTableCell.ClearFormatExtraHeight: Integer;
 begin
   Result := 0;
@@ -105,6 +142,12 @@ begin
   AStream.ReadBuffer(FRowSpan, SizeOf(FRowSpan));
   AStream.ReadBuffer(FColSpan, SizeOf(FColSpan));
 
+  if AFileVersion > 11 then
+  begin
+    AStream.ReadBuffer(FAlignVert, SizeOf(FAlignVert));  // 垂直对齐方式
+    AStream.ReadBuffer(FBackgroundColor, SizeOf(FBackgroundColor));  // 背景色
+  end;
+
   AStream.ReadBuffer(vNullData, SizeOf(vNullData));
   if not vNullData then
   begin
@@ -115,6 +158,25 @@ begin
   begin
     FCellData.Free;
     FCellData := nil;
+  end;
+end;
+
+procedure THCTableCell.PaintData(const ADataDrawLeft, ADataDrawTop,
+  ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+var
+  vTop: Integer;
+begin
+  if FCellData <> nil then
+  begin
+    case FAlignVert of
+      cavTop: vTop := ADataDrawTop;
+      cavBottom: vTop := ADataDrawTop + FHeight - FCellData.Height;
+      cavCenter: vTop := ADataDrawTop + (FHeight - FCellData.Height) div 2;
+    end;
+
+    FCellData.PaintData(ADataDrawLeft, vTop, ADataDrawBottom, ADataScreenTop,
+      ADataScreenBottom, AVOffset, ACanvas, APaintInfo);
   end;
 end;
 
@@ -137,6 +199,9 @@ begin
   AStream.WriteBuffer(FHeight, SizeOf(FHeight));
   AStream.WriteBuffer(FRowSpan, SizeOf(FRowSpan));
   AStream.WriteBuffer(FColSpan, SizeOf(FColSpan));
+
+  AStream.WriteBuffer(FAlignVert, SizeOf(FAlignVert));  // 垂直对齐方式
+  AStream.WriteBuffer(FBackgroundColor, SizeOf(FBackgroundColor));  // 背景色
 
   { 存数据 }
   vNullData := FCellData = nil;

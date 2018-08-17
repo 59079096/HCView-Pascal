@@ -53,7 +53,7 @@ type
     //
     //function CalcFormatHeight: Integer;
     procedure SetRowWidth(const AWidth: Integer);
-    procedure SetHeightEx(const Value: Integer);  // 外部拖动改变行高
+    procedure SetHeight(const Value: Integer);  // 外部拖动改变行高
 
     //property Capacity: Integer read FCapacity write SetCapacity;
     property ColCount: Integer read FColCount write SetColCount;
@@ -62,7 +62,7 @@ type
     property Cols[Index: Integer]: THCTableCell read GetCols;
 
     /// <summary> 当前行中所有没有发生合并单元格的高度(含CellVPadding * 2因为会受有合并列的影响，所以>=数据高度) </summary>
-    property Height: Integer read FHeight write FHeight;
+    property Height: Integer read FHeight write SetHeight;
     property AutoHeight: Boolean read FAutoHeight write FAutoHeight;
 
     /// <summary>因跨页向下整体偏移的量</summary>
@@ -235,24 +235,28 @@ begin
   FColCount := Value;
 end;
 
-procedure TTableRow.SetHeightEx(const Value: Integer);
+procedure TTableRow.SetHeight(const Value: Integer);
 var
-  i: Integer;
+  i, vMaxHeight: Integer;
 begin
-  // 找行中最高的单元格
-  for i := 0 to FColCount - 1 do
+  if FHeight <> Value then
   begin
-    if Cols[i].CellData <> nil then
+    vMaxHeight := 0;
+    for i := 0 to FColCount - 1 do  // 找行中最高的单元格
     begin
-      if Cols[i].CellData.Height > FHeight then
-        FHeight := Cols[i].CellData.Height;
+      if Cols[i].CellData <> nil then
+      begin
+        if Cols[i].CellData.Height > vMaxHeight then
+          vMaxHeight := Cols[i].CellData.Height;
+      end;
     end;
-  end;
-  if FHeight < Value then  // 处理行中最高内容是否能放下
-    FHeight := Value;
-  for i := 0 to FColCount - 1 do
-  begin
-    if Cols[i].CellData.Height > FHeight then
+
+    if vMaxHeight < Value then  // 设置的高度大于最高内容，以设置的为准
+      FHeight := Value
+    else
+      FHeight := vMaxHeight;
+
+    for i := 0 to FColCount - 1 do
       Cols[i].Height := FHeight;
   end;
 end;

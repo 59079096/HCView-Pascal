@@ -70,8 +70,8 @@ end;
 
 constructor THCParaStyle.Create;
 begin
-  FLineSpace := 8;  // 五号字的高为15，
-  FLineSpaceHalf := 4;
+  FLineSpace := 7;  // 五号字的高为14，
+  FLineSpaceHalf := 3;
   FFristIndent := 0;
   FLeftIndent := 0;
   FBackColor := clSilver;

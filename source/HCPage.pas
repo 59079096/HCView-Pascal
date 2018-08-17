@@ -19,9 +19,9 @@ uses
 type
   THCPageSize = class(TObject)
   private
-    FPixelsPerInchX, FPixelsPerInchY: Single;
-    FPaperSize: Integer;
-    FPaperWidth, FPaperHeight: Single;  // 纸张大小（单位mm）
+    FPixelsPerMMX, FPixelsPerMMY: Single;  // 1毫米像素数
+    FPaperSize: Integer;  // 纸张大小如A4、B5等
+    FPaperWidth, FPaperHeight: Single;  // 纸张宽、高（单位mm）
     FPageWidthPix, FPageHeightPix: Integer;  // 页面大小
     FPaperMarginTop, FPaperMarginLeft, FPaperMarginRight, FPaperMarginBottom: Single;  // 纸张边距（单位mm）
     FPageMarginTopPix, FPageMarginLeftPix, FPageMarginRightPix, FPageMarginBottomPix: Integer;  // 页边距
@@ -34,7 +34,7 @@ type
     procedure SetPaperMarginRight(const Value: Single);
     procedure SetPaperMarginBottom(const Value: Single);
   public
-    constructor Create(const APixelsPerInchX, APixelsPerInchY: Single);  // 屏幕1英寸dpi数
+    constructor Create(const APixelsPerMMX, APixelsPerMMY: Single);  // 屏幕1英寸dpi数
     procedure SaveToStream(const AStream: TStream);
     procedure LoadToStream(const AStream: TStream; const AFileVersion: Word);
     // 纸张
@@ -45,9 +45,13 @@ type
     property PaperMarginLeft: Single read FPaperMarginLeft write SetPaperMarginLeft;
     property PaperMarginRight: Single read FPaperMarginRight write SetPaperMarginRight;
     property PaperMarginBottom: Single read FPaperMarginBottom write SetPaperMarginBottom;
-    // 页面
+
+    /// <summary> 页宽(含页左右边距) </summary>
     property PageWidthPix: Integer read FPageWidthPix write FPageWidthPix;
+
+    /// <summary> 页高(含页眉、页脚) </summary>
     property PageHeightPix: Integer read FPageHeightPix write FPageHeightPix;
+
     property PageMarginTopPix: Integer read FPageMarginTopPix write FPageMarginTopPix;
     property PageMarginLeftPix: Integer read FPageMarginLeftPix write FPageMarginLeftPix;
     property PageMarginRightPix: Integer read FPageMarginRightPix write FPageMarginRightPix;
@@ -81,23 +85,21 @@ implementation
 
 { THCPageSize }
 
-constructor THCPageSize.Create(const APixelsPerInchX, APixelsPerInchY: Single);
+constructor THCPageSize.Create(const APixelsPerMMX, APixelsPerMMY: Single);
 begin
-  FPixelsPerInchX := APixelsPerInchX;
-  FPixelsPerInchY := APixelsPerInchY;
-  PaperMarginLeft := 30;
+  FPixelsPerMMX := APixelsPerMMX;
+  FPixelsPerMMY := APixelsPerMMY;
+  PaperMarginLeft := 25;
   PaperMarginTop := 25;
   PaperMarginRight := 20;
   PaperMarginBottom := 20;
-  // 默认A4
-  PaperWidth := 210;
-  PaperHeight := 297;  // 100
+  PaperSize := DMPAPER_A4;  // 默认A4 210 297
 end;
 
 procedure THCPageSize.SetPaperWidth(const Value: Single);
 begin
   FPaperWidth := Value;
-  FPageWidthPix := Round(FPaperWidth * FPixelsPerInchX);
+  FPageWidthPix := Round(FPaperWidth * FPixelsPerMMX);
 end;
 
 procedure THCPageSize.LoadToStream(const AStream: TStream; const AFileVersion: Word);
@@ -156,31 +158,31 @@ end;
 procedure THCPageSize.SetPaperHeight(const Value: Single);
 begin
   FPaperHeight := Value;
-  FPageHeightPix := Round(FPaperHeight * FPixelsPerInchY);
+  FPageHeightPix := Round(FPaperHeight * FPixelsPerMMY);
 end;
 
 procedure THCPageSize.SetPaperMarginBottom(const Value: Single);
 begin
   FPaperMarginBottom := Value;
-  FPageMarginBottomPix := Round(FPaperMarginBottom * FPixelsPerInchY);
+  FPageMarginBottomPix := Round(FPaperMarginBottom * FPixelsPerMMY);
 end;
 
 procedure THCPageSize.SetPaperMarginLeft(const Value: Single);
 begin
   FPaperMarginLeft := Value;
-  FPageMarginLeftPix := Round(FPaperMarginLeft * FPixelsPerInchX);
+  FPageMarginLeftPix := Round(FPaperMarginLeft * FPixelsPerMMX);
 end;
 
 procedure THCPageSize.SetPaperMarginRight(const Value: Single);
 begin
   FPaperMarginRight := Value;
-  FPageMarginRightPix := Round(FPaperMarginRight * FPixelsPerInchX);
+  FPageMarginRightPix := Round(FPaperMarginRight * FPixelsPerMMX);
 end;
 
 procedure THCPageSize.SetPaperMarginTop(const Value: Single);
 begin
   FPaperMarginTop := Value;
-  FPageMarginTopPix := Round(FPaperMarginTop * FPixelsPerInchY);
+  FPageMarginTopPix := Round(FPaperMarginTop * FPixelsPerMMY);
 end;
 
 procedure THCPageSize.SetPaperSize(const Value: Integer);
@@ -203,8 +205,8 @@ end;
 procedure THCPage.Assign(Source: TPersistent);
 begin
   inherited;
-  StartDrawItemNo := (Source as THCPage).StartDrawItemNo;    // 起始item
-  EndDrawItemNo := (Source as THCPage).EndDrawItemNo;      // 结束item
+  StartDrawItemNo := (Source as THCPage).StartDrawItemNo;  // 起始item
+  EndDrawItemNo := (Source as THCPage).EndDrawItemNo;  // 结束item
 end;
 
 constructor THCPage.Create;

@@ -22,14 +22,15 @@ const
   HCS_EXCEPTION_NULLTEXT = HC_EXCEPTION + '文本Item的内容出现为空的情况！';
   HCS_EXCEPTION_TEXTOVER = HC_EXCEPTION + 'TextItem的内容超出允许的最大字节数4294967295！';
   HCS_EXCEPTION_MEMORYLESS = HC_EXCEPTION + '复制时没有申请到足够的内存！';
-  HCS_EXCEPTION_UNACCEPTDATATYPE = HC_EXCEPTION + '不可接受的数据类型！';
+  //HCS_EXCEPTION_UNACCEPTDATATYPE = HC_EXCEPTION + '不可接受的数据类型！';
+  HCS_EXCEPTION_STRINGLENGTHLIMIT = HC_EXCEPTION + '此版本不支持连续不换行样式字符串超过65535！';
 
   HC_EXT = '.hcf';
 
-  HC_FileVersion = '1.1';
-  HC_FileVersionInt = 11;
+  HC_FileVersion = '1.2';
+  HC_FileVersionInt = 12;
 
-  MinPadding = 20;
+  PagePadding = 20;  // 节页面显示时之间的间距
   PMSLineHeight = 24;  // 书写范围线的长度
   AnnotationWidth = 200;  // 批注显示区域宽度
   // 不能在行首的字符             |                    |                   |
@@ -37,7 +38,12 @@ const
   DontLineLastChar = '/\＼';
 
 type
-  TChangeProc = reference to function(): Boolean;
+  THCProcedure = reference to procedure();
+  THCFunction = reference to function(): Boolean;
+
+  TPageOrientation = (cpoPortrait, cpoLandscape);  // 纸张方向：纵像、横向
+
+  TExpressArea = (ceaNone, ceaLeft, ceaTop, ceaRight, ceaBottom);  // 公式的区域，仅适用于上下左右格式的
 
   TViewModel = (
     vmPage,  // 页面视图，显示页眉、页脚
@@ -88,13 +94,13 @@ type
     ps16K, ps32K);
 
   TCaretInfo = record
-    X, Y, Height: Integer;
+    X, Y, Height, PageIndex: Integer;
     Visible: Boolean;
   end;
 
   TMarkType = (cmtBeg, cmtEnd);
 
-  TCaret = Class
+  TCaret = Class(TObject)
   private
     FHeight: Integer;
     FOwnHandle: THandle;
@@ -131,8 +137,8 @@ type
   function GetCharOffsetByX(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
 
   // 根据汉字大小获取字体数字大小
-  function GetFontSize(const AFontSize: string): Integer;
-  function GetFontSizeStr(AFontSize: Integer): string;
+  function GetFontSize(const AFontSize: string): Single;
+  function GetFontSizeStr(AFontSize: Single): string;
   function GetPaperSizeStr(APaperSize: Integer): string;
 
   function GetVersionAsInteger(const AVersion: string): Integer;
@@ -224,45 +230,45 @@ begin
   end;
 end;
 
-function GetFontSize(const AFontSize: string): Integer;
+function GetFontSize(const AFontSize: string): Single;
 begin
-  if not TryStrToInt(AFontSize, Result) then
-  begin
-    if AFontSize = '初号' then Result := 42
-    else
-    if AFontSize = '小初' then Result := 36
-    else
-    if AFontSize = '一号' then Result := 26
-    else
-    if AFontSize = '小一' then Result := 24
-    else
-    if AFontSize = '二号' then Result := 22
-    else
-    if AFontSize = '小二' then Result := 18
-    else
-    if AFontSize = '三号' then Result := 16
-    else
-    if AFontSize = '小三' then Result := 15
-    else
-    if AFontSize = '四号' then Result := 14
-    else
-    if AFontSize = '小四' then Result := 12
-    else
-    if AFontSize = '五号' then Result := 11
-    else
-    if AFontSize = '小五' then Result := 9
-    else
-    if AFontSize = '六号' then Result := 8
-    else
-    if AFontSize = '小六' then Result := 7
-    else
-    if AFontSize = '七号' then Result := 5
-    else
-      raise Exception.Create(HC_EXCEPTION + '计算字号大小出错，无法识别的值：' + AFontSize);
-  end;
+  if AFontSize = '初号' then Result := 42
+  else
+  if AFontSize = '小初' then Result := 36
+  else
+  if AFontSize = '一号' then Result := 26
+  else
+  if AFontSize = '小一' then Result := 24
+  else
+  if AFontSize = '二号' then Result := 22
+  else
+  if AFontSize = '小二' then Result := 18
+  else
+  if AFontSize = '三号' then Result := 16
+  else
+  if AFontSize = '小三' then Result := 15
+  else
+  if AFontSize = '四号' then Result := 14
+  else
+  if AFontSize = '小四' then Result := 12
+  else
+  if AFontSize = '五号' then Result := 10.5
+  else
+  if AFontSize = '小五' then Result := 9
+  else
+  if AFontSize = '六号' then Result := 7.5
+  else
+  if AFontSize = '小六' then Result := 6.5
+  else
+  if AFontSize = '七号' then Result := 5.5
+  else
+  if AFontSize = '八号' then Result := 5
+  else
+  if not TryStrToFloat(AFontSize, Result) then
+    raise Exception.Create(HC_EXCEPTION + '计算字号大小出错，无法识别的值：' + AFontSize);
 end;
 
-function GetFontSizeStr(AFontSize: Integer): string;
+function GetFontSizeStr(AFontSize: Single): string;
 begin
   if AFontSize = 42 then Result := '初号'
   else
@@ -284,17 +290,19 @@ begin
   else
   if AFontSize = 12 then Result := '小四'
   else
-  if AFontSize = 11 then Result := '五号'
+  if AFontSize = 10.5 then Result := '五号'
   else
   if AFontSize = 9 then Result := '小五'
   else
-  if AFontSize = 7 then Result := '六号'
+  if AFontSize = 7.5 then Result := '六号'
   else
-  if AFontSize = 6 then Result := '小六'
+  if AFontSize = 6.5 then Result := '小六'
   else
-  if AFontSize = 5 then Result := '七号'
+  if AFontSize = 5.5 then Result := '七号'
   else
-    Result := IntToStr(AFontSize);
+  if AFontSize = 5 then Result := '八号'
+  else
+    Result := FormatFloat('#.#', AFontSize);
 end;
 
 function GetPaperSizeStr(APaperSize: Integer): string;

@@ -2,9 +2,10 @@ object frmParagraph: TfrmParagraph
   Left = 0
   Top = 0
   BorderIcons = [biSystemMenu]
+  BorderStyle = bsToolWindow
   Caption = #27573#33853#23646#24615#35774#32622
-  ClientHeight = 225
-  ClientWidth = 327
+  ClientHeight = 209
+  ClientWidth = 337
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

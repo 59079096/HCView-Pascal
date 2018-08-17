@@ -24,7 +24,6 @@ type
   protected
     function GetWidth: Integer; override;
     function GetHeight: Integer; override;
-    //procedure SetActive(const Value: Boolean); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;

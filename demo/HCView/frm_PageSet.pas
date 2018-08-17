@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls;
+  Dialogs, StdCtrls, HCView;
 
 type
   TfrmPageSet = class(TForm)
@@ -26,18 +26,27 @@ type
     chkShowLineNo: TCheckBox;
     chkShowLineActiveMark: TCheckBox;
     chkShowUnderLine: TCheckBox;
+    cbbPageOrientation: TComboBox;
+    lbl8: TLabel;
+    chkPageNoVisible: TCheckBox;
+    lbl9: TLabel;
+    chkSymmetryMargin: TCheckBox;
     procedure btnOkClick(Sender: TObject);
     procedure cbbPaperChange(Sender: TObject);
   private
     { Private declarations }
   public
     { Public declarations }
+    procedure SetHCView(const AHCView: THCView);
   end;
 
 var
   frmPageSet: TfrmPageSet;
 
 implementation
+
+uses
+  HCCommon;
 
 {$R *.dfm}
 
@@ -52,6 +61,63 @@ begin
   begin
     edtWidth.Text := '210';
     edtHeight.Text := '297';
+  end;
+end;
+
+procedure TfrmPageSet.SetHCView(const AHCView: THCView);
+begin
+  cbbPaper.ItemIndex := cbbPaper.Items.IndexOf(GetPaperSizeStr(AHCView.ActiveSection.PaperSize));
+  if cbbPaper.ItemIndex < 0 then
+    cbbPaper.ItemIndex := 0;
+  edtWidth.Text := FloatToStr(AHCView.ActiveSection.PaperWidth);
+  edtHeight.Text := FloatToStr(AHCView.ActiveSection.PaperHeight);
+
+  edtTop.Text := FloatToStr(AHCView.ActiveSection.PaperMarginTop);
+  edtLeft.Text := FloatToStr(AHCView.ActiveSection.PaperMarginLeft);
+  edtRight.Text := FloatToStr(AHCView.ActiveSection.PaperMarginRight);
+  edtBottom.Text := FloatToStr(AHCView.ActiveSection.PaperMarginBottom);
+
+  chkSymmetryMargin.Checked := AHCView.ActiveSection.SymmetryMargin;
+
+  if AHCView.ActiveSection.PageOrientation = TPageOrientation.cpoPortrait then
+    cbbPageOrientation.ItemIndex := 0
+  else
+    cbbPageOrientation.ItemIndex := 1;
+
+  chkPageNoVisible.Checked := AHCView.ActiveSection.PageNoVisible;
+  chkShowLineNo.Checked := AHCView.ShowLineNo;
+  chkShowLineActiveMark.Checked := AHCView.ShowLineActiveMark;
+  chkShowUnderLine.Checked := AHCView.ShowUnderLine;
+
+  Self.ShowModal;
+  if Self.ModalResult = mrOk then
+  begin
+    AHCView.BeginUpdate;
+    try
+      AHCView.ActiveSection.PaperSize := DMPAPER_A4;
+      AHCView.ActiveSection.PaperWidth := StrToFloat(edtWidth.Text);
+      AHCView.ActiveSection.PaperHeight := StrToFloat(edtHeight.Text);
+
+      AHCView.ActiveSection.PaperMarginTop := StrToFloat(edtTop.Text);
+      AHCView.ActiveSection.PaperMarginLeft := StrToFloat(edtLeft.Text);
+      AHCView.ActiveSection.PaperMarginRight := StrToFloat(edtRight.Text);
+      AHCView.ActiveSection.PaperMarginBottom := StrToFloat(edtBottom.Text);
+
+      AHCView.ActiveSection.SymmetryMargin := chkSymmetryMargin.Checked;
+
+      if cbbPageOrientation.ItemIndex = 0 then
+        AHCView.ActiveSection.PageOrientation := TPageOrientation.cpoPortrait
+      else
+        AHCView.ActiveSection.PageOrientation := TPageOrientation.cpoLandscape;
+
+      AHCView.ActiveSection.PageNoVisible := chkPageNoVisible.Checked;
+      AHCView.ShowLineNo := chkShowLineNo.Checked;
+      AHCView.ShowLineActiveMark := chkShowLineActiveMark.Checked;
+      AHCView.ShowUnderLine := chkShowUnderLine.Checked;
+      AHCView.ResetActiveSectionMargin;
+    finally
+      AHCView.EndUpdate;
+    end;
   end;
 end;
 

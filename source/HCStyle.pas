@@ -45,7 +45,7 @@ type
     FBackgroudColor: TColor;
     FTextStyles: TObjectList<THCTextStyle>;
     FParaStyles: TObjectList<THCParaStyle>;
-    FPixelsPerInchX, FPixelsPerInchY: Single;  // 屏幕1英寸dpi数
+    FPixelsPerMMX, FPixelsPerMMY: Single;  // 1毫米dpi数
     FUpdateInfo: TUpdateInfo;
     FShowLineLastMark: Boolean;  // 是否显示换行符
     FEnableUndo: Boolean;
@@ -71,6 +71,10 @@ type
     RsGif = -11;
     RsControl = -12;
     RsEdit = -13;
+    RsCombobox = -14;
+    RsQRCode = -15;
+    RsBarCode = -16;
+    RsFraction = -17;
     RsCustom = -100;  // 自定义类型分界线
   public
     constructor Create; virtual;
@@ -106,8 +110,8 @@ type
     property CurParaNo: Integer read FCurParaNo write FCurParaNo;
     property CurStyleNo: Integer read FCurStyleNo write FCurStyleNo;
     property DefCanvas: TCanvas read FDefCanvas;
-    property PixelsPerInchX: single read FPixelsPerInchX;
-    property PixelsPerInchY: single read FPixelsPerInchY;
+    property PixelsPerMMX: single read FPixelsPerMMX;
+    property PixelsPerMMY: single read FPixelsPerMMY;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowLineLastMark: Boolean read FShowLineLastMark write SetShowLineLastMark;
     property EnableUndo: Boolean read FEnableUndo write FEnableUndo;
@@ -150,9 +154,12 @@ begin
   FDefCanvas := TCanvas.Create;
   FDefCanvas.Handle := vDC;
   //FDefCanvas.Font.PixelsPerInch := 96;
-  FDefCanvas.Font.PixelsPerInch := GetDeviceCaps(vDC, LOGPIXELSX);
-  FPixelsPerInchX := Windows.GetDeviceCaps(vDC, LOGPIXELSX) / 25.4;  // 1毫米对应打印像素 = 1英寸dpi数 / 1英寸对应25.4毫米
-  FPixelsPerInchY := Windows.GetDeviceCaps(vDC, LOGPIXELSY) / 25.4;  // 1毫米对应打印像素 = 1英寸dpi数 / 1英寸对应25.4毫米
+  //FDefCanvas.Font.PixelsPerInch := GetDeviceCaps(vDC, LOGPIXELSX);  // 1英寸对应的像素数
+
+  // 1英寸25.4毫米   FPixelsPerInchX
+
+  FPixelsPerMMX := Windows.GetDeviceCaps(vDC, LOGPIXELSX) / 25.4;  // 1毫米对应像素 = 1英寸dpi数 / 1英寸对应毫米
+  FPixelsPerMMY := Windows.GetDeviceCaps(vDC, LOGPIXELSY) / 25.4;  // 1毫米对应像素 = 1英寸dpi数 / 1英寸对应毫米
 
   FBackgroudColor := $00FFFFFE;
   FSelColor := clSkyBlue;

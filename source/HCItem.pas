@@ -17,7 +17,7 @@ uses
   Windows, Classes, Controls, Graphics, Generics.Collections, HCStyle, HCUndo;
 
 type
-  TZoomInfo = record
+  TScaleInfo = record
     MapMode: Integer;
     WindowOrg: TSize;
     WindowExt: TSize;
@@ -36,12 +36,14 @@ type
     FPrint: Boolean;
     FTopItems: TObjectList<THCCustomItem>;
     FWindowWidth, FWindowHeight: Integer;
-    FScaleX, FScaleY: Single;
+    FScaleX, FScaleY,  // 目标画布和显示器画布dpi比例(打印机dpi和显示器dpi不一致时的缩放比例)
+    FZoom  // 视图设置的放大比例
+      : Single;
   public
     constructor Create;
     destructor Destroy; override;
-    function ZoomCanvas(const ACanvas: TCanvas): TZoomInfo;
-    procedure RestoreCanvasZoom(const ACanvas : TCanvas; const AOldInfo: TZoomInfo);
+    function ScaleCanvas(const ACanvas: TCanvas): TScaleInfo;
+    procedure RestoreCanvasScale(const ACanvas : TCanvas; const AOldInfo: TScaleInfo);
     function GetScaleX(const AValue: Integer): Integer;
     function GetScaleY(const AValue: Integer): Integer;
     procedure DrawNoScaleLine(const ACanvas: TCanvas; const APoints: array of TPoint);
@@ -62,6 +64,8 @@ type
 
     /// <summary> 纵向缩放 </summary>
     property ScaleY: Single read FScaleY write FScaleY;
+
+    property Zoom: Single read FZoom write FZoom;
   end;
 
   THCCustomItem = class(TObject)
@@ -383,6 +387,9 @@ end;
 constructor TPaintInfo.Create;
 begin
   FTopItems := TObjectList<THCCustomItem>.Create(False);  // 只管理不负责释放
+  FScaleX := 1;
+  FScaleY := 1;
+  FZoom := 1;
 end;
 
 destructor TPaintInfo.Destroy;
@@ -418,8 +425,8 @@ begin
   Result := Round(AValue * FScaleY);
 end;
 
-procedure TPaintInfo.RestoreCanvasZoom(const ACanvas: TCanvas;
-  const AOldInfo: TZoomInfo);
+procedure TPaintInfo.RestoreCanvasScale(const ACanvas: TCanvas;
+  const AOldInfo: TScaleInfo);
 begin
   SetViewportOrgEx(ACanvas.Handle, AOldInfo.ViewportOrg.cx, AOldInfo.ViewportOrg.cy, nil);
   SetViewportExtEx(ACanvas.Handle, AOldInfo.ViewportExt.cx, AOldInfo.ViewportExt.cy, nil);
@@ -428,13 +435,12 @@ begin
   SetMapMode(ACanvas.Handle, AOldInfo.MapMode);
 end;
 
-function TPaintInfo.ZoomCanvas(const ACanvas: TCanvas): TZoomInfo;
+function TPaintInfo.ScaleCanvas(const ACanvas: TCanvas): TScaleInfo;
 begin
   Result.MapMode := GetMapMode(ACanvas.Handle);  // 返回映射方式，零则失败
   SetMapMode(ACanvas.Handle, MM_ANISOTROPIC);  // 逻辑单位转换成具有任意比例轴的任意单位，用SetWindowsEx和SetViewportExtEx函数指定单位、方向和需要的比例
   SetWindowOrgEx(ACanvas.Handle, 0, 0, @Result.WindowOrg);  // 用指定的坐标设置设备环境的窗口原点
-  SetWindowExtEx(ACanvas.Handle, FWindowWidth,  // 为设备环境设置窗口的水平的和垂直的范围
-    FWindowHeight, @Result.WindowExt);
+  SetWindowExtEx(ACanvas.Handle, FWindowWidth, FWindowHeight, @Result.WindowExt);  // 为设备环境设置窗口的水平的和垂直的范围
 
   SetViewportOrgEx(ACanvas.Handle, 0, 0, @Result.ViewportOrg);  // 哪个设备点映射到窗口原点(0,0)
   // 用指定的值来设置指定设备环境坐标的X轴、Y轴范围

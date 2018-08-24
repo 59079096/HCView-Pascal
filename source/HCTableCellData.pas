@@ -201,18 +201,10 @@ begin
 end;
 
 function THCTableCellData.SelectLastItemOffsetAfter: Boolean;
-var
-  vItem: THCCustomItem;
 begin
   Result := False;
   if (not SelectExists) and (SelectInfo.StartItemNo = Self.Items.Count - 1) then  // 最后一个
-  begin
-    vItem := Items[SelectInfo.StartItemNo];
-    if vItem.StyleNo < THCStyle.RsNull then
-      Result := SelectInfo.StartItemOffset = OffsetAfter
-    else
-      Result := SelectInfo.StartItemOffset = vItem.Length;
-  end;
+    Result := SelectInfo.StartItemOffset = Self.GetItemAfterOffset(SelectInfo.StartItemNo);
 end;
 
 function THCTableCellData.SelectLastLine: Boolean;

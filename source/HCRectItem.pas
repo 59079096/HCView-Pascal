@@ -118,6 +118,13 @@ type
 
     function SelectExists: Boolean; virtual;
 
+    /// <summary> 当前位置开始查找指定的内容 </summary>
+    /// <param name="AKeyword">要查找的关键字</param>
+    /// <param name="AForward">True：向前，False：向后</param>
+    /// <param name="AMatchCase">True：区分大小写，False：不区分大小写</param>
+    /// <returns>True：找到</returns>
+    function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; virtual;
+
     /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomRichData类型) </summary>
     function GetActiveData: THCCustomData; virtual;
 
@@ -194,10 +201,10 @@ type
     FCanResize: Boolean;  // 当前是否处于可改变大小状态
     FResizeGrip: TGripType;
     FResizeRect: TRect;
-    FResizeX, FResizeY,  // 拖动缩放时起始位置
     FResizeWidth, FResizeHeight: Integer;  // 缩放后的宽、高
     function GetGripType(const X, Y: Integer): TGripType;
   protected
+    FResizeX, FResizeY: Integer;  // 拖动缩放时起始位置
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -505,6 +512,11 @@ begin
   inherited SaveToStream(AStream, AStart, AEnd);
   AStream.WriteBuffer(FWidth, SizeOf(FWidth));
   AStream.WriteBuffer(FHeight, SizeOf(FHeight));
+end;
+
+function THCCustomRectItem.Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean;
+begin
+  Result := False;
 end;
 
 function THCCustomRectItem.SelectExists: Boolean;

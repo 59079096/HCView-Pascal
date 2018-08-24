@@ -63,9 +63,6 @@ type
     /// <param name="AStartItemNo"></param>
     procedure FormatItemPrepare(const AStartItemNo: Integer; const AEndItemNo: Integer = -1);
 
-    /// <summary> 将选择起始移动到指定Item的后面 </summary>
-    procedure SelectItemAfter(const AItemNo: Integer);
-
     /// <summary>
     /// 转换指定Item指定Offs格式化为DItem
     /// </summary>
@@ -143,6 +140,11 @@ type
     /// <param name="ADrawOffs">相对与DItem的CharOffs的Offs</param>
     /// <returns></returns>
     function GetDrawItemOffsetWidth(const ADrawItemNo, ADrawOffs: Integer): Integer;
+
+    /// <summary> 获取指定的Item最后面位置 </summary>
+    /// <param name="AItemNo">指定的Item</param>
+    /// <returns>最后面位置</returns>
+    function GetItemAfterOffset(const AItemNo: Integer): Integer;
 
     /// <summary>
     /// 根据给定的位置获取在此范围内的起始和结束DItem
@@ -638,7 +640,7 @@ end;
 function THCCustomData.GetCurDrawItemNo: Integer;
 var
   i, vItemNo: Integer;
-  vDItem: THCCustomDrawItem;
+  vDrawItem: THCCustomDrawItem;
 begin
   Result := -1;
   if SelectInfo.StartItemNo < 0 then  // 没有选择
@@ -654,14 +656,15 @@ begin
     end
     else
       vItemNo := FSelectInfo.StartItemNo;
-    if FItems[vItemNo].StyleNo < 0 then  // 非文本
+
+    if FItems[vItemNo].StyleNo < THCStyle.RsNull then  // RectItem
       Result := FItems[vItemNo].FirstDItemNo
     else  // 文本
     begin
       for i := FItems[vItemNo].FirstDItemNo to FDrawItems.Count - 1 do
       begin
-        vDItem := FDrawItems[i];
-        if SelectInfo.StartItemOffset - vDItem.CharOffs + 1 <= vDItem.CharLen then
+        vDrawItem := FDrawItems[i];
+        if SelectInfo.StartItemOffset - vDrawItem.CharOffs + 1 <= vDrawItem.CharLen then
         begin
           Result := i;
           Break;
@@ -1135,6 +1138,14 @@ begin
     end;
   end;
 end;}
+
+function THCCustomData.GetItemAfterOffset(const AItemNo: Integer): Integer;
+begin
+  if FItems[AItemNo].StyleNo < THCStyle.RsNull then
+    Result := OffsetAfter
+  else
+    Result := FItems[AItemNo].Length;
+end;
 
 procedure THCCustomData.GetItemAt(const X, Y: Integer;
   var AItemNo, AOffset, ADrawItemNo: Integer; var ARestrain: Boolean);
@@ -2698,10 +2709,7 @@ begin
     if not IsEmptyData then
     begin
       FSelectInfo.EndItemNo := FItems.Count - 1;
-      if FItems[FSelectInfo.EndItemNo].StyleNo < THCStyle.RsNull then
-        FSelectInfo.EndItemOffset := OffsetAfter
-      else
-        FSelectInfo.EndItemOffset := FItems.Last.Length;
+      FSelectInfo.EndItemOffset := GetItemAfterOffset(FSelectInfo.EndItemNo);
     end
     else
     begin
@@ -2759,14 +2767,8 @@ function THCCustomData.SelectedAll: Boolean;
 begin
   Result := (FSelectInfo.StartItemNo = 0)
     and (FSelectInfo.StartItemOffset = 0)
-    and (FSelectInfo.EndItemNo = FItems.Count - 1);
-  if Result then
-  begin
-    if FItems[FSelectInfo.EndItemNo].StyleNo < THCStyle.RsNull then
-      Result := FSelectInfo.EndItemOffset = OffsetAfter
-    else
-      Result := FSelectInfo.EndItemOffset = FItems.Last.Length;
-  end;
+    and (FSelectInfo.EndItemNo = FItems.Count - 1)
+    and (FSelectInfo.EndItemOffset = GetItemAfterOffset(FItems.Count - 1));
 end;
 
 function THCCustomData.SelectExists(const AIfRectItem: Boolean = True): Boolean;
@@ -2806,14 +2808,6 @@ begin
     else
       Result := vStartDNo = GetSelectEndDrawItemNo;
   end;
-end;
-
-procedure THCCustomData.SelectItemAfter(const AItemNo: Integer);
-begin
-  if FItems[AItemNo].StyleNo < THCStyle.RsNull then
-    FSelectInfo.StartItemOffset := OffsetAfter
-  else
-    FSelectInfo.StartItemOffset := Items[FSelectInfo.StartItemNo].Length;
 end;
 
 procedure THCCustomData.SetCaretDrawItemNo(const Value: Integer);

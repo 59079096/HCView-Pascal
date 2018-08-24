@@ -27,6 +27,9 @@ object frmTableProperty: TfrmTableProperty
     ExplicitTop = -1
     object tsTable: TTabSheet
       Caption = #34920#26684
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
       ExplicitHeight = 347
       object lbl1: TLabel
         Left = 24
@@ -95,6 +98,9 @@ object frmTableProperty: TfrmTableProperty
     object tsRow: TTabSheet
       Caption = #34892'(0)'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
       ExplicitHeight = 347
       object lbl3: TLabel
         Left = 24
@@ -143,6 +149,8 @@ object frmTableProperty: TfrmTableProperty
       ImageIndex = 2
       ExplicitLeft = 8
       ExplicitTop = 22
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object lbl7: TLabel
         Left = 24
         Top = 10

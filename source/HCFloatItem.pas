@@ -17,17 +17,22 @@ uses
   Windows, SysUtils, Classes, Controls, Graphics, Messages, HCItem, HCRectItem,
   HCStyle;
 
+const
+  PointSize = 5;
+
 type
-  THCFloatItem = class(THCCustomRectItem)  // 可浮动Item   THCResizeRectItem
+  THCFloatItem = class(THCResizeRectItem)  // 可浮动Item
   private
-    FX, FY: Integer;
+    FLeft, FTop: Integer;
   protected
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
   public
-    property X: Integer read FX write FX;
-    property Y: Integer read FY write FY;
+    function PtInClient(const X, Y: Integer): Boolean; overload;
+    function PtInClient(const APoint: TPoint): Boolean; overload; virtual;
+    property Left: Integer read FLeft write FLeft;
+    property Top: Integer read FTop write FTop;
   end;
 
 implementation
@@ -39,12 +44,21 @@ procedure THCFloatItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 begin
-  inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom,
-    ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  {inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom,
+    ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);}
 
-  ACanvas.Pen.Color := clRed;
-  ACanvas.Pen.Style := psSolid;
-  ACanvas.DrawFocusRect(ADrawRect);
+  if Self.Active then
+    ACanvas.DrawFocusRect(ADrawRect);
+end;
+
+function THCFloatItem.PtInClient(const APoint: TPoint): Boolean;
+begin
+  Result := PtInRect(Bounds(0, 0, Width, Height), APoint);
+end;
+
+function THCFloatItem.PtInClient(const X, Y: Integer): Boolean;
+begin
+  Result := PtInClient(Point(X, Y));
 end;
 
 end.

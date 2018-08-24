@@ -16,8 +16,8 @@ interface
 uses
   Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, SynPdf,
   Generics.Collections, HCCommon, HCRichData, HCCustomRichData, HCDrawItem,
-  HCCustomSection, HCSection, HCScrollBar, HCRichScrollBar, HCParaStyle, HCTextStyle,
-  HCRectItem, HCTextItem, HCItem, HCFloatItem, HCUndo;
+  HCSection, HCScrollBar, HCRichScrollBar, HCParaStyle, HCTextStyle, HCRectItem,
+  HCTextItem, HCItem, HCFloatItem, HCUndo;
 
 type
   TPageScrollModel = (psmVertical, psmHorizontal);
@@ -389,6 +389,10 @@ type
     /// <summary> 返回指定节页面绘制时Left位置 </summary>
     function GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
 
+    /// <summary> 返回光标处DrawItem相对当前页显示的窗体坐标 </summary>
+    /// <returns>坐标</returns>
+    function GetActiveDrawItemClientCoord: TPoint;
+
     /// <summary> 格式化指定节的数据 </summary>
     procedure FormatSection(const ASectionIndex: Integer);
 
@@ -459,6 +463,14 @@ type
 
     /// <summary> 重做 </summary>
     procedure Redo;
+
+    /// <summary> 当前位置开始查找指定的内容 </summary>
+    /// <param name="AKeyword">要查找的关键字</param>
+    /// <param name="AForward">True：向前，False：向后</param>
+    /// <param name="AMatchCase">True：区分大小写，False：不区分大小写</param>
+    /// <returns>True：找到</returns>
+    function Search(const AKeyword: string; const AForward: Boolean = False;
+      const AMatchCase: Boolean = False): Boolean;
 
     // 属性部分
     /// <summary> 当前文档名称 </summary>
@@ -648,7 +660,7 @@ var
 begin
   vVMax := 0;
   vHMax := FSections[0].PageWidthPix;
-  for i := 0 to FSections.Count - 1 do
+  for i := 0 to FSections.Count - 1 do  //  计算节垂直总和，以及节中最宽的页宽度
   begin
     vVMax := vVMax + FSections[i].GetFilmHeight;
 
@@ -661,7 +673,7 @@ begin
   if FShowAnnotation then
     vHMax := vHMax + AnnotationWidth;
 
-  vVMax := ZoomIn(vVMax + PagePadding);
+  vVMax := ZoomIn(vVMax + PagePadding);  // 补充最后一页后面的PagePadding
   vHMax := ZoomIn(vHMax + PagePadding + PagePadding);
 
   FVScrollBar.Max := vVMax;
@@ -728,7 +740,8 @@ begin
     Clipboard.Clear;
     Clipboard.Open;
     try
-      Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);
+      Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);  // HC格式
+      Clipboard.AsText := Self.ActiveSectionTopLevelData.SaveSelectToText;  // 文本格式
     finally
       Clipboard.Close;
     end;
@@ -1150,6 +1163,41 @@ begin
   Result := ActiveSection.GetTopLevelItem;
 end;
 
+function THCView.GetActiveDrawItemClientCoord: TPoint;
+var
+  vPageIndex: Integer;
+begin
+  Result := ActiveSection.GetActiveDrawItemCoord;  // 有选中时，以选中结束位置的DrawItem格式化坐标
+  vPageIndex := ActiveSection.GetPageIndexByFormat(Result.Y);
+
+  // 映射到节页面(白色区域)
+  Result.X := ZoomIn(GetSectionDrawLeft(Self.ActiveSectionIndex)
+    + (ActiveSection.GetPageMarginLeft(vPageIndex) + Result.X)) - Self.HScrollValue;
+
+  if ActiveSection.ActiveData = ActiveSection.Header then
+    Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
+      + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
+      + ActiveSection.GetHeaderPageDrawTop
+      + Result.Y
+      - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
+      - Self.VScrollValue
+  else
+  if ActiveSection.ActiveData = ActiveSection.Footer then
+    Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
+      + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
+      + ActiveSection.PageHeightPix - ActiveSection.PageMarginBottomPix
+      + Result.Y
+      - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
+      - Self.VScrollValue
+  else
+    Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
+      + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
+      + ActiveSection.GetHeaderAreaHeight // 94
+      + Result.Y
+      - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
+      - Self.VScrollValue;
+end;
+
 function THCView.GetActivePageIndex: Integer;
 var
   i: Integer;
@@ -1191,9 +1239,9 @@ end;
 function THCView.GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
 begin
   if FShowAnnotation then  // 显示批注
-    Result := Max((GetDisplayWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix + AnnotationWidth)) div 2, PagePadding)
+    Result := Max((GetDisplayWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix + AnnotationWidth)) div 2, ZoomIn(PagePadding))
   else
-    Result := Max((GetDisplayWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix)) div 2, PagePadding);
+    Result := Max((GetDisplayWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix)) div 2, ZoomIn(PagePadding));
   Result := ZoomOut(Result);
 end;
 
@@ -2269,6 +2317,8 @@ begin
       FZoom := (vDisplayWidth - PagePadding * 2) / ActiveSection.PageWidthPix;
   end;
 
+  CalcScrollRang;
+
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
@@ -2448,6 +2498,68 @@ end;
 function THCView.ZoomOut(const Value: Integer): Integer;
 begin
   Result := Round(Value / FZoom);
+end;
+
+function THCView.Search(const AKeyword: string; const AForward: Boolean = False;
+  const AMatchCase: Boolean = False): Boolean;
+var
+  vTopData: THCCustomRichData;
+  vStartDrawItemNo, vEndDrawItemNo: Integer;
+  vDrawItem: THCCustomDrawItem;
+  vPt: TPoint;
+  vStartDrawRect, vEndDrawRect: TRect;
+begin
+  Result := Self.ActiveSection.Search(AKeyword, AForward, AMatchCase);
+  if Result then
+  begin
+    vPt := GetActiveDrawItemClientCoord;  // 返回光标处DrawItem相对当前页显示的窗体坐标，有选中时，以选中结束位置的DrawItem格式化坐标
+
+    vTopData := ActiveSectionTopLevelData;
+    with vTopData do
+    begin
+      vStartDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+      vEndDrawItemNo := GetDrawItemNoByOffset(SelectInfo.EndItemNo, SelectInfo.EndItemOffset);
+
+      if vStartDrawItemNo = vEndDrawItemNo then  // 选中在同一个DrawItem
+      begin
+        vStartDrawRect.Left := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vStartDrawItemNo,
+          SelectInfo.StartItemOffset - DrawItems[vStartDrawItemNo].CharOffs + 1));
+        vStartDrawRect.Top := vPt.Y;
+        vStartDrawRect.Right := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vEndDrawItemNo,
+          SelectInfo.EndItemOffset - DrawItems[vEndDrawItemNo].CharOffs + 1));
+        vStartDrawRect.Bottom := vPt.Y + ZoomIn(DrawItems[vEndDrawItemNo].Rect.Height);
+
+        vEndDrawRect := vStartDrawRect;
+      end
+      else  // 选中不在同一个DrawItem
+      begin
+        vStartDrawRect.Left := vPt.X + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Left - DrawItems[vEndDrawItemNo].Rect.Left
+          + GetDrawItemOffsetWidth(vStartDrawItemNo, SelectInfo.StartItemOffset - DrawItems[vStartDrawItemNo].CharOffs + 1));
+        vStartDrawRect.Top := vPt.Y + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Top - DrawItems[vEndDrawItemNo].Rect.Top);
+        vStartDrawRect.Right := vPt.X + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Left - DrawItems[vEndDrawItemNo].Rect.Left
+          + DrawItems[vStartDrawItemNo].Rect.Width);
+        vStartDrawRect.Bottom := vStartDrawRect.Top + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Height);
+
+        vEndDrawRect.Left := vPt.X;
+        vEndDrawRect.Top := vPt.Y;
+        vEndDrawRect.Right := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vEndDrawItemNo,
+          SelectInfo.EndItemOffset - DrawItems[vEndDrawItemNo].CharOffs + 1));
+        vEndDrawRect.Bottom := vPt.Y + ZoomIn(DrawItems[vEndDrawItemNo].Rect.Height);
+      end;
+    end;
+
+    if vStartDrawRect.Top < 0 then
+      Self.FVScrollBar.Position := Self.FVScrollBar.Position + vStartDrawRect.Top
+    else
+    if vStartDrawRect.Top > GetDisplayHeight then
+      Self.FVScrollBar.Position := Self.FVScrollBar.Position + vStartDrawRect.Top - GetDisplayHeight + ZoomIn(vTopData.DrawItems[vStartDrawItemNo].Rect.Height);
+
+    if vStartDrawRect.Left < 0 then
+      Self.FHScrollBar.Position := Self.FHScrollBar.Position + vStartDrawRect.Left
+    else
+    if vStartDrawRect.Right > GetDisplayWidth then
+      Self.FHScrollBar.Position := Self.FHScrollBar.Position + vStartDrawRect.Right - GetDisplayWidth;
+  end;
 end;
 
 procedure THCView.SelectAll;

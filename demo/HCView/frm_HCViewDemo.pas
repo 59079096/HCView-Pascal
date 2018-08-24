@@ -108,6 +108,9 @@ type
     mniTableProperty: TMenuItem;
     mniN38: TMenuItem;
     mniN39: TMenuItem;
+    mniN40: TMenuItem;
+    mniN41: TMenuItem;
+    actSearch: TAction;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -168,6 +171,7 @@ type
     procedure mniN37Click(Sender: TObject);
     procedure mniTablePropertyClick(Sender: TObject);
     procedure mniN39Click(Sender: TObject);
+    procedure actSearchExecute(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -195,7 +199,8 @@ uses
   frm_InsertTable, frm_PageSet, HCStyle, HCRectItem, HCTableItem, HCTextItem,
   HCDrawItem, HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem,
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
-  EmrGroupItem, EmrToothItem, EmrFangJiaoItem, frm_Paragraph, frm_TableProperty;
+  EmrGroupItem, EmrToothItem, EmrFangJiaoItem, frm_Paragraph, frm_TableProperty,
+  frm_SearchAndReplace;
 
 {$R *.dfm}
 
@@ -429,6 +434,16 @@ begin
   end;
 end;
 
+procedure TfrmHCViewDemo.actSearchExecute(Sender: TObject);
+begin
+  if not Assigned(frmSearchAndReplace) then
+  begin
+    frmSearchAndReplace := TfrmSearchAndReplace.Create(Self);
+    frmSearchAndReplace.SetHCView(FHCView)
+  end;
+  frmSearchAndReplace.ShowSearch;
+end;
+
 procedure TfrmHCViewDemo.btn4Click(Sender: TObject);
 begin
   FHCView.Undo;
@@ -464,6 +479,8 @@ end;
 procedure TfrmHCViewDemo.FormDestroy(Sender: TObject);
 begin
   FHCView.Free;
+  if Assigned(frmSearchAndReplace) then
+    FreeAndNil(frmSearchAndReplace);
 end;
 
 procedure TfrmHCViewDemo.FormShow(Sender: TObject);
@@ -773,13 +790,11 @@ begin
 end;
 
 procedure TfrmHCViewDemo.mniN39Click(Sender: TObject);
-//var
-//  vFloatLineItem: THCFloatLineItem;
+var
+  vFloatLineItem: THCFloatLineItem;
 begin
-//  vFloatLineItem := THCFloatLineItem.Create(FHCView.ActiveSection.ActiveData);
-//  vFloatLineItem.X := 100;
-//  vFloatLineItem.Y := 50;
-//  FHCView.InsertFloatItem(vFloatLineItem);
+  vFloatLineItem := THCFloatLineItem.Create(FHCView.ActiveSection.ActiveData);
+  FHCView.InsertFloatItem(vFloatLineItem);
 end;
 
 procedure TfrmHCViewDemo.mniN4Click(Sender: TObject);

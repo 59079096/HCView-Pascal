@@ -284,6 +284,7 @@ type
     property Width: Cardinal read GetWidth write SetWidth;
     property Height: Cardinal read GetHeight;  // 实际内容的高
     property ReadOnly: Boolean read FReadOnly write SetReadOnly;
+    property Selecting: Boolean read FSelecting;
     property OnInsertItem: TItemNotifyEvent read FOnInsertItem write FOnInsertItem;
     property OnItemResized: TDataItemEvent read FOnItemResized write FOnItemResized;
     property OnItemMouseDown: TItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
@@ -483,7 +484,7 @@ var
         else  // 删除位置前后不能合并，光标置为前一个后面
         begin
           SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-          SelectItemAfter(SelectInfo.StartItemNo);
+          SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
         end;
       end
       else
@@ -742,7 +743,7 @@ begin
           if SelectInfo.EndItemNo = vFormatLastItemNo then  // 结束在段最后
           begin
             SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-            SelectItemAfter(SelectInfo.StartItemNo);
+            SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
           end
           else  // 选中起始在起始段中间，选中结束在结束段中间
           begin
@@ -850,12 +851,12 @@ begin
     // 拖拽完成时清除
     FDraging := False;  // 拖拽完成
     //FMouseLBDowning := False;  // 鼠标按下在选中区域外的时候清选中，但不能改FMouseLBDowning状态
-    FSelecting := False;  // 准备划选  
-    
+    FSelecting := False;  // 准备划选
     // Self.Initialize;  这里会导致Mouse事件中的FMouseLBDowning等属性被取消掉
-    Style.UpdateInfoReCaret;
     Style.UpdateInfoRePaint;
   end;
+
+  Style.UpdateInfoReCaret;  // 选择起始信息被重置为-1
 end;
 
 procedure THCCustomRichData.Undo_DeleteText(const AItemNo, AOffset: Integer;
@@ -2324,10 +2325,7 @@ begin
     vItemCount := CheckInsertItemCount(vInsPos, vInsPos + vItemCount - 1);  // 检查插入的Item是否合格并删除不合格
 
     vInsetLastNo := vInsPos + vItemCount - 1;  // 光标在最后一个Item
-    if Items[vInsetLastNo].StyleNo < THCStyle.RsNull then
-      vCaretOffse := OffsetAfter
-    else
-      vCaretOffse := Items[vInsetLastNo].Length;  // 最后一个Item后面
+    vCaretOffse := GetItemAfterOffset(vInsetLastNo);  // 最后一个Item后面
 
     if vAfterItem <> nil then  // 插入操作是在Item中间，原Item补拆分成2个
     begin
@@ -2702,7 +2700,7 @@ var
         if Items[AItemNo].StyleNo < THCStyle.RsNull then
           AOffset := OffsetBefor
         else
-          AOffset := Items[AItemNo].Length - 1;
+          AOffset := Items[AItemNo].Length - 1;  // 倒数第1个前面
       end;
     end;
 
@@ -2751,7 +2749,7 @@ var
         if (SelectInfo.StartItemNo > 0) and (SelectInfo.StartItemOffset = 0) then  // 在Item最前面往前
         begin
           SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-          SelectItemAfter(SelectInfo.StartItemNo);
+          SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
         end;
 
         SelectInfo.EndItemNo := SelectInfo.StartItemNo;
@@ -2781,7 +2779,7 @@ var
           if SelectInfo.StartItemNo > 0 then  // 不是第一个Item的最开始，往前面移动
           begin
             SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;  // 上一个
-            SelectItemAfter(SelectInfo.StartItemNo);
+            SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
 
             if not DrawItems[Items[SelectInfo.StartItemNo + 1].FirstDItemNo].LineFirst then  // 移动前Item不是行起始
             begin
@@ -2817,15 +2815,8 @@ var
   procedure RightKeyDown;
 
     procedure SelectNext(var AItemNo, AOffset: Integer);
-    var
-      vIsAfter: Boolean;
     begin
-      if Items[AItemNo].StyleNo < THCStyle.RsNull then
-        vIsAfter := AOffset = OffsetAfter
-      else
-        vIsAfter := AOffset = Items[AItemNo].Length;
-
-      if vIsAfter then  // 在Item最后，移动到下一个Item
+      if AOffset = GetItemAfterOffset(AItemNo) then  // 在Item最后，移动到下一个Item
       begin
         if AItemNo < Items.Count - 1 then
         begin
@@ -3536,7 +3527,7 @@ var
             begin
               // 选到上一个最后
               SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-              SelectItemAfter(SelectInfo.StartItemNo);
+              SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
 
               KeyDown(Key, Shift);  // 执行前一个的删除
             end;
@@ -3585,10 +3576,7 @@ var
             begin
               if SelectInfo.StartItemNo < vFormatLastItemNo then  // 段中间
               begin
-                if Items[SelectInfo.StartItemNo - 1].StyleNo < THCStyle.RsNull then  // 前一个是RectItem
-                  vLen := OffsetAfter
-                else  // 前一个是TextItem
-                  vLen := Items[SelectInfo.StartItemNo - 1].Length;
+                vLen := GetItemAfterOffset(SelectInfo.StartItemNo - 1);
 
                 Undo_StartRecord;
                 Undo_DeleteItem(SelectInfo.StartItemNo, 0);
@@ -3619,7 +3607,7 @@ var
                 ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo - 1, -1);
 
                 SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-                SelectItemAfter(SelectInfo.StartItemNo);
+                SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
               end;
             end;
 
@@ -3972,9 +3960,9 @@ var
               FormatItemPrepare(vCurItemNo);
               Items.Delete(vCurItemNo);
               SelectInfo.StartItemNo := vCurItemNo - 1;
+              SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
               //ReFormatData_(SelectInfo.StartItemNo, SelectInfo.StartItemNo, -1);
               DrawItems.DeleteFormatMark;
-              SelectItemAfter(SelectInfo.StartItemNo);
             end;
           end
           else  // 行首Item被删空了
@@ -4148,7 +4136,7 @@ var
           else  // 前面是文本，赋值为前面的最后，再重新处理删除
           begin
             SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-            SelectItemAfter(SelectInfo.StartItemNo);
+            SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
             vCurItem := GetCurItem;
 
             Style.UpdateInfoReStyle;
@@ -4639,18 +4627,6 @@ var
 
   {$REGION ' AdjustSelectRang '}
   procedure AdjustSelectRang;
-
-    {$REGION ' Item的指定偏移在最后面 '}
-    function OffsetInItemAfter(const AItemNo, AOffset: Integer): Boolean;
-    begin
-      Result := False;
-      if Items[AItemNo].StyleNo < THCStyle.RsNull then
-        Result := AOffset = OffsetAfter
-      else
-        Result := AOffset = Items[AItemNo].Length;
-    end;
-    {$ENDREGION}
-
   var
     i, vOldStartItemNo, vOldEndItemNo: Integer;
     vLeftToRight: Boolean;
@@ -4664,7 +4640,7 @@ var
     begin
       vLeftToRight := True;
 
-      if OffsetInItemAfter(FMouseDownItemNo, FMouseDownItemOffset) then  // 起始在Item最后面，改为下一个Item开始
+      if FMouseDownItemOffset = GetItemAfterOffset(FMouseDownItemNo) then  // 起始在Item最后面，改为下一个Item开始
       begin
         if FMouseDownItemNo < Items.Count - 1 then  // 起始改为下一个Item开始
         begin
@@ -4680,10 +4656,7 @@ var
         Items[FMouseMoveItemNo].DisSelect;  // 从前往后选，鼠标移动到前一次前面，原鼠标处被移出选中范围
 
         FMouseMoveItemNo := FMouseMoveItemNo - 1;
-        if Items[FMouseMoveItemNo].StyleNo < THCStyle.RsNull then
-          FMouseMoveItemOffset := OffsetAfter
-        else
-          FMouseMoveItemOffset := Items[FMouseMoveItemNo].Length;
+        FMouseMoveItemOffset := GetItemAfterOffset(FMouseMoveItemNo);
       end;
     end
     else
@@ -4694,14 +4667,11 @@ var
       if (FMouseDownItemNo > 0) and (FMouseDownItemOffset = 0) then  // 起始在Item最前面，改为上一个Item结束
       begin
         FMouseDownItemNo := FMouseDownItemNo - 1;
-        if Items[FMouseDownItemNo].StyleNo < THCStyle.RsNull then
-          FMouseDownItemOffset := OffsetAfter
-        else
-          FMouseDownItemOffset := Items[FMouseDownItemNo].Length;
+        FMouseDownItemOffset := GetItemAfterOffset(FMouseDownItemNo);
       end;
 
       if (FMouseDownItemNo <> FMouseMoveItemNo)
-        and OffsetInItemAfter(FMouseMoveItemNo, FMouseMoveItemOffset)
+        and (FMouseMoveItemOffset = GetItemAfterOffset(FMouseMoveItemNo))
       then  // 结束在Item最后面，改为下一个Item开始
       begin
         Items[FMouseMoveItemNo].DisSelect;  // 从后往前选，鼠标移动到前一个后面，原鼠标处被移出选中范围
@@ -5171,10 +5141,7 @@ end;
 
 procedure THCCustomRichData.ReSetSelectAndCaret(const AItemNo: Integer);
 begin
-  if Items[AItemNo].StyleNo < THCStyle.RsNull then
-    ReSetSelectAndCaret(AItemNo, OffsetAfter)
-  else
-    ReSetSelectAndCaret(AItemNo, Items[AItemNo].Length);
+  ReSetSelectAndCaret(AItemNo, GetItemAfterOffset(AItemNo));
 end;
 
 procedure THCCustomRichData.SaveItemToStreamAlone(const AItem: THCCustomItem;

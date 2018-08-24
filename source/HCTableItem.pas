@@ -255,6 +255,13 @@ type
       AWidth: Integer);
     destructor Destroy; override;
 
+    /// <summary> 当前位置开始查找指定的内容 </summary>
+    /// <param name="AKeyword">要查找的关键字</param>
+    /// <param name="AForward">True：向前，False：向后</param>
+    /// <param name="AMatchCase">True：区分大小写，False：不区分大小写</param>
+    /// <returns>True：找到</returns>
+    function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; override;
+
     /// <summary> 获取指定位置处的行、列(如果是被合并单元格则返回目标单元格行、列) </summary>
     /// <param name="X">横坐标</param>
     /// <param name="Y">纵坐标</param>
@@ -1014,6 +1021,7 @@ begin
             ACanvas.Pen.Style := psSolid;
           end
           else
+          if not APaintInfo.Print then
           begin
             ACanvas.Pen.Color := clActiveBorder;
             ACanvas.Pen.Style := psDot;
@@ -1062,7 +1070,7 @@ begin
           ACanvas.LineTo(vBorderLeft, vBorderBottom);  // 行左下
 
           if vC = 0 then  // 第1列绘制前面竖线，其他的由前一列后面竖线代替前面竖线
-            ACanvas.LineTo(vBorderLeft, vBorderTop - 1);
+            ACanvas.LineTo(vBorderLeft, vBorderTop);
 
           if (not APaintInfo.Print)
              and (vC = FRows[vR].ColCount - 1)
@@ -1342,10 +1350,7 @@ var
           with Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData do
           begin
             SelectInfo.StartItemNo := Items.Count - 1;
-            if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull then
-              SelectInfo.StartItemOffset := OffsetAfter
-            else
-              SelectInfo.StartItemOffset := Items[SelectInfo.StartItemNo].Length;
+            SelectInfo.StartItemOffset := GetItemAfterOffset(SelectInfo.StartItemNo);
 
             CaretDrawItemNo := DrawItems.Count - 1;
           end;
@@ -3177,6 +3182,179 @@ begin
     for vC := 0 to FRows[vR].ColCount - 1 do  // 各列数据
       FRows[vR].Cols[vC].SaveToStream(AStream);
   end;
+end;
+
+function THCTableItem.Search(const AKeyword: string; const AForward,
+  AMatchCase: Boolean): Boolean;
+var
+  i, j, vRow, vCol: Integer;
+begin
+  Result := False;
+
+  if AForward then  // 向前查找
+  begin
+    if FSelectCellRang.StartRow < 0 then  // 没有编辑的单元格
+    begin
+      FSelectCellRang.StartRow := FRows.Count - 1;
+      FSelectCellRang.StartCol := FColWidths.Count - 1;
+
+      vRow := FSelectCellRang.StartRow;
+      vCol := FSelectCellRang.StartCol;
+
+      // 从最后开始
+      if Cells[vRow, vCol].CellData <> nil then
+      begin
+        with Cells[vRow, vCol].CellData do
+        begin
+          SelectInfo.StartItemNo := Items.Count - 1;
+          SelectInfo.StartItemOffset := GetItemAfterOffset(Items.Count - 1);
+        end;
+      end;
+    end;
+
+    vRow := FSelectCellRang.StartRow;
+    vCol := FSelectCellRang.StartCol;
+
+    if (vRow >= 0) and (vCol >= 0) then
+    begin
+      if Cells[vRow, vCol].CellData <> nil then
+        Result := Cells[vRow, vCol].CellData.Search(AKeyword, AForward, AMatchCase);
+
+      if not Result then  // 当前单元格没找到
+      begin
+        for j := vCol - 1 downto 0 do  // 在同行后面的单元格找
+        begin
+          if (Cells[vRow, j].ColSpan < 0) or (Cells[vRow, j].RowSpan < 0) then
+            Continue
+          else
+          begin
+            with Cells[vRow, j].CellData do
+            begin
+              SelectInfo.StartItemNo := Items.Count - 1;
+              SelectInfo.StartItemOffset := GetItemAfterOffset(Items.Count - 1);
+            end;
+
+            Result := Cells[vRow, j].CellData.Search(AKeyword, AForward, AMatchCase);
+          end;
+
+          if Result then
+          begin
+            FSelectCellRang.StartCol := j;
+            Break;
+          end;
+        end;
+      end;
+
+      if not Result then  // 同行后面的单元格没找到
+      begin
+        for i := FSelectCellRang.StartRow - 1 downto 0 do
+        begin
+          for j := FColWidths.Count - 1 downto 0 do
+          begin
+            if (Cells[i, j].ColSpan < 0) or (Cells[i, j].RowSpan < 0) then
+              Continue
+            else
+            begin
+              with Cells[i, j].CellData do
+              begin
+                SelectInfo.StartItemNo := Items.Count - 1;
+                SelectInfo.StartItemOffset := GetItemAfterOffset(Items.Count - 1);
+              end;
+
+              Result := Cells[i, j].CellData.Search(AKeyword, AForward, AMatchCase);
+            end;
+
+            if Result then
+            begin
+              FSelectCellRang.StartCol := j;
+              Break;
+            end;
+          end;
+
+          if Result then
+          begin
+            FSelectCellRang.StartRow := i;
+            Break;
+          end;
+        end;
+      end;
+    end;
+  end
+  else  // 向后查找
+  begin
+    if FSelectCellRang.StartRow < 0 then  // 没有编辑的单元格
+    begin
+      FSelectCellRang.StartRow := 0;
+      FSelectCellRang.StartCol := 0;
+
+      // 从头开始
+      Cells[0, 0].CellData.SelectInfo.StartItemNo := 0;
+      Cells[0, 0].CellData.SelectInfo.StartItemOffset := 0;
+    end;
+
+    vRow := FSelectCellRang.StartRow;
+    vCol := FSelectCellRang.StartCol;
+
+    if (vRow >= 0) and (vCol >= 0) then
+    begin
+      Result := Cells[vRow, vCol].CellData.Search(AKeyword, AForward, AMatchCase);
+      if not Result then  // 当前单元格没找到
+      begin
+        for j := vCol + 1 to FColWidths.Count - 1 do  // 在同行后面的单元格找
+        begin
+          if (Cells[vRow, j].ColSpan < 0) or (Cells[vRow, j].RowSpan < 0) then
+            Continue
+          else
+          begin
+            Cells[vRow, j].CellData.SelectInfo.StartItemNo := 0;
+            Cells[vRow, j].CellData.SelectInfo.StartItemOffset := 0;
+
+            Result := Cells[vRow, j].CellData.Search(AKeyword, AForward, AMatchCase);
+          end;
+
+          if Result then
+          begin
+            FSelectCellRang.StartCol := j;
+            Break;
+          end;
+        end;
+      end;
+
+      if not Result then  // 同行后面的单元格没找到
+      begin
+        for i := FSelectCellRang.StartRow + 1 to FRows.Count - 1 do
+        begin
+          for j := 0 to FColWidths.Count - 1 do
+          begin
+            if (Cells[i, j].ColSpan < 0) or (Cells[i, j].RowSpan < 0) then
+              Continue
+            else
+            begin
+              Cells[i, j].CellData.SelectInfo.StartItemNo := 0;
+              Cells[i, j].CellData.SelectInfo.StartItemOffset := 0;
+
+              Result := Cells[i, j].CellData.Search(AKeyword, AForward, AMatchCase);
+            end;
+
+            if Result then
+            begin
+              FSelectCellRang.StartCol := j;
+              Break;
+            end;
+          end;
+
+          if Result then
+          begin
+            FSelectCellRang.StartRow := i;
+            Break;
+          end;
+        end;
+      end;
+    end;
+  end;
+
+  if not Result then
+    FSelectCellRang.Initialize;
 end;
 
 procedure THCTableItem.SelectAll;

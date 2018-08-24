@@ -70,7 +70,7 @@ end;
 
 procedure TfrmTableProperty.SetHCView(const AHCView: THCView);
 var
-  i, viValue{, vRowAlignIndex}: Integer;
+  viValue{, vRowAlignIndex}: Integer;
   vTableItem: THCTableItem;
   vData: THCCustomRichData;
   vAlignVert: TAlignVert;

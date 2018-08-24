@@ -182,7 +182,7 @@ procedure THCEdit.CalcScrollRang;
 var
   i, vWidth, vVMax, vHMax: Integer;
 begin
-  FHScrollBar.Max := MinPadding * 2;
+  FHScrollBar.Max := PagePadding * 2;
   FVScrollBar.Max := FData.Height;
 end;
 
@@ -463,7 +463,7 @@ procedure THCEdit.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited;
-  FData.MouseDown(Button, Shift, X - MinPadding, Y - MinPadding);
+  FData.MouseDown(Button, Shift, X - PagePadding, Y - PagePadding);
   CheckUpdateInfo;  // 换光标、切换激活Item
   if Assigned(FOnMouseDown) then
     FOnMouseDown(Self, Button, Shift, X, Y);
@@ -487,7 +487,7 @@ procedure THCEdit.MouseMove(Shift: TShiftState; X, Y: Integer);
 
 begin
   inherited;
-  FData.MouseMove(Shift, X - MinPadding, Y - MinPadding);
+  FData.MouseMove(Shift, X - PagePadding, Y - PagePadding);
   if ShowHint then
     ProcessHint;
 
@@ -503,7 +503,7 @@ procedure THCEdit.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
 begin
   inherited;
   if Button = mbRight then Exit;  // 右键弹出菜单
-  FData.MouseUp(Button, Shift, X - MinPadding, Y - MinPadding);
+  FData.MouseUp(Button, Shift, X - PagePadding, Y - PagePadding);
   Cursor := GCursor;
   CheckUpdateInfo;  // 在选中区域中按下不移动弹起鼠标时需要更新
 end;
@@ -585,8 +585,8 @@ begin
     FCaret.Hide;
     Exit;
   end;
-  FCaret.X := vCaretInfo.X - FHScrollBar.Position + MinPadding;
-  FCaret.Y := vCaretInfo.Y - FVScrollBar.Position + MinPadding;
+  FCaret.X := vCaretInfo.X - FHScrollBar.Position + PagePadding;
+  FCaret.Y := vCaretInfo.Y - FVScrollBar.Position + PagePadding;
   FCaret.Height := vCaretInfo.Height;
 
   vDisplayHeight := GetDisplayHeight;
@@ -609,10 +609,10 @@ begin
     if FCaret.Height < vDisplayHeight then
     begin
       if FCaret.Y < 0 then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - MinPadding
+        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - PagePadding
       else
-      if FCaret.Y + FCaret.Height + MinPadding > vDisplayHeight then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + MinPadding - vDisplayHeight;
+      if FCaret.Y + FCaret.Height + PagePadding > vDisplayHeight then
+        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + PagePadding - vDisplayHeight;
     end;
   end;
 
@@ -627,7 +627,7 @@ procedure THCEdit.Resize;
 begin
   inherited;
   FDataBmp.SetSize(GetDisplayWidth, GetDisplayHeight);
-  FData.Width := FDataBmp.Width - MinPadding - MinPadding;
+  FData.Width := FDataBmp.Width - PagePadding - PagePadding;
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
@@ -672,8 +672,8 @@ begin
 
       vPaintInfo := TPaintInfo.Create;
       try
-        FData.PaintData(MinPadding,  // 当前页数据要绘制到的Left
-          MinPadding,     // 当前页数据要绘制到的Top
+        FData.PaintData(PagePadding,  // 当前页数据要绘制到的Left
+          PagePadding,     // 当前页数据要绘制到的Top
           FData.Height,  // 当前页数据要绘制的Bottom
           0,     // 界面呈现当前页数据的Top位置
           Self.Height,  // 界面呈现当前页数据Bottom位置

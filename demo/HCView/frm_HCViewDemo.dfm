@@ -315,7 +315,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00CC0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00E00010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1305,6 +1305,12 @@ object frmHCViewDemo: TfrmHCViewDemo
           OnClick = mniN31Click
         end
       end
+      object mniN40: TMenuItem
+        Action = actSearch
+      end
+      object mniN41: TMenuItem
+        Caption = #26367#25442
+      end
     end
     object mniN12: TMenuItem
       Caption = #25554#20837
@@ -1503,5 +1509,10 @@ object frmHCViewDemo: TfrmHCViewDemo
   object actlst: TActionList
     Left = 160
     Top = 56
+    object actSearch: TAction
+      Caption = #26597#25214
+      ShortCut = 16454
+      OnExecute = actSearchExecute
+    end
   end
 end

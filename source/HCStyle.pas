@@ -54,10 +54,6 @@ type
   protected
     procedure SetShowLineLastMark(Value: Boolean);
   public const
-    LineSpace100 = 8;
-    LineSpace150 = 12;
-    LineSpace200 = 16;
-    //
     Null = -1;  // TextItem和RectItem分界线
     Image = -2;
     Table = -3;

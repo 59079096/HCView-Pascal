@@ -23,6 +23,7 @@ type
 
   THCDateTimePicker = class(THCEditItem)
   private
+    FDateTime: TDateTime;
     FFormat: string;
     FAreaRect: TRect;
     FActiveArea: TDateTimeArea;
@@ -32,8 +33,9 @@ type
     function GetAreaRect(const AArea: TDateTimeArea): TRect;
     function GetAreaAt(const X, Y: Integer): TDateTimeArea;
 
-    function GetDateTime: TDateTime;
     procedure SetDateTime(const Value: TDateTime);
+
+    procedure SetFormat(const Value: string);
   protected
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -47,9 +49,15 @@ type
     function InsertText(const AText: string): Boolean; override;
 
     procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const ADateTime: TDateTime);
     //destructor Destroy; override;
+    property Format: string read FFormat write SetFormat;
+    property DateTime: TDateTime read FDateTime write SetDateTime;
   end;
 
 implementation
@@ -62,7 +70,8 @@ uses
 constructor THCDateTimePicker.Create(const AOwnerData: THCCustomData; const ADateTime: TDateTime);
 begin
   FFormat := 'YYYY-MM-DD HH:mm:SS';
-  inherited Create(AOwnerData, FormatDateTime(FFormat, ADateTime));
+  FDateTime := ADateTime;
+  inherited Create(AOwnerData, FormatDateTime(FFormat, FDateTime));
   Self.StyleNo := THCStyle.DateTimePicker;
   Width := 80;
   Self.FMargin := 2;
@@ -129,7 +138,6 @@ end;
 function THCDateTimePicker.GetAreaRect(const AArea: TDateTimeArea): TRect;
 var
   vCanvas: TCanvas;
-  vDateTime: TDateTime;
   vSize: TSize;
   vS: string;
   vCharOffset, AppendLevel: Integer;
@@ -175,7 +183,7 @@ var
     begin
       if not DateDecoded then
       begin
-        DecodeDate(vDateTime, Year, Month, Day);
+        DecodeDate(FDateTime, Year, Month, Day);
         DateDecoded := True;
       end;
     end;
@@ -184,7 +192,7 @@ var
     begin
       if not TimeDecoded then
       begin
-        DecodeTime(vDateTime, Hour, Min, Sec, MSec);
+        DecodeTime(FDateTime, Hour, Min, Sec, MSec);
         TimeDecoded := True;
       end;
     end;
@@ -389,8 +397,8 @@ var
                     GetDate;
                     vS := NumberText(Day, Count);
                   end;
-                3: vS := FormatSettings.ShortDayNames[DayOfWeek(vDateTime)];
-                4: vS := FormatSettings.LongDayNames[DayOfWeek(vDateTime)];
+                3: vS := FormatSettings.ShortDayNames[DayOfWeek(FDateTime)];
+                4: vS := FormatSettings.LongDayNames[DayOfWeek(FDateTime)];
               end;
               Inc(vCharOffset, System.Length(vS));
 
@@ -598,7 +606,7 @@ var
               begin
                 GetDate;
                 //AppendString(LongDayNames[DayOfWeek(DateTime)]);
-                Inc(vCharOffset, System.Length(FormatSettings.LongDayNames[DayOfWeek(vDateTime)]));
+                Inc(vCharOffset, System.Length(FormatSettings.LongDayNames[DayOfWeek(FDateTime)]));
                 Inc(Format, 3);
               end
               else
@@ -606,7 +614,7 @@ var
               begin
                 GetDate;
                 //AppendString(ShortDayNames[DayOfWeek(DateTime)]);
-                Inc(vCharOffset, System.Length(FormatSettings.ShortDayNames[DayOfWeek(vDateTime)]));
+                Inc(vCharOffset, System.Length(FormatSettings.ShortDayNames[DayOfWeek(FDateTime)]));
                 Inc(Format, 2);
               end
               else
@@ -671,7 +679,6 @@ begin
 
   if AArea = dtaNone then Exit;
 
-  vDateTime := GetDateTime;
   vCharOffset := 0;
   AppendLevel := 0;
   vCanvas := THCStyle.CreateStyleCanvas;
@@ -689,11 +696,6 @@ end;
 procedure THCDateTimePicker.GetCaretInfo(var ACaretInfo: TCaretInfo);
 begin
   ACaretInfo.Visible := False;
-end;
-
-function THCDateTimePicker.GetDateTime: TDateTime;
-begin
-  Result := StrToDateTime(Self.Text);
 end;
 
 function THCDateTimePicker.InsertText(const AText: string): Boolean;
@@ -741,7 +743,7 @@ var
 begin
   if Self.ReadOnly then Exit;
 
-  vDateTime := GetDateTime;
+  vDateTime := FDateTime;
 
   if FActiveArea <> dtaNone then
   begin
@@ -900,6 +902,26 @@ begin
   end;
 end;
 
+procedure THCDateTimePicker.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vSize: Word;
+  vBuffer: TBytes;
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+
+  // ∂¡»°Format
+  AStream.ReadBuffer(vSize, SizeOf(vSize));
+  if vSize > 0 then
+  begin
+    SetLength(vBuffer, vSize);
+    AStream.ReadBuffer(vBuffer[0], vSize);
+    FFormat := StringOf(vBuffer);
+  end;
+
+  AStream.ReadBuffer(FDateTime, SizeOf(FDateTime));
+end;
+
 procedure THCDateTimePicker.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 
@@ -960,9 +982,41 @@ begin
   end;
 end;
 
+procedure THCDateTimePicker.SaveToStream(const AStream: TStream; const AStart,
+  AEnd: Integer);
+var
+  vBuffer: TBytes;
+  vSize: Word;
+begin
+  inherited SaveToStream(AStream, AStart, AEnd);
+
+  // ¥ÊFormat
+  vBuffer := BytesOf(FFormat);
+  vSize := System.Length(vBuffer);
+  AStream.WriteBuffer(vSize, SizeOf(vSize));
+  AStream.WriteBuffer(vBuffer[0], vSize);
+
+  AStream.WriteBuffer(FDateTime, SizeOf(FDateTime));
+end;
+
 procedure THCDateTimePicker.SetDateTime(const Value: TDateTime);
 begin
-  Self.Text := FormatDateTime(FFormat, Value);
+  if FDateTime <> Value then
+  begin
+    FDateTime := Value;
+    Self.Text := FormatDateTime(FFormat, FDateTime);
+    FAreaRect := GetAreaRect(FActiveArea);
+  end;
+end;
+
+procedure THCDateTimePicker.SetFormat(const Value: string);
+begin
+  if FFormat <> Value then
+  begin
+    FFormat := Value;
+    Self.Text := FormatDateTime(FFormat, FDateTime);
+    FAreaRect := GetAreaRect(FActiveArea);
+  end;
 end;
 
 function THCDateTimePicker.WantKeyDown(const Key: Word;

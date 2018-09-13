@@ -95,7 +95,7 @@ type
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
-    procedure ApplyParaLineSpace(const ASpace: Integer);
+    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
     procedure ApplyTextStyle(const AFontStyle: TFontStyleEx);
     procedure ApplyTextFontName(const AFontName: TFontName);
     procedure ApplyTextFontSize(const AFontSize: Single);
@@ -137,9 +137,9 @@ begin
   CheckUpdateInfo;
 end;
 
-procedure THCEdit.ApplyParaLineSpace(const ASpace: Integer);
+procedure THCEdit.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
 begin
-  FData.ApplyParaLineSpace(ASpace);
+  FData.ApplyParaLineSpace(ASpaceMode);
   CheckUpdateInfo;
 end;
 

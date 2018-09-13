@@ -4,7 +4,7 @@ object frmControlItemProperty: TfrmControlItemProperty
   AutoSize = True
   BorderStyle = bsDialog
   Caption = 'ControlItem'#23646#24615
-  ClientHeight = 164
+  ClientHeight = 371
   ClientWidth = 281
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -112,20 +112,116 @@ object frmControlItemProperty: TfrmControlItemProperty
   end
   object pnl1: TPanel
     Left = 0
-    Top = 123
+    Top = 330
     Width = 281
     Height = 41
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 2
+    ExplicitTop = 123
     object btnOk: TButton
-      Left = 117
+      Left = 111
       Top = 8
       Width = 75
       Height = 25
       Caption = #30830#23450
       TabOrder = 0
       OnClick = btnOkClick
+    end
+  end
+  object pnlCombobox: TPanel
+    Left = 0
+    Top = 123
+    Width = 281
+    Height = 166
+    Align = alTop
+    BevelOuter = bvNone
+    Padding.Left = 20
+    Padding.Right = 20
+    TabOrder = 3
+    object lbl5: TLabel
+      Left = 27
+      Top = 128
+      Width = 12
+      Height = 13
+      Caption = #20540
+    end
+    object edtValue: TEdit
+      Left = 45
+      Top = 125
+      Width = 128
+      Height = 21
+      TabOrder = 0
+    end
+    object btnAdd: TButton
+      Left = 179
+      Top = 123
+      Width = 25
+      Height = 25
+      Caption = #22686
+      TabOrder = 1
+      OnClick = btnAddClick
+    end
+    object btnDelete: TButton
+      Left = 239
+      Top = 123
+      Width = 25
+      Height = 25
+      Caption = #21024
+      TabOrder = 2
+      OnClick = btnDeleteClick
+    end
+    object btnSave: TButton
+      Left = 209
+      Top = 123
+      Width = 25
+      Height = 25
+      Caption = #25913
+      TabOrder = 3
+      OnClick = btnSaveClick
+    end
+    object lstCombobox: TListBox
+      Left = 20
+      Top = 0
+      Width = 241
+      Height = 117
+      Align = alTop
+      ItemHeight = 13
+      TabOrder = 4
+      OnClick = lstComboboxClick
+    end
+  end
+  object pnlDateTime: TPanel
+    Left = 0
+    Top = 289
+    Width = 281
+    Height = 41
+    Align = alTop
+    BevelOuter = bvNone
+    TabOrder = 4
+    ExplicitLeft = 8
+    ExplicitTop = 275
+    object lbl4: TLabel
+      Left = 27
+      Top = 13
+      Width = 24
+      Height = 13
+      Caption = #26684#24335
+    end
+    object cbbDTFormat: TComboBox
+      Left = 60
+      Top = 10
+      Width = 145
+      Height = 21
+      ItemIndex = 1
+      TabOrder = 0
+      Text = 'YYYY-MM-DD'
+      Items.Strings = (
+        'YYYY-MM-DD HH:mm:SS'
+        'YYYY-MM-DD'
+        'HH:mm:SS'
+        'YYYY'#24180'MM'#26376'DD'#26085
+        'HH'#26102'mm'#20998)
     end
   end
 end

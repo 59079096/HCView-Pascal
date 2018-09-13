@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCCustomRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  Actions, ImageList, Printers;
+  Actions, ImageList, Printers, Clipbrd;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -111,6 +111,14 @@ type
     mniN40: TMenuItem;
     mniN41: TMenuItem;
     actSearch: TAction;
+    mniN42: TMenuItem;
+    actCut: TAction;
+    actCopy: TAction;
+    actPaste: TAction;
+    mniProp: TMenuItem;
+    mniN43: TMenuItem;
+    mniN1151: TMenuItem;
+    mniN44: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -122,9 +130,6 @@ type
     procedure cbbFontColorChange(Sender: TObject);
     procedure cbbBackColorChange(Sender: TObject);
     procedure cbbFontSizeChange(Sender: TObject);
-    procedure mniCopyClick(Sender: TObject);
-    procedure mniPasteClick(Sender: TObject);
-    procedure mniCutClick(Sender: TObject);
     procedure mniN5Click(Sender: TObject);
     procedure pmRichEditPopup(Sender: TObject);
     procedure btnprintClick(Sender: TObject);
@@ -172,6 +177,13 @@ type
     procedure mniTablePropertyClick(Sender: TObject);
     procedure mniN39Click(Sender: TObject);
     procedure actSearchExecute(Sender: TObject);
+    procedure mniN42Click(Sender: TObject);
+    procedure actCutExecute(Sender: TObject);
+    procedure actCopyExecute(Sender: TObject);
+    procedure actPasteExecute(Sender: TObject);
+    procedure mniPropClick(Sender: TObject);
+    procedure mniN43Click(Sender: TObject);
+    procedure mniN44Click(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -199,8 +211,8 @@ uses
   frm_InsertTable, frm_PageSet, HCStyle, HCRectItem, HCTableItem, HCTextItem,
   HCDrawItem, HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem,
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
-  EmrGroupItem, EmrToothItem, EmrFangJiaoItem, frm_Paragraph, frm_TableProperty,
-  frm_SearchAndReplace;
+  HCDateTimePicker, EmrGroupItem, EmrToothItem, EmrFangJiaoItem, frm_Paragraph, frm_TableProperty,
+  frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_TableBorderBackColor;
 
 {$R *.dfm}
 
@@ -334,7 +346,7 @@ end;
 
 procedure TfrmHCViewDemo.DoItemLoaded(const AItem: THCCustomItem);
 begin
-  if AItem.StyleNo < THCStyle.RsNull then
+  if AItem.StyleNo < THCStyle.Null then
 
   else
   if AItem.Text = '姓名' then
@@ -434,6 +446,21 @@ begin
   end;
 end;
 
+procedure TfrmHCViewDemo.actCopyExecute(Sender: TObject);
+begin
+  FHCView.Copy;
+end;
+
+procedure TfrmHCViewDemo.actCutExecute(Sender: TObject);
+begin
+  FHCView.Cut;
+end;
+
+procedure TfrmHCViewDemo.actPasteExecute(Sender: TObject);
+begin
+  FHCView.Paste;
+end;
+
 procedure TfrmHCViewDemo.actSearchExecute(Sender: TObject);
 begin
   if not Assigned(frmSearchAndReplace) then
@@ -502,9 +529,12 @@ var
   vCheckBox: THCCheckBoxItem;
   vS: string;
 begin
-  vS := InputBox('勾选框', '文本', '');
-  vCheckBox := THCCheckBoxItem.Create(FHCView.ActiveSectionTopLevelData, vS, False);
-  FHCView.InsertItem(vCheckBox);
+  vS := '勾选框';
+  if InputQuery('勾选框', '文本', vS) then
+  begin
+    vCheckBox := THCCheckBoxItem.Create(FHCView.ActiveSectionTopLevelData, vS, False);
+    FHCView.InsertItem(vCheckBox);
+  end;
 end;
 
 procedure TfrmHCViewDemo.mniCombobox1Click(Sender: TObject);
@@ -512,18 +542,16 @@ var
   vCombobox: THCComboboxItem;
   vS: string;
 begin
-  vS := InputBox('下拉框', '文本内容', '');
-  vCombobox := THCComboboxItem.Create(FHCView.ActiveSectionTopLevelData, vS);
-  vCombobox.Items.Add('选项1');
-  vCombobox.Items.Add('选项2');
-  vCombobox.Items.Add('选项3');
-  //vCombobox.ItemIndex := 0;
-  FHCView.InsertItem(vCombobox);
-end;
-
-procedure TfrmHCViewDemo.mniCopyClick(Sender: TObject);
-begin
-  FHCView.Copy;
+  vS := '默认值';
+  if InputQuery('下拉框', '文本内容', vS) then
+  begin
+    vCombobox := THCComboboxItem.Create(FHCView.ActiveSectionTopLevelData, vS);
+    vCombobox.Items.Add('选项1');
+    vCombobox.Items.Add('选项2');
+    vCombobox.Items.Add('选项3');
+    //vCombobox.ItemIndex := 0;
+    FHCView.InsertItem(vCombobox);
+  end;
 end;
 
 procedure TfrmHCViewDemo.mniLineSpaceClick(Sender: TObject);
@@ -531,9 +559,10 @@ begin
   if Sender is TMenuItem then
   begin
     case (Sender as TMenuItem).Tag of
-      0: FHCView.ApplyParaLineSpace(8);   // 单倍
-      1: FHCView.ApplyParaLineSpace(12);  // 1.5倍
-      2: FHCView.ApplyParaLineSpace(16);  // 双倍
+      0: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls100);   // 单倍
+      1: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls115);  // 1.15倍
+      2: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls150);  // 1.5倍
+      3: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls200);  // 双倍
     end;
   end;
 end;
@@ -541,11 +570,6 @@ end;
 procedure TfrmHCViewDemo.mniMergeClick(Sender: TObject);
 begin
   FHCView.MergeTableSelectCells;
-end;
-
-procedure TfrmHCViewDemo.mniCutClick(Sender: TObject);
-begin
-  FHCView.Cut;
 end;
 
 procedure TfrmHCViewDemo.mniN14Click(Sender: TObject);
@@ -585,9 +609,12 @@ var
   vEdit: THCEditItem;
   vS: string;
 begin
-  vS := InputBox('文本框', '文本', '');
-  vEdit := THCEditItem.Create(FHCView.ActiveSectionTopLevelData, vS);
-  FHCView.InsertItem(vEdit);
+  vS := '文本';
+  if InputQuery('文本框', '文本内容', vS) then
+  begin
+    vEdit := THCEditItem.Create(FHCView.ActiveSectionTopLevelData, vS);
+    FHCView.InsertItem(vEdit);
+  end;
 end;
 
 procedure TfrmHCViewDemo.mnigif1Click(Sender: TObject);
@@ -700,7 +727,7 @@ begin
   if TryStrToInt(vsLineSpace, vSpace) then
   begin
     if vSpace >= 5 then
-      FHCView.ApplyParaLineSpace(vSpace);  // 固定值
+      FHCView.ApplyParaLineSpace(TParaLineSpaceMode.plsFix);  // 固定值
   end;
 end;
 
@@ -712,8 +739,10 @@ begin
   try
     vFrmInsertTable.ShowModal;
     if vFrmInsertTable.ModalResult = mrOk then
+    begin
       FHCView.InsertTable(StrToInt(vFrmInsertTable.edtRows.Text),
         StrToInt(vFrmInsertTable.edtCols.Text));
+    end;
   finally
     FreeAndNil(vFrmInsertTable);
   end;
@@ -760,7 +789,7 @@ var
   vHCBarCode: THCBarCodeItem;
   vS: string;
 begin
-  vS := InputBox('文本框', '文本', 'HC-20180809');
+  vS := InputBox('文本框', '文本', 'HC-' + FormatDateTime('YYYYMMDD', Now));
   vHCBarCode := THCBarCodeItem.Create(FHCView.ActiveSectionTopLevelData, vS);
   FHCView.InsertItem(vHCBarCode);
 end;
@@ -795,6 +824,38 @@ var
 begin
   vFloatLineItem := THCFloatLineItem.Create(FHCView.ActiveSection.ActiveData);
   FHCView.InsertFloatItem(vFloatLineItem);
+end;
+
+procedure TfrmHCViewDemo.mniN42Click(Sender: TObject);
+var
+  vFrmPrintView: TfrmPrintView;
+begin
+  vFrmPrintView := TfrmPrintView.Create(Self);
+  try
+    vFrmPrintView.SetHCView(FHCView);
+  finally
+    FreeAndNil(vFrmPrintView);
+  end;
+end;
+
+procedure TfrmHCViewDemo.mniN43Click(Sender: TObject);
+var
+  vFrmBorderBackColor: TfrmBorderBackColor;
+begin
+  vFrmBorderBackColor := TfrmBorderBackColor.Create(Self);
+  try
+    vFrmBorderBackColor.SetHCView(FHCView);
+  finally
+    FreeAndNil(vFrmBorderBackColor);
+  end;
+end;
+
+procedure TfrmHCViewDemo.mniN44Click(Sender: TObject);
+var
+  vHCDateTimePicker: THCDateTimePicker;
+begin
+  vHCDateTimePicker := THCDateTimePicker.Create(FHCView.ActiveSectionTopLevelData, Now);
+  FHCView.InsertItem(vHCDateTimePicker);
 end;
 
 procedure TfrmHCViewDemo.mniN4Click(Sender: TObject);
@@ -861,9 +922,16 @@ begin
   end;
 end;
 
-procedure TfrmHCViewDemo.mniPasteClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniPropClick(Sender: TObject);
+var
+  vFrmControlItemProperty: TfrmControlItemProperty;
 begin
-  FHCView.Paste;
+  vFrmControlItemProperty := TfrmControlItemProperty.Create(nil);
+  try
+    vFrmControlItemProperty.SetHCView(FHCView);
+  finally
+    FreeAndNil(vFrmControlItemProperty);
+  end;
 end;
 
 procedure TfrmHCViewDemo.mniSaveAsClick(Sender: TObject);
@@ -947,7 +1015,10 @@ var
 begin
   vData := FHCView.ActiveSection.ActiveData;
   vItem := vData.GetCurItem;
-  mniTable.Enabled := vItem.StyleNo = THCStyle.RsTable;
+
+  if vItem = nil then Exit;
+
+  mniTable.Enabled := vItem.StyleNo = THCStyle.Table;
   if mniTable.Enabled then
   begin
     vTableItem := vItem as THCTableItem;
@@ -959,9 +1030,14 @@ begin
     mniDeleteCurCol.Enabled := vTableItem.CurColCanDelete;
     mniMerge.Enabled := vTableItem.SelectedCellCanMerge;
   end;
-  mniCut.Enabled := vData.SelectExists;
-  mniCopy.Enabled := mniCut.Enabled;
-  //mniPaste :=
+  actCut.Enabled := (not FHCView.ActiveSection.ReadOnly) and vData.SelectExists;
+  actCopy.Enabled := actCut.Enabled;
+  actPaste.Enabled := (not FHCView.ActiveSection.ReadOnly)  // 非只读
+    and (Clipboard.HasFormat(HC_FILEFORMAT)
+         or Clipboard.HasFormat(CF_TEXT)
+         or Clipboard.HasFormat(CF_BITMAP));
+  mniProp.Visible := (not FHCView.ActiveSection.ReadOnly) and (not vData.SelectExists)
+    and (vItem is THCControlItem) and vItem.Active;
 end;
 
 procedure TfrmHCViewDemo.SetFileName(const AFileName: string);

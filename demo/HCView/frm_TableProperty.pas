@@ -29,12 +29,15 @@ type
     edtRowHeight: TEdit;
     lbl7: TLabel;
     cbbCellAlignVert: TComboBox;
+    btnBorderBackColor: TButton;
     procedure btnOkClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure edtCellHPaddingChange(Sender: TObject);
+    procedure btnBorderBackColorClick(Sender: TObject);
   private
     { Private declarations }
     FReFormt: Boolean;
+    FHCView: THCView;
   public
     { Public declarations }
     procedure SetHCView(const AHCView: THCView);
@@ -46,11 +49,23 @@ var
 implementation
 
 uses
-  HCCustomRichData, HCTableCell;
+  HCCustomRichData, HCTableCell, frm_TableBorderBackColor;
 
 {$R *.dfm}
 
 { TfrmTableProperty }
+
+procedure TfrmTableProperty.btnBorderBackColorClick(Sender: TObject);
+var
+  vFrmBorderBackColor: TfrmBorderBackColor;
+begin
+  vFrmBorderBackColor := TfrmBorderBackColor.Create(Self);
+  try
+    vFrmBorderBackColor.SetHCView(FHCView);
+  finally
+    FreeAndNil(vFrmBorderBackColor);
+  end;
+end;
 
 procedure TfrmTableProperty.btnOkClick(Sender: TObject);
 begin
@@ -70,12 +85,13 @@ end;
 
 procedure TfrmTableProperty.SetHCView(const AHCView: THCView);
 var
-  viValue{, vRowAlignIndex}: Integer;
-  vTableItem: THCTableItem;
+  vR, vC, viValue{, vRowAlignIndex}: Integer;
   vData: THCCustomRichData;
   vAlignVert: TAlignVert;
+  vTableItem: THCTableItem;
 begin
-  vData := AHCView.ActiveSection.ActiveData;
+  FHCView := AHCView;
+  vData := FHCView.ActiveSection.ActiveData;
   vTableItem := vData.GetCurItem as THCTableItem;
 
   // 表格
@@ -85,14 +101,22 @@ begin
   edtBorderWidth.Text := IntToStr(vTableItem.BorderWidth);
 
   // 行
-  tsRow.Caption := '行(' + IntToStr(vTableItem.SelectCellRang.StartRow + 1) + ')';
-  edtRowHeight.Text := IntToStr(vTableItem.Rows[vTableItem.SelectCellRang.StartRow].Height);  // 行高
-
-  {vAlignVert := vTableItem.GetEditCell.AlignVert;
-  cbbRowAlignVert.ItemIndex := Ord(vAlignVert) + 1;
-  for i := 0 to vTableItem.Rows[vTableItem.SelectCellRang.StartRow].ColCount - 1 do
+  if vTableItem.SelectCellRang.StartRow >= 0 then
   begin
-    if vAlignVert <> vTableItem.Cells[vTableItem.SelectCellRang.StartRow, i].AlignVert then  // 有不同
+    tsRow.Caption := '行(' + IntToStr(vTableItem.SelectCellRang.StartRow + 1) + ')';
+    if vTableItem.SelectCellRang.EndRow > 0 then
+      tsRow.Caption := tsRow.Caption + ' - (' + IntToStr(vTableItem.SelectCellRang.EndRow + 1) + ')';
+
+    edtRowHeight.Text := IntToStr(vTableItem.Rows[vTableItem.SelectCellRang.StartRow].Height);  // 行高
+  end
+  else
+    tsRow.TabVisible := False;
+
+  {vAlignVert := FTableItem.GetEditCell.AlignVert;
+  cbbRowAlignVert.ItemIndex := Ord(vAlignVert) + 1;
+  for i := 0 to FTableItem.Rows[FTableItem.SelectCellRang.StartRow].ColCount - 1 do
+  begin
+    if vAlignVert <> FTableItem.Cells[FTableItem.SelectCellRang.StartRow, i].AlignVert then  // 有不同
     begin
       cbbRowAlignVert.ItemIndex := 0;  // 自定义
       Break;
@@ -101,16 +125,36 @@ begin
   vRowAlignIndex := cbbRowAlignVert.ItemIndex;}
 
   // 单元格
-  tsCell.Caption := '单元格(' + IntToStr(vTableItem.SelectCellRang.StartRow + 1) + ','
-    + IntToStr(vTableItem.SelectCellRang.StartCol + 1) + ')';
-  vAlignVert := vTableItem.GetEditCell.AlignVert;
-  cbbCellAlignVert.ItemIndex := Ord(vAlignVert);
+  if (vTableItem.SelectCellRang.StartRow >= 0) and (vTableItem.SelectCellRang.StartCol >= 0) then
+  begin
+    if vTableItem.SelectCellRang.EndRow > 0 then  // 多选
+    begin
+      vAlignVert := vTableItem.Cells[vTableItem.SelectCellRang.StartRow,
+        vTableItem.SelectCellRang.StartCol].AlignVert;
+
+      tsCell.Caption := '单元格(' + IntToStr(vTableItem.SelectCellRang.StartRow + 1) + ','
+        + IntToStr(vTableItem.SelectCellRang.StartCol + 1) + ') - ('
+        + IntToStr(vTableItem.SelectCellRang.EndRow + 1) + ','
+        + IntToStr(vTableItem.SelectCellRang.EndCol + 1) + ')';
+    end
+    else
+    begin
+      vAlignVert := vTableItem.GetEditCell.AlignVert;
+
+      tsCell.Caption := '单元格(' + IntToStr(vTableItem.SelectCellRang.StartRow + 1) + ','
+        + IntToStr(vTableItem.SelectCellRang.StartCol + 1) + ')';
+    end;
+
+    cbbCellAlignVert.ItemIndex := Ord(vAlignVert);
+  end
+  else
+    tsCell.TabVisible := False;
 
   //
   Self.ShowModal;
   if Self.ModalResult = mrOk then
   begin
-    AHCView.BeginUpdate;
+    FHCView.BeginUpdate;
     try
       // 表格
       vTableItem.CellHPadding := StrToIntDef(edtCellHPadding.Text, 5);
@@ -119,22 +163,36 @@ begin
       vTableItem.BorderVisible := chkBorderVisible.Checked;
 
       // 行
-      if TryStrToInt(edtRowHeight.Text, viValue) then
-        vTableItem.Rows[vTableItem.SelectCellRang.StartRow].Height := viValue;  // 行高
-      {if (cbbRowAlignVert.ItemIndex > 0) and (cbbRowAlignVert.ItemIndex <> vRowAlignIndex) then  // 有效的设置
+      if (vTableItem.SelectCellRang.StartRow >= 0) and (TryStrToInt(edtRowHeight.Text, viValue)) then
       begin
-        vAlignVert := TAlignVert(cbbRowAlignVert.ItemIndex - 1);
-        for i := 0 to vTableItem.Rows[vTableItem.SelectCellRang.StartRow].ColCount - 1 do
-          vTableItem.Cells[vTableItem.SelectCellRang.StartRow, i].AlignVert := vAlignVert;
-      end;}
+        if vTableItem.SelectCellRang.EndRow > 0 then  // 有选中多行
+        begin
+          for vR := vTableItem.SelectCellRang.StartRow to vTableItem.SelectCellRang.EndRow do
+            vTableItem.Rows[vR].Height := viValue;  // 行高
+        end
+        else  // 只选中一行
+          vTableItem.Rows[vTableItem.SelectCellRang.StartRow].Height := viValue;  // 行高
+      end;
 
       // 单元格
-      vTableItem.GetEditCell.AlignVert := TAlignVert(cbbCellAlignVert.ItemIndex);
+      if (vTableItem.SelectCellRang.StartRow >= 0) and (vTableItem.SelectCellRang.StartCol >= 0) then
+      begin
+        if vTableItem.SelectCellRang.EndCol > 0 then  // 有选中多个单元格
+        begin
+          for vR := vTableItem.SelectCellRang.StartRow to vTableItem.SelectCellRang.EndRow do
+          begin
+            for vC := vTableItem.SelectCellRang.StartCol to vTableItem.SelectCellRang.EndCol do
+              vTableItem.Cells[vR, vC].AlignVert := TAlignVert(cbbCellAlignVert.ItemIndex);
+          end;
+        end
+        else
+          vTableItem.GetEditCell.AlignVert := TAlignVert(cbbCellAlignVert.ItemIndex);
+      end;
 
       if FReFormt then
-        AHCView.ActiveSection.ReFormatActiveItem;
+        FHCView.ActiveSection.ReFormatActiveItem;
     finally
-      AHCView.EndUpdate;
+      FHCView.EndUpdate;
     end;
   end;
 end;

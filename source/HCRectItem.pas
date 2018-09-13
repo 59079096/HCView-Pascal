@@ -191,6 +191,20 @@ type
     property TextStyleNo: Integer read FTextStyleNo write SetTextStyleNo;
   end;
 
+  THCControlItem = class(THCTextRectItem)
+  private
+    FAutoSize: Boolean;
+  protected
+    FMargin: Byte;
+    FMinWidth, FMinHeight: Integer;
+  public
+    constructor Create(const AOwnerData: THCCustomData); override;
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    property AutoSize: Boolean read FAutoSize write FAutoSize;
+  end;
+
   TGripType = (gtNone, gtLeftTop, gtRightTop, gtLeftBottom, gtRightBottom,
     gtLeft, gtTop, gtRight, gtBottom);
 
@@ -495,7 +509,7 @@ end;
 procedure THCCustomRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState;
   X, Y: Integer);
 begin
-  Active := PtInRect(Rect(0, 0, FWidth, FHeight), Point(X, Y));
+  Self.Active := PtInRect(Rect(0, 0, FWidth, FHeight), Point(X, Y));
 end;
 
 procedure THCCustomRectItem.SaveSelectToStream(const AStream: TStream);
@@ -886,7 +900,7 @@ end;
 constructor THCTextRectItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  if AOwnerData.Style.CurStyleNo > THCStyle.RsNull then
+  if AOwnerData.Style.CurStyleNo > THCStyle.Null then
     FTextStyleNo := AOwnerData.Style.CurStyleNo
   else
     FTextStyleNo := 0;
@@ -935,7 +949,7 @@ end;
 constructor THCDomainItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  Self.StyleNo := THCStyle.RsDomain;
+  Self.StyleNo := THCStyle.Domain;
   FLevel := 0;
   Width := 0;
   Height := 10;
@@ -975,7 +989,7 @@ var
   vItem: THCCustomItem;
 begin
   Self.Width := 0;
-  Self.Height := 10;  // 默认大小
+  Self.Height := 5;  // 默认大小
   if Self.MarkType = TMarkType.cmtBeg then  // 域起始标识
   begin
     if AItemNo < ARichData.Items.Count - 1 then  // 插入时可能是在Data最后面插入起始，后面不一定有结束
@@ -986,7 +1000,7 @@ begin
       then
         Self.Width := 10  // 增加宽度以便输入时光标可方便点击
       else
-      if vItem.StyleNo > THCStyle.RsNull then  // 后面是文本，跟随后面的高度
+      if vItem.StyleNo > THCStyle.Null then  // 后面是文本，跟随后面的高度
       begin
         ARichData.Style.TextStyles[vItem.StyleNo].ApplyStyle(ARichData.Style.DefCanvas);
         Self.Height := ARichData.Style.DefCanvas.TextExtent('H').cy;
@@ -1003,7 +1017,7 @@ begin
     then  // 前一个是起始标识
       Self.Width := 10
     else
-    if vItem.StyleNo > THCStyle.RsNull then  // 前面是文本，距离前面的高度
+    if vItem.StyleNo > THCStyle.Null then  // 前面是文本，距离前面的高度
     begin
       ARichData.Style.TextStyles[vItem.StyleNo].ApplyStyle(ARichData.Style.DefCanvas);
       Self.Height := ARichData.Style.DefCanvas.TextExtent('H').cy;
@@ -1051,6 +1065,31 @@ begin
     Result := OffsetBefor
   else
     Result := OffsetAfter;
+end;
+
+{ THCControlItem }
+
+constructor THCControlItem.Create(const AOwnerData: THCCustomData);
+begin
+  inherited Create(AOwnerData);
+  FAutoSize := True;
+  FMargin := 5;
+  FMinWidth := 20;
+  FMinHeight := 10;
+end;
+
+procedure THCControlItem.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  AStream.ReadBuffer(FAutoSize, SizeOf(FAutoSize));
+end;
+
+procedure THCControlItem.SaveToStream(const AStream: TStream; const AStart,
+  AEnd: Integer);
+begin
+  inherited SaveToStream(AStream, AStart, AEnd);
+  AStream.WriteBuffer(FAutoSize, SizeOf(FAutoSize));
 end;
 
 end.

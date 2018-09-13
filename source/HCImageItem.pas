@@ -54,7 +54,7 @@ begin
   inherited Create(AOwnerData);
   FImage := TBitmap.Create;
   FImage.OnChange := DoImageChange;
-  StyleNo := THCStyle.RsImage;
+  StyleNo := THCStyle.Image;
 end;
 
 destructor THCImageItem.Destroy;

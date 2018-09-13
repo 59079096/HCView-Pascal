@@ -48,7 +48,7 @@ constructor THCQRCodeItem.Create(const AOwnerData: THCCustomData; const AText: s
   vQRCode: TDelphiZXingQRCode;}
 begin
   inherited Create(AOwnerData);
-  StyleNo := THCStyle.RsQRCode;
+  StyleNo := THCStyle.QRCode;
   FText := AText;
 
   Width := 100;

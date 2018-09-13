@@ -34,9 +34,9 @@ var
   vSize: TSize;
 begin
   inherited Create(AOwnerData);
-  StyleNo := THCStyle.RsPageBreak;
+  StyleNo := THCStyle.PageBreak;
 
-  if AOwnerData.Style.CurStyleNo > THCStyle.RsNull then
+  if AOwnerData.Style.CurStyleNo > THCStyle.Null then
     AOwnerData.Style.TextStyles[AOwnerData.Style.CurStyleNo].ApplyStyle(AOwnerData.Style.DefCanvas)
   else
     AOwnerData.Style.TextStyles[0].ApplyStyle(AOwnerData.Style.DefCanvas);

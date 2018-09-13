@@ -73,7 +73,7 @@ constructor THCFractionItem.Create(const AOwnerData: THCCustomData;
   const ATopText, ABottomText: string);
 begin
   inherited Create(AOwnerData);
-  Self.StyleNo := THCStyle.RsFraction;
+  Self.StyleNo := THCStyle.Fraction;
   FPadding := 5;
   FActiveArea := TExpressArea.ceaNone;
   FCaretOffset := -1;
@@ -89,13 +89,13 @@ procedure THCFractionItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect
 var
   vFocusRect: TRect;
 begin
-  if Self.Active then
+  if Self.Active and (not APaintInfo.Print) then
   begin
     ACanvas.Brush.Color := clBtnFace;
     ACanvas.FillRect(ADrawRect);
   end;
 
-  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
+  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
   ACanvas.TextOut(ADrawRect.Left + FTopRect.Left, ADrawRect.Top + FTopRect.Top, FTopText);
   ACanvas.TextOut(ADrawRect.Left + FBottomRect.Left, ADrawRect.Top + FBottomRect.Top, FBottomText);
 
@@ -106,30 +106,33 @@ begin
     ACanvas.LineTo(ADrawRect.Left + Width - FPadding, ADrawRect.Top + FTopRect.Bottom + FPadding);
   end;
 
-  if FActiveArea <> ceaNone then
+  if not APaintInfo.Print then
   begin
-    case FActiveArea of
-      ceaTop: vFocusRect := FTopRect;
-      ceaBottom: vFocusRect := FBottomRect;
+    if FActiveArea <> ceaNone then
+    begin
+      case FActiveArea of
+        ceaTop: vFocusRect := FTopRect;
+        ceaBottom: vFocusRect := FBottomRect;
+      end;
+
+      vFocusRect.Offset(ADrawRect.Location);
+      vFocusRect.Inflate(2, 2);
+      ACanvas.Pen.Color := clBlue;
+      ACanvas.Rectangle(vFocusRect);
     end;
 
-    vFocusRect.Offset(ADrawRect.Location);
-    vFocusRect.Inflate(2, 2);
-    ACanvas.Pen.Color := clGray;
-    ACanvas.Rectangle(vFocusRect);
-  end;
+    if (FMouseMoveArea <> ceaNone) and (FMouseMoveArea <> FActiveArea) then
+    begin
+      case FMouseMoveArea of
+        ceaTop: vFocusRect := FTopRect;
+        ceaBottom: vFocusRect := FBottomRect;
+      end;
 
-  if (FMouseMoveArea <> ceaNone) and (FMouseMoveArea <> FActiveArea) then
-  begin
-    case FMouseMoveArea of
-      ceaTop: vFocusRect := FTopRect;
-      ceaBottom: vFocusRect := FBottomRect;
+      vFocusRect.Offset(ADrawRect.Location);
+      vFocusRect.Inflate(2, 2);
+      ACanvas.Pen.Color := clMedGray;
+      ACanvas.Rectangle(vFocusRect);
     end;
-
-    vFocusRect.Offset(ADrawRect.Location);
-    vFocusRect.Inflate(2, 2);
-    ACanvas.Pen.Color := clMedGray;
-    ACanvas.Rectangle(vFocusRect);
   end;
 end;
 
@@ -141,7 +144,7 @@ var
 begin
   vStyle := ARichData.Style;
   vStyle.TextStyles[TextStyleNo].ApplyStyle(vStyle.DefCanvas);
-  vH := vStyle.DefCanvas.TextHeight('×Ö');
+  vH := vStyle.DefCanvas.TextHeight('H');
   vTopW := Max(vStyle.DefCanvas.TextWidth(FTopText), FPadding);
   vBottomW := Max(vStyle.DefCanvas.TextWidth(FBottomText), FPadding);
   // ¼ÆËã³ß´ç

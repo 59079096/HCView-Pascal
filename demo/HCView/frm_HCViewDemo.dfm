@@ -315,7 +315,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00E00010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00080110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1267,6 +1267,10 @@ object frmHCViewDemo: TfrmHCViewDemo
         Caption = #39029#38754#35774#32622
         OnClick = mniN5Click
       end
+      object mniN42: TMenuItem
+        Caption = #25171#21360#39044#35272
+        OnClick = mniN42Click
+      end
       object mniN35: TMenuItem
         Caption = #25171#21360
         OnClick = mniN35Click
@@ -1283,16 +1287,13 @@ object frmHCViewDemo: TfrmHCViewDemo
     object mniN3: TMenuItem
       Caption = #32534#36753
       object mniCut: TMenuItem
-        Caption = #21098#20999
-        OnClick = mniCutClick
+        Action = actCut
       end
       object mniCopy: TMenuItem
-        Caption = #22797#21046
-        OnClick = mniCopyClick
+        Action = actCopy
       end
       object mniPaste: TMenuItem
-        Caption = #31896#36148
-        OnClick = mniPasteClick
+        Action = actPaste
       end
       object mniN29: TMenuItem
         Caption = #21024#38500
@@ -1363,6 +1364,10 @@ object frmHCViewDemo: TfrmHCViewDemo
           Caption = 'Combobox'
           OnClick = mniCombobox1Click
         end
+        object mniN44: TMenuItem
+          Caption = #26085#26399#26102#38388
+          OnClick = mniN44Click
+        end
       end
       object mniN27: TMenuItem
         Caption = #20998#39029#31526
@@ -1413,16 +1418,13 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 208
     Top = 56
     object mniN7: TMenuItem
-      Caption = #21098#20999
-      OnClick = mniCutClick
+      Action = actCut
     end
     object mniN6: TMenuItem
-      Caption = #22797#21046
-      OnClick = mniCopyClick
+      Action = actCopy
     end
     object mniN8: TMenuItem
-      Caption = #31896#36148
-      OnClick = mniPasteClick
+      Action = actPaste
     end
     object mniTable: TMenuItem
       Caption = #34920#26684
@@ -1466,6 +1468,10 @@ object frmHCViewDemo: TfrmHCViewDemo
       object mniN25: TMenuItem
         Caption = '-'
       end
+      object mniN43: TMenuItem
+        Caption = #36793#26694#21450#32972#26223#33394
+        OnClick = mniN43Click
+      end
       object mniDisBorder: TMenuItem
         Caption = #26174#31034'/'#38544#34255#36793#26694
         OnClick = mniDisBorderClick
@@ -1479,6 +1485,10 @@ object frmHCViewDemo: TfrmHCViewDemo
       Caption = #27573#33853
       OnClick = mniN26Click
     end
+    object mniProp: TMenuItem
+      Caption = #23646#24615
+      OnClick = mniPropClick
+    end
   end
   object pmLineSpace: TPopupMenu
     Left = 272
@@ -1488,19 +1498,26 @@ object frmHCViewDemo: TfrmHCViewDemo
       GroupIndex = 1
       OnClick = mniLineSpaceClick
     end
-    object mniN17: TMenuItem
+    object mniN1151: TMenuItem
       Tag = 1
+      Caption = '1.15'#20493
+      GroupIndex = 1
+      OnClick = mniLineSpaceClick
+    end
+    object mniN17: TMenuItem
+      Tag = 2
       Caption = '1.5'
       GroupIndex = 1
       OnClick = mniLineSpaceClick
     end
     object mniN21: TMenuItem
-      Tag = 2
+      Tag = 3
       Caption = '2.0'
       GroupIndex = 1
       OnClick = mniLineSpaceClick
     end
     object mniN2: TMenuItem
+      Tag = 4
       Caption = #22266#23450#20540
       GroupIndex = 1
       OnClick = mniN2Click
@@ -1513,6 +1530,21 @@ object frmHCViewDemo: TfrmHCViewDemo
       Caption = #26597#25214
       ShortCut = 16454
       OnExecute = actSearchExecute
+    end
+    object actCut: TAction
+      Caption = #21098#20999
+      ShortCut = 16472
+      OnExecute = actCutExecute
+    end
+    object actCopy: TAction
+      Caption = #22797#21046
+      ShortCut = 16451
+      OnExecute = actCopyExecute
+    end
+    object actPaste: TAction
+      Caption = #31896#36148
+      ShortCut = 16470
+      OnExecute = actPasteExecute
     end
   end
 end

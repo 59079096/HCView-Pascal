@@ -117,7 +117,7 @@ begin
 
     OffsetRect(DrawItems[i].Rect, 0, -vFmtOffset);
 
-    if Items[DrawItems[i].ItemNo].StyleNo < THCStyle.RsNull then  // RectItem如表格，在格式化时有行和行中间的偏移，新格式化时要恢复，由分页函数再处理新格式化后的偏移
+    if Items[DrawItems[i].ItemNo].StyleNo < THCStyle.Null then  // RectItem如表格，在格式化时有行和行中间的偏移，新格式化时要恢复，由分页函数再处理新格式化后的偏移
     begin
       vFormatIncHight := (Items[DrawItems[i].ItemNo] as THCCustomRectItem).ClearFormatExtraHeight;
       DrawItems[i].Rect.Bottom := DrawItems[i].Rect.Bottom - vFormatIncHight;

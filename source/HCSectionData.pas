@@ -14,8 +14,9 @@ unit HCSectionData;
 interface
 
 uses
-  Windows, Classes, Graphics, SysUtils, Controls, HCCustomRichData, HCCustomData,
-  HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle, HCTextStyle, HCRichData;
+  Windows, Classes, Graphics, SysUtils, Controls, Generics.Collections, HCCustomRichData,
+  HCCustomData, HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle, HCTextStyle,
+  HCRichData, HCFloatItem;
 
 type
   TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
@@ -27,10 +28,43 @@ type
   private
     FOnReadOnlySwitch: TNotifyEvent;
     FOnGetScreenCoord: TGetScreenCoordEvent;
+
+    FFloatItems: TObjectList<THCFloatItem>;  // THCItems支持Add时控制暂时不用
+    FFloatItemIndex, FMouseDownIndex, FMouseMoveIndex,
+    FMouseX, FMouseY
+      : Integer;
+
+    function CreateFloatItemByStyle(const AStyleNo: Integer): THCFloatItem;
+    function GetFloatItemAt(const X, Y: Integer): Integer;
+    function GetActiveFloatItem: THCFloatItem;
   protected
     function GetScreenCoord(const X, Y: Integer): TPoint; override;
     procedure SetReadOnly(const Value: Boolean); override;
   public
+    constructor Create(const AStyle: THCStyle); override;
+    destructor Destroy; override;
+
+    function MouseDownFloatItem(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
+    function MouseMoveFloatItem(Shift: TShiftState; X, Y: Integer): Boolean;
+    function MouseUpFloatItem(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
+    function KeyDownFloatItem(var Key: Word; Shift: TShiftState): Boolean;
+
+    procedure Clear; override;
+    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); override;
+
+    /// <summary> 插入浮动Item </summary>
+    function InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
+    procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
+      AEndItemNo, AEndOffset: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+
+    procedure PaintFloatItems(const APageIndex, ADataDrawLeft, ADataDrawTop,
+      AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
+
+    property FloatItemIndex: Integer read FFloatItemIndex;
+    property ActiveFloatItem: THCFloatItem read GetActiveFloatItem;
+    property FloatItems: TObjectList<THCFloatItem> read FFloatItems;
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
   end;
@@ -66,6 +100,9 @@ type
   public
     constructor Create(const AStyle: THCStyle); override;
 
+    procedure PaintFloatItems(const APageIndex, ADataDrawLeft, ADataDrawTop,
+      AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+
     /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
 
@@ -91,7 +128,8 @@ implementation
 {$I HCView.inc}
 
 uses
-  Math, HCTextItem, HCRectItem, HCImageItem, HCTableItem, HCPageBreakItem;
+  Math, HCTextItem, HCRectItem, HCImageItem, HCTableItem, HCPageBreakItem,
+  HCFloatLineItem;
 
 { THCPageData }
 
@@ -351,6 +389,29 @@ begin
     inherited MouseDown(Button, Shift, X, Y);
 end;
 
+procedure THCPageData.PaintFloatItems(const APageIndex, ADataDrawLeft,
+  ADataDrawTop, AVOffset: Integer; const ACanvas: TCanvas;
+  const APaintInfo: TPaintInfo);
+var
+  i: Integer;
+  vFloatItem: THCFloatItem;
+begin
+  for i := 0 to FFloatItems.Count - 1 do
+  begin
+    vFloatItem := FFloatItems[i];
+
+    if vFloatItem.PageIndex = APageIndex then
+    begin
+      vFloatItem.DrawRect := Bounds(vFloatItem.Left, vFloatItem.Top, vFloatItem.Width, vFloatItem.Height);
+      vFloatItem.DrawRect.Offset(ADataDrawLeft, ADataDrawTop - AVOffset);  // 将数据起始位置映射到绘制位置
+      //APaintInfo.TopItems.Add(vFloatItem);
+      //vFloatItem.PaintTop(ACanvas);
+      vFloatItem.PaintTo(Self.Style, vFloatItem.DrawRect, ADataDrawTop, 0,
+        0, 0, ACanvas, APaintInfo);
+    end;
+  end;
+end;
+
 procedure THCPageData.ReFormatData_(const AStartItemNo, ALastItemNo,
   AExtraItemCount: Integer);
 begin
@@ -360,10 +421,297 @@ end;
 
 { THCSectionData }
 
+procedure THCSectionData.Clear;
+begin
+  FFloatItemIndex := -1;
+  FMouseDownIndex := -1;
+  FMouseMoveIndex := -1;
+  FFloatItems.Clear;
+
+  inherited Clear;
+end;
+
+constructor THCSectionData.Create(const AStyle: THCStyle);
+begin
+  FFloatItems := TObjectList<THCFloatItem>.Create;
+  FFloatItemIndex := -1;
+  FMouseDownIndex := -1;
+  FMouseMoveIndex := -1;
+
+  inherited Create(AStyle);
+end;
+
+function THCSectionData.CreateFloatItemByStyle(
+  const AStyleNo: Integer): THCFloatItem;
+begin
+  Result := nil;
+  case AStyleNo of
+    THCFloatStyle.Line: Result := THCFloatLineItem.Create(Self);
+  else
+    raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建FloatItem代码！');
+  end;
+end;
+
+destructor THCSectionData.Destroy;
+begin
+  FFloatItems.Free;
+  inherited Destroy;
+end;
+
+function THCSectionData.GetActiveFloatItem: THCFloatItem;
+begin
+  if FFloatItemIndex < 0 then
+    Result := nil
+  else
+    Result := FFloatItems[FFloatItemIndex];
+end;
+
+procedure THCSectionData.GetCaretInfo(const AItemNo, AOffset: Integer;
+  var ACaretInfo: TCaretInfo);
+begin
+  if FFloatItemIndex >= 0 then
+  begin
+    ACaretInfo.Visible := False;
+    Exit;
+  end;
+
+  inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
+end;
+
+function THCSectionData.GetFloatItemAt(const X, Y: Integer): Integer;
+var
+  i: Integer;
+  vFloatItem: THCFloatItem;
+begin
+  Result := -1;
+  for i := 0 to FFloatItems.Count - 1 do
+  begin
+    vFloatItem := FFloatItems[i];
+
+    if vFloatItem.PtInClient(X - vFloatItem.Left, Y - vFloatItem.Top) then
+    begin
+      Result := i;
+      Break;
+    end;
+  end;
+end;
+
 function THCSectionData.GetScreenCoord(const X, Y: Integer): TPoint;
 begin
   if Assigned(FOnGetScreenCoord) then
     Result := FOnGetScreenCoord(X, Y);
+end;
+
+function THCSectionData.InsertFloatItem(
+  const AFloatItem: THCFloatItem): Boolean;
+var
+  vStartNo, vStartOffset, vDrawNo: Integer;
+begin
+  // 记录选中起始位置
+  vStartNo := Self.SelectInfo.StartItemNo;
+  vStartOffset := Self.SelectInfo.StartItemOffset;
+
+  // 取选中起始处的DrawItem
+  vDrawNo := Self.GetDrawItemNoByOffset(vStartNo, vStartOffset);
+
+  AFloatItem.Left := Self.DrawItems[vDrawNo].Rect.Left
+    + Self.GetDrawItemOffsetWidth(vDrawNo, Self.SelectInfo.StartItemOffset - Self.DrawItems[vDrawNo].CharOffs + 1);
+  AFloatItem.Top := Self.DrawItems[vDrawNo].Rect.Top;
+
+  FFloatItemIndex := Self.FloatItems.Add(AFloatItem);
+  AFloatItem.Active := True;
+
+  Result := True;
+
+  if not Self.DisSelect then
+    Style.UpdateInfoRePaint;
+end;
+
+function THCSectionData.KeyDownFloatItem(var Key: Word;
+  Shift: TShiftState): Boolean;
+begin
+  Result := True;
+
+  if FFloatItemIndex >= 0 then
+  begin
+    case Key of
+      VK_BACK, VK_DELETE:
+        begin
+          FFloatItems.Delete(FFloatItemIndex);
+          FFloatItemIndex := -1;
+        end;
+
+      VK_LEFT: FFloatItems[FFloatItemIndex].Left := FFloatItems[FFloatItemIndex].Left - 1;
+
+      VK_RIGHT: FFloatItems[FFloatItemIndex].Left := FFloatItems[FFloatItemIndex].Left + 1;
+
+      VK_UP: FFloatItems[FFloatItemIndex].Top := FFloatItems[FFloatItemIndex].Top - 1;
+
+      VK_DOWN: FFloatItems[FFloatItemIndex].Top := FFloatItems[FFloatItemIndex].Top + 1;
+    else
+      Result := False;
+    end;
+  end
+  else
+    Result := False;
+
+  if Result then
+    Style.UpdateInfoRePaint;
+end;
+
+procedure THCSectionData.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vFloatCount, vStyleNo: Integer;
+  vFloatItem: THCFloatItem;
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  if AFileVersion > 12 then
+  begin
+    AStream.ReadBuffer(vFloatCount, SizeOf(vFloatCount));
+    while vFloatCount > 0 do
+    begin
+      AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
+      vFloatItem := CreateFloatItemByStyle(vStyleNo);
+      vFloatItem.LoadFromStream(AStream, AStyle, AFileVersion);
+      FFloatItems.Add(vFloatItem);
+
+      Dec(vFloatCount);
+    end;
+  end;
+end;
+
+function THCSectionData.MouseDownFloatItem(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
+var
+  vOldIndex: Integer;
+begin
+  Result := True;
+
+  FMouseDownIndex := GetFloatItemAt(X, Y);
+
+  vOldIndex := FFloatItemIndex;
+  if FFloatItemIndex <> FMouseDownIndex then
+  begin
+    if FFloatItemIndex >= 0 then
+      FFloatItems[FFloatItemIndex].Active := False;
+
+    FFloatItemIndex := FMouseDownIndex;
+
+    Style.UpdateInfoRePaint;
+    Style.UpdateInfoReCaret;
+  end;
+
+  if FFloatItemIndex >= 0 then
+  begin
+    FFloatItems[FFloatItemIndex].MouseDown(Button, Shift,
+      X - FFloatItems[FFloatItemIndex].Left, Y - FFloatItems[FFloatItemIndex].Top);
+  end;
+
+  if (FMouseDownIndex < 0) and (vOldIndex < 0) then
+    Result := False
+  else
+  begin
+    FMouseX := X;
+    FMouseY := Y;
+  end;
+end;
+
+function THCSectionData.MouseMoveFloatItem(Shift: TShiftState; X, Y: Integer): Boolean;
+var
+  vItemIndex: Integer;
+  vFloatItem: THCFloatItem;
+begin
+  Result := True;
+
+  if (Shift = [ssLeft]) and (FMouseDownIndex >= 0) then  // 按下拖拽
+  begin
+    vFloatItem := FFloatItems[FMouseDownIndex];
+    vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
+
+    if not vFloatItem.Resizing then
+    begin
+      vFloatItem.Left := vFloatItem.Left + X - FMouseX;
+      vFloatItem.Top := vFloatItem.Top + Y - FMouseY;
+
+      FMouseX := X;
+      FMouseY := Y;
+    end;
+
+    Style.UpdateInfoRePaint;
+  end
+  else  // 普通鼠标移动
+  begin
+    vItemIndex := GetFloatItemAt(X, Y);
+    if FMouseMoveIndex <> vItemIndex then
+    begin
+      if FMouseMoveIndex >= 0 then  // 旧的移出
+        FFloatItems[FMouseMoveIndex].MouseLeave;
+
+      FMouseMoveIndex := vItemIndex;
+      if FMouseMoveIndex >= 0 then  // 新的移入
+        FFloatItems[FMouseMoveIndex].MouseEnter;
+    end;
+
+    if vItemIndex >= 0 then
+    begin
+      vFloatItem := FFloatItems[vItemIndex];
+      vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
+    end
+    else
+      Result := False;
+  end;
+end;
+
+function THCSectionData.MouseUpFloatItem(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
+var
+  vFloatItem: THCFloatItem;
+begin
+  Result := True;
+
+  if FMouseDownIndex >= 0 then
+  begin
+    vFloatItem := FFloatItems[FMouseDownIndex];
+    {if vFloatItem.Resizing then
+      Self.Style.UpdateInfoRePaint;}
+    vFloatItem.MouseUp(Button, Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
+  end
+  else
+    Result := False;
+end;
+
+procedure THCSectionData.PaintFloatItems(const APageIndex, ADataDrawLeft,
+  ADataDrawTop, AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+var
+  i: Integer;
+  vFloatItem: THCFloatItem;
+begin
+  for i := 0 to FFloatItems.Count - 1 do
+  begin
+    vFloatItem := FFloatItems[i];
+
+    //if vFloatItem.PageIndex = APageIndex then
+    begin
+      vFloatItem.DrawRect := Bounds(vFloatItem.Left, vFloatItem.Top, vFloatItem.Width, vFloatItem.Height);
+      vFloatItem.DrawRect.Offset(ADataDrawLeft, ADataDrawTop - AVOffset);  // 将数据起始位置映射到绘制位置
+      //APaintInfo.TopItems.Add(vFloatItem);
+      //vFloatItem.PaintTop(ACanvas, APaintInfo);
+      vFloatItem.PaintTo(Self.Style, vFloatItem.DrawRect, ADataDrawTop, 0,
+        0, 0, ACanvas, APaintInfo);
+    end;
+  end;
+end;
+
+procedure THCSectionData.SaveToStream(const AStream: TStream;
+  const AStartItemNo, AStartOffset, AEndItemNo, AEndOffset: Integer);
+var
+  i, vFloatCount: Integer;
+begin
+  inherited SaveToStream(AStream, AStartItemNo, AStartOffset, AEndItemNo, AEndOffset);
+
+  vFloatCount := FFloatItems.Count;
+  AStream.WriteBuffer(vFloatCount, SizeOf(vFloatCount));
+  for i := 0 to FFloatItems.Count - 1 do
+    FFloatItems[i].SaveToStream(AStream, 0, OffsetAfter);
 end;
 
 procedure THCSectionData.SetReadOnly(const Value: Boolean);

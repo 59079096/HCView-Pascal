@@ -40,7 +40,7 @@ type
     FZoom  // 视图设置的放大比例
       : Single;
   public
-    constructor Create;
+    constructor Create; virtual;
     destructor Destroy; override;
     function ScaleCanvas(const ACanvas: TCanvas): TScaleInfo;
     procedure RestoreCanvasScale(const ACanvas : TCanvas; const AOldInfo: TScaleInfo);
@@ -198,8 +198,8 @@ end;
 
 constructor THCCustomItem.Create;
 begin
-  FStyleNo := THCStyle.RsNull;
-  FParaNo := THCStyle.RsNull;
+  FStyleNo := THCStyle.Null;
+  FParaNo := THCStyle.Null;
   FFirstDItemNo := -1;
   FVisible := True;
   FActive := False;

@@ -26,6 +26,7 @@ type
     FSectionIndex, FPageIndex: Integer;
     FPageDrawRight: Integer;
   public
+    constructor Create; override;
     property SectionIndex: Integer read FSectionIndex write FSectionIndex;
     property PageIndex: Integer read FPageIndex write FPageIndex;
     property PageDrawRight: Integer read FPageDrawRight write FPageDrawRight;
@@ -257,7 +258,7 @@ type
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
-    procedure ApplyParaLineSpace(const ASpace: Integer);
+    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
 
     /// <summary> 某页在整个节中的Top位置 </summary>
     /// <param name="APageIndex"></param>
@@ -298,9 +299,9 @@ type
     /// <summary> 标记样式是否在用或删除不使用的样式后修正样式序号 </summary>
     /// <param name="AMark">True:标记样式是否在用，Fasle:修正原样式因删除不使用样式后的新序号</param>
     procedure MarkStyleUsed(const AMark: Boolean;
-      const AParts: TSaveParts = [saHeader, saData, saFooter]);
+      const AParts: TSaveParts = [saHeader, saPage, saFooter]);
     procedure SaveToStream(const AStream: TStream;
-      const ASaveParts: TSaveParts = [saHeader, saData, saFooter]);
+      const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]);
     procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word);
@@ -466,11 +467,11 @@ begin
     end);
 end;
 
-procedure THCCustomSection.ApplyParaLineSpace(const ASpace: Integer);
+procedure THCCustomSection.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
-      FActiveData.ApplyParaLineSpace(ASpace);
+      FActiveData.ApplyParaLineSpace(ASpaceMode);
     end);
 end;
 
@@ -695,7 +696,7 @@ begin
     vHeight := FPageSize.PageMarginBottomPix
   else
   if vData = FPageData then
-    vHeight := GetContentHeight - FStyle.ParaStyles[vResizeItem.ParaNo].LineSpace;
+    vHeight := GetContentHeight;// - FStyle.ParaStyles[vResizeItem.ParaNo].LineSpace;
 
   vResizeItem.RestrainSize(vWidth, vHeight);
 
@@ -796,7 +797,7 @@ begin
   if FActiveData = FFooter then
     Result := TSectionArea.saFooter
   else
-    Result := TSectionArea.saData;
+    Result := TSectionArea.saPage;
 end;
 
 function THCCustomSection.GetTopLevelDrawItem: THCCustomDrawItem;
@@ -827,7 +828,7 @@ end;
 
 function THCCustomSection.GetCurItem: THCCustomItem;
 begin
-  FActiveData.GetCurItem;
+  Result := FActiveData.GetCurItem;
 end;
 
 function THCCustomSection.GetReadOnly: Boolean;
@@ -1199,6 +1200,7 @@ var
   vHeight, vDrawItemCount, vCurItemNo, vNewItemNo: Integer;
 begin
   if not FActiveData.CanEdit then Exit(False);
+  if FActiveData.FloatItemIndex >= 0 then Exit(False);
 
   // 记录变动前的状态
   vHeight := FActiveData.Height;
@@ -1262,6 +1264,12 @@ var
   vKey: Word;
 begin
   if not FActiveData.CanEdit then Exit;
+
+  if FActiveData.KeyDownFloatItem(Key, Shift) then  // FloatItem使用了访键
+  begin
+    DoActiveDataCheckUpdateInfo;
+    Exit;
+  end;
 
   if IsKeyDownWant(Key) then
   begin
@@ -1348,7 +1356,7 @@ begin
     vLoadParts := vLoadParts + [saFooter];
   AStream.ReadBuffer(vArea, SizeOf(vArea));
   if vArea then
-    vLoadParts := vLoadParts + [saData];
+    vLoadParts := vLoadParts + [saPage];
 
   if saHeader in vLoadParts then
   begin
@@ -1363,7 +1371,7 @@ begin
     FFooter.LoadFromStream(AStream, FStyle, AFileVersion);
   end;
 
-  if saData in vLoadParts then
+  if saPage in vLoadParts then
     FPageData.LoadFromStream(AStream, FStyle, AFileVersion);
 
   BuildSectionPages(0);
@@ -1377,7 +1385,7 @@ begin
 end;
 
 procedure THCCustomSection.MarkStyleUsed(const AMark: Boolean;
-  const AParts: TSaveParts = [saHeader, saData, saFooter]);
+  const AParts: TSaveParts = [saHeader, saPage, saFooter]);
 begin
   if saHeader in AParts then
     FHeader.MarkStyleUsed(AMark);
@@ -1385,7 +1393,7 @@ begin
   if saFooter in AParts then
     FFooter.MarkStyleUsed(AMark);
 
-  if saData in AParts then
+  if saPage in AParts then
     FPageData.MarkStyleUsed(AMark);
 end;
 
@@ -1400,7 +1408,7 @@ end;
 procedure THCCustomSection.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var
-  vX, vY, vPageIndex, vFloatItemIndex: Integer;
+  vX, vY, vPageIndex: Integer;
   vNewActiveData: THCSectionData;
   vChangeActiveData: Boolean;
 begin
@@ -1409,6 +1417,18 @@ begin
   vPageIndex := GetPageIndexByFilm(Y);  // 鼠标点击处所在的页(和光标所在页可能并不是同一页，如表格跨页时，空单元格第二页点击时，光标回前一页)
   if FActivePageIndex <> vPageIndex then
     FActivePageIndex := vPageIndex;
+
+  {$REGION ' 有FloatItem时短路 '}
+  if FActiveData.FloatItems.Count > 0 then  // 有FloatItem时优先
+  begin
+    SectionCoordToPage(FActivePageIndex, X, Y, vX, vY);
+    PageCoordToData(FActivePageIndex, FActiveData, vX, vY);
+    if FActiveData = FPageData then  // FloatItem在PageData中
+      vY := vY + GetPageDataFmtTop(FActivePageIndex);
+
+    if FActiveData.MouseDownFloatItem(Button, Shift, vX, vY) then Exit;
+  end;
+  {$ENDREGION}
 
   SectionCoordToPage(FActivePageIndex, X, Y, vX, vY);  // X，Y转换到指定页的坐标vX,vY
 
@@ -1420,7 +1440,10 @@ begin
     vChangeActiveData := True;
   end;
 
-  PageCoordToData(FActivePageIndex, FActiveData, vX, vY, False);
+  if (vNewActiveData <> FActiveData) and (FActiveData = FPageData) then  // 激活正文，点击页眉、页脚
+    PageCoordToData(FActivePageIndex, FActiveData, vX, vY, True)  // 约束到Data中，防止点页脚认为是下一页
+  else
+    PageCoordToData(FActivePageIndex, FActiveData, vX, vY);
 
   if FActiveData = FPageData then
     vY := vY + GetPageDataFmtTop(FActivePageIndex);
@@ -1433,11 +1456,9 @@ end;
 
 procedure THCCustomSection.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
-  vMarginLeft, vMarginRight: Integer;
-  vX, vY: Integer;
+  vX, vY, vMarginLeft, vMarginRight: Integer;
   vMoveData: THCSectionData;
 begin
-  // 默认光标
   GetPageMarginLeftAndRight(FMousePageIndex, vMarginLeft, vMarginRight);
 
   if X < vMarginLeft then
@@ -1449,7 +1470,51 @@ begin
     GCursor := crIBeam;
 
   FMousePageIndex := GetPageIndexByFilm(Y);
-  if FMousePageIndex < 0 then Exit;
+
+  Assert(FMousePageIndex >= 0, '不应该出现鼠标移动到空页面上的情况！');
+  //if FMousePageIndex < 0 then Exit;  应该永远不会出现
+
+  {$REGION ' 有FloatItem时短路 '}
+  if FActiveData.FloatItems.Count > 0 then  // 有FloatItem时优先
+  begin
+    if (Shift = [ssLeft]) and (FActiveData.FloatItemIndex >= 0) then  // 拖拽移动FloatItem
+    begin
+      if not FActiveData.ActiveFloatItem.Resizing then  // 非缩放
+        FActiveData.ActiveFloatItem.PageIndex := FMousePageIndex;
+    end;
+
+    if FActiveData = FPageData then  // FloatItem在PageData中
+    begin
+      if (FActiveData.FloatItemIndex >= 0) and (FActiveData.ActiveFloatItem.Resizing) then  // 缩放时以所在页为标准
+      begin
+        SectionCoordToPage(FActiveData.ActiveFloatItem.PageIndex, X, Y, vX, vY);
+        PageCoordToData(FActiveData.ActiveFloatItem.PageIndex, FActiveData, vX, vY);
+        vY := vY + GetPageDataFmtTop(FActiveData.ActiveFloatItem.PageIndex);
+      end
+      else
+      begin
+        SectionCoordToPage(FMousePageIndex, X, Y, vX, vY);
+        PageCoordToData(FMousePageIndex, FActiveData, vX, vY);
+        vY := vY + GetPageDataFmtTop(FMousePageIndex);
+      end;
+    end
+    else  // FloatItem在Header或Footer
+    begin
+      if (FActiveData.FloatItemIndex >= 0) and (FActiveData.ActiveFloatItem.Resizing) then  // 缩放时以所在页为标准
+      begin
+        SectionCoordToPage(FActivePageIndex, X, Y, vX, vY);
+        PageCoordToData(FActivePageIndex, FActiveData, vX, vY);
+      end
+      else
+      begin
+        SectionCoordToPage(FMousePageIndex, X, Y, vX, vY);
+        PageCoordToData(FMousePageIndex, FActiveData, vX, vY);
+      end;
+    end;
+
+    if FActiveData.MouseMoveFloatItem(Shift, vX, vY) then Exit;
+  end;
+  {$ENDREGION}
 
   SectionCoordToPage(FMousePageIndex, X, Y, vX, vY);
 
@@ -1475,11 +1540,34 @@ var
   vX, vY, vPageIndex: Integer;
 begin
   vPageIndex := GetPageIndexByFilm(Y);
+
+  {$REGION ' 有FloatItem时短路 '}
+  if (FActiveData.FloatItems.Count > 0) and (FActiveData.FloatItemIndex >= 0) then  // 有FloatItem时优先
+  begin
+    if FActiveData = FPageData then  // FloatItem在PageData中
+    begin
+      SectionCoordToPage(FActiveData.ActiveFloatItem.PageIndex, X, Y, vX, vY);
+      PageCoordToData(FActiveData.ActiveFloatItem.PageIndex, FActiveData, vX, vY);
+      vY := vY + GetPageDataFmtTop(FActiveData.ActiveFloatItem.PageIndex);
+    end
+    else  // FloatItem在Header或Footer
+    begin
+      SectionCoordToPage(vPageIndex, X, Y, vX, vY);
+      PageCoordToData(vPageIndex, FActiveData, vX, vY);
+    end;
+
+    if FActiveData.MouseUpFloatItem(Button, Shift, vX, vY) then Exit;
+  end;
+  {$ENDREGION}
+
   SectionCoordToPage(vPageIndex, X, Y, vX, vY);
 
-  //if GetRichDataAt(vX, vY) <> FActiveData then Exit;  // 不在当前激活的Data上
+  //if  <> FActiveData then Exit;  // 不在当前激活的Data上
+  if (GetSectionDataAt(vX, vY) <> FActiveData) and (FActiveData = FPageData) then  // 激活正文，点击页眉、页脚
+    PageCoordToData(vPageIndex, FActiveData, vX, vY, True)
+  else
+    PageCoordToData(vPageIndex, FActiveData, vX, vY);
 
-  PageCoordToData(vPageIndex, FActiveData, vX, vY);
   if FActiveData = FPageData then
     vY := vY + GetPageDataFmtTop(vPageIndex);
 
@@ -1523,14 +1611,14 @@ begin
   // 为避免边界(激活正文，在页眉页脚点击时判断仍是在正文位置造成光标错误)约束后都偏移1
   if AData = FHeader then
   begin
-    AY := AY - GetHeaderPageDrawTop;
+    AY := AY - GetHeaderPageDrawTop;  // 相对页眉绘制位置
     if ARestrain then  // 约束到页眉绝对区域中
     begin
-      if AY < FHeaderOffset then
-        AY := FHeaderOffset + 1
+      if AY < 0 then  // FHeaderOffset
+        AY := 1
       else
       begin
-        viTemp := GetHeaderAreaHeight;
+        viTemp := FHeader.Height;
         if AY > viTemp then
           AY := viTemp - 1;
       end;
@@ -1592,7 +1680,7 @@ var
   vPageDataScreenTop, vPageDataScreenBottom,  // 页数据屏幕位置
   vScaleWidth, vScaleHeight: Integer;
 
-  {$REGION '页眉'}
+  {$REGION ' 绘制页眉数据 '}
   procedure PaintHeader;
   var
     vHeaderDataDrawTop, vHeaderDataDrawBottom, vDCState: Integer;
@@ -1604,7 +1692,7 @@ var
       vHeaderDataDrawBottom, Max(vHeaderDataDrawTop, 0),
       Min(vHeaderDataDrawBottom, APaintInfo.WindowHeight), 0, ACanvas, APaintInfo);
 
-    if FActiveData = FHeader then  // 当前激活的是页眉
+    if (not APaintInfo.Print) and (FActiveData = FHeader) then  // 当前激活的是页眉，绘制页眉激活线
     begin
       ACanvas.Pen.Color := clBlue;
       ACanvas.MoveTo(vPageDrawLeft, vHeaderDataDrawBottom - 1);
@@ -1624,28 +1712,27 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION '页脚'}
+  {$REGION ' 绘制页脚数据 '}
   procedure PaintFooter;
   var
-    vY, vDCState: Integer;
-    vS: string;
+    vFooterDataDrawTop, vDCState: Integer;
   begin
-    vY := vPageDrawBottom - FPageSize.PageMarginBottomPix;
-    FFooter.PaintData(vPageDrawLeft + vMarginLeft, vY, vPageDrawBottom,
-      Max(vY, 0), Min(vPageDrawBottom, APaintInfo.WindowHeight), 0, ACanvas, APaintInfo);
+    vFooterDataDrawTop := vPageDrawBottom - FPageSize.PageMarginBottomPix;
+    FFooter.PaintData(vPageDrawLeft + vMarginLeft, vFooterDataDrawTop, vPageDrawBottom,
+      Max(vFooterDataDrawTop, 0), Min(vPageDrawBottom, APaintInfo.WindowHeight), 0, ACanvas, APaintInfo);
 
-    if FActiveData = FFooter then  // 当前激活的是页脚
+    if (not APaintInfo.Print) and (FActiveData = FFooter) then  // 当前激活的是页脚，绘制激活线
     begin
       ACanvas.Pen.Color := clBlue;
-      ACanvas.MoveTo(vPageDrawLeft, vY);
-      ACanvas.LineTo(vPageDrawRight, vY);
+      ACanvas.MoveTo(vPageDrawLeft, vFooterDataDrawTop);
+      ACanvas.LineTo(vPageDrawRight, vFooterDataDrawTop);
     end;
 
     if Assigned(FOnPaintFooter) then
     begin
       vDCState := Windows.SaveDC(ACanvas.Handle);
       try
-        FOnPaintFooter(Self, APageIndex, Rect(vPageDrawLeft + vMarginLeft, vY,
+        FOnPaintFooter(Self, APageIndex, Rect(vPageDrawLeft + vMarginLeft, vFooterDataDrawTop,
           vPageDrawRight - vMarginRight, vPageDrawBottom), ACanvas, APaintInfo);
       finally
         Windows.RestoreDC(ACanvas.Handle, vDCState);
@@ -1654,7 +1741,7 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION '绘制页面数据'}
+  {$REGION ' 绘制页面数据 '}
   procedure PaintPageData;
   var
     vPageDataFmtTop, vDCState: Integer;
@@ -1850,6 +1937,41 @@ begin
 
   // 恢复区域，准备给整页绘制用
   vPaintRegion := CreateRectRgn(
+    APaintInfo.GetScaleX(vPageDrawLeft),
+    APaintInfo.GetScaleX(vPageDrawTop),
+    APaintInfo.GetScaleX(vPageDrawRight),
+    APaintInfo.GetScaleX(vPageDrawBottom));
+  try
+    SelectClipRgn(ACanvas.Handle, vPaintRegion);
+
+    FHeader.PaintFloatItems(APageIndex, vPageDrawLeft + vMarginLeft,
+      vPageDrawTop + GetHeaderPageDrawTop,
+      //vPageDrawTop + vHeaderAreaHeight,
+      //Max(vPageDrawTop + GetHeaderPageDrawTop, 0),
+      //Min(vPageDrawTop + vHeaderAreaHeight, APaintInfo.WindowHeight),
+      0, ACanvas, APaintInfo);
+
+    FFooter.PaintFloatItems(APageIndex, vPageDrawLeft + vMarginLeft,
+      vPageDrawBottom - FPageSize.PageMarginBottomPix,
+      //vPageDrawBottom,
+      //Max(vPageDrawBottom - FPageSize.PageMarginBottomPix, 0),
+      //Min(vPageDrawBottom, APaintInfo.WindowHeight),
+      0, ACanvas, APaintInfo);
+
+    FPageData.PaintFloatItems(APageIndex, vPageDrawLeft + vMarginLeft,  // 当前页绘制到的Left
+      vPageDrawTop + vHeaderAreaHeight,     // 当前页绘制到的Top
+      //vPageDrawBottom - PageMarginBottomPix,  // 当前页绘制的Bottom
+      //vPageDataScreenTop,     // 界面呈现当前页的Top位置
+      //vPageDataScreenBottom,  // 界面呈现当前页的Bottom位置
+      GetPageDataFmtTop(APageIndex),  // 指定从哪个位置开始的数据绘制到页数据起始位置
+      ACanvas,
+      APaintInfo);
+  finally
+    DeleteObject(vPaintRegion);
+  end;
+
+  // 恢复区域，准备给外部绘制用
+  vPaintRegion := CreateRectRgn(
     APaintInfo.GetScaleX(vClipBoxRect.Left),
     APaintInfo.GetScaleX(vClipBoxRect.Top),
     APaintInfo.GetScaleX(vClipBoxRect.Right),
@@ -1899,7 +2021,7 @@ var
       vFmtHeightInc, vFmtOffset: Integer;
       vDrawRect: TRect;
     begin
-      if FPageData.GetDrawItemStyle(ADrawItemNo) = THCStyle.RsPageBreak then
+      if FPageData.GetDrawItemStyle(ADrawItemNo) = THCStyle.PageBreak then
       begin
         vFmtOffset := vPageDataFmtBottom - FPageData.DrawItems[ADrawItemNo].Rect.Top;
 
@@ -1932,7 +2054,7 @@ var
         vDrawRect := FPageData.DrawItems[ADrawItemNo].Rect;
 
         if vSuplus = 0 then  // 第一次计算分页
-          InflateRect(vDrawRect, 0, -FStyle.ParaStyles[vRectItem.ParaNo].LineSpaceHalf);  // 减掉行间距
+          InflateRect(vDrawRect, 0, -FPageData.GetLineSpace(ADrawItemNo) div 2);  // 减掉行间距
 
         vRectItem.CheckFormatPageBreak(  // 去除行间距后，判断表格跨页位置
           FPages.Count - 1,
@@ -1953,7 +2075,7 @@ var
         else  // vBreakSeat >= 0 从vBreakSeat位置跨页
         if vFmtOffset > 0 then  // 整体跨页，整体向下移动了
         begin
-          vFmtOffset := vFmtOffset + FStyle.ParaStyles[vRectItem.ParaNo].LineSpaceHalf;  // 整体向下移动增加上面减掉的行间距
+          vFmtOffset := vFmtOffset + FPageData.GetLineSpace(ADrawItemNo) div 2;  // 整体向下移动增加上面减掉的行间距
           vSuplus := vSuplus + vFmtOffset + vFmtHeightInc;
 
           OffsetRect(FPageData.DrawItems[ADrawItemNo].Rect, 0, vFmtOffset);
@@ -2082,7 +2204,7 @@ begin
   begin
     if FPageData.DrawItems[i].LineFirst then
     begin
-      if FPageData.Items[FPageData.DrawItems[i].ItemNo].StyleNo < THCStyle.RsNull then
+      if FPageData.Items[FPageData.DrawItems[i].ItemNo].StyleNo < THCStyle.Null then
         _FormatRectItemCheckPageBreak(i)
       else
         _FormatTextItemCheckPageBreak(i);
@@ -2091,6 +2213,12 @@ begin
 
   FPages[vPageIndex].EndDrawItemNo := FPageData.DrawItems.Count - 1;
   FActivePageIndex := GetPageIndexByCurrent;
+
+  for i := FPageData.FloatItems.Count - 1 downto 0 do  // 正文中删除页序号超过页总数的FloatItem
+  begin
+    if FPageData.FloatItems[i].PageIndex > FPages.Count - 1 then
+      FPageData.FloatItems.Delete(i);
+  end;
 end;
 
 procedure THCCustomSection.Redo(const ARedo: THCUndo);
@@ -2130,7 +2258,7 @@ begin
 end;
 
 procedure THCCustomSection.SaveToStream(const AStream: TStream;
-  const ASaveParts: TSaveParts = [saHeader, saData, saFooter]);
+  const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]);
 var
   vBegPos, vEndPos: Int64;
   vArea: Boolean;
@@ -2153,7 +2281,7 @@ begin
     vArea := saFooter in ASaveParts;  // 存页脚
     AStream.WriteBuffer(vArea, SizeOf(vArea));
 
-    vArea := saData in ASaveParts;  // 存页面
+    vArea := saPage in ASaveParts;  // 存页面
     AStream.WriteBuffer(vArea, SizeOf(vArea));
 
     if saHeader in ASaveParts then  // 存页眉
@@ -2165,7 +2293,7 @@ begin
     if saFooter in ASaveParts then  // 存页脚
       FFooter.SaveToStream(AStream);
 
-    if saData in ASaveParts then  // 存页面
+    if saPage in ASaveParts then  // 存页面
       FPageData.SaveToStream(AStream);
   end;
   //
@@ -2196,9 +2324,7 @@ end;
 
 function THCCustomSection.SelectExists: Boolean;
 begin
-  //Result := False;
-  //if FActiveData <> nil then
-    Result := FActiveData.SelectExists
+  Result := FActiveData.SelectExists
 end;
 
 procedure THCCustomSection.SetHeaderOffset(const Value: Integer);
@@ -2331,6 +2457,7 @@ end;
 function THCSection.InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
 begin
   if not FActiveData.CanEdit then Exit(False);
+  AFloatItem.PageIndex := FActivePageIndex;
   Result := FActiveData.InsertFloatItem(AFloatItem);
   DoDataChanged(Self);
 end;
@@ -2362,6 +2489,16 @@ function THCSection.Search(const AKeyword: string; const AForward, AMatchCase: B
 begin
   Result := FActiveData.Search(AKeyword, AForward, AMatchCase);
   DoActiveDataCheckUpdateInfo;
+end;
+
+{ TSectionPaintInfo }
+
+constructor TSectionPaintInfo.Create;
+begin
+  inherited Create;
+  FSectionIndex := -1;
+  FPageIndex := -1;
+  FPageDrawRight:= -1;
 end;
 
 end.

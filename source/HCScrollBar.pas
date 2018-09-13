@@ -518,6 +518,10 @@ begin
     Self.FPageSize := Height
   else
     Self.FPageSize := Width;
+
+  if FPosition + FPageSize > FMax then  // 大小变化后，需要重新确定Position
+    FPosition := Math.Max(FMax - FPageSize, FMin);
+
   ReCalcThumRect;  // 重新计算滑块区域
   ReCalcButtonRect;  // 重新计算按钮区域
 end;
@@ -587,6 +591,7 @@ begin
   if FPageSize <> Value then
   begin
     FPageSize := Value;
+    //ReCalcButtonRect;
     ReCalcThumRect;  // 重新计算相对比率（相对Max - Min）
     UpdateRangRect;  // 重绘
   end;

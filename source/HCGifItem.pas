@@ -50,7 +50,7 @@ begin
   FStyle := AOwnerData.Style;
   FImage := TGIFImage.Create;
   FImage.OnChange := DoImageChange;
-  StyleNo := THCStyle.RsGif;
+  StyleNo := THCStyle.Gif;
 end;
 
 destructor THCGifItem.Destroy;

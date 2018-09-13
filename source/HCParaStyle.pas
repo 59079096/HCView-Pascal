@@ -23,18 +23,17 @@ type
   /// <summary> 段垂直对齐方式：下、居中、上) </summary>
   TParaAlignVert = (pavBottom, pavCenter, pavTop);
 
+  TParaLineSpaceMode = (pls100, pls115, pls150, pls200, plsFix);
+
   THCParaStyle = class(TPersistent)
   strict private
-    FLineSpace,  // 行间距
-    FLineSpaceHalf,  // 行间距一半
+    FLineSpaceMode: TParaLineSpaceMode;
     FFristIndent,// 首行缩进
     FLeftIndent  // 左缩进
       : Integer;
     FBackColor: TColor;
     FAlignHorz: TParaAlignHorz;
     FAlignVert: TParaAlignVert;
-  protected
-    procedure SetLineSpace(const Value: Integer);
   public
     CheckSaveUsed: Boolean;
     TempNo: Integer;
@@ -45,8 +44,9 @@ type
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
   published
-    property LineSpace: Integer read FLineSpace write SetLineSpace;
-    property LineSpaceHalf: Integer read FLineSpaceHalf;
+    property LineSpaceMode: TParaLineSpaceMode read FLineSpaceMode write FLineSpaceMode;
+    //property LineSpace: Integer read FLineSpace write SetLineSpace;
+    //property LineSpaceHalf: Integer read FLineSpaceHalf;
     property FristIndent: Integer read FFristIndent write FFristIndent;
     property LeftIndent: Integer read FLeftIndent write FLeftIndent;
     property BackColor: TColor read FBackColor write FBackColor;
@@ -60,8 +60,9 @@ implementation
 
 procedure THCParaStyle.AssignEx(const ASource: THCParaStyle);
 begin
-  Self.FLineSpace := ASource.LineSpace;
-  Self.FLineSpaceHalf := ASource.FLineSpaceHalf;
+  Self.FLineSpaceMode := ASource.LineSpaceMode;
+  //Self.FLineSpace := ASource.LineSpace;
+  //Self.FLineSpaceHalf := ASource.LineSpaceHalf;
   Self.FFristIndent := ASource.FristIndent;
   Self.LeftIndent := ASource.LeftIndent;
   Self.FBackColor := ASource.BackColor;
@@ -70,8 +71,6 @@ end;
 
 constructor THCParaStyle.Create;
 begin
-  FLineSpace := 7;  // 五号字的高为14，
-  FLineSpaceHalf := 3;
   FFristIndent := 0;
   FLeftIndent := 0;
   FBackColor := clSilver;
@@ -88,19 +87,22 @@ end;
 function THCParaStyle.EqualsEx(const ASource: THCParaStyle): Boolean;
 begin
   Result :=
-  (Self.FLineSpace = ASource.LineSpace)
+  //(Self.FLineSpace = ASource.LineSpace)
+  (Self.FLineSpaceMode = ASource.LineSpaceMode)
   and (Self.FFristIndent = ASource.FristIndent)
   and (Self.LeftIndent = ASource.LeftIndent)
   and (Self.FBackColor = ASource.BackColor)
   and (Self.FAlignHorz = ASource.AlignHorz)
-  and (Self.FAlignVert = ASource.AlignVert)
-  and (Self.FLineSpace = ASource.LineSpace);
+  and (Self.FAlignVert = ASource.AlignVert);
 end;
 
 procedure THCParaStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
+var
+  vLineSpace: Integer;
 begin
-  AStream.ReadBuffer(FLineSpace, SizeOf(FLineSpace));
-  FLineSpaceHalf := FLineSpace div 2;
+  if AFileVersion < 15 then
+    AStream.ReadBuffer(vLineSpace, SizeOf(vLineSpace));
+  //FLineSpaceHalf := FLineSpace div 2;
   AStream.ReadBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
   AStream.ReadBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
   AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
@@ -109,20 +111,11 @@ end;
 
 procedure THCParaStyle.SaveToStream(const AStream: TStream);
 begin
-  AStream.WriteBuffer(FLineSpace, SizeOf(FLineSpace));
+  //AStream.WriteBuffer(FLineSpace, SizeOf(FLineSpace));
   AStream.WriteBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
   AStream.WriteBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
   AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
   AStream.WriteBuffer(FAlignHorz, SizeOf(FAlignHorz));
-end;
-
-procedure THCParaStyle.SetLineSpace(const Value: Integer);
-begin
-  if FLineSpace <> Value then
-  begin
-    FLineSpace := Value;
-    FLineSpaceHalf := Value div 2;
-  end;
 end;
 
 end.

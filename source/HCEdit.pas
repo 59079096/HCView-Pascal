@@ -804,12 +804,12 @@ begin
   for i := 0 to FStyle.TextStyles.Count - 1 do
   begin
     FStyle.TextStyles[i].CheckSaveUsed := False;
-    FStyle.TextStyles[i].TempNo := THCStyle.RsNull;
+    FStyle.TextStyles[i].TempNo := THCStyle.Null;
   end;
   for i := 0 to FStyle.ParaStyles.Count - 1 do
   begin
     FStyle.ParaStyles[i].CheckSaveUsed := False;
-    FStyle.ParaStyles[i].TempNo := THCStyle.RsNull;
+    FStyle.ParaStyles[i].TempNo := THCStyle.Null;
   end;
 
   FData.MarkStyleUsed(True);

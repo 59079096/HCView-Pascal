@@ -316,24 +316,24 @@ function THCCustomRichData.CreateItemByStyle(
   const AStyleNo: Integer): THCCustomItem;
 begin
   Result := nil;
-  if AStyleNo < THCStyle.RsNull then
+  if AStyleNo < THCStyle.Null then
   begin
     case AStyleNo of
-      THCStyle.RsImage: Result := THCImageItem.Create(Self,0, 0);
-      THCStyle.RsTable: Result := THCTableItem.Create(Self, 1, 1, 1);
-      THCStyle.RsTab: Result := TTabItem.Create(Self, 0, 0);
-      THCStyle.RsLine: Result := TLineItem.Create(Self, 1, 1);
-      THCStyle.RsExpress: Result := THCExperssItem.Create(Self, '', '', '', '');
+      THCStyle.Image: Result := THCImageItem.Create(Self, 0, 0);
+      THCStyle.Table: Result := THCTableItem.Create(Self, 1, 1, 1);
+      THCStyle.Tab: Result := TTabItem.Create(Self, 0, 0);
+      THCStyle.Line: Result := TLineItem.Create(Self, 1, 1);
+      THCStyle.Express: Result := THCExperssItem.Create(Self, '', '', '', '');
       // RsVector
-      THCStyle.RsDomain: Result := CreateDefaultDomainItem;
-      THCStyle.RsPageBreak: Result := TPageBreakItem.Create(Self, 0, 1);
-      THCStyle.RsCheckBox: Result := THCCheckBoxItem.Create(Self, '勾选框', False);
-      THCStyle.RsGif: Result := THCGifItem.Create(Self, 1, 1);
-      THCStyle.RsEdit: Result := THCEditItem.Create(Self, '');
-      THCStyle.RsCombobox: Result := THCComboboxItem.Create(Self, '');
-      THCStyle.RsQRCode: Result := THCQRCodeItem.Create(Self, '');
-      THCStyle.RsBarCode: Result := THCBarCodeItem.Create(Self, '');
-      THCStyle.RsFraction: Result := THCFractionItem.Create(Self, '', '');
+      THCStyle.Domain: Result := CreateDefaultDomainItem;
+      THCStyle.PageBreak: Result := TPageBreakItem.Create(Self, 0, 1);
+      THCStyle.CheckBox: Result := THCCheckBoxItem.Create(Self, '勾选框', False);
+      THCStyle.Gif: Result := THCGifItem.Create(Self, 1, 1);
+      THCStyle.Edit: Result := THCEditItem.Create(Self, '');
+      THCStyle.Combobox: Result := THCComboboxItem.Create(Self, '');
+      THCStyle.QRCode: Result := THCQRCodeItem.Create(Self, '');
+      THCStyle.BarCode: Result := THCBarCodeItem.Create(Self, '');
+      THCStyle.Fraction: Result := THCFractionItem.Create(Self, '', '');
     else
       raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建Item代码！');
     end;
@@ -357,7 +357,7 @@ begin
   GetItemAt(X, Y, vItemNo, vItemOffset, vDrawItemNo, vRestrain);
   if vItemNo < 0 then Exit;
 
-  if Items[vItemNo].StyleNo < THCStyle.RsNull then
+  if Items[vItemNo].StyleNo < THCStyle.Null then
   begin
     CoordToItemOffset(X, Y, vItemNo, vItemOffset, vX, vY);
     Items[vItemNo].DblClick(vX, vY);
@@ -411,8 +411,6 @@ end;
 
 procedure THCCustomRichData.DeleteItems(const AStartNo: Integer; const AEndNo: Integer = -1);
 var
-  vStartFirstDrawItemNo, vStartEndDrawItemNo,
-  vEndFirstDrawItemNo, vEndEndDrawItemNo,
   {vStartNo, }vEndNo, vDelCount: Integer;
   vItem: THCCustomItem;
 begin
@@ -564,7 +562,7 @@ begin
     Self.InitializeField;  // 删除后原鼠标处可能已经没有了
 
     if (SelectInfo.EndItemNo < 0)
-      and (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull)
+      and (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)
     then  // 选择仅发生在RectItem内部
     begin
       // 如果变动会引起RectItem的宽度变化，则需要格式化到段最后一个Item
@@ -597,7 +595,7 @@ begin
           Result := DeleteItemSelectComplate
         else  // Item部分选中
         begin
-          if vEndItem.StyleNo < THCStyle.RsNull then  // 同一个RectItem  表格从前选中到一部分？
+          if vEndItem.StyleNo < THCStyle.Null then  // 同一个RectItem  表格从前选中到一部分？
             (vEndItem as THCCustomRectItem).DeleteSelected
           else  // 同一个TextItem
           begin
@@ -635,7 +633,7 @@ begin
         Undo_StartRecord;
 
         // 先处理选中结束Item
-        if vEndItem.StyleNo < THCStyle.RsNull then  // RectItem
+        if vEndItem.StyleNo < THCStyle.Null then  // RectItem
         begin
           if vSelEndComplate then  // 选中在最后面，即全选  SelectInfo.EndItemOffset = OffsetAfter
           begin
@@ -685,7 +683,7 @@ begin
         end;
 
         vStartItem := Items[SelectInfo.StartItemNo];  // 选中起始Item
-        if vStartItem.StyleNo < THCStyle.RsNull then  // 起始是RectItem
+        if vStartItem.StyleNo < THCStyle.Null then  // 起始是RectItem
         begin
           if SelectInfo.StartItemOffset = OffsetBefor then  // 在其前
           begin
@@ -1061,7 +1059,7 @@ begin
     vCarteItemNo := GetCurItemNo;
     vCarteItem := Items[vCarteItemNo];
 
-    if vCarteItem.StyleNo < THCStyle.RsNull then  // 当前位置是 RectItem
+    if vCarteItem.StyleNo < THCStyle.Null then  // 当前位置是 RectItem
     begin
       if SelectInfo.StartItemOffset = OffsetInner then  // 在其上输入内容
       begin
@@ -1082,7 +1080,7 @@ begin
       if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后输入内容
       begin
         if (vCarteItemNo < Items.Count - 1)
-          and (Items[vCarteItemNo + 1].StyleNo > THCStyle.RsNull)
+          and (Items[vCarteItemNo + 1].StyleNo > THCStyle.Null)
           and (not Items[vCarteItemNo + 1].ParaFirst)
         then  // 下一个是TextItem且不是段首，则合并到下一个开始
         begin
@@ -1103,7 +1101,7 @@ begin
       else  // 在其前输入内容
       begin
         if (vCarteItemNo > 0)
-          and (Items[vCarteItemNo - 1].StyleNo > THCStyle.RsNull)
+          and (Items[vCarteItemNo - 1].StyleNo > THCStyle.Null)
           and (not Items[vCarteItemNo].ParaFirst)
         then  // 前一个是TextItem，当前不是段首，合并到前一个尾
         begin
@@ -1154,7 +1152,7 @@ function THCCustomRichData.EmptyDataInsertItem(const AItem: THCCustomItem): Bool
 begin
   Result := False;
 
-  if (AItem.StyleNo > THCStyle.RsNull) and (AItem.Text = '') then Exit;
+  if (AItem.StyleNo > THCStyle.Null) and (AItem.Text = '') then Exit;
 
   Undo_DeleteItem(0, 0);
   Items.Clear;
@@ -1243,7 +1241,7 @@ var
 begin
   Result := nil;
   vItem := GetCurItem;
-  if vItem.StyleNo < THCStyle.RsNull then
+  if vItem.StyleNo < THCStyle.Null then
     Result := (vItem as THCCustomRectItem).GetActiveDrawItem;
 
   if Result = nil then
@@ -1264,7 +1262,7 @@ begin
     Result := vDrawItem.Rect.TopLeft;
 
     vItem := GetCurItem;
-    if vItem.StyleNo < THCStyle.RsNull then
+    if vItem.StyleNo < THCStyle.Null then
       vPt := (vItem as THCCustomRectItem).GetActiveDrawItemCoord;
 
     Result.X := Result.X + vPt.X;
@@ -1275,7 +1273,7 @@ end;
 function THCCustomRichData.GetTopLevelItem: THCCustomItem;
 begin
   Result := GetCurItem;
-  if (Result <> nil) and (Result.StyleNo < THCStyle.RsNull) then
+  if (Result <> nil) and (Result.StyleNo < THCStyle.Null) then
     Result := (Result as THCCustomRectItem).GetActiveItem;
 end;
 
@@ -1330,7 +1328,7 @@ begin
   Result := nil;
   if (SelectInfo.StartItemNo >= 0) and (SelectInfo.EndItemNo < 0) then
   begin
-    if (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull)
+    if (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)
       and (SelectInfo.StartItemOffset = OffsetInner)
     then
       Result := (Items[SelectInfo.StartItemNo] as THCCustomRectItem).GetActiveData as THCCustomRichData;
@@ -1349,7 +1347,7 @@ begin
   GetItemAt(X, Y, vItemNo, vOffset, vDrawItemNo, vRestrain);
   if (not vRestrain) and (vItemNo >= 0) then
   begin
-    if Items[vItemNo].StyleNo < THCStyle.RsNull then
+    if Items[vItemNo].StyleNo < THCStyle.Null then
     begin
       CoordToItemOffset(X, Y, vItemNo, vOffset, vX, vY);
       Result := (Items[vItemNo] as THCCustomRectItem).GetTopLevelDataAt(vX, vY) as THCCustomRichData;
@@ -1399,12 +1397,12 @@ var
   var
     i, vParaNo: Integer;
   begin
-    if GetItemStyle(AItemNo) < THCStyle.RsNull then  // 当前是RectItem
-      (Items[AItemNo] as THCCustomRectItem).ApplySelectParaStyle(Style, AMatchStyle)
+    if GetItemStyle(AItemNo) < THCStyle.Null then  // 当前是RectItem
+      (Items[AItemNo] as THCCustomRectItem).ApplySelectParaStyle(Self.Style, AMatchStyle)
     else
     begin
       GetParaItemRang(AItemNo, vFirstNo, vLastNo);
-      vParaNo := AMatchStyle.GetMatchParaNo(Style, GetItemParaStyle(AItemNo));
+      vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
       if GetItemParaStyle(vFirstNo) <> vParaNo then
       begin
         for i := vFirstNo to vLastNo do
@@ -1487,7 +1485,7 @@ var
     vSelItem, vAfterItem: THCCustomItem;
   begin
     vItem := Items[AItemNo];
-    if vItem.StyleNo < THCStyle.RsNull then  // 非文本
+    if vItem.StyleNo < THCStyle.Null then  // 非文本
     begin
       (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
       {Rect的暂时先不处理
@@ -1602,7 +1600,7 @@ var
     vAfterItem: THCCustomItem;
   begin
     vItem := Items[AItemNo];
-    if vItem.StyleNo < THCStyle.RsNull then  // 非文本
+    if vItem.StyleNo < THCStyle.Null then  // 非文本
       (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle)
     else  // 文本
     begin
@@ -1634,7 +1632,7 @@ var
     vBeforItem: THCCustomItem;
   begin
     vItem := Items[AItemNo];
-    if vItem.StyleNo < THCStyle.RsNull then  // 非文本
+    if vItem.StyleNo < THCStyle.Null then  // 非文本
       (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle)
     else  // 文本
     begin
@@ -1670,7 +1668,7 @@ var
   procedure ApplyRangeNorItem(const AItemNo: Integer);
   begin
     vItem := Items[AItemNo];
-    if vItem.StyleNo < THCStyle.RsNull then  // 非文本
+    if vItem.StyleNo < THCStyle.Null then  // 非文本
       (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle)
     else  // 文本
       vItem.StyleNo := AMatchStyle.GetMatchStyleNo(Style, vItem.StyleNo);
@@ -1686,7 +1684,7 @@ begin
   GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
   if not SelectExists then  // 没有选中
   begin
-    if Style.CurStyleNo > THCStyle.RsNull then  // (容错)不在不支持文本样式的RectItem上，如果支持点击其上赋值Style.CurStyleNo为确定的文本样式
+    if Style.CurStyleNo > THCStyle.Null then  // (容错)不在不支持文本样式的RectItem上，如果支持点击其上赋值Style.CurStyleNo为确定的文本样式
     begin
       AMatchStyle.Append := not AMatchStyle.StyleHasMatch(Style, Style.CurStyleNo);  // 根据当前判断是添加样式还是减掉样式
       Style.CurStyleNo := AMatchStyle.GetMatchStyleNo(Style, Style.CurStyleNo);
@@ -1717,7 +1715,7 @@ begin
 
   if SelectInfo.EndItemNo < 0 then  // 没有连续选中内容
   begin
-    if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull then
+    if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
     begin
       // 如果改变会引起RectItem宽度变化，则需要格式化到最后一个Item
       FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
@@ -1732,7 +1730,7 @@ begin
 
     for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
     begin
-      if Items[i].StyleNo > THCStyle.RsNull then
+      if Items[i].StyleNo > THCStyle.Null then
       begin
         AMatchStyle.Append := not AMatchStyle.StyleHasMatch(Style, Items[i].StyleNo);  // 根据第一个判断是添加样式还是减掉样式
         Break;
@@ -1897,7 +1895,7 @@ begin
 
   vIncCount := 0;
   Undo_StartRecord;
-  if AItem.StyleNo < THCStyle.RsNull then  // 插入RectItem
+  if AItem.StyleNo < THCStyle.Null then  // 插入RectItem
   begin
     vInsPos := AIndex;
     if AIndex < Items.Count then  // 不是在最后添加一个Item
@@ -1916,7 +1914,7 @@ begin
           end;
         end;}
 
-        if (Items[AIndex].StyleNo > THCStyle.RsNull) and (Items[AIndex].Text = '') then  // 插入位置处是空行，替换当前
+        if (Items[AIndex].StyleNo > THCStyle.Null) and (Items[AIndex].Text = '') then  // 插入位置处是空行，替换当前
         begin
           AItem.ParaFirst := True;
           Undo_DeleteItem(AIndex, 0);
@@ -1937,7 +1935,7 @@ begin
       else  // 在某Item后面插入
       begin
         if (AIndex > 0)
-          and (Items[AIndex - 1].StyleNo > THCStyle.RsNull)
+          and (Items[AIndex - 1].StyleNo > THCStyle.Null)
           and (Items[AIndex - 1].Text = '')
         then  // 插入位置处前一个是空行，替换当前
         begin
@@ -1964,7 +1962,7 @@ begin
       FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
 
       if (not AItem.ParaFirst)  // 插入不是另起一段
-        and (Items[AIndex - 1].StyleNo > THCStyle.RsNull)  // 前面是TextItem
+        and (Items[AIndex - 1].StyleNo > THCStyle.Null)  // 前面是TextItem
         and (Items[AIndex - 1].Text = '')  // 空行
       then  // 插入位置处是空行，替换当前
       begin
@@ -2222,7 +2220,7 @@ begin
       DeleteSelected;
       // 确定插入位置
       vInsPos := SelectInfo.StartItemNo;
-      if Items[vInsPos].StyleNo < THCStyle.RsNull then  // RectItem
+      if Items[vInsPos].StyleNo < THCStyle.Null then  // RectItem
       begin
         if SelectInfo.StartItemOffset = OffsetInner then  // 其上
         begin
@@ -2286,18 +2284,18 @@ begin
     begin
       AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
       vItem := CreateItemByStyle(vStyleNo);
-      if vStyleNo < THCStyle.RsNull then
+      if vStyleNo < THCStyle.Null then
         Undo_ItemSelf(i, 0);
       vItem.LoadFromStream(AStream, AStyle, AFileVersion);
       if AStyle <> nil then  // 有样式表
       begin
-        if vItem.StyleNo > THCStyle.RsNull then
+        if vItem.StyleNo > THCStyle.Null then
           vItem.StyleNo := Style.GetStyleNo(AStyle.TextStyles[vItem.StyleNo], True);
         vItem.ParaNo := Style.GetParaNo(AStyle.ParaStyles[vItem.ParaNo], True);
       end
       else  // 无样式表
       begin
-        if vItem.StyleNo > THCStyle.RsNull then
+        if vItem.StyleNo > THCStyle.Null then
           vItem.StyleNo := Style.CurStyleNo;
         vItem.ParaNo := Style.CurParaNo;
       end;
@@ -2443,7 +2441,7 @@ begin
   end;
   vCurItemNo := GetCurItemNo;
 
-  if Items[vCurItemNo].StyleNo < THCStyle.RsNull then  // 当前位置是 RectItem
+  if Items[vCurItemNo].StyleNo < THCStyle.Null then  // 当前位置是 RectItem
   begin
     if SelectInfo.StartItemOffset = OffsetInner then  // 正在其上
     begin
@@ -2660,7 +2658,7 @@ var
     vTabItem: TTabItem;
   begin
     vTabItem := TTabItem.Create(Self);
-    if vCurItem.StyleNo < THCStyle.RsNull then  // 当前是RectItem
+    if vCurItem.StyleNo < THCStyle.Null then  // 当前是RectItem
     begin
       if SelectInfo.StartItemOffset = OffsetInner then // 在其上
       begin
@@ -2687,7 +2685,7 @@ var
     begin
       if AOffset > 0 then  // 偏移不在最开始，当前Item往前
       begin
-        if Items[AItemNo].StyleNo > THCStyle.RsNull then
+        if Items[AItemNo].StyleNo > THCStyle.Null then
           AOffset := AOffset - 1
         else
           AOffset := OffsetBefor;
@@ -2697,7 +2695,7 @@ var
       begin
         Items[AItemNo].DisSelect;
         AItemNo := AItemNo - 1;
-        if Items[AItemNo].StyleNo < THCStyle.RsNull then
+        if Items[AItemNo].StyleNo < THCStyle.Null then
           AOffset := OffsetBefor
         else
           AOffset := Items[AItemNo].Length - 1;  // 倒数第1个前面
@@ -2822,7 +2820,7 @@ var
         begin
           Inc(AItemNo);
 
-          if Items[AItemNo].StyleNo < THCStyle.RsNull then
+          if Items[AItemNo].StyleNo < THCStyle.Null then
             AOffset := OffsetAfter
           else
             AOffset := 1;
@@ -2830,7 +2828,7 @@ var
       end
       else  // 不在最后
       begin
-        if Items[AItemNo].StyleNo < THCStyle.RsNull then
+        if Items[AItemNo].StyleNo < THCStyle.Null then
           AOffset := OffsetAfter
         else
           AOffset := AOffset + 1;
@@ -2881,7 +2879,7 @@ var
       begin
         if SelectInfo.StartItemNo < Items.Count - 1 then
         begin
-          if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull then
+          if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
           begin
             if SelectInfo.StartItemOffset = OffsetAfter then
             begin
@@ -3859,7 +3857,7 @@ var
           end
           else  // 当前不是空行
           begin
-            if Items[vCurItemNo + 1].StyleNo < THCStyle.RsNull then  // 下一个段首是RectItem，不能合并
+            if Items[vCurItemNo + 1].StyleNo < THCStyle.Null then  // 下一个段首是RectItem，不能合并
             begin
               SelectInfo.StartItemNo := vCurItemNo + 1;
               SelectInfo.StartItemOffset := OffsetBefor;
@@ -3949,7 +3947,7 @@ var
 
               // 光标左移
               SelectInfo.StartItemNo := vCurItemNo - 1;
-              if GetItemStyle(SelectInfo.StartItemNo) < THCStyle.RsNull then
+              if GetItemStyle(SelectInfo.StartItemNo) < THCStyle.Null then
                 SelectInfo.StartItemOffset := OffsetAfter
               else
                 SelectInfo.StartItemOffset := Items[SelectInfo.StartItemNo].Length - vLen;
@@ -4089,7 +4087,7 @@ var
         end
         else  // 在Item开始往前删，但Item不是段起始
         begin
-          if Items[SelectInfo.StartItemNo - 1].StyleNo < THCStyle.RsNull then  // 前面是RectItem
+          if Items[SelectInfo.StartItemNo - 1].StyleNo < THCStyle.Null then  // 前面是RectItem
           begin
             vCurItemNo := SelectInfo.StartItemNo - 1;
             if CanDeleteItem(vCurItemNo) then  // 能删除
@@ -4349,7 +4347,7 @@ begin
 
   GetParaItemRang(SelectInfo.StartItemNo, vParaFirstItemNo, vParaLastItemNo);
 
-  if vCurItem.StyleNo < THCStyle.RsNull then
+  if vCurItem.StyleNo < THCStyle.Null then
     RectItemKeyDown
   else
   begin
@@ -4398,7 +4396,7 @@ begin
   vCarteItem := GetCurItem;
   if not Assigned(vCarteItem) then Exit;  // 跨页合并时，合并后并没有当前Item
 
-  if (vCarteItem.StyleNo < THCStyle.RsNull)  // 当前位置是 RectItem
+  if (vCarteItem.StyleNo < THCStyle.Null)  // 当前位置是 RectItem
     and (SelectInfo.StartItemOffset = OffsetInner)  // 在其上输入内容
   then
   begin
@@ -4470,7 +4468,7 @@ begin
   Result := CreateItemByStyle(vStyleNo);
   Result.LoadFromStream(AStream, Style, viVersion);
 
-  if vStyleNo > THCStyle.RsNull then
+  if vStyleNo > THCStyle.Null then
   begin
     vTextStyle := THCTextStyle.Create;
     try
@@ -4510,7 +4508,7 @@ begin
   if not CanEdit then Exit;
 
   vItemNo := GetCurItemNo;
-  if Items[vItemNo].StyleNo = THCStyle.RsTable then
+  if Items[vItemNo].StyleNo = THCStyle.Table then
   begin
     Undo_StartRecord;
     Undo_ItemSelf(vItemNo, OffsetInner);
@@ -4570,14 +4568,14 @@ begin
       Style.UpdateInfo.Draging := True;
     end;
 
-    if Items[vMouseDownItemNo].StyleNo < THCStyle.RsNull then  // 在RectItem上拖拽
+    if Items[vMouseDownItemNo].StyleNo < THCStyle.Null then  // 在RectItem上拖拽
       DoItemMouseDown(vMouseDownItemNo, vMouseDownItemOffset);
   end
   else  // 没点在选中区域中
   begin
     if SelectInfo.StartItemNo >= 0 then  // 旧按下的或者方向键移入的取消激活
     begin
-      if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.RsNull then
+      if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
         (Items[SelectInfo.StartItemNo] as THCCustomRectItem).DisSelect;
 
       Style.UpdateInfoRePaint;  // 旧的去焦点，新的入焦点
@@ -4688,7 +4686,7 @@ var
     begin
       if FMouseMoveItemOffset > FMouseDownItemOffset then  // 选中结束位置大于起始位置
       begin
-        if Items[FMouseDownItemNo].StyleNo < THCStyle.RsNull then  // RectItem
+        if Items[FMouseDownItemNo].StyleNo < THCStyle.Null then  // RectItem
         begin
           SelectInfo.StartItemNo := FMouseDownItemNo;
           SelectInfo.StartItemOffset := FMouseDownItemOffset;
@@ -4718,7 +4716,7 @@ var
       else
       if FMouseMoveItemOffset < FMouseDownItemOffset then  // 选中结束位置小于起始位置
       begin
-        if Items[FMouseDownItemNo].StyleNo < THCStyle.RsNull then  // RectItem
+        if Items[FMouseDownItemNo].StyleNo < THCStyle.Null then  // RectItem
         begin
           if FMouseMoveItemOffset = OffsetBefor then  // 从后往前选到最前面了
           begin
@@ -4842,7 +4840,7 @@ begin
 
     Style.UpdateInfoReCaret;
 
-    if (not vRestrain) and (Items[FMouseMoveItemNo].StyleNo < THCStyle.RsNull) then  // RectItem
+    if (not vRestrain) and (Items[FMouseMoveItemNo].StyleNo < THCStyle.Null) then  // RectItem
       DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
   end
   else
@@ -4859,7 +4857,7 @@ begin
     Style.UpdateInfoRePaint;
     Style.UpdateInfoReCaret;
 
-    if (not vRestrain) and (Items[FMouseMoveItemNo].StyleNo < THCStyle.RsNull) then  // RectItem
+    if (not vRestrain) and (Items[FMouseMoveItemNo].StyleNo < THCStyle.Null) then  // RectItem
       DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
   end
   else  // 非拖拽，非划选
@@ -4946,7 +4944,7 @@ var
     if not FMouseDownReCaret then  // 避免重复获取光标位置
       Style.UpdateInfoReCaret;
 
-    if Items[vUpItemNo].StyleNo < THCStyle.RsNull then  // RectItem
+    if Items[vUpItemNo].StyleNo < THCStyle.Null then  // RectItem
       DoItemMouseUp(vUpItemNo, vUpItemOffset);  // 弹起，因为可能是移出Item后弹起，所以这里不受vRestrain约束
   end;
   {$ENDREGION}
@@ -4994,12 +4992,12 @@ begin
     begin
       for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
       begin
-        if (i <> vUpItemNo) and (Items[i].StyleNo < THCStyle.RsNull) then
+        if (i <> vUpItemNo) and (Items[i].StyleNo < THCStyle.Null) then
           DoItemMouseUp(i, 0);
       end;
     end;
 
-    if Items[vUpItemNo].StyleNo < THCStyle.RsNull then  // 弹起时在RectItem
+    if Items[vUpItemNo].StyleNo < THCStyle.Null then  // 弹起时在RectItem
       DoItemMouseUp(vUpItemNo, vUpItemOffset);
   end
   else
@@ -5109,7 +5107,7 @@ begin
 
           OffsetRect(DrawItems[i].Rect, 0, vFmtTopOffset);
 
-          if Items[DrawItems[i].ItemNo].StyleNo < THCStyle.RsNull then  // RectItem如表格，在格式化时有行和行中间的偏移，新格式化时要恢复，由分页函数再处理新格式化后的偏移
+          if Items[DrawItems[i].ItemNo].StyleNo < THCStyle.Null then  // RectItem如表格，在格式化时有行和行中间的偏移，新格式化时要恢复，由分页函数再处理新格式化后的偏移
           begin
             vClearFmtHeight := (Items[DrawItems[i].ItemNo] as THCCustomRectItem).ClearFormatExtraHeight;
             DrawItems[i].Rect.Bottom := DrawItems[i].Rect.Bottom - vClearFmtHeight;
@@ -5149,7 +5147,7 @@ procedure THCCustomRichData.SaveItemToStreamAlone(const AItem: THCCustomItem;
 begin
   _SaveFileFormatAndVersion(AStream);
   AItem.SaveToStream(AStream);
-  if AItem.StyleNo > THCStyle.RsNull then
+  if AItem.StyleNo > THCStyle.Null then
     Style.TextStyles[AItem.StyleNo].SaveToStream(AStream);
 
   Style.ParaStyles[AItem.ParaNo].SaveToStream(AStream);

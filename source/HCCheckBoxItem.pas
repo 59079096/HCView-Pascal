@@ -18,11 +18,10 @@ uses
   HCCustomData, HCCommon;
 
 type
-  THCCheckBoxItem = class(THCTextRectItem)
+  THCCheckBoxItem = class(THCControlItem)
   private
     FText: string;
     FChecked, FMouseIn: Boolean;
-    FMargin: Byte;
     function GetBoxRect: TRect;
   protected
     procedure SetChecked(const Value: Boolean);
@@ -63,7 +62,7 @@ constructor THCCheckBoxItem.Create(const AOwnerData: THCCustomData; const AText:
   const AChecked: Boolean);
 begin
   inherited Create(AOwnerData);
-  Self.StyleNo := THCStyle.RsCheckBox;
+  Self.StyleNo := THCStyle.CheckBox;
   FChecked := AChecked;
   FText := AText;
   FMouseIn := False;
@@ -80,14 +79,14 @@ begin
   vBoxRect := GetBoxRect;
   OffsetRect(vBoxRect, ADrawRect.Left, ADrawRect.Top);
 
-  if Self.IsSelectComplate then
+  if Self.IsSelectComplate and (not APaintInfo.Print) then
   begin
     ACanvas.Brush.Color := AStyle.SelColor;
     ACanvas.FillRect(ADrawRect);
   end;
-  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
+  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
   ACanvas.TextOut(ADrawRect.Left + FMargin + CheckBoxSize + FMargin,
-    ADrawRect.Top + (Height - ACanvas.TextHeight('字')) div 2 + 1, FText);
+    ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2 + 1, FText);
 
   if FChecked then  // 勾选
   begin
@@ -99,7 +98,7 @@ begin
   //else
   //  DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_HOT or DFCS_BUTTONCHECK);
 
-  if FMouseIn then  // 鼠标在其中
+  if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
   begin
     ACanvas.Pen.Color := clBlue;
     ACanvas.Rectangle(vBoxRect.Left, vBoxRect.Top, vBoxRect.Right, vBoxRect.Bottom);
@@ -107,7 +106,7 @@ begin
     ACanvas.Pen.Color := clBtnFace;
     ACanvas.Rectangle(vBoxRect.Left, vBoxRect.Top, vBoxRect.Right, vBoxRect.Bottom);
   end
-  else  // 鼠标不在其中
+  else  // 鼠标不在其中或打印
   begin
     ACanvas.Pen.Color := clBlack;
     ACanvas.Rectangle(vBoxRect.Left, vBoxRect.Top, vBoxRect.Right, vBoxRect.Bottom);
@@ -119,10 +118,18 @@ procedure THCCheckBoxItem.FormatToDrawItem(const ARichData: THCCustomData;
 var
   vSize: TSize;
 begin
-  ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
-  vSize := ARichData.Style.DefCanvas.TextExtent(FText);
-  Width := FMargin + CheckBoxSize + FMargin + vSize.cx;  // 间距
-  Height := Max(vSize.cy, CheckBoxSize);
+  if Self.AutoSize then
+  begin
+    ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
+    vSize := ARichData.Style.DefCanvas.TextExtent(FText);
+    Width := FMargin + CheckBoxSize + FMargin + vSize.cx;  // 间距
+    Height := Max(vSize.cy, CheckBoxSize);
+  end;
+
+  if Width < FMinWidth then
+    Width := FMinWidth;
+  if Height < FMinHeight then
+    Height := FMinHeight;
 end;
 
 procedure THCCheckBoxItem.MouseEnter;
@@ -159,7 +166,9 @@ var
   vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  AStream.ReadBuffer(FChecked, SizeOf(FChecked));
+
+  AStream.ReadBuffer(FChecked, SizeOf(FChecked));  // 读勾选状态
+  // 读Text
   AStream.ReadBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
   begin
@@ -176,7 +185,9 @@ var
   vSize: Word;  // 最多65536个字节，如果超过65536，可使用写入文本后再写一个结束标识(如#9)，解析时遍历直到此标识
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-  AStream.WriteBuffer(FChecked, SizeOf(FChecked));
+
+  AStream.WriteBuffer(FChecked, SizeOf(FChecked));  // 存勾选状态
+  // 存Text
   vBuffer := BytesOf(FText);
   if System.Length(vBuffer) > MAXWORD then
     raise Exception.Create(HCS_EXCEPTION_TEXTOVER);

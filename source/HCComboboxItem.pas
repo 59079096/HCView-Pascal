@@ -14,7 +14,7 @@ unit HCComboboxItem;
 interface
 
 uses
-  Windows, SysUtils, Classes, Controls, Graphics, Messages, HCItem, HCRectItem,
+  Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem,
   HCStyle, HCCustomData, HCCommon, HCEditItem, HCScrollBar, HCPopupForm;
 
 type
@@ -23,7 +23,7 @@ type
   THCComboboxItem = class(THCEditItem)
   private
     FItems: TStrings;
-    FItemIndex, FMoveItemIndex, FItemNo: Integer;
+    FItemIndex, FMoveItemIndex: Integer;
     FButtonRect, FButtonDrawRect: TRect;
     FMouseInButton: Boolean;
     FPopupForm: THCPopupForm;
@@ -59,7 +59,6 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
-    procedure SetText(const Value: string);
     procedure SetItems(const Value: TStrings);
     procedure SetItemIndex(const Value: Integer);
   public
@@ -75,8 +74,6 @@ uses
   Math;
 
 const
-  BTNWIDTH = 16;
-  BTNMARGIN = 1;
   DROPDOWNFONTSIZE = 8;  // 8号字
   DROPDOWNITEMHEIGHT = 16;  // 8号字高度14 上下各加1间距
   DROPDOWNCOUNT = 8;  // 下拉弹出时显示的Item数量
@@ -86,7 +83,8 @@ const
 constructor THCComboboxItem.Create(const AOwnerData: THCCustomData; const AText: string);
 begin
   inherited Create(AOwnerData, AText);
-  Self.StyleNo := THCStyle.RsCombobox;
+  Self.StyleNo := THCStyle.Combobox;
+  Width := 80;
   FItems := TStringList.Create;
   TStringList(FItems).OnChange := DoItemsChange;
 
@@ -314,9 +312,25 @@ end;
 
 procedure THCComboboxItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
+var
+  vSize: TSize;
 begin
-  inherited FormatToDrawItem(ARichData, AItemNo);
-  FItemNo := AItemNo;
+  if Self.AutoSize then
+  begin
+    ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
+    if Self.Text <> '' then
+      vSize := ARichData.Style.DefCanvas.TextExtent(Self.Text)
+    else
+      vSize := ARichData.Style.DefCanvas.TextExtent('I');
+    Width := FMargin + vSize.cx + FMargin + BTNWIDTH;  // 间距
+    Height := FMargin + vSize.cy + FMargin;
+  end;
+
+  if Width < FMinWidth then
+    Width := FMinWidth;
+  if Height < FMinHeight then
+    Height := FMinHeight;
+
   FButtonRect := Bounds(Width - BTNMARGIN - BTNWIDTH, BTNMARGIN, BTNWIDTH, Height - BTNMARGIN - BTNMARGIN);
   FPopupForm.Width := Self.Width;
 end;
@@ -324,7 +338,7 @@ end;
 procedure THCComboboxItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
 begin
   inherited GetCaretInfo(ACaretInfo);
-  if (not AutoWidth) and (ACaretInfo.X > Width - BTNWIDTH) then
+  if (not Self.AutoSize) and (ACaretInfo.X > Width - BTNWIDTH) then
     ACaretInfo.Visible := False;
 end;
 
@@ -395,7 +409,7 @@ var
   vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-
+  // 读Items
   AStream.ReadBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
   begin
@@ -412,7 +426,7 @@ var
   vSize: Word;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-
+  // 存Items
   vBuffer := BytesOf(FItems.Text);
   if System.Length(vBuffer) > MAXWORD then
     raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
@@ -448,12 +462,6 @@ procedure THCComboboxItem.SetItems(const Value: TStrings);
 begin
   if not ReadOnly then
     FItems.Assign(Value);
-end;
-
-procedure THCComboboxItem.SetText(const Value: string);
-begin
-  if not ReadOnly then
-    FItemIndex := FItems.IndexOf(Text);
 end;
 
 end.

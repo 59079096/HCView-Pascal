@@ -25,16 +25,17 @@ type
     FStartPt, FEndPt, FLeftTop: TPoint;
     FMouseDownObj: TLineObj;
     function GetLineObjAt(const X, Y: Integer): TLineObj;
-  protected
-    procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     function PtInClient(const APoint: TPoint): Boolean; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
   end;
 
 implementation
@@ -47,6 +48,7 @@ uses
 constructor THCFloatLineItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
+  Self.StyleNo := THCFloatStyle.Line;
   FMouseDownObj := cloNone;
   Width := 100;
   Height := 70;
@@ -54,8 +56,8 @@ begin
   FEndPt := Point(Width, Height);
 end;
 
-procedure THCFloatLineItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
-  const ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+procedure THCFloatLineItem.DoPaint(const AStyle: THCStyle;
+  const ADrawRect: TRect; const ADataDrawTop, ADataDrawBottom, ADataScreenTop,
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 {var
@@ -77,15 +79,15 @@ begin
   ACanvas.Pen.Color := clBlack;
   ACanvas.Pen.Style := psSolid;
 
-  ACanvas.MoveTo(FStartPt.X + ADrawRect.Left, FStartPt.Y + ADrawRect.Top);
-  ACanvas.LineTo(FEndPt.X + ADrawRect.Left, FEndPt.Y + ADrawRect.Top);
+  ACanvas.MoveTo(FStartPt.X + Self.DrawRect.Left, FStartPt.Y + Self.DrawRect.Top);
+  ACanvas.LineTo(FEndPt.X + Self.DrawRect.Left, FEndPt.Y + Self.DrawRect.Top);
 
-  if Self.Active then  // ¼¤»î
+  if Self.Active and (not APaintInfo.Print) then  // ¼¤»î
   begin
-    ACanvas.Rectangle(FStartPt.X + ADrawRect.Left - PointSize, FStartPt.Y + ADrawRect.Top - PointSize,
-      FStartPt.X + ADrawRect.Left + PointSize, FStartPt.Y + ADrawRect.Top + PointSize);
-    ACanvas.Rectangle(FEndPt.X + ADrawRect.Left - PointSize, FEndPt.Y + ADrawRect.Top - PointSize,
-      FEndPt.X + ADrawRect.Left + PointSize, FEndPt.Y + ADrawRect.Top + PointSize);
+    ACanvas.Rectangle(FStartPt.X + Self.DrawRect.Left - PointSize, FStartPt.Y + Self.DrawRect.Top - PointSize,
+      FStartPt.X + Self.DrawRect.Left + PointSize, FStartPt.Y + Self.DrawRect.Top + PointSize);
+    ACanvas.Rectangle(FEndPt.X + Self.DrawRect.Left - PointSize, FEndPt.Y + Self.DrawRect.Top - PointSize,
+      FEndPt.X + Self.DrawRect.Left + PointSize, FEndPt.Y + Self.DrawRect.Top + PointSize);
   end;
 
   {vRgn := CreatePolygonRgn(vPointArr, 4, WINDING);
@@ -125,6 +127,16 @@ begin
       DeleteObject(vRgn);
     end;
   end;
+end;
+
+procedure THCFloatLineItem.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  AStream.ReadBuffer(FStartPt.X, SizeOf(Integer));  // FStartPt.X FixedInt
+  AStream.ReadBuffer(FStartPt.Y, SizeOf(Integer));
+  AStream.ReadBuffer(FEndPt.X, SizeOf(Integer));
+  AStream.ReadBuffer(FEndPt.Y, SizeOf(Integer));
 end;
 
 procedure THCFloatLineItem.MouseDown(Button: TMouseButton; Shift: TShiftState;
@@ -231,6 +243,16 @@ end;
 function THCFloatLineItem.PtInClient(const APoint: TPoint): Boolean;
 begin
   Result := GetLineObjAt(APoint.X, APoint.Y) <> cloNone;
+end;
+
+procedure THCFloatLineItem.SaveToStream(const AStream: TStream; const AStart,
+  AEnd: Integer);
+begin
+  inherited SaveToStream(AStream, AStart, AEnd);
+  AStream.WriteBuffer(FStartPt.X, SizeOf(Integer));  // FStartPt.X FixedInt
+  AStream.WriteBuffer(FStartPt.Y, SizeOf(Integer));
+  AStream.WriteBuffer(FEndPt.X, SizeOf(Integer));
+  AStream.WriteBuffer(FEndPt.Y, SizeOf(Integer));
 end;
 
 end.

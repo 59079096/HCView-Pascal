@@ -58,24 +58,25 @@ type
     LineSpace150 = 12;
     LineSpace200 = 16;
     //
-    RsNull = -1;  // 用于表示StyleNo没有赋值，出错状态
-    RsImage = -2;
-    RsTable = -3;
-    RsTab = -4;
-    RsLine = -5;
-    RsExpress = -6;
-    RsVector = -7;  // SVG
-    RsDomain = -8;
-    RsPageBreak = -9;
-    RsCheckBox = -10;
-    RsGif = -11;
-    RsControl = -12;
-    RsEdit = -13;
-    RsCombobox = -14;
-    RsQRCode = -15;
-    RsBarCode = -16;
-    RsFraction = -17;
-    RsCustom = -100;  // 自定义类型分界线
+    Null = -1;  // TextItem和RectItem分界线
+    Image = -2;
+    Table = -3;
+    Tab = -4;
+    Line = -5;
+    Express = -6;
+    Vector = -7;  // SVG
+    Domain = -8;
+    PageBreak = -9;
+    CheckBox = -10;
+    Gif = -11;
+    Control = -12;
+    Edit = -13;
+    Combobox = -14;
+    QRCode = -15;
+    BarCode = -16;
+    Fraction = -17;
+    DateTimePicker = -18;
+    Custom = -1000;  // 自定义类型分界线
   public
     constructor Create; virtual;
     constructor CreateEx(const ADefTextStyle, ADefParaStyle: Boolean);
@@ -89,9 +90,12 @@ type
     /// <param name="ACaretStyle">重新获取光标处样式</param>
     procedure UpdateInfoReCaret(const ACaretStyle: Boolean = True);
     function AddTextStyle(const ATextStyle: THCTextStyle): Integer;
-    /// <summary>
-    /// 创建一个新字体样式
-    /// </summary>
+
+    class function GetFontHeight(const ACanvas: TCanvas): Integer;
+    class function CreateStyleCanvas: TCanvas;
+    class procedure DestroyStyleCanvas(const ACanvas: TCanvas);
+
+    /// <summary> 创建一个新字体样式 </summary>
     /// <returns>样式编号</returns>
     function NewDefaultTextStyle: Integer;
     function NewDefaultParaStyle: Integer;
@@ -116,6 +120,11 @@ type
     property ShowLineLastMark: Boolean read FShowLineLastMark write SetShowLineLastMark;
     property EnableUndo: Boolean read FEnableUndo write FEnableUndo;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
+  end;
+
+  THCFloatStyle = class(TObject)
+  public const
+    Line = 1;
   end;
 
 implementation
@@ -145,21 +154,17 @@ begin
 end;
 
 constructor THCStyle.Create;
-var
-  vDC: HDC;
 begin
   inherited Create;
 
-  vDC := CreateCompatibleDC(0);
-  FDefCanvas := TCanvas.Create;
-  FDefCanvas.Handle := vDC;
+  FDefCanvas := CreateStyleCanvas;
   //FDefCanvas.Font.PixelsPerInch := 96;
   //FDefCanvas.Font.PixelsPerInch := GetDeviceCaps(vDC, LOGPIXELSX);  // 1英寸对应的像素数
 
   // 1英寸25.4毫米   FPixelsPerInchX
 
-  FPixelsPerMMX := Windows.GetDeviceCaps(vDC, LOGPIXELSX) / 25.4;  // 1毫米对应像素 = 1英寸dpi数 / 1英寸对应毫米
-  FPixelsPerMMY := Windows.GetDeviceCaps(vDC, LOGPIXELSY) / 25.4;  // 1毫米对应像素 = 1英寸dpi数 / 1英寸对应毫米
+  FPixelsPerMMX := Windows.GetDeviceCaps(FDefCanvas.Handle, LOGPIXELSX) / 25.4;  // 1毫米对应像素 = 1英寸dpi数 / 1英寸对应毫米
+  FPixelsPerMMY := Windows.GetDeviceCaps(FDefCanvas.Handle, LOGPIXELSY) / 25.4;  // 1毫米对应像素 = 1英寸dpi数 / 1英寸对应毫米
 
   FBackgroudColor := $00FFFFFE;
   FSelColor := clSkyBlue;
@@ -180,19 +185,33 @@ begin
     NewDefaultParaStyle;
 end;
 
-destructor THCStyle.Destroy;
+class function THCStyle.CreateStyleCanvas: TCanvas;
 var
   vDC: HDC;
 begin
-  vDC := FDefCanvas.Handle;
-  FDefCanvas.Handle := 0;
-  FDefCanvas.Free;
-  DeleteDC(vDC);
+  vDC := CreateCompatibleDC(0);
+  Result := TCanvas.Create;
+  Result.Handle := vDC;
+end;
+
+destructor THCStyle.Destroy;
+begin
+  DestroyStyleCanvas(FDefCanvas);
 
   FTextStyles.Free;
   FParaStyles.Free;
   FUpdateInfo.Free;
   inherited Destroy;
+end;
+
+class procedure THCStyle.DestroyStyleCanvas(const ACanvas: TCanvas);
+var
+  vDC: HDC;
+begin
+  vDC := ACanvas.Handle;
+  ACanvas.Handle := 0;
+  ACanvas.Free;
+  DeleteDC(vDC);
 end;
 
 function THCStyle.GetParaNo(const AParaStyle: THCParaStyle; const ACreateIfNull: Boolean): Integer;
@@ -240,6 +259,11 @@ begin
     FTextStyles.Add(vTextStyle);
     Result := FTextStyles.Count - 1;
   end;
+end;
+
+class function THCStyle.GetFontHeight(const ACanvas: TCanvas): Integer;
+begin
+  Result := ACanvas.TextHeight('H');
 end;
 
 procedure THCStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);

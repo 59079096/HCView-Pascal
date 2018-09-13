@@ -27,9 +27,14 @@ const
 
   HC_EXT = '.hcf';
 
-  HC_FileVersion = '1.2';
-  HC_FileVersionInt = 12;
+  // 1.3 支持浮动对象保存和读取(未处理向下兼容)
+  // 1.4 支持表格单元格边框显示属性的保存和读取
+  // 1.5 重构行间距的计算方式
+  // 1.6 EditItem增加边框属性
+  HC_FileVersion = '1.6';
+  HC_FileVersionInt = 16;
 
+  LineSpaceMin = 8;  // 行间距最小值
   PagePadding = 20;  // 节页面显示时之间的间距
   PMSLineHeight = 24;  // 书写范围线的长度
   AnnotationWidth = 200;  // 批注显示区域宽度
@@ -45,12 +50,15 @@ type
 
   TExpressArea = (ceaNone, ceaLeft, ceaTop, ceaRight, ceaBottom);  // 公式的区域，仅适用于上下左右格式的
 
+  TBorderSide = (cbsLeft, cbsTop, cbsRight, cbsBottom, cbsLTRB, cbsRTLB);
+  TBorderSides = set of TBorderSide;
+
   TViewModel = (
     vmPage,  // 页面视图，显示页眉、页脚
     vmWeb  // Web视图，不显示页眉、页脚
   );
 
-  TSectionArea = (saHeader, saData, saFooter);  // 当前激活的是文档哪一部分
+  TSectionArea = (saHeader, saPage, saFooter);  // 当前激活的是文档哪一部分
   TSaveParts = set of TSectionArea;  // 保存时存哪几部分内容
 
   TCharType = (

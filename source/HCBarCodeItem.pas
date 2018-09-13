@@ -48,7 +48,7 @@ implementation
 constructor THCBarCodeItem.Create(const AOwnerData: THCCustomData; const AText: string);
 begin
   inherited Create(AOwnerData);
-  StyleNo := THCStyle.RsBarCode;
+  StyleNo := THCStyle.BarCode;
   Width := 100;
   Height := 100;
   SetText(AText);

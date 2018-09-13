@@ -30,6 +30,7 @@ type
       : Integer;
     FBackgroundColor: TColor;
     FAlignVert: TAlignVert;
+    FBorderSides: TBorderSides;
   protected
     function GetActive: Boolean;
     procedure SetActive(const Value: Boolean);
@@ -75,6 +76,7 @@ type
     // 用于表格切换编辑的单元格
     property Active: Boolean read GetActive write SetActive;
     property AlignVert: TAlignVert read FAlignVert write FAlignVert;
+    property BorderSides: TBorderSides read FBorderSides write FBorderSides;
   end;
 
 implementation
@@ -88,6 +90,7 @@ constructor THCTableCell.Create(const AStyle: THCStyle);
 begin
   FCellData := THCTableCellData.Create(AStyle);
   FAlignVert := cavTop;
+  FBorderSides := [cbsLeft, cbsTop, cbsRight, cbsBottom];
   FBackgroundColor := AStyle.BackgroudColor;
   FRowSpan := 0;
   FColSpan := 0;
@@ -148,6 +151,9 @@ begin
     AStream.ReadBuffer(FBackgroundColor, SizeOf(FBackgroundColor));  // 背景色
   end;
 
+  if AFileVersion > 13 then
+    AStream.ReadBuffer(FBorderSides, SizeOf(FBorderSides));
+
   AStream.ReadBuffer(vNullData, SizeOf(vNullData));
   if not vNullData then
   begin
@@ -202,6 +208,8 @@ begin
 
   AStream.WriteBuffer(FAlignVert, SizeOf(FAlignVert));  // 垂直对齐方式
   AStream.WriteBuffer(FBackgroundColor, SizeOf(FBackgroundColor));  // 背景色
+
+  AStream.WriteBuffer(FBorderSides, SizeOf(FBorderSides));
 
   { 存数据 }
   vNullData := FCellData = nil;

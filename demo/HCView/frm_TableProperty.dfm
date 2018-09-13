@@ -21,16 +21,11 @@ object frmTableProperty: TfrmTableProperty
     Top = 0
     Width = 420
     Height = 334
-    ActivePage = tsRow
+    ActivePage = tsTable
     Align = alClient
     TabOrder = 0
-    ExplicitTop = -1
     object tsTable: TTabSheet
       Caption = #34920#26684
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 347
       object lbl1: TLabel
         Left = 24
         Top = 10
@@ -39,11 +34,11 @@ object frmTableProperty: TfrmTableProperty
         Caption = #21333#20803#26684#36793#36317
       end
       object lbl2: TLabel
-        Left = 129
+        Left = 135
         Top = 68
-        Width = 24
+        Width = 48
         Height = 13
-        Caption = #23485#24230
+        Caption = #36793#26694#23485#24230
       end
       object lbl4: TLabel
         Left = 43
@@ -78,7 +73,7 @@ object frmTableProperty: TfrmTableProperty
         OnChange = edtCellHPaddingChange
       end
       object edtBorderWidth: TEdit
-        Left = 159
+        Left = 189
         Top = 64
         Width = 65
         Height = 21
@@ -94,14 +89,19 @@ object frmTableProperty: TfrmTableProperty
         Caption = #26174#31034#36793#26694
         TabOrder = 3
       end
+      object btnBorderBackColor: TButton
+        Left = 280
+        Top = 63
+        Width = 99
+        Height = 25
+        Caption = #36793#26694#21450#32972#26223#33394
+        TabOrder = 4
+        OnClick = btnBorderBackColorClick
+      end
     end
     object tsRow: TTabSheet
       Caption = #34892'(0)'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 347
       object lbl3: TLabel
         Left = 24
         Top = 50
@@ -147,10 +147,6 @@ object frmTableProperty: TfrmTableProperty
     object tsCell: TTabSheet
       Caption = #21333#20803#26684'(0,0)'
       ImageIndex = 2
-      ExplicitLeft = 8
-      ExplicitTop = 22
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lbl7: TLabel
         Left = 24
         Top = 10
@@ -183,9 +179,6 @@ object frmTableProperty: TfrmTableProperty
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitLeft = 56
-    ExplicitTop = 136
-    ExplicitWidth = 185
     object btnOk: TButton
       Left = 163
       Top = 6

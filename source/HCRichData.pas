@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, Generics.Collections, HCCustomData,
   HCCustomRichData, HCItem, HCStyle, HCParaStyle, HCTextStyle, HCTextItem, HCRectItem,
-  HCCommon, HCUndoRichData, HCList, HCFloatItem;
+  HCCommon, HCUndoRichData, HCList;
 
 type
   TDomain = class
@@ -48,18 +48,6 @@ type
     FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
 
-    FFloatItems: TObjectList<THCFloatItem>;  // THCItems支持Add时控制暂时不用
-    FFloatItemIndex, FMouseDownIndex, FMouseMoveIndex,
-    FMouseX, FMouseY
-      : Integer;
-    function GetFloatItemAt(const X, Y: Integer): Integer;
-    function MouseDownFloatItem(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
-    function MouseMoveFloatItem(Shift: TShiftState; X, Y: Integer): Boolean;
-    function MouseUpFloatItem(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
-    procedure PaintFloatItems(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
-      ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-
     procedure GetDomainFrom(const AItemNo, AOffset: Integer;
       const ADomain: TDomain);
     function GetActiveDomain: TDomain;
@@ -81,7 +69,6 @@ type
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
 
-    procedure Clear; override;
     function CreateDefaultDomainItem: THCCustomItem; override;
     function CreateDefaultTextItem: THCCustomItem; override;
     procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
@@ -92,13 +79,9 @@ type
     function DeleteSelected: Boolean; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     function InsertItem(const AItem: THCCustomItem): Boolean; override;
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
       const AOffsetBefor: Boolean = True): Boolean; override;
-
-    /// <summary> 插入浮动Item </summary>
-    function InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
 
     /// <summary> 设置选中范围，仅供外部使用内部不使用 </summary>
     procedure SetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer);
@@ -122,7 +105,6 @@ type
     procedure GetCaretInfoCur(var ACaretInfo: TCaretInfo);
     procedure TraverseItem(const ATraverse: TItemTraverse);
 
-    property FloatItems: TObjectList<THCFloatItem> read FFloatItems;
     property HotDomain: TDomain read FHotDomain;
     property ActiveDomain: TDomain read GetActiveDomain;
     property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
@@ -143,7 +125,7 @@ begin
   Result := inherited CanDeleteItem(AItemNo);
   if Result then
   begin
-    if Items[AItemNo].StyleNo = THCStyle.RsDomain then  // 是域标识
+    if Items[AItemNo].StyleNo = THCStyle.Domain then  // 是域标识
     begin
       if (Items[AItemNo] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 域结束标识
       begin
@@ -232,23 +214,8 @@ begin
   Result := Result - vDelCount;
 end;
 
-procedure THCRichData.Clear;
-begin
-  FFloatItemIndex := -1;
-  FMouseDownIndex := -1;
-  FMouseMoveIndex := -1;
-  FFloatItems.Clear;
-
-  inherited Clear;
-end;
-
 constructor THCRichData.Create(const AStyle: THCStyle);
 begin
-  FFloatItems := TObjectList<THCFloatItem>.Create;
-  FFloatItemIndex := -1;
-  FMouseDownIndex := -1;
-  FMouseMoveIndex := -1;
-
   FDomainStartDeletes := THCIntegerList.Create;
   FHotDomain := TDomain.Create;
   FActiveDomain := TDomain.Create;
@@ -263,7 +230,7 @@ end;
 function THCRichData.CreateDefaultTextItem: THCCustomItem;
 begin
   Result := HCDefaultTextItemClass.CreateByText('');  // 必需有参数否则不能调用属性创建
-  if Style.CurStyleNo < THCStyle.RsNull then
+  if Style.CurStyleNo < THCStyle.Null then
     Result.StyleNo := 0
   else
     Result.StyleNo := Style.CurStyleNo;
@@ -295,7 +262,6 @@ begin
   FHotDomain.Free;
   FActiveDomain.Free;
   FDomainStartDeletes.Free;
-  FFloatItems.Free;
   inherited Destroy;
 end;
 
@@ -411,7 +377,7 @@ begin
   begin
     for i := AItemNo - 1 downto 0 do  // 找起始标识
     begin
-      if Items[i].StyleNo = THCStyle.RsDomain then
+      if Items[i].StyleNo = THCStyle.Domain then
       begin
         if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始标识
         begin
@@ -432,7 +398,7 @@ begin
   begin
     for i := AItemNo + 1 to Self.Items.Count - 1 do  // 找结束标识
     begin
-      if Items[i].StyleNo = THCStyle.RsDomain then
+      if Items[i].StyleNo = THCStyle.Domain then
       begin
         if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结束标识
         begin
@@ -549,24 +515,6 @@ begin
   end;
 end;
 
-function THCRichData.GetFloatItemAt(const X, Y: Integer): Integer;
-var
-  i: Integer;
-  vFloatItem: THCFloatItem;
-begin
-  Result := -1;
-  for i := 0 to FFloatItems.Count - 1 do
-  begin
-    vFloatItem := FFloatItems[i];
-
-    if vFloatItem.PtInClient(X - vFloatItem.Left, Y - vFloatItem.Top) then
-    begin
-      Result := i;
-      Break;
-    end;
-  end;
-end;
-
 function THCRichData.GetActiveDomain: TDomain;
 begin
   Result := nil;
@@ -579,12 +527,6 @@ procedure THCRichData.GetCaretInfo(const AItemNo, AOffset: Integer;
 var
   vTopData: THCCustomRichData;
 begin
-  if FFloatItemIndex >= 0 then
-  begin
-    ACaretInfo.Visible := False;
-    Exit;
-  end;
-
   inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
 
   // 赋值激活Group信息，清除在 MouseDown
@@ -636,33 +578,6 @@ begin
   FHotDomain.Clear;
 end;
 
-function THCRichData.InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
-var
-  vTopData: THCRichData;
-  vStartNo, vStartOffset, vDrawNo: Integer;
-begin
-  vTopData := Self.GetTopLevelData as THCRichData;
-
-  // 记录选中起始位置
-  vStartNo := vTopData.SelectInfo.StartItemNo;
-  vStartOffset := vTopData.SelectInfo.StartItemOffset;
-
-  // 取选中起始处的DrawItem
-  vDrawNo := vTopData.GetDrawItemNoByOffset(vStartNo, vStartOffset);
-
-  AFloatItem.Left := vTopData.DrawItems[vDrawNo].Rect.Left
-    + vTopData.GetDrawItemOffsetWidth(vDrawNo, vTopData.SelectInfo.StartItemOffset - vTopData.DrawItems[vDrawNo].CharOffs + 1);
-  AFloatItem.Top := vTopData.DrawItems[vDrawNo].Rect.Top;
-
-  vTopData.FloatItems.Add(AFloatItem);
-  AFloatItem.Active := True;
-
-  Result := True;
-
-  if not vTopData.DisSelect then
-    Style.UpdateInfoRePaint;
-end;
-
 function THCRichData.InsertItem(const AIndex: Integer;
   const AItem: THCCustomItem; const AOffsetBefor: Boolean = True): Boolean;
 begin
@@ -684,43 +599,10 @@ begin
   FActiveDomain.Clear;
   FDrawActiveDomainRegion := False;
 
-  if not MouseDownFloatItem(Button, Shift, X, Y) then
-    inherited MouseDown(Button, Shift, X, Y);
+  inherited MouseDown(Button, Shift, X, Y);
 
   if Button = TMouseButton.mbRight then  // 右键菜单时，重新取光标处FActiveDomain
     Style.UpdateInfoReCaret;
-end;
-
-function THCRichData.MouseDownFloatItem(Button: TMouseButton;
-  Shift: TShiftState; X, Y: Integer): Boolean;
-begin
-  Result := True;
-
-  FMouseDownIndex := GetFloatItemAt(X, Y);
-  if FFloatItemIndex <> FMouseDownIndex then
-  begin
-    if FFloatItemIndex >= 0 then
-      FFloatItems[FFloatItemIndex].Active := False;
-
-    FFloatItemIndex := FMouseDownIndex;
-
-    Style.UpdateInfoRePaint;
-    Style.UpdateInfoReCaret;
-  end;
-
-  if FFloatItemIndex >= 0 then
-  begin
-    FFloatItems[FFloatItemIndex].MouseDown(Button, Shift,
-      X - FFloatItems[FFloatItemIndex].Left, Y - FFloatItems[FFloatItemIndex].Top);
-  end;
-
-  if FMouseDownIndex < 0 then
-    Result := False
-  else
-  begin
-    FMouseX := X;
-    FMouseY := Y;
-  end;
 end;
 
 procedure THCRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -733,8 +615,7 @@ begin
   FHotDomain.Clear;
   FDrawHotDomainRegion := False;
 
-  if not MouseMoveFloatItem(Shift, X, Y) then
-    inherited MouseMove(Shift, X, Y);
+  inherited MouseMove(Shift, X, Y);
 
   if not Self.MouseMoveRestrain then  // 在Item上
   begin
@@ -749,77 +630,6 @@ begin
       end;
     end;
   end;
-end;
-
-function THCRichData.MouseMoveFloatItem(Shift: TShiftState; X, Y: Integer): Boolean;
-var
-  vItemIndex: Integer;
-  vFloatItem: THCFloatItem;
-begin
-  Result := True;
-
-  if (Shift = [ssLeft]) and (FMouseDownIndex >= 0) then  // 按下拖拽
-  begin
-    vFloatItem := FFloatItems[FMouseDownIndex];
-    vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
-
-    if not vFloatItem.Resizing then
-    begin
-      vFloatItem.Left := vFloatItem.Left + X - FMouseX;
-      vFloatItem.Top := vFloatItem.Top + Y - FMouseY;
-
-      FMouseX := X;
-      FMouseY := Y;
-    end;
-
-    Style.UpdateInfoRePaint;
-  end
-  else  // 普通鼠标移动
-  begin
-    vItemIndex := GetFloatItemAt(X, Y);
-    if FMouseMoveIndex <> vItemIndex then
-    begin
-      if FMouseMoveIndex >= 0 then  // 旧的移出
-        FFloatItems[FMouseMoveIndex].MouseLeave;
-
-      FMouseMoveIndex := vItemIndex;
-      if FMouseMoveIndex >= 0 then  // 新的移入
-        FFloatItems[FMouseMoveIndex].MouseEnter;
-    end;
-
-    if vItemIndex >= 0 then
-    begin
-      vFloatItem := FFloatItems[vItemIndex];
-      vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
-    end
-    else
-      Result := False;
-  end;
-end;
-
-procedure THCRichData.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
-begin
-  if not MouseUpFloatItem(Button, Shift, X, Y) then
-    inherited MouseUp(Button, Shift, X, Y);
-end;
-
-function THCRichData.MouseUpFloatItem(Button: TMouseButton; Shift: TShiftState;
-  X, Y: Integer): Boolean;
-var
-  vFloatItem: THCFloatItem;
-begin
-  Result := True;
-
-  if FMouseDownIndex >= 0 then
-  begin
-    vFloatItem := FFloatItems[FMouseDownIndex];
-    {if vFloatItem.Resizing then
-      Self.Style.UpdateInfoRePaint;}
-    vFloatItem.MouseUp(Button, Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
-  end
-  else
-    Result := False;
 end;
 
 procedure THCRichData.PaintData(const ADataDrawLeft, ADataDrawTop,
@@ -838,9 +648,6 @@ begin
   end;
 
   inherited PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
-    ADataScreenTop, ADataScreenBottom, AVOffset, ACanvas, APaintInfo);
-
-  PaintFloatItems(ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
     ADataScreenTop, ADataScreenBottom, AVOffset, ACanvas, APaintInfo);
 
   if not APaintInfo.Print then  // 非打印绘制激活数据组
@@ -866,37 +673,13 @@ begin
   end;
 end;
 
-procedure THCRichData.PaintFloatItems(const ADataDrawLeft, ADataDrawTop,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-var
-  i: Integer;
-  vFloatItem: THCFloatItem;
-  vRect: TRect;
-begin
-  for i := 0 to FFloatItems.Count - 1 do
-  begin
-    vFloatItem := FFloatItems[i];
-
-    if (vFloatItem.Top + vFloatItem.Height + ADataDrawTop > 0)  // 底部超过页顶端
-      and (vFloatItem.Top < ADataDrawBottom)  // 顶部不超过页底端
-    then
-    begin
-      vRect := Bounds(vFloatItem.Left, vFloatItem.Top, vFloatItem.Width, vFloatItem.Height);
-      vRect.Offset(ADataDrawLeft, ADataDrawTop - AVOffset);
-
-      vFloatItem.PaintTo(Self.Style, vRect, ADataDrawTop, ADataDrawBottom,
-        ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-    end;
-  end;
-end;
-
 function THCRichData.Search(const AKeyword: string; const AForward,
   AMatchCase: Boolean): Boolean;
 var
   vKeyword: string;
 
-  function DoItemSearch(const AItemNo, AOffset: Integer): Boolean;
+  {$REGION ' DoSearchByOffset '}
+  function DoSearchByOffset(const AItemNo, AOffset: Integer): Boolean;
 
     function ReversePos(const SubStr, S: String): Integer;
     var
@@ -913,12 +696,12 @@ var
     end;
 
   var
-    vPos: Integer;
-    vText: string;
+    vPos, vItemNo: Integer;
+    vText, vConcatText, vOverText: string;
   begin
     Result := False;
 
-    if Self.Items[AItemNo].StyleNo < THCStyle.RsNull then
+    if Self.Items[AItemNo].StyleNo < THCStyle.Null then
     begin
       Result := (Self.Items[AItemNo] as THCCustomRectItem).Search(AKeyword, AForward, AMatchCase);
       if Result then
@@ -949,7 +732,7 @@ var
         vPos := Pos(vKeyword, vText);
       end;
 
-      if vPos > 0 then  // 找到了
+      if vPos > 0 then  // 当前Item有匹配
       begin
         Self.SelectInfo.StartItemNo := AItemNo;
 
@@ -962,9 +745,106 @@ var
         Self.SelectInfo.EndItemOffset := Self.SelectInfo.StartItemOffset + Length(vKeyword);
 
         Result := True;
+      end
+      else  // 没找到匹配，尝试在同段相邻的TextItem合并后查找
+      if (vText <> '') and (Length(vKeyword) > 1) then
+      begin
+        if AForward then  // 向前，在同段中找
+        begin
+          vItemNo := AItemNo;
+          vConcatText := vText;
+          vOverText := '';
+
+          while (vItemNo > 0)
+            and (not Self.Items[vItemNo].ParaFirst)
+            and (Self.Items[vItemNo - 1].StyleNo > THCStyle.Null)
+          do
+          begin
+            vText := RightStr(Self.Items[vItemNo - 1].Text, Length(vKeyword) - 1);  // 取后面比关键字少一个字符长度的，以便和当前末尾最后一个拼接
+            vOverText := vOverText + vText;  // 记录拼接了多少个字符
+            vConcatText := vText + vConcatText;  // 拼接后的字符
+            if not AMatchCase then  // 不区分大小写
+              vConcatText := UpperCase(vConcatText);
+
+            vPos := Pos(vKeyword, vConcatText);
+            if vPos > 0 then  // 找到了
+            begin
+              Self.SelectInfo.StartItemNo := vItemNo - 1;
+              Self.SelectInfo.StartItemOffset := Self.Items[vItemNo - 1].Length - (Length(vText) - vPos) - 1;
+
+              Self.SelectInfo.EndItemNo := AItemNo;
+              Self.SelectInfo.EndItemOffset := vPos + Length(vKeyword) - 1  // 关键字最后字符的偏移位置
+                - Length(vText);  // 减去最前面Item占的宽度
+
+              while vItemNo < AItemNo do  // 减去中间Item的宽度
+              begin
+                Self.SelectInfo.EndItemOffset := Self.SelectInfo.EndItemOffset - Self.Items[vItemNo].Length;
+                Inc(vItemNo);
+              end;
+
+              Result := True;
+
+              Break;
+            end
+            else  // 当前接着的没找到
+            begin
+              if Length(vOverText) >= Length(vKeyword) - 1 then  // 拼接的超过了关键字长度，说明当前文本和后面的拼接后没有可匹配
+                Break;
+            end;
+
+            Dec(vItemNo);
+          end;
+        end
+        else  // 向后，在同段中找
+        begin
+          vItemNo := AItemNo;
+          vConcatText := vText;
+          vOverText := '';
+
+          while (vItemNo < Self.Items.Count - 1)
+            and (not Self.Items[vItemNo + 1].ParaFirst)
+            and (Self.Items[vItemNo + 1].StyleNo > THCStyle.Null)
+          do  // 同段后面的TextItem
+          begin
+            vText := LeftStr(Self.Items[vItemNo + 1].Text, Length(vKeyword) - 1);  // 取后面比关键字少一个字符长度的，以便和当前末尾最后一个拼接
+            vOverText := vOverText + vText;  // 记录拼接了多少个字符
+            vConcatText := vConcatText + vText;  // 拼接后的字符
+            if not AMatchCase then  // 不区分大小写
+              vConcatText := UpperCase(vConcatText);
+
+            vPos := Pos(vKeyword, vConcatText);
+            if vPos > 0 then  // 找到了
+            begin
+              Self.SelectInfo.StartItemNo := AItemNo;
+              Self.SelectInfo.StartItemOffset := AOffset + vPos - 1;
+
+              Self.SelectInfo.EndItemNo := vItemNo + 1;
+              Self.SelectInfo.EndItemOffset := vPos + Length(vKeyword) - 1  // 关键字最后字符的偏移位置
+                - (Self.Items[AItemNo].Length - AOffset);  // 减去最前面Item占的宽度
+
+              while vItemNo >= AItemNo + 1 do  // 减去中间Item的宽度
+              begin
+                Self.SelectInfo.EndItemOffset := Self.SelectInfo.EndItemOffset - Self.Items[vItemNo].Length;
+                Dec(vItemNo);
+              end;
+
+              Result := True;
+
+              Break;
+            end
+            else  // 当前接着的没找到
+            begin
+              if Length(vOverText) >= Length(vKeyword) - 1 then  // 拼接的超过了关键字长度，说明当前文本和后面的拼接后没有可匹配
+                Break;
+            end;
+
+            Inc(vItemNo);
+          end;
+        end;
       end;
     end;
   end;
+  {$ENDREGION}
 
 var
   i, vItemNo, vOffset: Integer;
@@ -976,26 +856,26 @@ begin
   else
     vKeyword := AKeyword;
 
-  if AForward then  // 向前找
+  if AForward then  // 向前找，起始位置向前
   begin
     vItemNo := Self.SelectInfo.StartItemNo;
     vOffset := Self.SelectInfo.StartItemOffset;
   end
   else  // 向后找
   begin
-    if Self.SelectInfo.EndItemNo < 0 then
+    if Self.SelectInfo.EndItemNo < 0 then  // 有选中结束，从选中结束往后
     begin
       vItemNo := Self.SelectInfo.StartItemNo;
       vOffset := Self.SelectInfo.StartItemOffset;
     end
-    else
+    else  // 没有选中结束，从选中起始往后
     begin
       vItemNo := Self.SelectInfo.EndItemNo;
       vOffset := Self.SelectInfo.EndItemOffset;
     end;
   end;
 
-  Result := DoItemSearch(vItemNo, vOffset);
+  Result := DoSearchByOffset(vItemNo, vOffset);
 
   if not Result then
   begin
@@ -1003,7 +883,7 @@ begin
     begin
       for i := vItemNo - 1 downto 0 do
       begin
-        if DoItemSearch(i, GetItemAfterOffset(i)) then
+        if DoSearchByOffset(i, GetItemAfterOffset(i)) then
         begin
           Result := True;
           Break;
@@ -1014,7 +894,7 @@ begin
     begin
       for i := vItemNo + 1 to Self.Items.Count - 1 do
       begin
-        if DoItemSearch(i, 0) then
+        if DoSearchByOffset(i, 0) then
         begin
           Result := True;
           Break;
@@ -1128,7 +1008,7 @@ begin
       if ATraverse.Stop then Break;
 
       ATraverse.Process(Self, i, ATraverse.Tag, ATraverse.Stop);
-      if Items[i].StyleNo < THCStyle.RsNull then
+      if Items[i].StyleNo < THCStyle.Null then
         (Items[i] as THCCustomRectItem).TraverseItem(ATraverse);
     end;
   end;

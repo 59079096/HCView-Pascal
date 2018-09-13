@@ -14,12 +14,11 @@ type
     lbl4: TLabel;
     lbl5: TLabel;
     lbl6: TLabel;
-    ud1: TUpDown;
-    edtLineSpace: TEdit;
     btnOk: TButton;
     clrbxBG: TColorBox;
     cbbAlignHorz: TComboBox;
     cbbAlignVert: TComboBox;
+    cbbSpaceMode: TComboBox;
     procedure btnOkClick(Sender: TObject);
   private
     { Private declarations }
@@ -45,7 +44,7 @@ end;
 
 procedure TfrmParagraph.SetHCView(const AHCView: THCView);
 begin
-  edtLineSpace.Text := IntToStr(AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].LineSpace);
+  cbbSpaceMode.ItemIndex := Ord(AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].LineSpaceMode);
   cbbAlignHorz.ItemIndex := Ord(AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].AlignHorz);
   cbbAlignVert.ItemIndex := Ord(AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].AlignVert);
   clrbxBG.Color := AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].BackColor;
@@ -55,7 +54,7 @@ begin
   begin
     AHCView.BeginUpdate;
     try
-      AHCView.ApplyParaLineSpace(StrToIntDef(edtLineSpace.Text, 8));
+      AHCView.ApplyParaLineSpace(TParaLineSpaceMode(cbbSpaceMode.ItemIndex));
       AHCView.ApplyParaAlignHorz(TParaAlignHorz(cbbAlignHorz.ItemIndex));
       AHCView.ApplyParaAlignVert(TParaAlignVert(cbbAlignVert.ItemIndex));
       AHCView.ApplyParaBackColor(clrbxBG.Color);

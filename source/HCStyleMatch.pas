@@ -97,10 +97,10 @@ type
 
   TParaLineSpaceMatch = class(TParaMatch)
   private
-    FSpace: Integer;
+    FSpaceMode: TParaLineSpaceMode;
   public
     function GetMatchParaNo(const AStyle: THCStyle; const ACurParaNo: Integer): Integer; override;
-    property Space: Integer read FSpace write FSpace;
+    property SpaceMode: TParaLineSpaceMode read FSpaceMode write FSpaceMode;
   end;
 
   TParaBackColorMatch = class(TParaMatch)
@@ -123,7 +123,7 @@ function TFontNameStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
 var
   vTextStyle: THCTextStyle;
 begin
-  Result := THCStyle.RsNull;
+  Result := THCStyle.Null;
   if AStyle.TextStyles[ACurStyleNo].Family = FFontName then
   begin
     Result := ACurStyleNo;
@@ -149,7 +149,7 @@ function TTextStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
 var
   vTextStyle: THCTextStyle;
 begin
-  Result := THCStyle.RsNull;
+  Result := THCStyle.Null;
   vTextStyle := THCTextStyle.Create;
   try
     vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
@@ -206,7 +206,7 @@ function TParaAlignHorzMatch.GetMatchParaNo(const AStyle: THCStyle;
 var
   vParaStyle: THCParaStyle;
 begin
-  Result := THCStyle.RsNull;
+  Result := THCStyle.Null;
   if AStyle.ParaStyles[ACurParaNo].AlignHorz = FAlign then
   begin
     Result := ACurParaNo;
@@ -230,7 +230,7 @@ function TColorStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
 var
   vTextStyle: THCTextStyle;
 begin
-  Result := THCStyle.RsNull;
+  Result := THCStyle.Null;
   if AStyle.TextStyles[ACurStyleNo].Color = FColor then
   begin
     Result := ACurStyleNo;
@@ -256,7 +256,7 @@ function TBackColorStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
 var
   vTextStyle: THCTextStyle;
 begin
-  Result := THCStyle.RsNull;
+  Result := THCStyle.Null;
   if AStyle.TextStyles[ACurStyleNo].BackColor = FColor then
   begin
     Result := ACurStyleNo;
@@ -282,7 +282,7 @@ function TFontSizeStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
 var
   vTextStyle: THCTextStyle;
 begin
-  Result := THCStyle.RsNull;
+  Result := THCStyle.Null;
   if AStyle.TextStyles[ACurStyleNo].Size = FFontSize then
   begin
     Result := ACurStyleNo;
@@ -308,7 +308,7 @@ function TParaAlignVertMatch.GetMatchParaNo(const AStyle: THCStyle;
 var
   vParaStyle: THCParaStyle;
 begin
-  Result := THCStyle.RsNull;
+  Result := THCStyle.Null;
   if AStyle.ParaStyles[ACurParaNo].AlignVert = FAlign then
   begin
     Result := ACurParaNo;
@@ -340,8 +340,8 @@ function TParaLineSpaceMatch.GetMatchParaNo(const AStyle: THCStyle;
 var
   vParaStyle: THCParaStyle;
 begin
-  Result := THCStyle.RsNull;
-  if AStyle.ParaStyles[ACurParaNo].LineSpace = FSpace then
+  Result := THCStyle.Null;
+  if AStyle.ParaStyles[ACurParaNo].LineSpaceMode = FSpaceMode then
   begin
     Result := ACurParaNo;
     Exit;
@@ -350,7 +350,7 @@ begin
   vParaStyle := THCParaStyle.Create;
   try
     vParaStyle.AssignEx(AStyle.ParaStyles[ACurParaNo]);
-    vParaStyle.LineSpace := FSpace;
+    vParaStyle.LineSpaceMode := FSpaceMode;
     Result := AStyle.GetParaNo(vParaStyle, True);  // 新段样式
   finally
     vParaStyle.Free;
@@ -364,7 +364,7 @@ function TParaBackColorMatch.GetMatchParaNo(const AStyle: THCStyle;
 var
   vParaStyle: THCParaStyle;
 begin
-  Result := THCStyle.RsNull;
+  Result := THCStyle.Null;
   if AStyle.ParaStyles[ACurParaNo].BackColor = FBackColor then
   begin
     Result := ACurParaNo;

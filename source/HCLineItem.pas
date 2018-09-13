@@ -47,7 +47,7 @@ begin
   Width := AWidth;
   Height := AHeight;
   FLineStyle := TPenStyle.psSolid;
-  StyleNo := THCStyle.RsLine;
+  StyleNo := THCStyle.Line;
 end;
 
 procedure TLineItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;

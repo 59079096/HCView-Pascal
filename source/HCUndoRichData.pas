@@ -122,7 +122,7 @@ var
         begin
           Dec(vCaretItemNo);
 
-          if Items[vCaretItemNo].StyleNo > THCStyle.RsNull then
+          if Items[vCaretItemNo].StyleNo > THCStyle.Null then
             vCaretOffset := Items[vCaretItemNo].Length
           else
             vCaretOffset := OffsetAfter;
@@ -148,7 +148,7 @@ var
         if vCaretItemNo > 0 then
         begin
           Dec(vCaretItemNo);
-          if Items[vCaretItemNo].StyleNo > THCStyle.RsNull then
+          if Items[vCaretItemNo].StyleNo > THCStyle.Null then
             vCaretOffset := Items[vCaretItemNo].Length
           else
             vCaretOffset := OffsetAfter;
@@ -163,7 +163,7 @@ var
         Inc(FItemCount);
 
         vCaretItemNo := vAction.ItemNo;
-        if Items[vCaretItemNo].StyleNo > THCStyle.RsNull then
+        if Items[vCaretItemNo].StyleNo > THCStyle.Null then
           vCaretOffset := Items[vCaretItemNo].Length
         else
           vCaretOffset := OffsetAfter;

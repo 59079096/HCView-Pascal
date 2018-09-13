@@ -37,7 +37,7 @@ type
       const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData;
-      const ALeftText, ATopText, ARightText, ABottomText: string);
+      const ALeftText, ATopText, ARightText, ABottomText: string); virtual;
 
     property LeftRect: TRect read FLeftRect;
     property RightRect: TRect read FRightRect;
@@ -61,7 +61,7 @@ constructor THCExperssItem.Create(const AOwnerData: THCCustomData;
   const ALeftText, ATopText, ARightText, ABottomText: string);
 begin
   inherited Create(AOwnerData, ATopText, ABottomText);
-  Self.StyleNo := THCStyle.RsExpress;
+  Self.StyleNo := THCStyle.Express;
 
   FLeftText := ALeftText;
   FRightText := ARightText;
@@ -73,13 +73,13 @@ procedure THCExperssItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
 var
   vFocusRect: TRect;
 begin
-  if Self.Active then
+  if Self.Active and (not APaintInfo.Print) then
   begin
     ACanvas.Brush.Color := clBtnFace;
     ACanvas.FillRect(ADrawRect);
   end;
 
-  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
+  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
   ACanvas.TextOut(ADrawRect.Left + FLeftRect.Left, ADrawRect.Top + FLeftRect.Top, FLeftText);
   ACanvas.TextOut(ADrawRect.Left + TopRect.Left, ADrawRect.Top + TopRect.Top, TopText);
   ACanvas.TextOut(ADrawRect.Left + FRightRect.Left, ADrawRect.Top + FRightRect.Top, FRightText);
@@ -89,34 +89,37 @@ begin
   ACanvas.MoveTo(ADrawRect.Left + FLeftRect.Right + Padding, ADrawRect.Top + TopRect.Bottom + Padding);
   ACanvas.LineTo(ADrawRect.Left + FRightRect.Left - Padding, ADrawRect.Top + TopRect.Bottom + Padding);
 
-  if FActiveArea <> ceaNone then
+  if not APaintInfo.Print then
   begin
-    case FActiveArea of
-      ceaLeft: vFocusRect := FLeftRect;
-      ceaTop: vFocusRect := TopRect;
-      ceaRight: vFocusRect := FRightRect;
-      ceaBottom: vFocusRect := BottomRect;
+    if FActiveArea <> ceaNone then
+    begin
+      case FActiveArea of
+        ceaLeft: vFocusRect := FLeftRect;
+        ceaTop: vFocusRect := TopRect;
+        ceaRight: vFocusRect := FRightRect;
+        ceaBottom: vFocusRect := BottomRect;
+      end;
+
+      vFocusRect.Offset(ADrawRect.Location);
+      vFocusRect.Inflate(2, 2);
+      ACanvas.Pen.Color := clBlue;
+      ACanvas.Rectangle(vFocusRect);
     end;
 
-    vFocusRect.Offset(ADrawRect.Location);
-    vFocusRect.Inflate(2, 2);
-    ACanvas.Pen.Color := clGray;
-    ACanvas.Rectangle(vFocusRect);
-  end;
+    if (FMouseMoveArea <> ceaNone) and (FMouseMoveArea <> FActiveArea) then
+    begin
+      case FMouseMoveArea of
+        ceaLeft: vFocusRect := FLeftRect;
+        ceaTop: vFocusRect := TopRect;
+        ceaRight: vFocusRect := FRightRect;
+        ceaBottom: vFocusRect := BottomRect;
+      end;
 
-  if (FMouseMoveArea <> ceaNone) and (FMouseMoveArea <> FActiveArea) then
-  begin
-    case FMouseMoveArea of
-      ceaLeft: vFocusRect := FLeftRect;
-      ceaTop: vFocusRect := TopRect;
-      ceaRight: vFocusRect := FRightRect;
-      ceaBottom: vFocusRect := BottomRect;
+      vFocusRect.Offset(ADrawRect.Location);
+      vFocusRect.Inflate(2, 2);
+      ACanvas.Pen.Color := clMedGray;
+      ACanvas.Rectangle(vFocusRect);
     end;
-
-    vFocusRect.Offset(ADrawRect.Location);
-    vFocusRect.Inflate(2, 2);
-    ACanvas.Pen.Color := clMedGray;
-    ACanvas.Rectangle(vFocusRect);
   end;
 end;
 
@@ -128,7 +131,7 @@ var
 begin
   vStyle := ARichData.Style;
   vStyle.TextStyles[TextStyleNo].ApplyStyle(vStyle.DefCanvas);
-  vH := vStyle.DefCanvas.TextHeight('×Ö');
+  vH := vStyle.DefCanvas.TextHeight('H');
   vLeftW := Max(vStyle.DefCanvas.TextWidth(FLeftText), Padding);
   vTopW := Max(vStyle.DefCanvas.TextWidth(TopText), Padding);
   vRightW := Max(vStyle.DefCanvas.TextWidth(FRightText), Padding);

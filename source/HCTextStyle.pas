@@ -98,21 +98,19 @@ begin
     else
       Font.Style := Font.Style - [TFontStyle.fsStrikeOut];
 
-    if tsSuperscript in FFontStyle then
-      Font.Size := Font.Size div 2
-    else
-    if tsSubscript in FFontStyle then
-      Font.Size := Font.Size div 2;
-
     //if AScale <> 1 then
     begin
       vFont := TFont.Create;
       try
         vFont.Assign(ACanvas.Font);
-        GetObject(vFont.Handle, SizeOf(vLogFont), @vLogFont) ;
-        vLogFont.lfHeight := Round(FSize * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale);
-        vFont.Handle := CreateFontIndirect(vLogFont);
+        GetObject(vFont.Handle, SizeOf(vLogFont), @vLogFont);
 
+        if (tsSuperscript in FFontStyle) or (tsSubscript in FFontStyle) then
+          vLogFont.lfHeight := -Round(FSize / 2 * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale)
+        else
+          vLogFont.lfHeight := -Round(FSize * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale);
+
+        vFont.Handle := CreateFontIndirect(vLogFont);
         ACanvas.Font.Assign(vFont);
       finally
         vFont.Free;

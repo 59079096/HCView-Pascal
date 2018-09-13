@@ -17,12 +17,17 @@ uses
   Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem, HCStyle,
   HCCustomData, HCCommon;
 
+const
+  BTNWIDTH = 16;
+  BTNMARGIN = 1;
+
 type
-  THCEditItem = class(THCTextRectItem)
+  THCEditItem = class(THCControlItem)
   private
     FText: string;
-    FMouseIn, FReadOnly, FAutoWidth: Boolean;
-    FMargin, FMinWidth: Byte;
+    FBorderWidth: Byte;
+    FBorderSides: TBorderSides;
+    FMouseIn, FReadOnly: Boolean;
     FCaretOffset: ShortInt;
   protected
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
@@ -52,7 +57,8 @@ type
     constructor Create(const AOwnerData: THCCustomData; const AText: string);
     property Text: string read FText write SetText;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
-    property AutoWidth: Boolean read FAutoWidth write FAutoWidth;
+    property BorderSides: TBorderSides read FBorderSides write FBorderSides;
+    property BorderWidth: Byte read FBorderWidth write FBorderWidth;
   end;
 
 implementation
@@ -65,14 +71,14 @@ uses
 constructor THCEditItem.Create(const AOwnerData: THCCustomData; const AText: string);
 begin
   inherited Create(AOwnerData);
-  Self.StyleNo := THCStyle.RsEdit;
+  Self.StyleNo := THCStyle.Edit;
   FText := AText;
   FMouseIn := False;
   FMargin := 4;
   FCaretOffset := -1;
-  FAutoWidth := False;
-  FMinWidth := 20;
   Width := 50;
+  FBorderWidth := 1;
+  FBorderSides := [cbsLeft, cbsTop, cbsRight, cbsBottom];
 end;
 
 procedure THCEditItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -82,26 +88,50 @@ begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
-  if Self.IsSelectComplate then
+  if Self.IsSelectComplate and (not APaintInfo.Print) then
   begin
     ACanvas.Brush.Color := AStyle.SelColor;
     ACanvas.FillRect(ADrawRect);
   end;
 
-  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas);
+  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
 
-  if not FAutoWidth then
+  if not Self.AutoSize then
     ACanvas.TextRect(ADrawRect, ADrawRect.Left + FMargin, ADrawRect.Top + FMargin, FText)
   else
     ACanvas.TextOut(ADrawRect.Left + FMargin,// + (ADrawRect.Width - FMargin - ACanvas.TextWidth(FText) - FMargin) div 2,
       ADrawRect.Top + FMargin, FText);
 
-  if FMouseIn then  // 鼠标在其中
+  if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
     ACanvas.Pen.Color := clBlue
-  else  // 鼠标不在其中
+  else  // 鼠标不在其中或打印
     ACanvas.Pen.Color := clBlack;
 
-  ACanvas.Rectangle(ADrawRect.Left, ADrawRect.Top, ADrawRect.Right, ADrawRect.Bottom);
+  ACanvas.Pen.Width := FBorderWidth;
+
+  if cbsLeft in FBorderSides then
+  begin
+    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Top);
+    ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom);
+  end;
+
+  if cbsTop in FBorderSides then
+  begin
+    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Top);
+    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top);
+  end;
+
+  if cbsRight in FBorderSides then
+  begin
+    ACanvas.MoveTo(ADrawRect.Right, ADrawRect.Top);
+    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom);
+  end;
+
+  if cbsBottom in FBorderSides then
+  begin
+    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Bottom);
+    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom);
+  end;
 end;
 
 procedure THCEditItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -109,21 +139,21 @@ procedure THCEditItem.FormatToDrawItem(const ARichData: THCCustomData;
 var
   vSize: TSize;
 begin
-  ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
-
-  if FText <> '' then
+  if Self.AutoSize then
   begin
-    vSize := ARichData.Style.DefCanvas.TextExtent(FText);
-    if FAutoWidth then
-      Width := FMargin + Max(FMinWidth, vSize.cx) + FMargin;  // 间距
+    ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
+    if FText <> '' then
+      vSize := ARichData.Style.DefCanvas.TextExtent(FText)
+    else
+      vSize := ARichData.Style.DefCanvas.TextExtent('I');
+    Width := FMargin + vSize.cx + FMargin;  // 间距
     Height := FMargin + vSize.cy + FMargin;
-  end
-  else
-  begin
-    if FAutoWidth then
-      Width := FMargin + FMinWidth + FMargin;  // 间距
-    Height := FMargin + ARichData.Style.DefCanvas.TextHeight('H') + FMargin;
   end;
+
+  if Width < FMinWidth then
+    Width := FMinWidth;
+  if Height < FMinHeight then
+    Height := FMinHeight;
 end;
 
 procedure THCEditItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
@@ -148,7 +178,7 @@ begin
 
   ACaretInfo.Y := FMargin;
 
-  if (not FAutoWidth) and (ACaretInfo.X > Width) then
+  if (not Self.AutoSize) and (ACaretInfo.X > Width) then
     ACaretInfo.Visible := False;
 end;
 
@@ -239,7 +269,7 @@ var
   vX: Integer;
   vOffset: Integer;
 begin
-  inherited;
+  inherited MouseDown(Button, Shift, X, Y);
   OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
   vX := X - FMargin;// - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, FText, vX);
@@ -281,7 +311,7 @@ var
   vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-
+  // 读取Text
   AStream.ReadBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
   begin
@@ -290,9 +320,13 @@ begin
     FText := StringOf(vBuffer);
   end;
 
-  AStream.ReadBuffer(FMargin, SizeOf(FMargin));
-  AStream.ReadBuffer(FMinWidth, SizeOf(FMinWidth));
   AStream.ReadBuffer(FReadOnly, SizeOf(FReadOnly));
+
+  if AFileVersion > 15 then
+  begin
+    AStream.ReadBuffer(FBorderSides, SizeOf(FBorderSides));
+    AStream.ReadBuffer(FBorderWidth, SizeOf(FBorderWidth));
+  end;
 end;
 
 procedure THCEditItem.SaveToStream(const AStream: TStream; const AStart,
@@ -302,7 +336,7 @@ var
   vSize: Word;  // 最多65536个字节，如果超过65536，可使用写入文本后再写一个结束标识(如#9)，解析时遍历直到此标识
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-
+  // 存Text
   vBuffer := BytesOf(FText);
   if System.Length(vBuffer) > MAXWORD then
     raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
@@ -311,9 +345,10 @@ begin
   if vSize > 0 then
     AStream.WriteBuffer(vBuffer[0], vSize);
 
-  AStream.WriteBuffer(FMargin, SizeOf(FMargin));
-  AStream.WriteBuffer(FMinWidth, SizeOf(FMinWidth));
   AStream.WriteBuffer(FReadOnly, SizeOf(FReadOnly));
+
+  AStream.WriteBuffer(FBorderSides, SizeOf(FBorderSides));
+  AStream.WriteBuffer(FBorderWidth, SizeOf(FBorderWidth));
 end;
 
 procedure THCEditItem.SetText(const Value: string);

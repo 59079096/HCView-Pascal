@@ -293,7 +293,7 @@ type
 
     /// <summary> 为选中文本使用指定的文本样式 </summary>
     /// <param name="AFontStyle">文本样式</param>
-    procedure ApplyTextStyle(const AFontStyle: TFontStyleEx); virtual;
+    procedure ApplyTextStyle(const AFontStyle: THCFontStyle); virtual;
     procedure ApplyTextFontName(const AFontName: TFontName); virtual;
     procedure ApplyTextFontSize(const AFontSize: Single); virtual;
     procedure ApplyTextColor(const AColor: TColor); virtual;
@@ -475,7 +475,7 @@ begin
   end;
 end;
 
-procedure THCCustomData.ApplyTextStyle(const AFontStyle: TFontStyleEx);
+procedure THCCustomData.ApplyTextStyle(const AFontStyle: THCFontStyle);
 var
   vMatchStyle: TTextStyleMatch;
 begin
@@ -2138,7 +2138,7 @@ begin
     FStyle.TextStyles[vItem.StyleNo].ApplyStyle(FStyle.DefCanvas);
     vItemHeight := THCStyle.GetFontHeight(FStyle.DefCanvas);  // + vParaStyle.LineSpace;  // 行高
 
-    GetTextMetrics(FStyle.DefCanvas.Handle, vTextMetric);
+    GetTextMetrics(FStyle.DefCanvas.Handle, vTextMetric);  // 得到字体信息
 
     case FStyle.ParaStyles[vItem.ParaNo].LineSpaceMode of
       pls100: vItemHeight := vItemHeight + vTextMetric.tmExternalLeading; // Round(vTextMetric.tmHeight * 0.2);
@@ -2183,10 +2183,10 @@ begin
     begin
       viLen := Length(vText);
 
-      SetLength(vCharWidths, viLen);
-
       if viLen > 65535 then
         raise Exception.Create(HCS_EXCEPTION_STRINGLENGTHLIMIT);
+
+      SetLength(vCharWidths, viLen);
       
       GetTextExtentExPoint(FStyle.DefCanvas.Handle, PChar(vText), viLen, 0,  // vRemainderWidth,
         nil, PInteger(vCharWidths), vSize);  // 超过65535数组元素取不到值
@@ -2585,8 +2585,8 @@ begin
           FStyle.TextStyles[vPrioStyleNo].ApplyStyle(FStyle.DefCanvas);//, APaintInfo.ScaleY / APaintInfo.Zoom);
           //GetTextMetrics(FStyle.DefCanvas.Handle, vTextMetric);
           vTextHeight := THCStyle.GetFontHeight(FStyle.DefCanvas);
-          if (tsSuperscript in FStyle.TextStyles[vPrioStyleNo].FontStyle)
-            or (tsSubscript in FStyle.TextStyles[vPrioStyleNo].FontStyle)
+          if (tsSuperscript in FStyle.TextStyles[vPrioStyleNo].FontStyles)
+            or (tsSubscript in FStyle.TextStyles[vPrioStyleNo].FontStyles)
           then
             vTextHeight := vTextHeight + vTextHeight;
         end;
@@ -2643,7 +2643,7 @@ begin
           vTextDrawTop := vDrawRect.Bottom - vTextHeight;
         end;
 
-        if tsSubscript in FStyle.TextStyles[vPrioStyleNo].FontStyle then  // 上标时位置不变，下标时中间位置
+        if tsSubscript in FStyle.TextStyles[vPrioStyleNo].FontStyles then  // 上标时位置不变，下标时中间位置
           vTextDrawTop := vTextDrawTop + vTextHeight div 2;
 
         // 文字背景

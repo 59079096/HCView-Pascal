@@ -315,7 +315,7 @@ type
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
 
     /// <summary> 修改当前选中文本的样式 </summary>
-    procedure ApplyTextStyle(const AFontStyle: TFontStyleEx);
+    procedure ApplyTextStyle(const AFontStyle: THCFontStyle);
 
     /// <summary> 修改当前选中文本的字体 </summary>
     procedure ApplyTextFontName(const AFontName: TFontName);
@@ -408,6 +408,9 @@ type
 
     /// <summary> 文档保存为PDF格式 </summary>
     procedure SaveAsPDF(const AFileName: string);
+
+    /// <summary> 文档保存为PDF格式 </summary>
+    procedure SaveAsText(const AFileName: string);
 
     /// <summary> 文档保存到流 </summary>
     procedure SaveToStream(const AStream: TStream;
@@ -652,7 +655,7 @@ end;
 
 { THCView }
 
-procedure THCView.ApplyTextStyle(const AFontStyle: TFontStyleEx);
+procedure THCView.ApplyTextStyle(const AFontStyle: THCFontStyle);
 begin
   ActiveSection.ApplyTextStyle(AFontStyle);
 end;
@@ -2487,6 +2490,15 @@ begin
   finally
     vPDF.Free;
   end;
+end;
+
+procedure THCView.SaveAsText(const AFileName: string);
+var
+  i: Integer;
+begin
+  // 各节数据
+  for i := 0 to FSections.Count - 1 do
+    FSections[i].SaveToText(AFileName);
 end;
 
 procedure THCView.SaveToStream(const AStream: TStream;

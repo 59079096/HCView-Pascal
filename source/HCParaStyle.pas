@@ -102,6 +102,9 @@ var
 begin
   if AFileVersion < 15 then
     AStream.ReadBuffer(vLineSpace, SizeOf(vLineSpace));
+
+  if AFileVersion > 16 then
+    AStream.ReadBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
   //FLineSpaceHalf := FLineSpace div 2;
   AStream.ReadBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
   AStream.ReadBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
@@ -111,7 +114,7 @@ end;
 
 procedure THCParaStyle.SaveToStream(const AStream: TStream);
 begin
-  //AStream.WriteBuffer(FLineSpace, SizeOf(FLineSpace));
+  AStream.WriteBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
   AStream.WriteBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
   AStream.WriteBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
   AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));

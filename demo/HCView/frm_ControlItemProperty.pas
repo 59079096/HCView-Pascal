@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, HCView, HCRectItem,
-  Vcl.ExtCtrls, Vcl.Grids;
+  Vcl.ExtCtrls;
 
 type
   TfrmControlItemProperty = class(TForm)
@@ -33,12 +33,23 @@ type
     cbbDTFormat: TComboBox;
     lstCombobox: TListBox;
     lbl4: TLabel;
+    pnlRadioGroup: TPanel;
+    lbl6: TLabel;
+    edtRadioValue: TEdit;
+    btnAddRadioItem: TButton;
+    btnDeleteRadioItem: TButton;
+    btnModRadioItem: TButton;
+    lstRadioItem: TListBox;
     procedure btnOkClick(Sender: TObject);
     procedure chkAutoSizeClick(Sender: TObject);
     procedure btnAddClick(Sender: TObject);
     procedure btnSaveClick(Sender: TObject);
     procedure btnDeleteClick(Sender: TObject);
     procedure lstComboboxClick(Sender: TObject);
+    procedure btnAddRadioItemClick(Sender: TObject);
+    procedure btnModRadioItemClick(Sender: TObject);
+    procedure btnDeleteRadioItemClick(Sender: TObject);
+    procedure lstRadioItemClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -49,7 +60,7 @@ type
 implementation
 
 uses
-  HCEditItem, HCComboboxItem, HCDateTimePicker, HCCommon;
+  HCEditItem, HCComboboxItem, HCDateTimePicker, HCRadioGroup, HCCommon;
 
 {$R *.dfm}
 
@@ -59,9 +70,25 @@ begin
     lstCombobox.Items.Add(edtValue.Text);
 end;
 
+procedure TfrmControlItemProperty.btnAddRadioItemClick(Sender: TObject);
+begin
+  if edtRadioValue.Text <> '' then
+    lstRadioItem.Items.Add(edtRadioValue.Text);
+end;
+
 procedure TfrmControlItemProperty.btnDeleteClick(Sender: TObject);
 begin
   lstCombobox.DeleteSelected;
+end;
+
+procedure TfrmControlItemProperty.btnDeleteRadioItemClick(Sender: TObject);
+begin
+  lstRadioItem.DeleteSelected;
+end;
+
+procedure TfrmControlItemProperty.btnModRadioItemClick(Sender: TObject);
+begin
+  lstRadioItem.Items[lstRadioItem.ItemIndex] := edtRadioValue.Text;
 end;
 
 procedure TfrmControlItemProperty.btnOkClick(Sender: TObject);
@@ -86,12 +113,20 @@ begin
     edtValue.Text := lstCombobox.Items[lstCombobox.ItemIndex];
 end;
 
+procedure TfrmControlItemProperty.lstRadioItemClick(Sender: TObject);
+begin
+  if lstRadioItem.ItemIndex >= 0 then
+    edtRadioValue.Text := lstRadioItem.Items[lstRadioItem.ItemIndex];
+end;
+
 procedure TfrmControlItemProperty.SetHCView(const AHCView: THCView);
 var
+  i: Integer;
   vControlItem: THCControlItem;
   vEditItem: THCEditItem;
   vCombobox: THCComboboxItem;
   vDateTimePicker: THCDateTimePicker;
+  vRadioGroup: THCRadioGroup;
 begin
   vControlItem := AHCView.ActiveSectionTopLevelData.GetCurItem as THCControlItem;
 
@@ -135,6 +170,18 @@ begin
     pnlDateTime.Visible := False;
   end;
 
+  if vControlItem is THCRadioGroup then
+  begin
+    vRadioGroup := vControlItem as THCRadioGroup;
+    for i := 0 to vRadioGroup.Items.Count - 1 do
+      lstRadioItem.Items.Add(vRadioGroup.Items[i].Text);
+  end
+  else
+  begin
+    vRadioGroup := nil;
+    pnlRadioGroup.Visible := False;
+  end;
+
   Self.ShowModal;
   if Self.ModalResult = mrOk then
   begin
@@ -173,6 +220,14 @@ begin
 
     if vDateTimePicker <> nil then
       vDateTimePicker.Format := cbbDTFormat.Text;
+
+    if vRadioGroup <> nil then
+    begin
+      vRadioGroup.Items.Clear;
+
+      for i := 0 to lstRadioItem.Items.Count - 1 do
+        vRadioGroup.AddItem(lstRadioItem.Items[i]);
+    end;
 
     AHCView.BeginUpdate;
     try

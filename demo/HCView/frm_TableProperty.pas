@@ -127,7 +127,7 @@ begin
   // 单元格
   if (vTableItem.SelectCellRang.StartRow >= 0) and (vTableItem.SelectCellRang.StartCol >= 0) then
   begin
-    if vTableItem.SelectCellRang.EndRow > 0 then  // 多选
+    if vTableItem.SelectCellRang.EndRow >= 0 then  // 多选
     begin
       vAlignVert := vTableItem.Cells[vTableItem.SelectCellRang.StartRow,
         vTableItem.SelectCellRang.StartCol].AlignVert;

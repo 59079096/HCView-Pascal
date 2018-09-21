@@ -62,7 +62,7 @@ type
     procedure SetItems(const Value: TStrings);
     procedure SetItemIndex(const Value: Integer);
   public
-    constructor Create(const AOwnerData: THCCustomData; const AText: string);
+    constructor Create(const AOwnerData: THCCustomData; const AText: string); override;
     destructor Destroy; override;
     property Items: TStrings read FItems write SetItems;
     property ItemIndex: Integer read FItemIndex write SetItemIndex;

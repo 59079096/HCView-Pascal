@@ -193,7 +193,7 @@ type
 
   THCControlItem = class(THCTextRectItem)
   private
-    FAutoSize: Boolean;
+    FAutoSize: Boolean;  // 是根据内容自动大小，还是外部指定大小
   protected
     FMargin: Byte;
     FMinWidth, FMinHeight: Integer;

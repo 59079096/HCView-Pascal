@@ -98,7 +98,7 @@ begin
   else
     vCell := vTableItem.Cells[0, 0];
 
-  cbbBackColor.Color := vCell.BackgroundColor;
+  cbbBackColor.Selected := vCell.BackgroundColor;
 
   vBorderSides := vCell.BorderSides;
   chkLeft.Checked := cbsLeft in vBorderSides;

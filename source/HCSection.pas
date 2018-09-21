@@ -221,7 +221,7 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState);
     procedure KeyUp(var Key: Word; Shift: TShiftState);
     //
-    procedure ApplyTextStyle(const AFontStyle: TFontStyleEx);
+    procedure ApplyTextStyle(const AFontStyle: THCFontStyle);
     procedure ApplyTextFontName(const AFontName: TFontName);
     procedure ApplyTextFontSize(const AFontSize: Single);
     procedure ApplyTextColor(const AColor: TColor);
@@ -302,6 +302,7 @@ type
       const AParts: TSaveParts = [saHeader, saPage, saFooter]);
     procedure SaveToStream(const AStream: TStream;
       const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]);
+    procedure SaveToText(const AFileName: string);
     procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word);
@@ -507,7 +508,7 @@ begin
     end);
 end;
 
-procedure THCCustomSection.ApplyTextStyle(const AFontStyle: TFontStyleEx);
+procedure THCCustomSection.ApplyTextStyle(const AFontStyle: THCFontStyle);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
@@ -2302,6 +2303,11 @@ begin
   vBegPos := vEndPos - vBegPos - SizeOf(vBegPos);
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 当前节数据大小
   AStream.Position := vEndPos;
+end;
+
+procedure THCCustomSection.SaveToText(const AFileName: string);
+begin
+  FPageData.SaveToText(AFileName, TEncoding.Unicode);
 end;
 
 procedure THCCustomSection.SectionCoordToPage(const APageIndex, X, Y: Integer; var APageX,

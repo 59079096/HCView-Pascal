@@ -119,6 +119,7 @@ type
     mniN43: TMenuItem;
     mniN1151: TMenuItem;
     mniN44: TMenuItem;
+    mniRadioButton1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -184,6 +185,7 @@ type
     procedure mniPropClick(Sender: TObject);
     procedure mniN43Click(Sender: TObject);
     procedure mniN44Click(Sender: TObject);
+    procedure mniRadioButton1Click(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -211,7 +213,7 @@ uses
   frm_InsertTable, frm_PageSet, HCStyle, HCRectItem, HCTableItem, HCTextItem,
   HCDrawItem, HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem,
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
-  HCDateTimePicker, EmrGroupItem, EmrToothItem, EmrFangJiaoItem, frm_Paragraph, frm_TableProperty,
+  HCDateTimePicker, HCRadioGroup, EmrToothItem, EmrFangJiaoItem, frm_Paragraph, frm_TableProperty,
   frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_TableBorderBackColor;
 
 {$R *.dfm}
@@ -932,6 +934,17 @@ begin
   finally
     FreeAndNil(vFrmControlItemProperty);
   end;
+end;
+
+procedure TfrmHCViewDemo.mniRadioButton1Click(Sender: TObject);
+var
+  vHCRadioGroup: THCRadioGroup;
+begin
+  vHCRadioGroup := THCRadioGroup.Create(FHCView.ActiveSectionTopLevelData);
+  vHCRadioGroup.AddItem('选项1');
+  vHCRadioGroup.AddItem('选项2');
+  vHCRadioGroup.AddItem('选项3');
+  FHCView.InsertItem(vHCRadioGroup);
 end;
 
 procedure TfrmHCViewDemo.mniSaveAsClick(Sender: TObject);

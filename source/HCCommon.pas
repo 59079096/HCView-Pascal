@@ -31,8 +31,9 @@ const
   // 1.4 支持表格单元格边框显示属性的保存和读取
   // 1.5 重构行间距的计算方式
   // 1.6 EditItem增加边框属性
-  HC_FileVersion = '1.6';
-  HC_FileVersionInt = 16;
+  // 1.7 增加了重构后的行间距的存储
+  HC_FileVersion = '1.7';
+  HC_FileVersionInt = 17;
 
   LineSpaceMin = 8;  // 行间距最小值
   PagePadding = 20;  // 节页面显示时之间的间距

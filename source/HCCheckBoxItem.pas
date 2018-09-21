@@ -90,7 +90,7 @@ begin
 
   if FChecked then  // นดัก
   begin
-    ACanvas.Font.Size := 10;
+    //ACanvas.Font.Size := 10;
     //ACanvas.TextOut(vBoxRect.Left, vBoxRect.Top, 'กฬ');
     DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_MENU, DFCS_CHECKED or DFCS_MENUCHECK)
     //DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONCHECK);

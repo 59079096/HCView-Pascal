@@ -315,7 +315,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D000C0110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00100110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1367,6 +1367,10 @@ object frmHCViewDemo: TfrmHCViewDemo
         object mniN44: TMenuItem
           Caption = 'DateTimePicker'
           OnClick = mniN44Click
+        end
+        object mniRadioButton1: TMenuItem
+          Caption = 'RadioGroup'
+          OnClick = mniRadioButton1Click
         end
       end
       object mniN27: TMenuItem

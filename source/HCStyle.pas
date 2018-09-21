@@ -72,6 +72,7 @@ type
     BarCode = -16;
     Fraction = -17;
     DateTimePicker = -18;
+    RadioGroup = -19;
     Custom = -1000;  // 自定义类型分界线
   public
     constructor Create; virtual;

@@ -54,6 +54,7 @@ type
 
     /// <summary> ≤Â»Î∏°∂ØItem </summary>
     function InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
+
     procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
       AEndItemNo, AEndOffset: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;

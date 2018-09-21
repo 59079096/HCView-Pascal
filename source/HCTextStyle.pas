@@ -17,10 +17,10 @@ uses
   Windows, Classes, Graphics, SysUtils;
 
 type
-  TFontStyleEx = (tsBold, tsItalic, tsUnderline, tsStrikeOut, tsSuperscript,
+  THCFontStyle = (tsBold, tsItalic, tsUnderline, tsStrikeOut, tsSuperscript,
     tsSubscript);
 
-  TFontStyleExs = set of TFontStyleEx;
+  THCFontStyles = set of THCFontStyle;
 
   THCTextStyle = class(TPersistent)
   private const
@@ -30,13 +30,13 @@ type
   strict private
     FSize: Single;
     FFamily: TFontName;
-    FFontStyle: TFontStyleExs;
+    FFontStyles: THCFontStyles;
     FColor: TColor;  // ×ÖÌåÑÕÉ«
     FBackColor: TColor;
   protected
     procedure SetFamily(const Value: TFontName);
     procedure SetSize(const Value: Single);
-    procedure SetFontStyle(const Value: TFontStyleExs);
+    procedure SetFontStyles(const Value: THCFontStyles);
   public
     CheckSaveUsed: Boolean;
     TempNo: Integer;
@@ -52,7 +52,7 @@ type
   published
     property Family: TFontName read FFamily write SetFamily stored IsFamilyStored;
     property Size: Single read FSize write SetSize stored IsSizeStored nodefault;
-    property FontStyle: TFontStyleExs read FFontStyle write SetFontStyle default [];
+    property FontStyles: THCFontStyles read FFontStyles write SetFontStyles default [];
     property Color: TColor read FColor write FColor default clBlack;
     property BackColor: TColor read FBackColor write FBackColor default clWhite;
   end;
@@ -78,22 +78,22 @@ begin
     Font.Color := FColor;
     Font.Name := FFamily;
     Font.Size := Round(FSize);
-    if tsBold in FFontStyle then
+    if tsBold in FFontStyles then
       Font.Style := Font.Style + [TFontStyle.fsBold]
     else
       Font.Style := Font.Style - [TFontStyle.fsBold];
 
-    if tsItalic in FFontStyle then
+    if tsItalic in FFontStyles then
       Font.Style := Font.Style + [TFontStyle.fsItalic]
     else
       Font.Style := Font.Style - [TFontStyle.fsItalic];
 
-    if tsUnderline in FFontStyle then
+    if tsUnderline in FFontStyles then
       Font.Style := Font.Style + [TFontStyle.fsUnderline]
     else
       Font.Style := Font.Style - [TFontStyle.fsUnderline];
 
-    if tsStrikeOut in FFontStyle then
+    if tsStrikeOut in FFontStyles then
       Font.Style := Font.Style + [TFontStyle.fsStrikeOut]
     else
       Font.Style := Font.Style - [TFontStyle.fsStrikeOut];
@@ -105,7 +105,7 @@ begin
         vFont.Assign(ACanvas.Font);
         GetObject(vFont.Handle, SizeOf(vLogFont), @vLogFont);
 
-        if (tsSuperscript in FFontStyle) or (tsSubscript in FFontStyle) then
+        if (tsSuperscript in FFontStyles) or (tsSubscript in FFontStyles) then
           vLogFont.lfHeight := -Round(FSize / 2 * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale)
         else
           vLogFont.lfHeight := -Round(FSize * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale);
@@ -122,7 +122,7 @@ end;
 procedure THCTextStyle.AssignEx(const ASource: THCTextStyle);
 begin
   Self.FSize := ASource.Size;
-  Self.FFontStyle := ASource.FontStyle;
+  Self.FFontStyles := ASource.FontStyles;
   Self.FFamily := ASource.Family;
   Self.FColor := ASource.Color;
   Self.FBackColor := ASource.BackColor;
@@ -132,7 +132,7 @@ constructor THCTextStyle.Create;
 begin
   FSize := DefaultFontSize;
   FFamily := DefaultFontFamily;
-  FFontStyle := [];
+  FFontStyles := [];
   FColor := clBlack;
   FBackColor := clNone;
 end;
@@ -147,7 +147,7 @@ function THCTextStyle.EqualsEx(const ASource: THCTextStyle): Boolean;
 begin
   Result :=
     (Self.FSize = ASource.Size)
-    and (Self.FFontStyle = ASource.FontStyle)
+    and (Self.FFontStyles = ASource.FontStyles)
     and (Self.FFamily = ASource.Family)
     and (Self.FColor = ASource.Color)
     and (Self.FBackColor = ASource.BackColor);
@@ -186,7 +186,7 @@ begin
     FFamily := StringOf(vBuffer);
   end;
 
-  AStream.ReadBuffer(FFontStyle, SizeOf(FFontStyle));
+  AStream.ReadBuffer(FFontStyles, SizeOf(FFontStyles));
   AStream.ReadBuffer(FColor, SizeOf(FColor));
   AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
 end;
@@ -204,7 +204,7 @@ begin
   if vSize > 0 then
     AStream.WriteBuffer(vBuffer[0], vSize);
 
-  AStream.WriteBuffer(FFontStyle, SizeOf(FFontStyle));
+  AStream.WriteBuffer(FFontStyles, SizeOf(FFontStyles));
   AStream.WriteBuffer(FColor, SizeOf(FColor));
   AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
 end;
@@ -221,10 +221,10 @@ begin
     FSize := Value;
 end;
 
-procedure THCTextStyle.SetFontStyle(const Value: TFontStyleExs);
+procedure THCTextStyle.SetFontStyles(const Value: THCFontStyles);
 begin
-  if FFontStyle <> Value then
-    FFontStyle := Value;
+  if FFontStyles <> Value then
+    FFontStyles := Value;
 end;
 
 end.

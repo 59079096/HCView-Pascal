@@ -32,11 +32,11 @@ type
 
   TTextStyleMatch = class(TStyleMatch)
   private
-    FFontStyle: TFontStyleEx;
+    FFontStyle: THCFontStyle;
   public
     function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer; override;
     function StyleHasMatch(const AStyle: THCStyle; const ACurStyleNo: Integer): Boolean; override;
-    property FontStyle: TFontStyleEx read FFontStyle write FFontStyle;
+    property FontStyle: THCFontStyle read FFontStyle write FFontStyle;
   end;
 
   TFontNameStyleMatch = class(TStyleMatch)
@@ -155,24 +155,24 @@ begin
     vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
     if FAppend then  // 添加
     begin
-      if not (FFontStyle in vTextStyle.FontStyle) then
+      if not (FFontStyle in vTextStyle.FontStyles) then
       begin
         // 不能同时为上标和下标
-        if FFontStyle = TFontStyleEx.tsSuperscript then
-          vTextStyle.FontStyle := vTextStyle.FontStyle - [TFontStyleEx.tsSubscript]
+        if FFontStyle = THCFontStyle.tsSuperscript then
+          vTextStyle.FontStyles := vTextStyle.FontStyles - [THCFontStyle.tsSubscript]
         else
-        if FFontStyle = TFontStyleEx.tsSubscript then
-          vTextStyle.FontStyle := vTextStyle.FontStyle - [TFontStyleEx.tsSuperscript];
+        if FFontStyle = THCFontStyle.tsSubscript then
+          vTextStyle.FontStyles := vTextStyle.FontStyles - [THCFontStyle.tsSuperscript];
 
-        vTextStyle.FontStyle := vTextStyle.FontStyle + [FFontStyle];
+        vTextStyle.FontStyles := vTextStyle.FontStyles + [FFontStyle];
       end
       else
         Exit(ACurStyleNo);
     end
     else  // 减去
     begin
-      if FFontStyle in vTextStyle.FontStyle then
-        vTextStyle.FontStyle := vTextStyle.FontStyle - [FFontStyle]
+      if FFontStyle in vTextStyle.FontStyles then
+        vTextStyle.FontStyles := vTextStyle.FontStyles - [FFontStyle]
       else
         Exit(ACurStyleNo);
     end;
@@ -193,7 +193,7 @@ begin
   vTextStyle := THCTextStyle.Create;
   try
     vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
-    Result := FFontStyle in vTextStyle.FontStyle;
+    Result := FFontStyle in vTextStyle.FontStyles;
   finally
     vTextStyle.Free;
   end;

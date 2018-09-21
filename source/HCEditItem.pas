@@ -54,7 +54,7 @@ type
 
     procedure SetText(const Value: string); virtual;
   public
-    constructor Create(const AOwnerData: THCCustomData; const AText: string);
+    constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
     property Text: string read FText write SetText;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
     property BorderSides: TBorderSides read FBorderSides write FBorderSides;
@@ -184,10 +184,10 @@ end;
 
 function THCEditItem.GetOffsetAt(const X: Integer): Integer;
 begin
-  if X <= 0 then
+  if X <= FMargin then
     Result := OffsetBefor
   else
-  if X >= Width then
+  if X >= Width - FMargin then
     Result := OffsetAfter
   else
     Result := OffsetInner;

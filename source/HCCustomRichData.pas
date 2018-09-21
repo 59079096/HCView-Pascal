@@ -299,7 +299,7 @@ implementation
 uses
   HCTableItem, HCImageItem, HCCheckBoxItem, HCTabItem, HCLineItem, HCExpressItem,
   HCPageBreakItem, HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem,
-  HCFractionItem, HCDateTimePicker;
+  HCFractionItem, HCDateTimePicker, HCRadioGroup;
 
 { THCCustomRichData }
 
@@ -335,6 +335,7 @@ begin
       THCStyle.BarCode: Result := THCBarCodeItem.Create(Self, '');
       THCStyle.Fraction: Result := THCFractionItem.Create(Self, '', '');
       THCStyle.DateTimePicker: Result := THCDateTimePicker.Create(Self, Now);
+      THCStyle.RadioGroup: Result := THCRadioGroup.Create(Self);
     else
       raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建Item代码！');
     end;

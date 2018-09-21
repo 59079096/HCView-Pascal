@@ -3617,7 +3617,10 @@ begin
     begin
       { TODO -jingtong : 当单元格SelectComplate时，处理全部应用样式 }
       for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
-        Cells[vR, vC].CellData.ApplySelectTextStyle(AMatchStyle);
+      begin
+        if Cells[vR, vC].CellData <> nil then
+          Cells[vR, vC].CellData.ApplySelectTextStyle(AMatchStyle);
+      end;
     end;
   end;
 end;

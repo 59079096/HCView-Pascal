@@ -315,7 +315,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00100110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00280110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1461,6 +1461,17 @@ object frmHCViewDemo: TfrmHCViewDemo
       object mniN16: TMenuItem
         Caption = '-'
       end
+      object mniSplitRow: TMenuItem
+        Caption = #25286#20998#34892
+        OnClick = mniSplitRowClick
+      end
+      object mniSplitCol: TMenuItem
+        Caption = #25286#20998#21015
+        OnClick = mniSplitColClick
+      end
+      object mniN47: TMenuItem
+        Caption = '-'
+      end
       object mniDeleteCurRow: TMenuItem
         Caption = #21024#38500#24403#21069#34892
         OnClick = mniDeleteCurRowClick
@@ -1489,9 +1500,9 @@ object frmHCViewDemo: TfrmHCViewDemo
       Caption = #27573#33853
       OnClick = mniN26Click
     end
-    object mniProp: TMenuItem
+    object mniControlItem: TMenuItem
       Caption = #23646#24615
-      OnClick = mniPropClick
+      OnClick = mniControlItemClick
     end
   end
   object pmLineSpace: TPopupMenu

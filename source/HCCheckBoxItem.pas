@@ -1,6 +1,6 @@
 {*******************************************************}
 {                                                       }
-{               HCView V1.0  作者：荆通                 }
+{               HCView V1.1  作者：荆通                 }
 {                                                       }
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
@@ -38,7 +38,7 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
   public
-    constructor Create(const AOwnerData: THCCustomData; const AText: string; const AChecked: Boolean);
+    constructor Create(const AOwnerData: THCCustomData; const AText: string; const AChecked: Boolean); virtual;
     property Checked: Boolean read FChecked write SetChecked;
     property Text: string read FText write FText;
   end;

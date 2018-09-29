@@ -27,9 +27,6 @@ type
     procedure SetHCView(const AHCView: THCView);
   end;
 
-var
-  frmParagraph: TfrmParagraph;
-
 implementation
 
 uses

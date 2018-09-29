@@ -115,11 +115,14 @@ type
     actCut: TAction;
     actCopy: TAction;
     actPaste: TAction;
-    mniProp: TMenuItem;
+    mniControlItem: TMenuItem;
     mniN43: TMenuItem;
     mniN1151: TMenuItem;
     mniN44: TMenuItem;
     mniRadioButton1: TMenuItem;
+    mniSplitRow: TMenuItem;
+    mniSplitCol: TMenuItem;
+    mniN47: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -182,10 +185,12 @@ type
     procedure actCutExecute(Sender: TObject);
     procedure actCopyExecute(Sender: TObject);
     procedure actPasteExecute(Sender: TObject);
-    procedure mniPropClick(Sender: TObject);
+    procedure mniControlItemClick(Sender: TObject);
     procedure mniN43Click(Sender: TObject);
     procedure mniN44Click(Sender: TObject);
     procedure mniRadioButton1Click(Sender: TObject);
+    procedure mniSplitRowClick(Sender: TObject);
+    procedure mniSplitColClick(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -377,12 +382,12 @@ begin
   begin
     cbbFont.ItemIndex := cbbFont.Items.IndexOf(FHCView.Style.TextStyles[ANewStyleNo].Family);
     cbbFontSize.ItemIndex := cbbFontSize.Items.IndexOf(GetFontSizeStr(FHCView.Style.TextStyles[ANewStyleNo].Size));
-    btnBold.Down := tsBold in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
-    btnItalic.Down := tsItalic in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
-    btnUnderline.Down := tsUnderline in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
-    btnStrikeOut.Down := tsStrikeOut in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
-    btnSuperscript.Down := tsSuperscript in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
-    btnSubscript.Down := tsSubscript in FHCView.Style.TextStyles[ANewStyleNo].FontStyle;
+    btnBold.Down := tsBold in FHCView.Style.TextStyles[ANewStyleNo].FontStyles;
+    btnItalic.Down := tsItalic in FHCView.Style.TextStyles[ANewStyleNo].FontStyles;
+    btnUnderline.Down := tsUnderline in FHCView.Style.TextStyles[ANewStyleNo].FontStyles;
+    btnStrikeOut.Down := tsStrikeOut in FHCView.Style.TextStyles[ANewStyleNo].FontStyles;
+    btnSuperscript.Down := tsSuperscript in FHCView.Style.TextStyles[ANewStyleNo].FontStyles;
+    btnSubscript.Down := tsSubscript in FHCView.Style.TextStyles[ANewStyleNo].FontStyles;
   end
   else
   begin
@@ -419,12 +424,12 @@ end;
 procedure TfrmHCViewDemo.btnBoldClick(Sender: TObject);
 begin
   case (Sender as TToolButton).Tag of
-    0: FHCView.ApplyTextStyle(TFontStyleEx.tsBold);
-    1: FHCView.ApplyTextStyle(TFontStyleEx.tsItalic);
-    2: FHCView.ApplyTextStyle(TFontStyleEx.tsUnderline);
-    3: FHCView.ApplyTextStyle(TFontStyleEx.tsStrikeOut);
-    4: FHCView.ApplyTextStyle(TFontStyleEx.tsSuperscript);
-    5: FHCView.ApplyTextStyle(TFontStyleEx.tsSubscript);
+    0: FHCView.ApplyTextStyle(THCFontStyle.tsBold);
+    1: FHCView.ApplyTextStyle(THCFontStyle.tsItalic);
+    2: FHCView.ApplyTextStyle(THCFontStyle.tsUnderline);
+    3: FHCView.ApplyTextStyle(THCFontStyle.tsStrikeOut);
+    4: FHCView.ApplyTextStyle(THCFontStyle.tsSuperscript);
+    5: FHCView.ApplyTextStyle(THCFontStyle.tsSubscript);
   end;
 end;
 
@@ -860,6 +865,16 @@ begin
   FHCView.InsertItem(vHCDateTimePicker);
 end;
 
+procedure TfrmHCViewDemo.mniSplitRowClick(Sender: TObject);
+begin
+  FHCView.ActiveTableSplitCurRow;
+end;
+
+procedure TfrmHCViewDemo.mniSplitColClick(Sender: TObject);
+begin
+  FHCView.ActiveTableSplitCurCol;
+end;
+
 procedure TfrmHCViewDemo.mniN4Click(Sender: TObject);
 var
   vText: string;
@@ -924,7 +939,7 @@ begin
   end;
 end;
 
-procedure TfrmHCViewDemo.mniPropClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniControlItemClick(Sender: TObject);
 var
   vFrmControlItemProperty: TfrmControlItemProperty;
 begin
@@ -1022,35 +1037,63 @@ end;
 
 procedure TfrmHCViewDemo.pmRichEditPopup(Sender: TObject);
 var
-  vItem: THCCustomItem;
+  vActiveItem, vTopItem: THCCustomItem;
   vTableItem: THCTableItem;
-  vData: THCCustomRichData;
+  vActiveData, vTopData: THCCustomData;
 begin
-  vData := FHCView.ActiveSection.ActiveData;
-  vItem := vData.GetCurItem;
+  vActiveData := FHCView.ActiveSection.ActiveData;
+  vActiveItem := vActiveData.GetCurItem;
 
-  if vItem = nil then Exit;
+  //if vActiveItem = nil then Exit;
 
-  mniTable.Enabled := vItem.StyleNo = THCStyle.Table;
+  vTopData := nil;
+  vTopItem := vActiveItem;
+
+  while vTopItem is THCCustomRectItem do
+  begin
+    if (vTopItem as THCCustomRectItem).GetActiveData <> nil then
+    begin
+      if vTopData <> nil then
+      begin
+        vActiveData := vTopData;
+        vActiveItem := vTopItem;
+      end;
+
+      vTopData := (vTopItem as THCCustomRectItem).GetActiveData;
+      vTopItem := vTopData.GetCurItem;
+    end
+    else
+      Break;
+  end;
+
+  if vTopData = nil then
+    vTopData := vActiveData;
+
+  mniTable.Enabled := vActiveItem.StyleNo = THCStyle.Table;
   if mniTable.Enabled then
   begin
-    vTableItem := vItem as THCTableItem;
+    vTableItem := vActiveItem as THCTableItem;
     mniInsertRowTop.Enabled := vTableItem.GetEditCell <> nil;
     mniInsertRowBottom.Enabled := mniInsertRowTop.Enabled;
     mniInsertColLeft.Enabled := mniInsertRowTop.Enabled;
     mniInsertColRight.Enabled := mniInsertRowTop.Enabled;
+    mniSplitRow.Enabled := mniInsertRowTop.Enabled;
+    mniSplitCol.Enabled := mniInsertRowTop.Enabled;
+
     mniDeleteCurRow.Enabled := vTableItem.CurRowCanDelete;
     mniDeleteCurCol.Enabled := vTableItem.CurColCanDelete;
     mniMerge.Enabled := vTableItem.SelectedCellCanMerge;
   end;
-  actCut.Enabled := (not FHCView.ActiveSection.ReadOnly) and vData.SelectExists;
+  actCut.Enabled := (not FHCView.ActiveSection.ReadOnly) and vTopData.SelectExists;
   actCopy.Enabled := actCut.Enabled;
   actPaste.Enabled := (not FHCView.ActiveSection.ReadOnly)  // ∑«÷ª∂¡
     and (Clipboard.HasFormat(HC_FILEFORMAT)
          or Clipboard.HasFormat(CF_TEXT)
          or Clipboard.HasFormat(CF_BITMAP));
-  mniProp.Visible := (not FHCView.ActiveSection.ReadOnly) and (not vData.SelectExists)
-    and (vItem is THCControlItem) and vItem.Active;
+  mniControlItem.Visible := (not FHCView.ActiveSection.ReadOnly) and (not vTopData.SelectExists)
+    and (vTopItem is THCControlItem) and vTopItem.Active;
+  if mniControlItem.Visible then
+    mniControlItem.Caption := ' Ù–‘(' + (vTopItem as THCControlItem).ClassName + ')';
 end;
 
 procedure TfrmHCViewDemo.SetFileName(const AFileName: string);

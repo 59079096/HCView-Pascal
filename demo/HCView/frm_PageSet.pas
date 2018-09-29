@@ -40,9 +40,6 @@ type
     procedure SetHCView(const AHCView: THCView);
   end;
 
-var
-  frmPageSet: TfrmPageSet;
-
 implementation
 
 uses

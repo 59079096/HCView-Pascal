@@ -43,9 +43,6 @@ type
     procedure SetHCView(const AHCView: THCView);
   end;
 
-var
-  frmTableProperty: TfrmTableProperty;
-
 implementation
 
 uses

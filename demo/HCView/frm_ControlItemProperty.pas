@@ -67,13 +67,19 @@ uses
 procedure TfrmControlItemProperty.btnAddClick(Sender: TObject);
 begin
   if edtValue.Text <> '' then
+  begin
     lstCombobox.Items.Add(edtValue.Text);
+    edtValue.Clear;
+  end;
 end;
 
 procedure TfrmControlItemProperty.btnAddRadioItemClick(Sender: TObject);
 begin
   if edtRadioValue.Text <> '' then
+  begin
     lstRadioItem.Items.Add(edtRadioValue.Text);
+    edtRadioValue.Clear;
+  end;
 end;
 
 procedure TfrmControlItemProperty.btnDeleteClick(Sender: TObject);

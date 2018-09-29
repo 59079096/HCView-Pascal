@@ -1,6 +1,6 @@
 {*******************************************************}
 {                                                       }
-{               HCView V1.0  作者：荆通                 }
+{               HCView V1.1  作者：荆通                 }
 {                                                       }
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
@@ -253,7 +253,7 @@ type
   public
     //DrawItem: TCustomDrawItem;
     constructor Create(const AOwnerData: TCustomData; const ARowCount, AColCount,
-      AWidth: Integer);
+      AWidth: Integer); virtual;
     destructor Destroy; override;
 
     /// <summary> 当前位置开始查找指定的内容 </summary>
@@ -312,6 +312,8 @@ type
     function InsertColBefor(const ACount: Integer): Boolean;
     function DeleteCurCol: Boolean;
     function DeleteCurRow: Boolean;
+    function SplitCurRow: Boolean;
+    function SplitCurCol: Boolean;
 
     property Cells[ARow, ACol: Integer]: THCTableCell read GetCells;
     property Rows: TTableRows read FRows;
@@ -2414,7 +2416,6 @@ begin
   Result := False;
   { TODO : 根据各行当前列平均减少一定的宽度给要插入的列 }
   vWidth := MinColWidth - FBorderWidth;
-
   for i := 0 to ACount - 1 do
   begin
     for vRow := 0 to RowCount - 1 do
@@ -2435,7 +2436,8 @@ begin
         for j := ACol to viDestCol + Cells[viDestRow, viDestCol].ColSpan do  // 后续列离目标远1
           FRows[vRow].Cols[j].ColSpan := FRows[vRow].Cols[j].ColSpan - 1;  // 离目标列远1
 
-        FRows[viDestRow].Cols[viDestCol].ColSpan := FRows[viDestRow].Cols[viDestCol].ColSpan + 1;
+        if vRow = viDestRow + FRows[viDestRow].Cols[viDestCol].RowSpan then  // 合并范围内的行都插入完后，再将目标列范围扩大，否则提前扩大了其他行原位置远离目标时取的范围会越界
+          FRows[viDestRow].Cols[viDestCol].ColSpan := FRows[viDestRow].Cols[viDestCol].ColSpan + 1;
       end;
       FRows[vRow].Insert(ACol, vCell);
     end;
@@ -2506,14 +2508,17 @@ begin
       if (ARow < FRows.Count) and (FRows[ARow].Cols[vCol].RowSpan < 0) then  // 在合并的源单元格前面插入
       begin
         GetDestCell(ARow, vCol, viDestRow, viDestCol);
+        
         vTableRow.Cols[vCol].CellData.Free;
         vTableRow.Cols[vCol].CellData := nil;
         vTableRow.Cols[vCol].RowSpan := FRows[ARow].Cols[vCol].RowSpan;
+        vTableRow.Cols[vCol].ColSpan := FRows[ARow].Cols[vCol].ColSpan;
 
         for j := ARow to viDestRow + Cells[viDestRow, viDestCol].RowSpan do  // 目标的行跨度 - 已经跨的
           FRows[j].Cols[vCol].RowSpan := FRows[j].Cols[vCol].RowSpan - 1;  // 离目标行远1
 
-        FRows[viDestRow].Cols[viDestCol].RowSpan := FRows[viDestRow].Cols[viDestCol].RowSpan + 1;  // 目标行包含的合并源增加1
+        if vCol = viDestCol + Cells[viDestRow, viDestCol].ColSpan then
+          FRows[viDestRow].Cols[viDestCol].RowSpan := FRows[viDestRow].Cols[viDestCol].RowSpan + 1;  // 目标行包含的合并源增加1
       end;
     end;
     FRows.Insert(ARow, vTableRow);
@@ -3436,6 +3441,292 @@ end;
 procedure THCTableItem.SetResizing(const Value: Boolean);
 begin
   inherited SetResizing(Value);
+end;
+
+function THCTableItem.SplitCurCol: Boolean;
+var
+  i, vR, vCurRow, vCurCol,
+  vDestRow, vDestCol, vSrcRow, vSrcCol: Integer;
+  vLeftCell: THCTableCell;
+begin
+  Result := False;
+
+  // 借用 vLeftCell 变量
+  vLeftCell := GetEditCell;
+  if vLeftCell = nil then Exit;
+  vLeftCell.CellData.InitializeField;
+
+  vCurRow := FSelectCellRang.StartRow;
+  vCurCol := FSelectCellRang.StartCol;
+
+  // 拆分时，光标所单元格RowSpan>=0，ColSpan>=0
+  if Cells[vCurRow, vCurCol].ColSpan > 0 then  // 拆分时光标所在的单元格是列合并目标，将合并拆开
+  begin
+    GetSourceCell(vCurRow, vCurCol, vSrcRow, vSrcCol);  // 得到范围
+
+    Cells[vCurRow, vCurCol].ColSpan := 0;  // 合并目标不再向右合并单元格了
+    for i := vCurCol + 1 to vSrcCol do  // 目标列同行右侧的重新设置合并目标
+    begin
+      for vR := vCurRow to vSrcRow do  // 遍历拆分前光标所在的行各列
+        Cells[vR, i].ColSpan := Cells[vR, i].ColSpan + 1;
+    end;
+
+    // 原合并目标单元格右侧的单元格作为拆分后，右侧合并源的新目标
+    Cells[vCurRow, vCurCol + 1].CellData := THCTableCellData.Create(OwnerData.Style);
+    Cells[vCurRow, vCurCol + 1].RowSpan := vSrcRow - vCurRow;
+    Cells[vCurRow, vCurCol + 1].ColSpan := vSrcCol - (vCurCol + 1);
+  end
+  else  // Cells[vCurRow, vCurCol].ColSpan = 0 拆分时光标所在单元格是普通单元格
+  if InsertCol(vCurCol + 1, 1) then  // 右侧插入列
+  begin
+    vR := 0;
+    while vR < Self.RowCount do
+    begin
+      vLeftCell := Cells[vR, vCurCol];
+
+      if vR = vCurRow then  // 拆分时光标所在行，此时vLeftCell.ColSpan = 0
+      begin
+        if vLeftCell.RowSpan > 0 then  // 前面是行合并目标
+        begin
+          vSrcRow := vCurRow + vLeftCell.RowSpan;
+          while vR <= vSrcRow do
+          begin
+            Cells[vR, vCurCol + 1].RowSpan := Cells[vR, vCurCol].RowSpan;
+            if Cells[vR, vCurCol + 1].RowSpan < 0 then
+            begin
+              Cells[vR, vCurCol + 1].CellData.Free;
+              Cells[vR, vCurCol + 1].CellData := nil;
+            end;
+
+            Inc(vR);
+          end;
+        end
+        else  // vLeftCell.RowSpan < 0 的在RowSpan > 0 里处理了，vLeftCell.RowSpan = 0 不需要处理
+          Inc(vR);
+      end
+      else  // vR <> vCurRow
+      begin
+        if vLeftCell.RowSpan = 0 then
+        begin
+          if vLeftCell.ColSpan = 0 then  // 左侧是普通单元格
+          begin
+            Cells[vR, vCurCol + 1].CellData.Free;
+            Cells[vR, vCurCol + 1].CellData := nil;
+            Cells[vR, vCurCol + 1].ColSpan := -1;
+            vLeftCell.ColSpan := 1;
+            Inc(vR);
+          end
+          else
+          if vLeftCell.ColSpan < 0 then  // 同行合并的源列
+          begin
+            vDestCol := vCurCol + vLeftCell.ColSpan;  // 目标列
+            vSrcCol := vDestCol + Cells[vR, vDestCol].ColSpan;
+            if vCurCol = vSrcCol then  // 左侧是合并范围最后，插入的需要合并进前面
+            begin
+              Cells[vR, vCurCol + 1].CellData.Free;
+              Cells[vR, vCurCol + 1].CellData := nil;
+              Cells[vR, vCurCol + 1].ColSpan := vLeftCell.ColSpan - 1;
+              Cells[vR, vDestCol].ColSpan := Cells[vR, vDestCol].ColSpan + 1;
+            end;
+            
+            Inc(vR);
+          end
+          else  // vLeftCell.ColSpan > 0 左侧是同行合并目标，由右侧插入列处理了插入列的合并
+            Inc(vR);
+        end
+        else
+        if vLeftCell.RowSpan > 0 then  // 合并目标
+        begin
+          if vLeftCell.ColSpan = 0 then  // 同列合并，右侧插入的合并到目标
+          begin
+            vLeftCell.ColSpan := 1;
+            vDestRow := vR;
+            vSrcRow := vR + vLeftCell.RowSpan;
+
+            while vR <= vSrcRow do
+            begin
+              Cells[vR, vCurCol + 1].CellData.Free;
+              Cells[vR, vCurCol + 1].CellData := nil;
+              Cells[vR, vCurCol + 1].RowSpan := vDestRow - vR;
+              Cells[vR, vCurCol + 1].ColSpan := -1;
+              Inc(vR);
+            end;
+          end
+          else  // 合并目标不可能 vLeftCell.ColSpan < 0，vLeftCell.ColSpan > 0由右侧插入列处理了合并
+            Inc(vR);
+        end
+        else  // vLeftCell.RowSpan < 0 的情况，由目标单元格在vLeftCell.RowSpan > 0中处理了
+          Inc(vR);
+      end;
+    end;
+  end;
+
+  Result := True;
+end;
+
+function THCTableItem.SplitCurRow: Boolean;
+var
+  i, vC, vCurRow, vCurCol,
+  vDestRow, vDestCol, vSrcRow, vSrcCol: Integer;
+  vTopCell: THCTableCell;
+begin
+  Result := False;
+
+  // 借用 vTopCell 变量
+  vTopCell := GetEditCell;
+  if vTopCell = nil then Exit;
+  vTopCell.CellData.InitializeField;
+
+  vCurRow := FSelectCellRang.StartRow;
+  vCurCol := FSelectCellRang.StartCol;
+
+  // 拆分时，光标所单元格RowSpan>=0，ColSpan>=0
+  if Cells[vCurRow, vCurCol].RowSpan > 0 then  // 拆分时光标所在的单元格是行合并目标，将合并拆开
+  begin
+    GetSourceCell(vCurRow, vCurCol, vSrcRow, vSrcCol);  // 得到范围
+
+    Cells[vCurRow, vCurCol].RowSpan := 0;  // 目标不再向下合并单元格了
+    for i := vCurRow + 1 to vSrcRow do  // 从目标行下一行开始，重新设置合并目标
+    begin
+      for vC := vCurCol to vSrcCol do  // 遍历拆分前光标所在的行各列
+        Cells[i, vC].RowSpan := Cells[i, vC].RowSpan + 1;
+    end;
+
+    // 原合并目标单元格正下面的单元格作为拆分后，下面合并源的新目标
+    Cells[vCurRow + 1, vCurCol].CellData := THCTableCellData.Create(OwnerData.Style);
+    Cells[vCurRow + 1, vCurCol].RowSpan := vSrcRow - (vCurRow + 1);
+    Cells[vCurRow + 1, vCurCol].ColSpan := vSrcCol - vCurCol;
+  end
+  else  // Cells[vCurRow, vCurCol].RowSpan = 0 拆分时光标所在单元格是普通单元格
+  if InsertRow(vCurRow + 1, 1) then  // 下面插入行
+  begin
+    vC := 0;
+    while vC < Self.ColCount do
+    begin
+      vTopCell := Cells[vCurRow, vC];
+
+      if vC = vCurCol then  // 拆分时光标所在列，此时vTopCell.RowSpan = 0
+      begin
+        if vTopCell.ColSpan > 0 then  // 前面是列合并目标
+        begin
+          vSrcCol := vCurCol + vTopCell.ColSpan;
+          while vC <= vSrcCol do
+          begin
+            Cells[vCurRow + 1, vC].ColSpan := Cells[vCurRow + 1, vC].ColSpan;
+            if Cells[vCurRow + 1, vC].ColSpan < 0 then
+            begin
+              Cells[vCurRow + 1, vC].CellData.Free;
+              Cells[vCurRow + 1, vC].CellData := nil;
+            end;
+
+            Inc(vC);
+          end;
+        end
+        else  // vLeftCell.ColSpan < 0 的在ColSpan > 0 里处理了，vLeftCell.ColSpan = 0 不需要处理
+          Inc(vC);
+      end
+      else  // vC <> vCurCol
+      begin
+        if vTopCell.ColSpan = 0 then
+        begin
+          if vTopCell.RowSpan = 0 then  // 上面是普通单元格
+          begin
+            Cells[vCurRow + 1, vC].CellData.Free;
+            Cells[vCurRow + 1, vC].CellData := nil;
+            Cells[vCurRow + 1, vC].RowSpan := -1;
+            vTopCell.RowSpan := 1;
+            Inc(vC);
+          end
+          else
+          if vTopCell.RowSpan < 0 then  // 同列合并的源列
+          begin
+            vDestRow := vCurRow + vTopCell.RowSpan;  // 目标行
+            vSrcRow := vDestRow + Cells[vDestROW, vC].RowSpan;
+            if vCurRow = vSrcRow then  // 上面是合并范围最后，插入的需要合并进上面
+            begin
+              Cells[vCurRow + 1, vC].CellData.Free;
+              Cells[vCurRow + 1, vC].CellData := nil;
+              Cells[vCurRow + 1, vC].RowSpan := vTopCell.RowSpan - 1;
+              Cells[vDestRow, vC].RowSpan := Cells[vDestRow, vC].RowSpan + 1;
+            end;
+
+            Inc(vC);
+          end
+          else  // vTopCell.RowSpan > 0 上面是同行合并目标，由上面插入行处理了插入行的合并
+            Inc(vC);
+        end
+        else
+        if vTopCell.ColSpan > 0 then  // 合并目标
+        begin
+          if vTopCell.RowSpan = 0 then  // 同行合并，下面插入的合并到目标
+          begin
+            vTopCell.RowSpan := 1;
+            vDestCol := vC;
+            vSrcCol := vC + vTopCell.ColSpan;
+
+            while vC <= vSrcCol do
+            begin
+              Cells[vCurRow + 1, vC].CellData.Free;
+              Cells[vCurRow + 1, vC].CellData := nil;
+              Cells[vCurRow + 1, vC].ColSpan := vDestCol - vC;
+              Cells[vCurRow + 1, vC].RowSpan := -1;
+              Inc(vC);
+            end;
+          end
+          else  // 合并目标不可能 vTopCell.RowSpan < 0，vTopCell.RowSpan > 0由上面插入行处理了合并
+            Inc(vC);
+        end
+        else  // vLeftCell.ColSpan < 0 的情况，由目标单元格在vLeftCell.ColSpan > 0中处理了
+          Inc(vC);
+      end;
+    end;
+
+
+
+    {for vC := 0 to Self.ColCount - 1 do  // 遍历拆分前光标所在的行各列
+    begin
+      vTopCell := Cells[vCurRow, vC];
+      if vTopCell.RowSpan > 0 then  // 合并目标已经在插入行方法中处理了合并
+      begin
+
+      end
+      else
+      if vTopCell.RowSpan < 0 then  // 合并源
+      begin
+        if vTopCell.ColSpan = 0 then  // 多单元格合并，只在起始列处理目标单元格列合并范围的增加
+        begin
+          GetDestCell(vCurRow, vC, vDestRow, vDestCol);  // 得到目标
+          GetSourceCell(vDestRow, vDestCol, vSrcRow, vSrcCol);  // 得到范围
+
+          if vCurRow = vSrcRow then  // 只在范围最后一行(拆分)下面插入的才处理合并，中间(拆分)插入的已经在插入行方法中处理了合并
+          begin
+            Cells[vDestRow, vDestCol].RowSpan := Cells[vDestRow, vDestCol].RowSpan + 1;  // 目标行合并范围增1
+
+            for i := vC to vSrcCol do  // 合并范围最后一行新插入的行各列要清除CellData
+            begin
+              Cells[vCurRow + 1, i].CellData.Free;
+              Cells[vCurRow + 1, i].CellData := nil;
+              Cells[vCurRow + 1, i].RowSpan := vDestRow - (vCurRow + 1);
+              Cells[vCurRow + 1, i].ColSpan := vC - i;
+            end;
+          end;
+        end;
+      end
+      else
+      if vTopCell.RowSpan = 0 then  // 普通单元格
+      begin
+        if vC <> vCurCol then
+        begin
+          Cells[vCurRow + 1, vC].CellData.Free;
+          Cells[vCurRow + 1, vC].CellData := nil;
+          Cells[vCurRow + 1, vC].RowSpan := -1;
+          Cells[vCurRow, vC].RowSpan := 1;
+        end;
+      end;
+    end;}
+  end;
+
+  Result := True;
 end;
 
 procedure THCTableItem.SelectComplate;

@@ -1,6 +1,6 @@
 {*******************************************************}
 {                                                       }
-{               HCView V1.0  作者：荆通                 }
+{               HCView V1.1  作者：荆通                 }
 {                                                       }
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-8-17             }
@@ -106,7 +106,7 @@ type
 
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
-    function DoDataCreateStyleItem(const AStyleNo: Integer): THCCustomItem;
+    function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
     procedure DoDataCreateItem(Sender: TObject);
     function DoDataGetUndoList: THCUndoList;
 
@@ -245,6 +245,8 @@ type
     function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
     function ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
     function ActiveTableDeleteCurRow: Boolean;
+    function ActiveTableSplitCurRow: Boolean;
+    function ActiveTableSplitCurCol: Boolean;
     function ActiveTableInsertColAfter(const AColCount: Byte): Boolean;
     function ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
     function ActiveTableDeleteCurCol: Boolean;
@@ -444,6 +446,22 @@ begin
     end);
 end;
 
+function THCCustomSection.ActiveTableSplitCurCol: Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.ActiveTableSplitCurCol;
+    end);
+end;
+
+function THCCustomSection.ActiveTableSplitCurRow: Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.ActiveTableSplitCurRow;
+    end);
+end;
+
 procedure THCCustomSection.ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
 begin
   ActiveDataChangeByAction(function(): Boolean
@@ -632,10 +650,11 @@ begin
     FOnCreateItem(Sender);
 end;
 
-function THCCustomSection.DoDataCreateStyleItem(const AStyleNo: Integer): THCCustomItem;
+function THCCustomSection.DoDataCreateStyleItem(const AData: THCCustomData;
+  const AStyleNo: Integer): THCCustomItem;
 begin
   if Assigned(FOnCreateItemByStyle) then
-    Result := FOnCreateItemByStyle(AStyleNo)
+    Result := FOnCreateItemByStyle(AData, AStyleNo)
   else
     Result := nil;
 end;

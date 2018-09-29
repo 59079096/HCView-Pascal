@@ -1,6 +1,6 @@
 {*******************************************************}
 {                                                       }
-{               HCView V1.0  作者：荆通                 }
+{               HCView V1.1  作者：荆通                 }
 {                                                       }
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
@@ -93,6 +93,7 @@ type
     procedure SetSymmetryMargin(const Value: Boolean);
     procedure DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
       var ScrollPos: Integer);
+    function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
     //
     function NewDefaultSection: THCSection;
 
@@ -143,7 +144,6 @@ type
     /// <summary> 文档"背板"变动(数据无变化，如对称边距，缩放视图) </summary>
     procedure DoMapChanged;
     procedure DoChange; virtual;
-    function DoSectionCreateStyleItem(const AStyleNo: Integer): THCCustomItem;
     procedure DoSectionCreateItem(Sender: TObject);
     procedure DoSectionReadOnlySwitch(Sender: TObject);
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
@@ -292,6 +292,9 @@ type
 
     /// <summary> 当前表格删除选中的行 </summary>
     function ActiveTableDeleteCurRow: Boolean;
+
+    function ActiveTableSplitCurRow: Boolean;
+    function ActiveTableSplitCurCol: Boolean;
 
     /// <summary> 当前表格选中列左侧插入列 </summary>
     function ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
@@ -611,6 +614,8 @@ type
 
     /// <summary> 窗口重绘结束后触发 </summary>
     property OnUpdateViewAfter: TPaintEvent read FOnUpdateViewAfter write FOnUpdateViewAfter;
+
+    property OnSectionCreateStyleItem: TStyleItemEvent read FOnSectionCreateStyleItem write FOnSectionCreateStyleItem;
 
     property PopupMenu;
   end;
@@ -1045,11 +1050,10 @@ begin
     FOnSectionCreateItem(Sender);
 end;
 
-function THCView.DoSectionCreateStyleItem(
-  const AStyleNo: Integer): THCCustomItem;
+function THCView.DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
 begin
   if Assigned(FOnSectionCreateStyleItem) then
-    Result := FOnSectionCreateStyleItem(AStyleNo)
+    Result := FOnSectionCreateStyleItem(AData, AStyleNo)
   else
     Result := nil;
 end;
@@ -1458,6 +1462,16 @@ end;
 function THCView.ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
 begin
   Result := ActiveSection.ActiveTableInsertRowBefor(ARowCount);
+end;
+
+function THCView.ActiveTableSplitCurCol: Boolean;
+begin
+  Result := ActiveSection.ActiveTableSplitCurCol;
+end;
+
+function THCView.ActiveTableSplitCurRow: Boolean;
+begin
+  Result := ActiveSection.ActiveTableSplitCurRow;
 end;
 
 function THCView.ActiveSectionTopLevelData: THCCustomRichData;

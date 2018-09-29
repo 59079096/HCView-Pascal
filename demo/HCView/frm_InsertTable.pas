@@ -20,9 +20,6 @@ type
     { Public declarations }
   end;
 
-var
-  frmInsertTable: TfrmInsertTable;
-
 implementation
 
 {$R *.dfm}

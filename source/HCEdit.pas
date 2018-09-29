@@ -1,6 +1,6 @@
 {*******************************************************}
 {                                                       }
-{               HCView V1.0  作者：荆通                 }
+{               HCView V1.1  作者：荆通                 }
 {                                                       }
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
@@ -96,7 +96,7 @@ type
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
-    procedure ApplyTextStyle(const AFontStyle: TFontStyleEx);
+    procedure ApplyTextStyle(const AFontStyle: THCFontStyle);
     procedure ApplyTextFontName(const AFontName: TFontName);
     procedure ApplyTextFontSize(const AFontSize: Single);
     procedure ApplyTextColor(const AColor: TColor);
@@ -167,7 +167,7 @@ begin
   CheckUpdateInfo;
 end;
 
-procedure THCEdit.ApplyTextStyle(const AFontStyle: TFontStyleEx);
+procedure THCEdit.ApplyTextStyle(const AFontStyle: THCFontStyle);
 begin
   FData.ApplyTextStyle(AFontStyle);
   CheckUpdateInfo;

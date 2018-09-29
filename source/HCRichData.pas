@@ -1,6 +1,6 @@
 {*******************************************************}
 {                                                       }
-{               HCView V1.0  作者：荆通                 }
+{               HCView V1.1  作者：荆通                 }
 {                                                       }
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
@@ -35,7 +35,7 @@ type
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
-  TStyleItemEvent = function (const AStyleNo: Integer): THCCustomItem of object;
+  TStyleItemEvent = function (const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem of object;
 
   THCRichData = class(THCUndoRichData)  // 富文本数据类，可做为其他显示富文本类的基类
   private
@@ -245,7 +245,7 @@ begin
   Result := nil;
 
   if Assigned(FOnCreateItemByStyle) then  // 自定义的类型在此处解析
-    Result := FOnCreateItemByStyle(AStyleNo);
+    Result := FOnCreateItemByStyle(Self, AStyleNo);
 
   if not Assigned(Result) then
     Result := inherited CreateItemByStyle(AStyleNo);

@@ -1,6 +1,6 @@
 {*******************************************************}
 {                                                       }
-{               HCView V1.0  作者：荆通                 }
+{               HCView V1.1  作者：荆通                 }
 {                                                       }
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
@@ -54,7 +54,7 @@ type
     property TopRect: TRect read FTopRect write FTopRect;
     property BottomRect: TRect read FBottomRect write FBottomRect;
   public
-    constructor Create(const AOwnerData: THCCustomData; const ATopText, ABottomText: string);
+    constructor Create(const AOwnerData: THCCustomData; const ATopText, ABottomText: string); virtual;
     property Padding: Byte read FPadding;
     property LineHide: Boolean read FLineHide write FLineHide;
 

@@ -1,6 +1,6 @@
 {*******************************************************}
 {                                                       }
-{               HCView V1.0  作者：荆通                 }
+{               HCView V1.1  作者：荆通                 }
 {                                                       }
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
@@ -249,6 +249,8 @@ type
     function TableInsertRowAfter(const ARowCount: Byte): Boolean;
     function TableInsertRowBefor(const ARowCount: Byte): Boolean;
     function ActiveTableDeleteCurRow: Boolean;
+    function ActiveTableSplitCurRow: Boolean;
+    function ActiveTableSplitCurCol: Boolean;
     function TableInsertColAfter(const AColCount: Byte): Boolean;
     function TableInsertColBefor(const AColCount: Byte): Boolean;
     function ActiveTableDeleteCurCol: Boolean;
@@ -1387,6 +1389,26 @@ begin
   Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
     begin
       Result := (AItem as THCTableItem).DeleteCurRow;
+    end);
+end;
+
+function THCCustomRichData.ActiveTableSplitCurCol: Boolean;
+begin
+  if not CanEdit then Exit(False);
+
+  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+    begin
+      Result := (AItem as THCTableItem).SplitCurCol;
+    end);
+end;
+
+function THCCustomRichData.ActiveTableSplitCurRow: Boolean;
+begin
+  if not CanEdit then Exit(False);
+
+  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+    begin
+      Result := (AItem as THCTableItem).SplitCurRow;
     end);
 end;
 

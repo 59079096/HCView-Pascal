@@ -123,6 +123,7 @@ type
     mniSplitRow: TMenuItem;
     mniSplitCol: TMenuItem;
     mniN47: TMenuItem;
+    mniN45: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -191,6 +192,7 @@ type
     procedure mniRadioButton1Click(Sender: TObject);
     procedure mniSplitRowClick(Sender: TObject);
     procedure mniSplitColClick(Sender: TObject);
+    procedure mniN45Click(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -218,8 +220,9 @@ uses
   frm_InsertTable, frm_PageSet, HCStyle, HCRectItem, HCTableItem, HCTextItem,
   HCDrawItem, HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem,
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
-  HCDateTimePicker, HCRadioGroup, EmrToothItem, EmrFangJiaoItem, frm_Paragraph, frm_TableProperty,
-  frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_TableBorderBackColor;
+  HCDateTimePicker, HCSupSubScript, HCRadioGroup, EmrToothItem, EmrFangJiaoItem,
+  frm_Paragraph, frm_TableProperty, frm_SearchAndReplace, frm_PrintView,
+  frm_ControlItemProperty, frm_TableBorderBackColor;
 
 {$R *.dfm}
 
@@ -863,6 +866,14 @@ var
 begin
   vHCDateTimePicker := THCDateTimePicker.Create(FHCView.ActiveSectionTopLevelData, Now);
   FHCView.InsertItem(vHCDateTimePicker);
+end;
+
+procedure TfrmHCViewDemo.mniN45Click(Sender: TObject);
+var
+  vSupSubScriptItem: THCSupSubScriptItem;
+begin
+  vSupSubScriptItem := THCSupSubScriptItem.Create(FHCView.ActiveSectionTopLevelData, '20g', 'ох╪Е');
+  FHCView.InsertItem(vSupSubScriptItem);
 end;
 
 procedure TfrmHCViewDemo.mniSplitRowClick(Sender: TObject);

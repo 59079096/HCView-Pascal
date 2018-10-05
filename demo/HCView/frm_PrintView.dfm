@@ -53,7 +53,7 @@ object frmPrintView: TfrmPrintView
     end
     object btnPrint: TButton
       Left = 20
-      Top = 159
+      Top = 157
       Width = 246
       Height = 50
       Caption = #25171#21360
@@ -108,6 +108,7 @@ object frmPrintView: TfrmPrintView
       Top = 121
       Width = 201
       Height = 21
+      ImeMode = imClose
       TabOrder = 5
       Visible = False
     end

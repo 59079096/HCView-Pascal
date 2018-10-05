@@ -97,9 +97,9 @@ begin
     lpti.Rect := vRect;
     lpti.lpszText := Text;
     SendMessage(FTooltipHandle, TTM_ADDTOOL, 0, Integer(lpti));
-    FillChar(FBuffer, sizeof(FBuffer),   #0);
+    FillChar(FBuffer, sizeof(FBuffer), #0);
     lstrcpy(FBuffer, Title);
-    if (IconType > 3) or (IconType  <  0) then
+    if (IconType > 3) or (IconType < 0) then
       IconType := 0;
 
     if BackColor <> 0 then
@@ -163,15 +163,38 @@ var
     end;
   end;
 
+  procedure GetPageRange(var AStar, AEnd: Integer);
+  var
+    vLst1: TStringList;
+  begin
+    vLst1 := TStringList.Create;
+    try
+      vLst1.Delimiter := '-';
+      vLst1.DelimitedText := edtPrintPageNos.Text;
+      AStar := StrToIntDef(vLst1[0], 1) - 1;
+      AEnd := StrToIntDef(vLst1[1], FHCView.PageCount) - 1;
+    finally
+      FreeAndNil(vLst1);
+    end;
+  end;
+
 var
-  i: Integer;
+  i, vRangeStar, vRangeEnd: Integer;
 begin
   case cbbPage.ItemIndex of
     0: FHCView.Print(cbbPrinter.Text, StrToIntDef(edtCopies.Text, 1));  // 全部页
     1: FHCView.Print(cbbPrinter.Text, FPageIndex, FPageIndex, StrToIntDef(edtCopies.Text, 1));  // 当前页
-    2:
+    2:  // 奇数页
       begin
-        for i := 0 to FHCView.PageCount - 1 do
+        if edtPrintPageNos.Text <> '' then
+          GetPageRange(vRangeStar, vRangeEnd)
+        else
+        begin
+          vRangeStar := 0;
+          vRangeEnd := FHCView.PageCount - 1;
+        end;
+
+        for i := vRangeStar to vRangeEnd do
         begin
           if not Odd(i) then  // 偶数序号是奇数页
           begin
@@ -183,9 +206,17 @@ begin
         FHCView.Print(cbbPrinter.Text, StrToIntDef(edtCopies.Text, 1), vPages);  // 奇数页
       end;
 
-    3:
+    3:  // 偶数页
       begin
-        for i := 0 to FHCView.PageCount - 1 do
+        if edtPrintPageNos.Text <> '' then
+          GetPageRange(vRangeStar, vRangeEnd)
+        else
+        begin
+          vRangeStar := 0;
+          vRangeEnd := FHCView.PageCount - 1;
+        end;
+
+        for i := vRangeStar to vRangeEnd do
         begin
           if Odd(i) then  // 奇数序号是偶数页
           begin
@@ -206,7 +237,31 @@ end;
 
 procedure TfrmPrintView.cbbPageChange(Sender: TObject);
 begin
-  edtPrintPageNos.Visible := cbbPage.ItemIndex = cbbPage.Items.Count - 1;  // 最后一个是自定义页码
+  edtPrintPageNos.Visible := False;
+
+  if cbbPage.ItemIndex in [2, 3] then  // 2奇数页 3偶数页
+  begin
+    edtPrintPageNos.Clear;
+    edtPrintPageNos.Visible := True;
+
+    if cbbPage.ItemIndex = 2 then
+      FToolInfo.lpszText := '设置打印指定范围内的奇数页，如 3-10 打印第3、5、7、9页' + #13 + '空表示不限制范围'
+    else
+      FToolInfo.lpszText := '设置打印指定范围内的偶数数页，如 2-7 打印第2、4、6页' + #13 + '空表示不限制范围';
+
+    SendMessage(FTooltipHandle, TTM_SETTOOLINFO, 0, Integer(@FToolInfo));
+  end
+  else
+  if cbbPage.ItemIndex = cbbPage.Items.Count - 1 then // 最后一个是自定义页码
+  begin
+    edtPrintPageNos.Clear;
+    edtPrintPageNos.Visible := True;
+
+    FToolInfo.lpszText := '单页以英文逗号“,”分隔如：1,4,6,8' + #13 +
+      '连续页以英文“-”分隔如：2-5' + #13 + '以上可同时使用如：1,3,5-7,9';
+
+    SendMessage(FTooltipHandle, TTM_SETTOOLINFO, 0, Integer(@FToolInfo));
+  end;
 end;
 
 procedure TfrmPrintView.edtCopiesExit(Sender: TObject);
@@ -307,7 +362,7 @@ begin
   CreateToolTips(edtPrintPageNos.Handle);
   AddToolTip(edtPrintPageNos.Handle, @FToolInfo, 1, '单页以英文逗号“,”分隔如：1,4,6,8' + #13 +
     '连续页以英文“-”分隔如：2-5' + #13 +
-    '以上可同时使用如：1,3,5-7,9', '提示标题', 0, 0);  //数字1可以该为其它的数字来显示不同的图标
+    '以上可同时使用如：1,3,5-7,9', '提示', 0, 0);  //数字1可以改为其它的数字来显示不同的图标
 end;
 
 procedure TfrmPrintView.pbPageMouseDown(Sender: TObject; Button: TMouseButton;

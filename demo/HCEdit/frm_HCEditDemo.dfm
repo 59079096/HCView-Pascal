@@ -33,11 +33,13 @@ object frmHCEdit: TfrmHCEdit
       Top = 0
       Caption = 'btnOpen'
       ImageIndex = 6
+      OnClick = btnOpenClick
     end
     object btnSave: TToolButton
       Left = 24
       Top = 0
       ImageIndex = 7
+      OnClick = btnSaveClick
     end
     object btnprint: TToolButton
       Left = 48
@@ -290,7 +292,7 @@ object frmHCEdit: TfrmHCEdit
     Left = 72
     Top = 56
     Bitmap = {
-      494C01011B001D000C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00100010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

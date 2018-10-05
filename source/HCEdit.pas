@@ -17,6 +17,9 @@ uses
   Windows, Classes, Controls, Graphics, Messages, SysUtils, IMM, HCRichData,
   HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem;
 
+const
+  HC_EDIT_EXT = '.hef';
+
 type
   THCEdit = class(TCustomControl)
   private
@@ -105,6 +108,8 @@ type
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
     property Style: THCStyle read FStyle;
     property Changed: Boolean read FChanged write FChanged;
+    procedure SaveToFile(const AFileName: string);
+    procedure LoadFromFile(const AFileName: string);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream);
   published
@@ -179,11 +184,9 @@ begin
 end;
 
 procedure THCEdit.CalcScrollRang;
-var
-  i, vWidth, vVMax, vHMax: Integer;
 begin
-  FHScrollBar.Max := PagePadding * 2;
-  FVScrollBar.Max := FData.Height;
+  FHScrollBar.Max := Self.Padding.Left + Self.Padding.Right;
+  FVScrollBar.Max := FData.Height + Self.Padding.Top + Self.Padding.Bottom;
 end;
 
 procedure THCEdit.CheckUpdateInfo(const AScrollBar: Boolean);
@@ -430,14 +433,30 @@ end;
 procedure THCEdit.KeyPress(var Key: Char);
 begin
   inherited KeyPress(Key);
-  FData.KeyPress(Key);
-  CheckUpdateInfo;
+  if IsKeyPressWant(Key) then
+  begin
+    FData.KeyPress(Key);
+    DoChange;
+    CheckUpdateInfo;
+  end;
 end;
 
 procedure THCEdit.KeyUp(var Key: Word; Shift: TShiftState);
 begin
   inherited;
   FData.KeyUp(Key, Shift);
+end;
+
+procedure THCEdit.LoadFromFile(const AFileName: string);
+var
+  vStream: TStream;
+begin
+  vStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
+  try
+    LoadFromStream(vStream);
+  finally
+    FreeAndNil(vStream);
+  end;
 end;
 
 procedure THCEdit.LoadFromStream(const AStream: TStream);
@@ -463,7 +482,9 @@ procedure THCEdit.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited;
-  FData.MouseDown(Button, Shift, X - PagePadding, Y - PagePadding);
+  FData.MouseDown(Button, Shift, X - Self.Padding.Left + FHScrollBar.Position,
+    Y - Self.Padding.Top + FVScrollBar.Position);
+
   CheckUpdateInfo;  // 换光标、切换激活Item
   if Assigned(FOnMouseDown) then
     FOnMouseDown(Self, Button, Shift, X, Y);
@@ -487,7 +508,8 @@ procedure THCEdit.MouseMove(Shift: TShiftState; X, Y: Integer);
 
 begin
   inherited;
-  FData.MouseMove(Shift, X - PagePadding, Y - PagePadding);
+  FData.MouseMove(Shift, X - Self.Padding.Left + FHScrollBar.Position,
+    Y - Self.Padding.Top + FVScrollBar.Position);
   if ShowHint then
     ProcessHint;
 
@@ -503,7 +525,8 @@ procedure THCEdit.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
 begin
   inherited;
   if Button = mbRight then Exit;  // 右键弹出菜单
-  FData.MouseUp(Button, Shift, X - PagePadding, Y - PagePadding);
+  FData.MouseUp(Button, Shift, X - Self.Padding.Left + FHScrollBar.Position,
+    Y - Self.Padding.Top + FVScrollBar.Position);
   Cursor := GCursor;
   CheckUpdateInfo;  // 在选中区域中按下不移动弹起鼠标时需要更新
 end;
@@ -585,8 +608,8 @@ begin
     FCaret.Hide;
     Exit;
   end;
-  FCaret.X := vCaretInfo.X - FHScrollBar.Position + PagePadding;
-  FCaret.Y := vCaretInfo.Y - FVScrollBar.Position + PagePadding;
+  FCaret.X := vCaretInfo.X - FHScrollBar.Position + Self.Padding.Left;
+  FCaret.Y := vCaretInfo.Y - FVScrollBar.Position + Self.Padding.Top;
   FCaret.Height := vCaretInfo.Height;
 
   vDisplayHeight := GetDisplayHeight;
@@ -609,10 +632,10 @@ begin
     if FCaret.Height < vDisplayHeight then
     begin
       if FCaret.Y < 0 then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - PagePadding
+        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - Self.Padding.Top
       else
-      if FCaret.Y + FCaret.Height + PagePadding > vDisplayHeight then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + PagePadding - vDisplayHeight;
+      if FCaret.Y + FCaret.Height + Self.Padding.Top > vDisplayHeight then
+        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + Self.Padding.Top - vDisplayHeight;
     end;
   end;
 
@@ -627,11 +650,23 @@ procedure THCEdit.Resize;
 begin
   inherited;
   FDataBmp.SetSize(GetDisplayWidth, GetDisplayHeight);
-  FData.Width := FDataBmp.Width - PagePadding - PagePadding;
+  FData.Width := FDataBmp.Width - Self.Padding.Left - Self.Padding.Right;
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo;
+end;
+
+procedure THCEdit.SaveToFile(const AFileName: string);
+var
+  vStream: TStream;
+begin
+  vStream := TFileStream.Create(AFileName, fmCreate);
+  try
+    SaveToStream(vStream);
+  finally
+    FreeAndNil(vStream);
+  end;
 end;
 
 procedure THCEdit.SaveToStream(const AStream: TStream);
@@ -672,12 +707,12 @@ begin
 
       vPaintInfo := TPaintInfo.Create;
       try
-        FData.PaintData(PagePadding,  // 当前页数据要绘制到的Left
-          PagePadding,     // 当前页数据要绘制到的Top
-          FData.Height,  // 当前页数据要绘制的Bottom
-          0,     // 界面呈现当前页数据的Top位置
+        FData.PaintData(Self.Padding.Left - FHScrollBar.Position,  // 当前页数据要绘制到的Left
+          Self.Padding.Top,     // 当前页数据要绘制到的Top
+          Self.Padding.Top + FData.Height,  // 当前页数据要绘制的Bottom
+          Self.Padding.Top,     // 界面呈现当前页数据的Top位置
           Self.Height,  // 界面呈现当前页数据Bottom位置
-          0,  // 指定从哪个位置开始的数据绘制到页数据起始位置
+          FVScrollBar.Position,  // 指定从哪个位置开始的数据绘制到页数据起始位置
           FDataBmp.Canvas,
           vPaintInfo);
 

@@ -76,6 +76,12 @@ var
   vBoxRect: TRect;
 begin
   inherited;
+  if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
+  begin
+    ACanvas.Brush.Color := clBtnFace;
+    ACanvas.FillRect(ADrawRect);
+  end;
+
   vBoxRect := GetBoxRect;
   OffsetRect(vBoxRect, ADrawRect.Left, ADrawRect.Top);
 
@@ -84,9 +90,10 @@ begin
     ACanvas.Brush.Color := AStyle.SelColor;
     ACanvas.FillRect(ADrawRect);
   end;
+
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
   ACanvas.TextOut(ADrawRect.Left + FMargin + CheckBoxSize + FMargin,
-    ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2 + 1, FText);
+    ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2, FText);
 
   if FChecked then  // 勾选
   begin

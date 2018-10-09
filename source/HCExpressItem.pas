@@ -18,7 +18,7 @@ uses
   HCCommon, HCFractionItem;
 
 type
-  THCExperssItem = class(THCFractionItem)  // 公式(上、下、左、右文本，带分数线)
+  THCExpressItem = class(THCFractionItem)  // 公式(上、下、左、右文本，带分数线)
   private
     FLeftText, FRightText: string;
     FLeftRect, FRightRect: TRect;
@@ -55,9 +55,9 @@ implementation
 uses
   SysUtils, System.Math;
 
-{ THCExperssItem }
+{ THCExpressItem }
 
-constructor THCExperssItem.Create(const AOwnerData: THCCustomData;
+constructor THCExpressItem.Create(const AOwnerData: THCCustomData;
   const ALeftText, ATopText, ARightText, ABottomText: string);
 begin
   inherited Create(AOwnerData, ATopText, ABottomText);
@@ -67,7 +67,7 @@ begin
   FRightText := ARightText;
 end;
 
-procedure THCExperssItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+procedure THCExpressItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -123,7 +123,7 @@ begin
   end;
 end;
 
-procedure THCExperssItem.FormatToDrawItem(const ARichData: THCCustomData;
+procedure THCExpressItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
 var
   vH, vLeftW, vRightW, vTopW, vBottomW: Integer;
@@ -153,7 +153,7 @@ begin
     Height - Padding - vH, vBottomW, vH);
 end;
 
-procedure THCExperssItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCExpressItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
 begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
@@ -192,7 +192,7 @@ begin
     ACaretInfo.Visible := False;
 end;
 
-function THCExperssItem.GetExpressArea(const X, Y: Integer): TExpressArea;
+function THCExpressItem.GetExpressArea(const X, Y: Integer): TExpressArea;
 var
   vPt: TPoint;
 begin
@@ -208,7 +208,7 @@ begin
   end;
 end;
 
-function THCExperssItem.InsertText(const AText: string): Boolean;
+function THCExpressItem.InsertText(const AText: string): Boolean;
 begin
   if FActiveArea <> ceaNone then
   begin
@@ -233,7 +233,7 @@ begin
   end;
 end;
 
-procedure THCExperssItem.KeyDown(var Key: Word; Shift: TShiftState);
+procedure THCExpressItem.KeyDown(var Key: Word; Shift: TShiftState);
 
   procedure BackspaceKeyDown;
 
@@ -324,7 +324,7 @@ begin
     inherited KeyDown(Key, Shift);
 end;
 
-procedure THCExperssItem.LoadFromStream(const AStream: TStream;
+procedure THCExpressItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 
   procedure LoadPartText(var S: string);
@@ -349,7 +349,7 @@ begin
   LoadPartText(FRightText);
 end;
 
-procedure THCExperssItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+procedure THCExpressItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var
   vS: string;
@@ -408,7 +408,7 @@ begin
   end;
 end;
 
-procedure THCExperssItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCExpressItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 
   procedure SavePartText(const S: string);
   var

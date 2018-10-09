@@ -325,7 +325,7 @@ begin
       THCStyle.Table: Result := THCTableItem.Create(Self, 1, 1, 1);
       THCStyle.Tab: Result := TTabItem.Create(Self, 0, 0);
       THCStyle.Line: Result := TLineItem.Create(Self, 1, 1);
-      THCStyle.Express: Result := THCExperssItem.Create(Self, '', '', '', '');
+      THCStyle.Express: Result := THCExpressItem.Create(Self, '', '', '', '');
       // RsVector
       THCStyle.Domain: Result := CreateDefaultDomainItem;
       THCStyle.PageBreak: Result := TPageBreakItem.Create(Self, 0, 1);

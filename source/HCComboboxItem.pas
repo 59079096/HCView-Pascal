@@ -161,7 +161,7 @@ var
   vPt: TPoint;
 begin
   if Assigned(FOnPopupItem) then
-    FOnPopupItem(FItems);
+    FOnPopupItem(Self);
 
   vPt := OwnerData.GetScreenCoord(FButtonDrawRect.Left - (Self.Width - FButtonDrawRect.Width),
     FButtonDrawRect.Bottom + 1);

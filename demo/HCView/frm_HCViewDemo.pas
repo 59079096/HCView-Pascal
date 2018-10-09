@@ -605,9 +605,9 @@ end;
 
 procedure TfrmHCViewDemo.mniN19Click(Sender: TObject);
 var
-  vExpressItem: THCExperssItem;
+  vExpressItem: THCExpressItem;
 begin
-  vExpressItem := THCExperssItem.Create(FHCView.ActiveSectionTopLevelData,
+  vExpressItem := THCExpressItem.Create(FHCView.ActiveSectionTopLevelData,
     '12', '5-6', '2017-6-3', '28-30');
   FHCView.InsertItem(vExpressItem);
 end;

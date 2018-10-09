@@ -22,12 +22,14 @@ type
 
   THCComboboxItem = class(THCEditItem)
   private
+    FSaveItem: Boolean;
     FItems: TStrings;
     FItemIndex, FMoveItemIndex: Integer;
     FButtonRect, FButtonDrawRect: TRect;
     FMouseInButton: Boolean;
     FPopupForm: THCPopupForm;
     FScrollBar: THCComScrollBar;
+    FOnPopupItem: TNotifyEvent;
 
     // DropDown²¿·Ö
     function ScrollBarVisible: Boolean;
@@ -66,6 +68,7 @@ type
     destructor Destroy; override;
     property Items: TStrings read FItems write SetItems;
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
+    property OnPopupItem: TNotifyEvent read FOnPopupItem write FOnPopupItem;
   end;
 
 implementation
@@ -85,6 +88,7 @@ begin
   inherited Create(AOwnerData, AText);
   Self.StyleNo := THCStyle.Combobox;
   Width := 80;
+  FSaveItem := False;
   FItems := TStringList.Create;
   TStringList(FItems).OnChange := DoItemsChange;
 
@@ -155,6 +159,9 @@ procedure THCComboboxItem.DoPopup;
 var
   vPt: TPoint;
 begin
+  if Assigned(FOnPopupItem) then
+    FOnPopupItem(FItems);
+
   vPt := OwnerData.GetScreenCoord(FButtonDrawRect.Left - (Self.Width - FButtonDrawRect.Width),
     FButtonDrawRect.Bottom + 1);
   FPopupForm.Popup(vPt.X, vPt.Y);
@@ -426,14 +433,22 @@ var
   vSize: Word;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-  // ´æItems
-  vBuffer := BytesOf(FItems.Text);
-  if System.Length(vBuffer) > MAXWORD then
-    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-  vSize := System.Length(vBuffer);
-  AStream.WriteBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-    AStream.WriteBuffer(vBuffer[0], vSize);
+
+  if FSaveItem then  // ´æItems
+  begin
+    vBuffer := BytesOf(FItems.Text);
+    if System.Length(vBuffer) > MAXWORD then
+      raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
+    vSize := System.Length(vBuffer);
+    AStream.WriteBuffer(vSize, SizeOf(vSize));
+    if vSize > 0 then
+      AStream.WriteBuffer(vBuffer[0], vSize);
+  end
+  else
+  begin
+    vSize := 0;
+    AStream.WriteBuffer(vSize, SizeOf(vSize));
+  end;
 end;
 
 function THCComboboxItem.ScrollBarVisible: Boolean;

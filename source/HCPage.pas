@@ -58,7 +58,6 @@ type
     property PageMarginBottomPix: Integer read FPageMarginBottomPix write FPageMarginBottomPix;
   end;
 
-  PHCPage = ^THCPage;
   THCPage = class(TPersistent)
   public
     StartDrawItemNo,    // ÆðÊ¼item
@@ -106,7 +105,6 @@ procedure THCPageSize.LoadToStream(const AStream: TStream; const AFileVersion: W
 var
   vPaperSize: Integer;
   vSize: Single;
-var
   vDataSize: Int64;
 begin
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));

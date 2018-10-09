@@ -71,7 +71,7 @@ type
     /// <summary>
     /// 水平滚动条对应右按钮，垂直滚动条对应下按钮
     /// </summary>
-    FRightBtnRect: Trect;
+    FRightBtnRect: TRect;
 
     FOnVisibleChanged: TNotifyEvent;
 

@@ -26,7 +26,7 @@ type
     FStyle: THCStyle;
     FData: THCRichData;
     FDataBmp: TBitmap;  // 数据显示位图
-    FCaret: TCaret;
+    FCaret: THCCaret;
     FHScrollBar: THCScrollBar;
     FVScrollBar: THCScrollBar;
     FUpdateCount: Integer;
@@ -268,7 +268,7 @@ procedure THCEdit.CreateWnd;
 begin
   inherited CreateWnd;
   if not (csDesigning in ComponentState) then
-    FCaret := TCaret.Create(Handle);
+    FCaret := THCCaret.Create(Handle);
 end;
 
 procedure THCEdit.Cut;

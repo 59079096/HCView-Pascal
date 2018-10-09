@@ -43,7 +43,7 @@ type
     constructor Create; virtual;
     destructor Destroy; override;
     function ScaleCanvas(const ACanvas: TCanvas): TScaleInfo;
-    procedure RestoreCanvasScale(const ACanvas : TCanvas; const AOldInfo: TScaleInfo);
+    procedure RestoreCanvasScale(const ACanvas: TCanvas; const AOldInfo: TScaleInfo);
     function GetScaleX(const AValue: Integer): Integer;
     function GetScaleY(const AValue: Integer): Integer;
     procedure DrawNoScaleLine(const ACanvas: TCanvas; const APoints: array of TPoint);

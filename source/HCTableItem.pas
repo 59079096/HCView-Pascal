@@ -1213,8 +1213,8 @@ begin
     begin
       vCellData.OnInsertItem := (OwnerData as THCCustomRichData).OnInsertItem;
       vCellData.OnItemResized := (OwnerData as THCCustomRichData).OnItemResized;
-      vCellData.OnItemPaintAfter := (OwnerData as THCCustomRichData).OnItemPaintAfter;
-      vCellData.OnItemPaintBefor := (OwnerData as THCCustomRichData).OnItemPaintBefor;
+      vCellData.OnDrawItemPaintAfter := (OwnerData as THCCustomRichData).OnDrawItemPaintAfter;
+      vCellData.OnDrawItemPaintBefor := (OwnerData as THCCustomRichData).OnDrawItemPaintBefor;
       vCellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
       vCellData.OnCreateItemByStyle := (OwnerData as THCRichData).OnCreateItemByStyle;
       vCellData.OnCreateItem := (OwnerData as THCCustomRichData).OnCreateItem;

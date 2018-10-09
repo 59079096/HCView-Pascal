@@ -54,7 +54,7 @@ type
   TBorderSide = (cbsLeft, cbsTop, cbsRight, cbsBottom, cbsLTRB, cbsRTLB);
   TBorderSides = set of TBorderSide;
 
-  TViewModel = (
+  THCViewModel = (
     vmPage,  // “≥√Ê ”Õº£¨œ‘ æ“≥√º°¢“≥Ω≈
     vmWeb  // Web ”Õº£¨≤ªœ‘ æ“≥√º°¢“≥Ω≈
   );
@@ -109,7 +109,7 @@ type
 
   TMarkType = (cmtBeg, cmtEnd);
 
-  TCaret = Class(TObject)
+  THCCaret = Class(TObject)
   private
     FHeight: Integer;
     FOwnHandle: THandle;
@@ -394,33 +394,33 @@ begin
   end;
 end;
 
-{ TCaret }
+{ THCCaret }
 
-constructor TCaret.Create(const AHandle: THandle);
+constructor THCCaret.Create(const AHandle: THandle);
 begin
   FOwnHandle := AHandle;
   CreateCaret(FOwnHandle, 0, 2, 20);
 end;
 
-destructor TCaret.Destroy;
+destructor THCCaret.Destroy;
 begin
   DestroyCaret;
   FOwnHandle := 0;
   inherited;
 end;
 
-procedure TCaret.Hide;
+procedure THCCaret.Hide;
 begin
   HideCaret(FOwnHandle);
 end;
 
-procedure TCaret.ReCreate;
+procedure THCCaret.ReCreate;
 begin
   DestroyCaret;
   CreateCaret(FOwnHandle, 0, 2, FHeight);
 end;
 
-procedure TCaret.SetHeight(const Value: Integer);
+procedure THCCaret.SetHeight(const Value: Integer);
 begin
   if FHeight <> Value then
   begin
@@ -429,13 +429,13 @@ begin
   end;
 end;
 
-procedure TCaret.Show;
+procedure THCCaret.Show;
 begin
   Show(X, Y);
 end;
 
 
-procedure TCaret.Show(const AX, AY: Integer);
+procedure THCCaret.Show(const AX, AY: Integer);
 begin
   ReCreate;
   SetCaretPos(AX, AY);

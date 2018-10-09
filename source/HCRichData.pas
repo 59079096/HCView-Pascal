@@ -30,11 +30,6 @@ type
     property EndNo: Integer read FEndNo write FEndNo;
   end;
 
-  TDrawItemPaintEvent = procedure (const AData: THCCustomData;
-    const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-    const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
-
   TStyleItemEvent = function (const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem of object;
 
   THCRichData = class(THCUndoRichData)  // 富文本数据类，可做为其他显示富文本类的基类
@@ -45,7 +40,6 @@ type
       : TDomain;
     FHotDomainRGN, FActiveDomainRGN: HRGN;
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
-    FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
 
     procedure GetDomainFrom(const AItemNo, AOffset: Integer;
@@ -107,7 +101,6 @@ type
 
     property HotDomain: TDomain read FHotDomain;
     property ActiveDomain: TDomain read GetActiveDomain;
-    property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
   end;
 
@@ -315,12 +308,6 @@ begin
       if ADrawItemNo = DrawItems.Count - 1 then
         DrawLineLastMrak(ADrawRect);  // 段尾的换行符
     end;
-  end;
-
-  if Assigned(FOnDrawItemPaintAfter) then
-  begin
-    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 

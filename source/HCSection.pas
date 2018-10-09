@@ -68,8 +68,7 @@ type
     FOnGetScreenCoord: TGetScreenCoordEvent;
 
     FOnPaintHeader, FOnPaintFooter, FOnPaintPage, FOnPaintWholePage: TSectionPagePaintEvent;
-    FOnItemPaintBefor, FOnItemPaintAfter: TItemPaintEvent;
-    FOnDrawItemPaintAfter: TDrawItemPaintEvent;
+    FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnInsertItem: TItemNotifyEvent;
     FOnItemResized: TDataItemEvent;
     FOnCreateItem: TNotifyEvent;
@@ -86,15 +85,10 @@ type
 
     procedure DoDataReadOnlySwitch(Sender: TObject);
     function DoGetScreenCoordEvent(const X, Y: Integer): TPoint;
-    procedure DoDataItemPaintBefor(const AData: THCCustomData;
+    procedure DoDataDrawItemPaintBefor(const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DoDataItemPaintAfter(const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-
     procedure DoDataDrawItemPaintAfter(const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -363,8 +357,7 @@ type
     property OnPaintFooter: TSectionPagePaintEvent read FOnPaintFooter write FOnPaintFooter;
     property OnPaintPage: TSectionPagePaintEvent read FOnPaintPage write FOnPaintPage;
     property OnPaintWholePage: TSectionPagePaintEvent read FOnPaintWholePage write FOnPaintWholePage;
-    property OnItemPaintBefor: TItemPaintEvent read FOnItemPaintBefor write FOnItemPaintBefor;
-    property OnItemPaintAfter: TItemPaintEvent read FOnItemPaintAfter write FOnItemPaintAfter;
+    property OnDrawItemPaintBefor: TDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
     property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
@@ -556,8 +549,7 @@ var
     AData.OnCreateItem := DoDataCreateItem;
     AData.OnReadOnlySwitch := DoDataReadOnlySwitch;
     AData.OnGetScreenCoord := DoGetScreenCoordEvent;
-    AData.OnItemPaintBefor := DoDataItemPaintBefor;
-    AData.OnItemPaintAfter := DoDataItemPaintAfter;
+    AData.OnDrawItemPaintBefor := DoDataDrawItemPaintBefor;
     AData.OnDrawItemPaintAfter := DoDataDrawItemPaintAfter;
     AData.OnGetUndoList := DoDataGetUndoList;
   end;
@@ -659,42 +651,32 @@ begin
     Result := nil;
 end;
 
-procedure THCCustomSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-begin
-  if Assigned(FOnDrawItemPaintAfter) then
-    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-end;
-
 procedure THCCustomSection.DoDataInsertItem(const AItem: THCCustomItem);
 begin
   if Assigned(FOnInsertItem) then
     FOnInsertItem(AItem);
 end;
 
-procedure THCCustomSection.DoDataItemPaintAfter(const AData: THCCustomData;
+procedure THCCustomSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
   const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  if Assigned(FOnItemPaintAfter) then
+  if Assigned(FOnDrawItemPaintAfter) then
   begin
-    FOnItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
-procedure THCCustomSection.DoDataItemPaintBefor(const AData: THCCustomData;
+procedure THCCustomSection.DoDataDrawItemPaintBefor(const AData: THCCustomData;
   const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  if Assigned(FOnItemPaintBefor) then
+  if Assigned(FOnDrawItemPaintBefor) then
   begin
-    FOnItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;

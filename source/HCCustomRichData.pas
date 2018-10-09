@@ -25,7 +25,7 @@ uses
 type
   TInsertProc = reference to function(const AItem: THCCustomItem): Boolean;
 
-  TItemPaintEvent = procedure(const AData: THCCustomData;
+  TDrawItemPaintEvent = procedure(const AData: THCCustomData;
     const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
@@ -63,7 +63,7 @@ type
     FOnItemResized: TDataItemEvent;
     FOnInsertItem: TItemNotifyEvent;
     FOnItemMouseDown, FOnItemMouseUp: TItemMouseEvent;
-    FOnItemPaintBefor, FOnItemPaintAfter: TItemPaintEvent;
+    FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
 
     procedure FormatData(const AStartItemNo, ALastItemNo: Integer);
@@ -291,8 +291,8 @@ type
     property OnItemResized: TDataItemEvent read FOnItemResized write FOnItemResized;
     property OnItemMouseDown: TItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
-    property OnItemPaintBefor: TItemPaintEvent read FOnItemPaintBefor write FOnItemPaintBefor;
-    property OnItemPaintAfter: TItemPaintEvent read FOnItemPaintAfter write FOnItemPaintAfter;
+    property OnDrawItemPaintBefor: TDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
+    property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
   end;
 
@@ -955,9 +955,9 @@ begin
   inherited DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
-  if Assigned(FOnItemPaintAfter) then
+  if Assigned(FOnDrawItemPaintAfter) then
   begin
-    FOnItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
@@ -970,9 +970,9 @@ begin
   inherited DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
-  if Assigned(FOnItemPaintBefor) then
+  if Assigned(FOnDrawItemPaintBefor) then
   begin
-    FOnItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;

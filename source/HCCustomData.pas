@@ -74,7 +74,7 @@ type
     /// <param name="ALastDNo">起始DItemNo前一个值</param>
     /// <param name="vPageBoundary">数据页底部边界</param>
     procedure _FormatItemToDrawItems(const AItemNo, AOffset, AContentWidth: Integer;
-      var APos: TPoint; var ALastDNo: Integer);
+      var APos: TPoint; var ALastDrawItemNo: Integer);
 
     /// <summary> 根据指定Item获取其所在段的起始和结束ItemNo </summary>
     /// <param name="AFirstItemNo1">指定</param>
@@ -97,7 +97,7 @@ type
     /// <param name="ALastItemNo">结束</param>
     procedure GetLineDrawItemRang(var AFirstDItemNo, ALastDItemNo: Integer); virtual;
 
-    /// <summary> 获取指定DItem对应的Text </summary>
+    /// <summary> 获取指定DrawItem对应的Text </summary>
     /// <param name="ADrawItemNo"></param>
     /// <returns></returns>
     function GetDrawItemText(const ADrawItemNo: Integer): string;
@@ -115,16 +115,16 @@ type
   public
     constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
-    //
-    procedure Clear; virtual;
-
-    procedure InitializeField; virtual;
 
     /// <summary>
     /// 当前Data是不是无内容(仅有一个Item且内容为空)
     /// </summary>
     /// <returns></returns>
     function IsEmptyData: Boolean;
+
+    procedure Clear; virtual;
+
+    procedure InitializeField; virtual;
 
     /// <summary> 嵌套时获取根级Data </summary>
     function GetRootData: THCCustomData; virtual;
@@ -1161,12 +1161,12 @@ end;
 
 function THCCustomData.GetDrawItemText(const ADrawItemNo: Integer): string;
 var
-  vDItem: THCCustomDrawItem;
+  vDrawItem: THCCustomDrawItem;
 begin
-  vDItem := FDrawItems[ADrawItemNo];
-  Result := FItems[vDItem.ItemNo].Text;
+  vDrawItem := FDrawItems[ADrawItemNo];
+  Result := FItems[vDrawItem.ItemNo].Text;
   if Result <> '' then
-    Result := Copy(Result, vDItem.CharOffs, vDItem.CharLen);
+    Result := Copy(Result, vDrawItem.CharOffs, vDrawItem.CharLen);
 end;
 
 {function THCCustomData.GetFormatStartItemNo(const AItemNo: Integer): Integer;
@@ -1569,7 +1569,7 @@ begin
 end;
 
 procedure THCCustomData._FormatItemToDrawItems(const AItemNo, AOffset, AContentWidth: Integer;
-  var APos: TPoint; var ALastDNo: Integer);
+  var APos: TPoint; var ALastDrawItemNo: Integer);
 
 type
   TBreakPosition = (  // 截断位置
@@ -1770,10 +1770,10 @@ type
     vDrawItem.ParaFirst := AParaFirst;
     vDrawItem.LineFirst := ALineFirst;
     vDrawItem.Rect := ARect;
-    Inc(ALastDNo);
-    FDrawItems.Insert(ALastDNo, vDrawItem);
+    Inc(ALastDrawItemNo);
+    FDrawItems.Insert(ALastDrawItemNo, vDrawItem);
     if AOffs = 1 then
-      FItems[AItemNo].FirstDItemNo := ALastDNo;
+      FItems[AItemNo].FirstDItemNo := ALastDrawItemNo;
   end;
   {$ENDREGION}
 
@@ -1984,9 +1984,9 @@ var
     if (vRectItem.Width > vWidth) and (not vLineFirst) then  // 当前行剩余宽度放不下且不是行首
     begin
       // 偏移到下一行
-      FinishLine(ALastDNo, vWidth);
+      FinishLine(ALastDrawItemNo, vWidth);
       APos.X := 0;
-      APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
+      APos.Y := FDrawItems[ALastDrawItemNo].Rect.Bottom;
       vLineFirst := True;  // 作为行首
     end;
 
@@ -2050,11 +2050,11 @@ var
         vParaFirst := False;
 
         vRemainderWidth := AContentWidth - vRect.Right;  // 放入最多后的剩余量
-        FinishLine(ALastDNo, vRemainderWidth);
+        FinishLine(ALastDrawItemNo, vRemainderWidth);
 
         // 偏移到下一行顶端，准备另起一行
         APos.X := 0;
-        APos.Y := FDrawItems[ALastDNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正vRect.Bottom
+        APos.Y := FDrawItems[ALastDrawItemNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正vRect.Bottom
 
         if viBreakOffset < viLen then
           DoFormatTextItemToDrawItems(viBreakOffset + 1, AContentWidth, vCharWidths[viBreakOffset - 1]);
@@ -2062,10 +2062,10 @@ var
       else  // Data的宽度足够一个字符
       begin
         vRemainderWidth := APlaceWidth;
-        FinishLine(ALastDNo, vRemainderWidth);
+        FinishLine(ALastDrawItemNo, vRemainderWidth);
         // 偏移到下一行开始计算
         APos.X := 0;
-        APos.Y := FDrawItems[ALastDNo].Rect.Bottom;
+        APos.Y := FDrawItems[ALastDrawItemNo].Rect.Bottom;
         DoFormatTextItemToDrawItems(ACharOffset, AContentWidth, ABasePos);
       end;
     end
@@ -2095,11 +2095,11 @@ var
       vParaFirst := False;
 
       vRemainderWidth := AContentWidth - vRect.Right;  // 放入最多后的剩余量
-      FinishLine(ALastDNo, vRemainderWidth);
+      FinishLine(ALastDrawItemNo, vRemainderWidth);
 
       // 偏移到下一行顶端，准备另起一行
       APos.X := 0;
-      APos.Y := FDrawItems[ALastDNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正vRect.Bottom
+      APos.Y := FDrawItems[ALastDrawItemNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正vRect.Bottom
 
       if viPlaceOffset < viLen then
         DoFormatTextItemToDrawItems(viPlaceOffset + 1, AContentWidth, vCharWidths[viPlaceOffset - 1]);
@@ -2199,15 +2199,15 @@ begin
 
   // 计算下一个的位置
   if AItemNo = FItems.Count - 1 then  // 是最后一个
-    FinishLine(ALastDNo, vRemainderWidth)
+    FinishLine(ALastDrawItemNo, vRemainderWidth)
   else  // 不是最后一个，则为下一个Item准备位置
   begin
     if FItems[AItemNo + 1].ParaFirst then // 下一个是段起始
     begin
-      FinishLine(ALastDNo, vRemainderWidth);
+      FinishLine(ALastDrawItemNo, vRemainderWidth);
       // 偏移到下一行顶端，准备另起一行
       APos.X := 0;
-      APos.Y := FDrawItems[ALastDNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正其bottom
+      APos.Y := FDrawItems[ALastDrawItemNo].Rect.Bottom;  // 不使用 vRect.Bottom 因为如果行中间有高的，会修正其bottom
     end
     else  // 下一个不是段起始
       APos.X := vRect.Right;  // 下一个的起始坐标

@@ -49,7 +49,7 @@ type
     property ParaFirst: Boolean read GetParaFirst write SetParaFirst;
   end;
 
-  THCDrawItems = class(TList)  { TODO : 改为纯List类实现 }
+  THCDrawItems = class(TList)
   private
     // 格式化相关参数
     FDeleteStartDrawItemNo,

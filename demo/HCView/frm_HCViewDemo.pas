@@ -207,6 +207,7 @@ type
     procedure DoCanDelete(const Sender: THCCustomRichData; const AItemNo,
       AItemOffs: Integer; var ACanDelete: Boolean);
     procedure DoItemLoaded(const AItem: THCCustomItem);
+    procedure DoComboboxPopupItem(Sender: TObject);
   public
     { Public declarations }
   end;
@@ -352,6 +353,14 @@ begin
 
   CurTextStyleChange(FHCView.Style.CurStyleNo);
   CurParaStyleChange(FHCView.Style.CurParaNo);
+end;
+
+procedure TfrmHCViewDemo.DoComboboxPopupItem(Sender: TObject);
+begin
+  if (Sender as TStrings).Count > 20 then
+    (Sender as TStrings).Clear;
+
+  (Sender as TStrings).Add('选项' + IntToStr((Sender as TStrings).Count - 1));
 end;
 
 procedure TfrmHCViewDemo.DoItemLoaded(const AItem: THCCustomItem);
@@ -559,6 +568,7 @@ begin
     vCombobox.Items.Add('选项1');
     vCombobox.Items.Add('选项2');
     vCombobox.Items.Add('选项3');
+    vCombobox.OnPopupItem := DoComboboxPopupItem;
     //vCombobox.ItemIndex := 0;
     FHCView.InsertItem(vCombobox);
   end;

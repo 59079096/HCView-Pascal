@@ -20,7 +20,7 @@ uses
   HCTextItem, HCItem, HCFloatItem, HCUndo;
 
 type
-  TPageScrollModel = (psmVertical, psmHorizontal);
+  THCPageScrollModel = (psmVertical, psmHorizontal);
 
   TLoadSectionProc = reference to procedure(const AFileVersion: Word);
 
@@ -34,7 +34,7 @@ type
     property Text: string read FText write FText;
   end;
 
-  TAnnotates = class(TObjectList<TAnnotate>)  // 批注s
+  THCAnnotates = class(TObjectList<TAnnotate>)  // 批注s
   strict private
     FIndex: Integer;
   public
@@ -64,23 +64,22 @@ type
     FAutoZoom,  // 自动缩放
     FShowAnnotation: Boolean;  // 显示批注
     FIsChanged: Boolean;  // 是否发生了改变
-    FAnnotates: TAnnotates;  // 批注
+    FAnnotates: THCAnnotates;  // 批注
 
-    FViewModel: TViewModel;  // 界面显示模式：页面、Web
-    FPageScrollModel: TPageScrollModel;  // 页面滚动显示模式：纵向、横向
-    FCaret: TCaret;
+    FViewModel: THCViewModel;  // 界面显示模式：页面、Web
+    FPageScrollModel: THCPageScrollModel;  // 页面滚动显示模式：纵向、横向
+    FCaret: THCCaret;
     FOnMouseDown, FOnMouseUp: TMouseEvent;
     FOnCaretChange, FOnVerScroll, FOnSectionCreateItem, FOnSectionReadOnlySwitch: TNotifyEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
     FOnSectionInsertItem: TItemNotifyEvent;
-    FOnSectionItemPaintAfter, FOnSectionItemPaintBefor: TItemPaintEvent;
+    FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TDrawItemPaintEvent;
 
     FOnSectionPaintHeader, FOnSectionPaintFooter, FOnSectionPaintPage,
       FOnSectionPaintWholePage: TSectionPagePaintEvent;
     FOnUpdateViewBefor, FOnUpdateViewAfter: TPaintEvent;
 
     FOnChange, FOnChangedSwitch: TNotifyEvent;
-    FOnSectionDrawItemPaintAfter: TDrawItemPaintEvent;
 
     /// <summary> 根据节页面参数设置打印机 </summary>
     /// <param name="ASectionIndex"></param>
@@ -148,11 +147,11 @@ type
     procedure DoSectionReadOnlySwitch(Sender: TObject);
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
     procedure DoSectionInsertItem(const AItem: THCCustomItem);
-    procedure DoSectionItemPaintBefor(const AData: THCCustomData;
+    procedure DoSectionDrawItemPaintBefor(const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DoSectionItemPaintAfter(const AData: THCCustomData;
+    procedure DoSectionDrawItemPaintAfter(const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
@@ -165,10 +164,6 @@ type
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionPaintWholePage(Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionDrawItemPaintAfter(const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
     function DoSectionGetUndoList: THCUndoList;
 
@@ -222,8 +217,8 @@ type
     /// <summary> 是否由滚动条位置变化引起的更新 </summary>
     procedure CheckUpdateInfo;
     //
-    procedure SetPageScrollModel(const Value: TPageScrollModel);
-    procedure SetViewModel(const Value: TViewModel);
+    procedure SetPageScrollModel(const Value: THCPageScrollModel);
+    procedure SetViewModel(const Value: THCViewModel);
     procedure SetShowAnnotation(const Value: Boolean);
     procedure SetActiveSectionIndex(const Value: Integer);
     //
@@ -542,7 +537,7 @@ type
     property IsChanged: Boolean read FIsChanged write SetIsChanged;
 
     /// <summary> 当前文档所有批注 </summary>
-    property Annotates: TAnnotates read FAnnotates;
+    property Annotates: THCAnnotates read FAnnotates;
   published
     { Published declarations }
 
@@ -553,10 +548,10 @@ type
     property OnSectionItemInsert: TItemNotifyEvent read FOnSectionInsertItem write FOnSectionInsertItem;
 
     /// <summary> Item绘制开始前触发 </summary>
-    property OnSectionItemPaintBefor: TItemPaintEvent read FOnSectionItemPaintBefor write FOnSectionItemPaintBefor;
+    property OnSectionDrawItemPaintBefor: TDrawItemPaintEvent read FOnSectionDrawItemPaintBefor write FOnSectionDrawItemPaintBefor;
 
-    /// <summary> Item绘制完成后触发 </summary>
-    property OnSectionItemPaintAfter: TItemPaintEvent read FOnSectionItemPaintAfter write FOnSectionItemPaintAfter;
+    /// <summary> DrawItem绘制完成后触发 </summary>
+    property OnSectionDrawItemPaintAfter: TDrawItemPaintEvent read FOnSectionDrawItemPaintAfter write FOnSectionDrawItemPaintAfter;
 
     /// <summary> 节页眉绘制时触发 </summary>
     property OnSectionPaintHeader: TSectionPagePaintEvent read FOnSectionPaintHeader write FOnSectionPaintHeader;
@@ -573,14 +568,11 @@ type
     /// <summary> 节只读属性有变化时触发 </summary>
     property OnSectionReadOnlySwitch: TNotifyEvent read FOnSectionReadOnlySwitch write FOnSectionReadOnlySwitch;
 
-    /// <summary> DrawItem绘制完成后触发 </summary>
-    property OnSectionDrawItemPaintAfter: TDrawItemPaintEvent read FOnSectionDrawItemPaintAfter write FOnSectionDrawItemPaintAfter;
-
     /// <summary> 页面滚动显示模式：纵向、横向 </summary>
-    property PageScrollModel: TPageScrollModel read FPageScrollModel write SetPageScrollModel;
+    property PageScrollModel: THCPageScrollModel read FPageScrollModel write SetPageScrollModel;
 
     /// <summary> 界面显示模式：页面、Web </summary>
-    property ViewModel: TViewModel read FViewModel write SetViewModel;
+    property ViewModel: THCViewModel read FViewModel write SetViewModel;
 
     /// <summary> 是否显示批注 </summary>
     property ShowAnnotation: Boolean read FShowAnnotation write SetShowAnnotation;
@@ -835,7 +827,7 @@ procedure THCView.CreateWnd;
 begin
   inherited CreateWnd;
   if not (csDesigning in ComponentState) then
-    FCaret := TCaret.Create(Handle);
+    FCaret := THCCaret.Create(Handle);
 end;
 
 procedure THCView.Cut;
@@ -1092,16 +1084,6 @@ begin
   Result := ActiveSection.InsertText(AText);
 end;
 
-procedure THCView.DoSectionDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-begin
-  if Assigned(FOnSectionDrawItemPaintAfter) then
-    FOnSectionDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-end;
-
 procedure THCView.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const ALoadSectionProc: TLoadSectionProc);
 var
@@ -1127,28 +1109,24 @@ begin
     FOnSectionInsertItem(AItem);
 end;
 
-procedure THCView.DoSectionItemPaintAfter(const AData: THCCustomData;
+procedure THCView.DoSectionDrawItemPaintAfter(const AData: THCCustomData;
   const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  if Assigned(FOnSectionItemPaintAfter) then
-  begin
-    FOnSectionItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+  if Assigned(FOnSectionDrawItemPaintAfter) then
+    FOnSectionDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-  end;
 end;
 
-procedure THCView.DoSectionItemPaintBefor(const AData: THCCustomData;
+procedure THCView.DoSectionDrawItemPaintBefor(const AData: THCCustomData;
   const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  if Assigned(FOnSectionItemPaintBefor) then
-  begin
-    FOnSectionItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+  if Assigned(FOnSectionDrawItemPaintBefor) then
+    FOnSectionDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-  end;
 end;
 
 procedure THCView.DoStyleInvalidateRect(const ARect: TRect);
@@ -1752,13 +1730,12 @@ begin
   Result.OnInsertItem := DoSectionInsertItem;
   Result.OnReadOnlySwitch := DoSectionReadOnlySwitch;
   Result.OnGetScreenCoord := DoSectionGetScreenCoord;
-  Result.OnItemPaintAfter := DoSectionItemPaintAfter;
-  Result.OnItemPaintBefor := DoSectionItemPaintBefor;
+  Result.OnDrawItemPaintAfter := DoSectionDrawItemPaintAfter;
+  Result.OnDrawItemPaintBefor := DoSectionDrawItemPaintBefor;
   Result.OnPaintHeader := DoSectionPaintHeader;
   Result.OnPaintFooter := DoSectionPaintFooter;
   Result.OnPaintPage := DoSectionPaintPage;
   Result.OnPaintWholePage := DoSectionPaintWholePage;
-  Result.OnDrawItemPaintAfter := DoSectionDrawItemPaintAfter;
   Result.OnGetUndoList := DoSectionGetUndoList;
 end;
 
@@ -2665,7 +2642,7 @@ begin
   end;
 end;
 
-procedure THCView.SetPageScrollModel(const Value: TPageScrollModel);
+procedure THCView.SetPageScrollModel(const Value: THCPageScrollModel);
 begin
   if FViewModel = vmWeb then Exit;
   if FPageScrollModel <> Value then
@@ -2688,9 +2665,9 @@ begin
     if vPDMode <> nil then
     begin
       vPDMode^.dmPaperSize := FSections[ASectionIndex].PaperSize;
-      if vPDMode^.dmPaperSize = DMPAPER_USER then
+      if vPDMode^.dmPaperSize = DMPAPER_USER then  // 自定义纸张
       begin
-        vPDMode^.dmPaperSize := DMPAPER_USER;  // 自定义纸张
+        //vPDMode^.dmPaperSize := DMPAPER_USER;
         vPDMode^.dmPaperLength := Round(FSections[ASectionIndex].PaperHeight * 10); //纸长你可用变量获得纸张的长、宽。
         vPDMode^.dmPaperWidth := Round(FSections[ASectionIndex].PaperWidth * 10);   //纸宽
         vPDMode^.dmFields := vPDMode^.dmFields or DM_PAPERSIZE or DM_PAPERLENGTH or DM_PAPERWIDTH;
@@ -2721,7 +2698,7 @@ begin
   if FShowAnnotation <> Value then
   begin
     if not Assigned(FAnnotates) then
-      FAnnotates := TAnnotates.Create;
+      FAnnotates := THCAnnotates.Create;
 
     FShowAnnotation := Value;
     FStyle.UpdateInfoRePaint;
@@ -2771,7 +2748,7 @@ begin
   end;
 end;
 
-procedure THCView.SetViewModel(const Value: TViewModel);
+procedure THCView.SetViewModel(const Value: THCViewModel);
 begin
   if FPageScrollModel = psmHorizontal then Exit; // 水平滚动不能切换模式
   if FViewModel <> Value then
@@ -3129,9 +3106,9 @@ begin
   inherited WndProc(Message);
 end;
 
-{ TAnnotates }
+{ THCAnnotates }
 
-procedure TAnnotates.AddAnnotation(const ADrawItemRect: TRect; const AText: string);
+procedure THCAnnotates.AddAnnotation(const ADrawItemRect: TRect; const AText: string);
 var
   vAnnotation: TAnnotate;
 begin
@@ -3141,13 +3118,13 @@ begin
   Self.Add(vAnnotation);
 end;
 
-constructor TAnnotates.Create;
+constructor THCAnnotates.Create;
 begin
   inherited Create(True);
   FIndex := -1;
 end;
 
-procedure TAnnotates.MouseDown(const X, Y: Integer);
+procedure THCAnnotates.MouseDown(const X, Y: Integer);
 var
   i: Integer;
   vPt: TPoint;
@@ -3164,7 +3141,7 @@ begin
   end;
 end;
 
-procedure TAnnotates.PaintTo(const ACanvas: TCanvas; const ARect: TRect;
+procedure THCAnnotates.PaintTo(const ACanvas: TCanvas; const ARect: TRect;
   const APaintInfo: TSectionPaintInfo);
 var
   i, vPos: Integer;

@@ -133,7 +133,7 @@ type
     function GetScreenCoord(const X, Y: Integer): TPoint; virtual;
     function CreateDefaultTextItem: THCCustomItem; virtual;
     function CreateDefaultDomainItem: THCCustomItem; virtual;
-    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); virtual;
+    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); virtual;
 
     /// <summary> 获取DItem中指定偏移处的内容绘制宽度 </summary>
     /// <param name="ADrawItemNo"></param>
@@ -285,8 +285,8 @@ type
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode); virtual;
 
     // 选中内容应用样式
-    function ApplySelectTextStyle(const AMatchStyle: TStyleMatch): Integer; virtual;
-    function ApplySelectParaStyle(const AMatchStyle: TParaMatch): Integer; virtual;
+    function ApplySelectTextStyle(const AMatchStyle: THCStyleMatch): Integer; virtual;
+    function ApplySelectParaStyle(const AMatchStyle: THCParaMatch): Integer; virtual;
 
     /// <summary> 删除选中 </summary>
     function DeleteSelected: Boolean; virtual;
@@ -310,10 +310,6 @@ type
     procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
-
-    /// <summary> 添加Data到当前 </summary>
-    /// <param name="ASrcData">源Data</param>
-    procedure AddData(const ASrcData: THCCustomData);
 
     /// <summary> 根据行中某DrawItem获取当前行间距 </summary>
     /// <param name="ADrawNo">行中指定的DrawItem</param>
@@ -410,17 +406,6 @@ begin
   end;
   if ACharIndexs <> nil then
     ACharIndexs.Add(Length(AText) + 1);
-end;
-
-procedure THCCustomData.AddData(const ASrcData: THCCustomData);
-var
-  i: Integer;
-begin
-  for i := 0 to ASrcData.FItems.Count - 1 do
-  begin
-    FItems[FItems.Count - 1].Text := FItems[FItems.Count - 1].Text
-      + ASrcData.FItems[i].Text;
-  end;
 end;
 
 procedure THCCustomData.ApplyTextBackColor(const AColor: TColor);
@@ -540,11 +525,11 @@ begin
   end;
 end;
 
-function THCCustomData.ApplySelectParaStyle(const AMatchStyle: TParaMatch): Integer;
+function THCCustomData.ApplySelectParaStyle(const AMatchStyle: THCParaMatch): Integer;
 begin
 end;
 
-function THCCustomData.ApplySelectTextStyle(const AMatchStyle: TStyleMatch): Integer;
+function THCCustomData.ApplySelectTextStyle(const AMatchStyle: THCStyleMatch): Integer;
 begin
 end;
 
@@ -2965,7 +2950,7 @@ begin
 end;
 
 procedure THCCustomData.GetCaretInfo(const AItemNo, AOffset: Integer;
-  var ACaretInfo: TCaretInfo);
+  var ACaretInfo: THCCaretInfo);
 var
   vDrawItemNo: Integer;
   vDrawItem: THCCustomDrawItem;

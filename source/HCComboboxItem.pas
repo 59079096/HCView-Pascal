@@ -56,7 +56,7 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseLeave; override;
 
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -66,6 +66,7 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); override;
     destructor Destroy; override;
+    procedure Assign(Source: THCCustomItem); override;
     property Items: TStrings read FItems write SetItems;
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
     property SaveItem: Boolean read FSaveItem write FSaveItem;
@@ -83,6 +84,12 @@ const
   DROPDOWNCOUNT = 8;  // 下拉弹出时显示的Item数量
 
 { THCComboboxItem }
+
+procedure THCComboboxItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FItems.Assign((Source as THCComboboxItem).Items);
+end;
 
 constructor THCComboboxItem.Create(const AOwnerData: THCCustomData; const AText: string);
 begin
@@ -343,7 +350,7 @@ begin
   FPopupForm.Width := Self.Width;
 end;
 
-procedure THCComboboxItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCComboboxItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   inherited GetCaretInfo(ACaretInfo);
   if (not Self.AutoSize) and (ACaretInfo.X > Width - BTNWIDTH) then

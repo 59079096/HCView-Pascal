@@ -32,6 +32,7 @@ type
       const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); override;
+    procedure Assign(Source: THCCustomItem); override;
     property LineStyle: TPenStyle read FLineStyle write FLineStyle;
     property LineHeght: byte read FLineHeght write FLineHeght;
   end;
@@ -39,6 +40,13 @@ type
 implementation
 
 { TLineItem }
+
+procedure TLineItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FLineHeght := (Source as TLineItem).LineHeght;
+  FLineStyle := (Source as TLineItem).LineStyle;
+end;
 
 constructor TLineItem.Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer);
 begin

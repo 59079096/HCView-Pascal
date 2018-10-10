@@ -2225,7 +2225,7 @@ end;
 
 procedure THCView.ReBuildCaret;
 var
-  vCaretInfo: TCaretInfo;
+  vCaretInfo: THCCaretInfo;
   vDisplayHeight: Integer;
 begin
   if FCaret = nil then Exit;

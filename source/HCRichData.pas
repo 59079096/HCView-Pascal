@@ -69,7 +69,7 @@ type
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure InitializeField; override;
-    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
     function DeleteSelected: Boolean; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -96,7 +96,7 @@ type
     /// <returns>True£∫’“µΩ</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean;
 
-    procedure GetCaretInfoCur(var ACaretInfo: TCaretInfo);
+    procedure GetCaretInfoCur(var ACaretInfo: THCCaretInfo);
     procedure TraverseItem(const ATraverse: TItemTraverse);
 
     property HotDomain: TDomain read FHotDomain;
@@ -510,7 +510,7 @@ begin
 end;
 
 procedure THCRichData.GetCaretInfo(const AItemNo, AOffset: Integer;
-  var ACaretInfo: TCaretInfo);
+  var ACaretInfo: THCCaretInfo);
 var
   vTopData: THCCustomRichData;
 begin
@@ -539,7 +539,7 @@ begin
   end;
 end;
 
-procedure THCRichData.GetCaretInfoCur(var ACaretInfo: TCaretInfo);
+procedure THCRichData.GetCaretInfoCur(var ACaretInfo: THCCaretInfo);
 begin
   if Style.UpdateInfo.Draging then
     Self.GetCaretInfo(Self.MouseMoveItemNo, Self.MouseMoveItemOffset, ACaretInfo)

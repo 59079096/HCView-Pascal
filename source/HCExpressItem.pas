@@ -31,14 +31,14 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     function GetExpressArea(const X, Y: Integer): TExpressArea; override;
     function InsertText(const AText: string): Boolean; override;
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData;
       const ALeftText, ATopText, ARightText, ABottomText: string); virtual;
-
+    procedure Assign(Source: THCCustomItem); override;
     property LeftRect: TRect read FLeftRect;
     property RightRect: TRect read FRightRect;
     property LeftText: string read FLeftText write FLeftText;
@@ -56,6 +56,13 @@ uses
   SysUtils, System.Math;
 
 { THCExpressItem }
+
+procedure THCExpressItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FLeftText := (Source as THCExpressItem).LeftText;
+  FRightText := (Source as THCExpressItem).RightText;
+end;
 
 constructor THCExpressItem.Create(const AOwnerData: THCCustomData;
   const ALeftText, ATopText, ARightText, ABottomText: string);
@@ -153,7 +160,7 @@ begin
     Height - Padding - vH, vBottomW, vH);
 end;
 
-procedure THCExpressItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCExpressItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
@@ -326,27 +333,10 @@ end;
 
 procedure THCExpressItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
-
-  procedure LoadPartText(var S: string);
-  var
-    vSize: Word;
-    vBuffer: TBytes;
-  begin
-    AStream.ReadBuffer(vSize, SizeOf(vSize));
-    if vSize > 0 then
-    begin
-      SetLength(vBuffer, vSize);
-      AStream.Read(vBuffer[0], vSize);
-      S := StringOf(vBuffer);
-    end
-    else
-      S := '';
-  end;
-
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  LoadPartText(FLeftText);
-  LoadPartText(FRightText);
+  HCLoadTextFromStream(AStream, FLeftText);
+  HCLoadTextFromStream(AStream, FRightText);
 end;
 
 procedure THCExpressItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

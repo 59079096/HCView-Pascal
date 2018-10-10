@@ -50,7 +50,7 @@ type
     function KeyDownFloatItem(var Key: Word; Shift: TShiftState): Boolean;
 
     procedure Clear; override;
-    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
 
     /// <summary> ≤Â»Î∏°∂ØItem </summary>
     function InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
@@ -468,7 +468,7 @@ begin
 end;
 
 procedure THCSectionData.GetCaretInfo(const AItemNo, AOffset: Integer;
-  var ACaretInfo: TCaretInfo);
+  var ACaretInfo: THCCaretInfo);
 begin
   if FFloatItemIndex >= 0 then
   begin

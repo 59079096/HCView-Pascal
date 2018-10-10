@@ -19,7 +19,7 @@ uses
 type
   TOnTextStyle = procedure(const ACurStyleNo: Integer; var AWillStyle: THCTextStyle) of object;
 
-  TStyleMatch = class  // 文本样式匹配类
+  THCStyleMatch = class  // 文本样式匹配类
   private
     FAppend: Boolean;  // True添加对应样式
     FOnTextStyle: TOnTextStyle;
@@ -30,7 +30,7 @@ type
     property Append: Boolean read FAppend write FAppend;
   end;
 
-  TTextStyleMatch = class(TStyleMatch)
+  TTextStyleMatch = class(THCStyleMatch)
   private
     FFontStyle: THCFontStyle;
   public
@@ -39,7 +39,7 @@ type
     property FontStyle: THCFontStyle read FFontStyle write FFontStyle;
   end;
 
-  TFontNameStyleMatch = class(TStyleMatch)
+  TFontNameStyleMatch = class(THCStyleMatch)
   private
     FFontName: string;
   public
@@ -47,7 +47,7 @@ type
     property FontName: string read FFontName write FFontName;
   end;
 
-  TFontSizeStyleMatch = class(TStyleMatch)
+  TFontSizeStyleMatch = class(THCStyleMatch)
   private
     FFontSize: Single;
   public
@@ -55,7 +55,7 @@ type
     property FontSize: Single read FFontSize write FFontSize;
   end;
 
-  TColorStyleMatch = class(TStyleMatch)
+  TColorStyleMatch = class(THCStyleMatch)
   private
     FColor: TColor;
   public
@@ -63,7 +63,7 @@ type
     property Color: TColor read FColor write FColor;
   end;
 
-  TBackColorStyleMatch = class(TStyleMatch)
+  TBackColorStyleMatch = class(THCStyleMatch)
   private
     FColor: TColor;
   public
@@ -71,7 +71,7 @@ type
     property Color: TColor read FColor write FColor;
   end;
 
-  TParaMatch = class  // 段样式匹配类
+  THCParaMatch = class  // 段样式匹配类
   private
     FJoin: Boolean;  // 添加对应样式
   public
@@ -79,7 +79,7 @@ type
     property Join: Boolean read FJoin write FJoin;
   end;
 
-  TParaAlignHorzMatch = class(TParaMatch)
+  TParaAlignHorzMatch = class(THCParaMatch)
   private
     FAlign: TParaAlignHorz;
   public
@@ -87,7 +87,7 @@ type
     property Align: TParaAlignHorz read FAlign write FAlign;
   end;
 
-  TParaAlignVertMatch = class(TParaMatch)
+  TParaAlignVertMatch = class(THCParaMatch)
   private
     FAlign: TParaAlignVert;
   public
@@ -95,7 +95,7 @@ type
     property Align: TParaAlignVert read FAlign write FAlign;
   end;
 
-  TParaLineSpaceMatch = class(TParaMatch)
+  TParaLineSpaceMatch = class(THCParaMatch)
   private
     FSpaceMode: TParaLineSpaceMode;
   public
@@ -103,7 +103,7 @@ type
     property SpaceMode: TParaLineSpaceMode read FSpaceMode write FSpaceMode;
   end;
 
-  TParaBackColorMatch = class(TParaMatch)
+  TParaBackColorMatch = class(THCParaMatch)
   private
     FBackColor: TColor;
   public
@@ -325,9 +325,9 @@ begin
   end;
 end;
 
-{ TStyleMatch }
+{ THCStyleMatch }
 
-function TStyleMatch.StyleHasMatch(const AStyle: THCStyle;
+function THCStyleMatch.StyleHasMatch(const AStyle: THCStyle;
   const ACurStyleNo: Integer): Boolean;
 begin
   Result := False;

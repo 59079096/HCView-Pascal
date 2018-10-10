@@ -35,6 +35,7 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
+    procedure Assign(Source: THCCustomItem); override;
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
@@ -48,6 +49,12 @@ type
 implementation
 
 { THCImageItem }
+
+procedure THCImageItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FImage.Assign((Source as THCImageItem).Image);
+end;
 
 constructor THCImageItem.Create(const AOwnerData: THCCustomData);
 begin

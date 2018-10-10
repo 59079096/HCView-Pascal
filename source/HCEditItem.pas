@@ -47,7 +47,7 @@ type
     procedure KeyPress(var Key: Char); override;
 
     function InsertText(const AText: string): Boolean; override;
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -55,6 +55,7 @@ type
     procedure SetText(const Value: string); virtual;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
+    procedure Assign(Source: THCCustomItem); override;
     property Text: string read FText write SetText;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
     property BorderSides: TBorderSides read FBorderSides write FBorderSides;
@@ -67,6 +68,15 @@ uses
   Math;
 
 { THCEditItem }
+
+procedure THCEditItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FText := (Source as THCEditItem).Text;
+  FReadOnly := (Source as THCEditItem).ReadOnly;
+  FBorderSides := (Source as THCEditItem).BorderSides;
+  FBorderWidth := (Source as THCEditItem).BorderWidth;
+end;
 
 constructor THCEditItem.Create(const AOwnerData: THCCustomData; const AText: string);
 begin
@@ -156,7 +166,7 @@ begin
     Height := FMinHeight;
 end;
 
-procedure THCEditItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCEditItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 var
   vSize: TSize;
   vS: string;

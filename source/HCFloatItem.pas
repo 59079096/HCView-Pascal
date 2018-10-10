@@ -29,6 +29,7 @@ type
     constructor Create(const AOwnerData: THCCustomData); override;
     function PtInClient(const APoint: TPoint): Boolean; overload; virtual;
     function PtInClient(const X, Y: Integer): Boolean; overload;
+    procedure Assign(Source: THCCustomItem); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -44,6 +45,15 @@ type
 implementation
 
 { THCFloatItem }
+
+procedure THCFloatItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FLeft := (Source as THCFloatItem).Left;
+  FTop := (Source as THCFloatItem).Top;
+  Width := (Source as THCFloatItem).Width;
+  Height := (Source as THCFloatItem).Height;
+end;
 
 constructor THCFloatItem.Create(const AOwnerData: THCCustomData);
 begin
@@ -71,7 +81,7 @@ procedure THCFloatItem.LoadFromStream(const AStream: TStream;
 var
   vValue: Integer;
 begin
-  //AStream.ReadBuffer(StyleNo, SizeOf(StyleNo));  // 由载时先读取并根据值创建
+  //AStream.ReadBuffer(StyleNo, SizeOf(StyleNo));  // 加载时先读取并根据值创建
   AStream.ReadBuffer(FLeft, SizeOf(FLeft));
   AStream.ReadBuffer(FTop, SizeOf(FTop));
 

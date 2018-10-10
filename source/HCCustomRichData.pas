@@ -183,8 +183,8 @@ type
 
     procedure Clear; override;
     // 选中内容应用样式
-    function ApplySelectTextStyle(const AMatchStyle: TStyleMatch): Integer; override;
-    function ApplySelectParaStyle(const AMatchStyle: TParaMatch): Integer; override;
+    function ApplySelectTextStyle(const AMatchStyle: THCStyleMatch): Integer; override;
+    function ApplySelectParaStyle(const AMatchStyle: THCParaMatch): Integer; override;
 
     function DisSelect: Boolean; override;
 
@@ -236,6 +236,10 @@ type
 
     /// <summary> 在光标处换行 </summary>
     function InsertBreak: Boolean;
+
+    /// <summary> 添加Data到当前 </summary>
+    /// <param name="ASrcData">源Data</param>
+    procedure AddData(const ASrcData: THCCustomData);
 
     /// <summary> 在光标处插入字符串(可带回车换行符) </summary>
     function InsertText(const AText: string): Boolean;
@@ -1412,8 +1416,29 @@ begin
     end);
 end;
 
+procedure THCCustomRichData.AddData(const ASrcData: THCCustomData);
+var
+  i, vAddStartNo: Integer;
+  vItem: THCCustomItem;
+begin
+  if Self.Items.Last.CanConcatItems(ASrcData.Items.First) then
+  begin
+    Self.Items.Last.Text := Self.Items.Last.Text + ASrcData.Items.First.Text;
+    vAddStartNo := 1;
+  end
+  else
+    vAddStartNo := 0;
+
+  for i := vAddStartNo to ASrcData.Items.Count - 1 do
+  begin
+    vItem := CreateItemByStyle(ASrcData.Items[i].StyleNo);
+    vItem.Assign(ASrcData.Items[i]);
+    Self.Items.Add(vItem);
+  end;
+end;
+
 function THCCustomRichData.ApplySelectParaStyle(
-  const AMatchStyle: TParaMatch): Integer;
+  const AMatchStyle: THCParaMatch): Integer;
 var
   vFirstNo, vLastNo: Integer;
 
@@ -1479,7 +1504,7 @@ begin
 end;
 
 function THCCustomRichData.ApplySelectTextStyle(
-  const AMatchStyle: TStyleMatch): Integer;
+  const AMatchStyle: THCStyleMatch): Integer;
 
   {$REGION ' MergeItemToPrio 当前Item成功合并到同段前一个Item '}
   function MergeItemToPrio(const AItemNo: Integer): Boolean;

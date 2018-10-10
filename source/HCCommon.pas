@@ -102,7 +102,7 @@ type
     psArch_D, psArch_E, psArch_E1,
     ps16K, ps32K);
 
-  TCaretInfo = record
+  THCCaretInfo = record
     X, Y, Height, PageIndex: Integer;
     Visible: Boolean;
   end;
@@ -152,6 +152,8 @@ type
 
   function GetVersionAsInteger(const AVersion: string): Integer;
 
+  procedure HCLoadTextFromStream(const AStream: TStream; var S: string);
+
   /// <summary> 保存文件格式、版本 </summary>
   procedure _SaveFileFormatAndVersion(const AStream: TStream);
   /// <summary> 读取文件格式、版本 </summary>
@@ -191,6 +193,22 @@ begin
   end;
 end;
 {$ENDIF}
+
+procedure HCLoadTextFromStream(const AStream: TStream; var S: string);
+var
+  vSize: Word;
+  vBuffer: TBytes;
+begin
+  AStream.ReadBuffer(vSize, SizeOf(vSize));
+  if vSize > 0 then
+  begin
+    SetLength(vBuffer, vSize);
+    AStream.Read(vBuffer[0], vSize);
+    S := StringOf(vBuffer);
+  end
+  else
+    S := '';
+end;
 
 function GetCharType(const AChar: Word): TCharType;
 begin

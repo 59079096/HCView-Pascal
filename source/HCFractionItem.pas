@@ -44,7 +44,7 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -55,6 +55,7 @@ type
     property BottomRect: TRect read FBottomRect write FBottomRect;
   public
     constructor Create(const AOwnerData: THCCustomData; const ATopText, ABottomText: string); virtual;
+    procedure Assign(Source: THCCustomItem); override;
     property Padding: Byte read FPadding;
     property LineHide: Boolean read FLineHide write FLineHide;
 
@@ -68,6 +69,13 @@ uses
   SysUtils, System.Math;
 
 { THCFractionItem }
+
+procedure THCFractionItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FTopText := (Source as THCFractionItem).TopText;
+  FBottomText := (Source as THCFractionItem).BottomText;
+end;
 
 constructor THCFractionItem.Create(const AOwnerData: THCCustomData;
   const ATopText, ABottomText: string);
@@ -162,7 +170,7 @@ begin
     Height - FPadding - vH, vBottomW, vH);
 end;
 
-procedure THCFractionItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCFractionItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
@@ -323,27 +331,10 @@ end;
 
 procedure THCFractionItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
-
-  procedure LoadPartText(var S: string);
-  var
-    vSize: Word;
-    vBuffer: TBytes;
-  begin
-    AStream.ReadBuffer(vSize, SizeOf(vSize));
-    if vSize > 0 then
-    begin
-      SetLength(vBuffer, vSize);
-      AStream.Read(vBuffer[0], vSize);
-      S := StringOf(vBuffer);
-    end
-    else
-      S := '';
-  end;
-
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  LoadPartText(FTopText);
-  LoadPartText(FBottomText);
+  HCLoadTextFromStream(AStream, FTopText);
+  HCLoadTextFromStream(AStream, FBottomText);
 end;
 
 procedure THCFractionItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

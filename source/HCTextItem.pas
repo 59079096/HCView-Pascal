@@ -70,7 +70,7 @@ end;
 procedure THCTextItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
-  Self.Text := (Source as THCTextItem).Text;
+  FText := (Source as THCTextItem).Text;
 end;
 
 function THCTextItem.BreakByOffset(const AOffset: Integer): THCCustomItem;

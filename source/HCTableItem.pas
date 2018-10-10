@@ -164,9 +164,9 @@ type
     procedure KillFocus; override;
     // 继承TCustomRectItem抽象方法
     function ApplySelectTextStyle(const AStyle: THCStyle;
-      const AMatchStyle: TStyleMatch): Integer; override;
+      const AMatchStyle: THCStyleMatch): Integer; override;
     procedure ApplySelectParaStyle(const AStyle: THCStyle;
-      const AMatchStyle: TParaMatch); override;
+      const AMatchStyle: THCParaMatch); override;
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
@@ -176,7 +176,7 @@ type
     function DeleteSelected: Boolean; override;
     procedure DisSelect; override;
     procedure MarkStyleUsed(const AMark: Boolean); override;
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SetActive(const Value: Boolean); override;
 
     /// <summary> 获取表格在指定高度内的结束位置处行中最下端(暂时没用到注释了) </summary>
@@ -255,6 +255,8 @@ type
     constructor Create(const AOwnerData: TCustomData; const ARowCount, AColCount,
       AWidth: Integer); virtual;
     destructor Destroy; override;
+
+    procedure Assign(Source: THCCustomItem); override;
 
     /// <summary> 当前位置开始查找指定的内容 </summary>
     /// <param name="AKeyword">要查找的关键字</param>
@@ -3869,7 +3871,7 @@ begin
 end;
 
 procedure THCTableItem.ApplySelectParaStyle(const AStyle: THCStyle;
-  const AMatchStyle: TParaMatch);
+  const AMatchStyle: THCParaMatch);
 var
   vR, vC: Integer;
 begin
@@ -3895,7 +3897,7 @@ begin
 end;
 
 function THCTableItem.ApplySelectTextStyle(const AStyle: THCStyle;
-  const AMatchStyle: TStyleMatch): Integer;
+  const AMatchStyle: THCStyleMatch): Integer;
 var
   vR, vC: Integer;
 begin
@@ -3911,6 +3913,47 @@ begin
       begin
         if Cells[vR, vC].CellData <> nil then
           Cells[vR, vC].CellData.ApplySelectTextStyle(AMatchStyle);
+      end;
+    end;
+  end;
+end;
+
+procedure THCTableItem.Assign(Source: THCCustomItem);
+var
+  vR, vC: Integer;
+  vSrcTable: THCTableItem;
+begin
+  // 必需保证行、列数量一致
+  inherited Assign(Source);
+
+  vSrcTable := Source as THCTableItem;
+
+  FBorderVisible := vSrcTable.BorderVisible;
+  FBorderWidth := vSrcTable.BorderWidth;
+
+  for vC := 0 to Self.ColCount - 1 do
+    FColWidths[vC] := vSrcTable.FColWidths[vC];
+
+  for vR := 0 to Self.RowCount - 1 do
+  begin
+    FRows[vR].AutoHeight := vSrcTable.Rows[vR].AutoHeight;
+    FRows[vR].Height := vSrcTable.Rows[vR].Height;
+
+    for vC := 0 to Self.ColCount - 1 do
+    begin
+      Self.Cells[vR, vC].Width := FColWidths[vC];
+      Self.Cells[vR, vC].RowSpan := vSrcTable.Cells[vR, vC].RowSpan;
+      Self.Cells[vR, vC].ColSpan := vSrcTable.Cells[vR, vC].ColSpan;
+      Self.Cells[vR, vC].BackgroundColor := vSrcTable.Cells[vR, vC].BackgroundColor;
+      Self.Cells[vR, vC].AlignVert := vSrcTable.Cells[vR, vC].AlignVert;
+      Self.Cells[vR, vC].BorderSides := vSrcTable.Cells[vR, vC].BorderSides;
+
+      if vSrcTable.Cells[vR, vC].CellData <> nil then
+        Self.Cells[vR, vC].CellData.AddData(vSrcTable.Cells[vR, vC].CellData)
+      else
+      begin
+        Self.Cells[vR, vC].CellData.Free;
+        Self.Cells[vR, vC].CellData := nil;
       end;
     end;
   end;
@@ -3962,7 +4005,7 @@ begin
     Result := vCell.CellData.GetTopLevelItem;
 end;
 
-procedure THCTableItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCTableItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 var
   i, vTop, vBottom, vRow, vCol: Integer;
   vPos: TPoint;

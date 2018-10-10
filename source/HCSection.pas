@@ -125,7 +125,7 @@ type
     /// <summary> 获取光标在Dtat中的位置信息并映射到指定页面 </summary>
     /// <param name="APageIndex">要映射到的页序号</param>
     /// <param name="ACaretInfo">光标位置信息</param>
-    procedure GetPageCaretInfo(var ACaretInfo: TCaretInfo); virtual;
+    procedure GetPageCaretInfo(var ACaretInfo: THCCaretInfo); virtual;
     /// <summary> 绘制指定页到指定的位置，为配合打印，开放ADisplayWidth, ADisplayHeight参数 </summary>
     /// <param name="APageIndex">要绘制的页码</param>
     /// <param name="ALeft">绘制X偏移</param>
@@ -366,7 +366,7 @@ type
 
   THCSection = class(THCCustomSection)
   public
-    procedure GetPageCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetPageCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure PaintPage(const APageIndex, ALeft, ATop: Integer;
       const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo); override;
     procedure Clear; override;
@@ -748,7 +748,7 @@ end;
 function THCCustomSection.GetPageIndexByCurrent: Integer;
 var
   i, vCaretDrawItemNo: Integer;
-  vCaretInfo: TCaretInfo;
+  vCaretInfo: THCCaretInfo;
 begin
   Result := -1;
   if FActiveData <> FPageData then
@@ -988,7 +988,7 @@ begin
   Assert(Result >= 0, '没有获取到正确的页序号！');
 end;
 
-procedure THCCustomSection.GetPageCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCCustomSection.GetPageCaretInfo(var ACaretInfo: THCCaretInfo);
 var
   vMarginLeft, vMarginRight, vPageIndex: Integer;
 begin
@@ -2456,7 +2456,7 @@ begin
   inherited Clear;
 end;
 
-procedure THCSection.GetPageCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCSection.GetPageCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   inherited GetPageCaretInfo(ACaretInfo);
 end;

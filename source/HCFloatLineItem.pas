@@ -28,6 +28,7 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     function PtInClient(const APoint: TPoint): Boolean; override;
+    procedure Assign(Source: THCCustomItem); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -44,6 +45,15 @@ uses
   System.Math;
 
 { THCFloatLineItem }
+
+procedure THCFloatLineItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FStartPt.X := (Source as THCFloatLineItem).FStartPt.X;
+  FStartPt.Y := (Source as THCFloatLineItem).FStartPt.Y;
+  FEndPt.X := (Source as THCFloatLineItem).FEndPt.X;
+  FEndPt.Y := (Source as THCFloatLineItem).FEndPt.Y;
+end;
 
 constructor THCFloatLineItem.Create(const AOwnerData: THCCustomData);
 begin

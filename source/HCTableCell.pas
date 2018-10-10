@@ -48,7 +48,7 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word);
 
-    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: TCaretInfo);
+    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo);
 
     /// <summary> 绘制数据 </summary>
     /// <param name="ADataDrawLeft">绘制目标区域Left</param>
@@ -111,7 +111,7 @@ begin
 end;
 
 procedure THCTableCell.GetCaretInfo(const AItemNo, AOffset: Integer;
-  var ACaretInfo: TCaretInfo);
+  var ACaretInfo: THCCaretInfo);
 begin
   if FCellData <> nil then
   begin

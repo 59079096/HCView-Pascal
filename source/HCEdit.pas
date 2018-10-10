@@ -584,7 +584,7 @@ end;
 
 procedure THCEdit.ReBuildCaret(const AScrollBar: Boolean);
 var
-  vCaretInfo: TCaretInfo;
+  vCaretInfo: THCCaretInfo;
   vDisplayHeight: Integer;
 begin
   if not Self.Focused then Exit;

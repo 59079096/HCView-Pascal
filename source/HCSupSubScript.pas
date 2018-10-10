@@ -41,7 +41,7 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -52,6 +52,7 @@ type
     property SubRect: TRect read FSubRect write FSubRect;
   public
     constructor Create(const AOwnerData: THCCustomData; const ASupText, ASubText: string);
+    procedure Assign(Source: THCCustomItem); override;
     property SupText: string read FSupText write FSupText;
     property SubText: string read FSubText write FSubText;
   end;
@@ -114,6 +115,13 @@ begin
       end;
     end;
   end;
+end;
+
+procedure THCSupSubScriptItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FSupText := (Source as THCSupSubScriptItem).SupText;
+  FSubText := (Source as THCSupSubScriptItem).SubText;
 end;
 
 constructor THCSupSubScriptItem.Create(const AOwnerData: THCCustomData;
@@ -199,7 +207,7 @@ begin
   FSubRect := Bounds(FPadding, Height - FPadding - vH, vBottomW, vH);
 end;
 
-procedure THCSupSubScriptItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCSupSubScriptItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
@@ -360,27 +368,10 @@ end;
 
 procedure THCSupSubScriptItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
-
-  procedure LoadPartText(var S: string);
-  var
-    vSize: Word;
-    vBuffer: TBytes;
-  begin
-    AStream.ReadBuffer(vSize, SizeOf(vSize));
-    if vSize > 0 then
-    begin
-      SetLength(vBuffer, vSize);
-      AStream.Read(vBuffer[0], vSize);
-      S := StringOf(vBuffer);
-    end
-    else
-      S := '';
-  end;
-
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  LoadPartText(FSupText);
-  LoadPartText(FSubText);
+  HCLoadTextFromStream(AStream, FSupText);
+  HCLoadTextFromStream(AStream, FSubText);
 end;
 
 procedure THCSupSubScriptItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

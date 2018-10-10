@@ -39,7 +39,7 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseEnter; override;
     procedure MouseLeave; override;
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     function GetOffsetAt(const X: Integer): Integer; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -47,7 +47,7 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
-
+    procedure Assign(Source: THCCustomItem); override;
     procedure AddItem(const AText: string; const AChecked: Boolean = False);
 
     property MultSelect: Boolean read FMultSelect write FMultSelect;
@@ -69,6 +69,19 @@ begin
   vRadioButton.Checked := AChecked;
   vRadioButton.Text := AText;
   FItems.Add(vRadioButton);
+end;
+
+procedure THCRadioGroup.Assign(Source: THCCustomItem);
+var
+  i: Integer;
+  vSource: THCRadioGroup;
+begin
+  inherited Assign(Source);
+  vSource := Source as THCRadioGroup;
+
+  FItems.Clear;
+  for i := 0 to vSource.Items.Count - 1 do
+    AddItem(vSource.Items[i].Text, vSource.Items[i].Checked);
 end;
 
 constructor THCRadioGroup.Create(const AOwnerData: THCCustomData);
@@ -164,7 +177,7 @@ begin
     Height := FMinHeight;
 end;
 
-procedure THCRadioGroup.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCRadioGroup.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   if Self.Active then
     ACaretInfo.Visible := False;
@@ -239,7 +252,7 @@ begin
     for i := 0 to FItems.Count - 1 do
     begin
       AStream.ReadBuffer(vBool, SizeOf(vBool));
-      fitems[i].Checked := vBool;
+      Fitems[i].Checked := vBool;
     end;
   end;
 end;

@@ -58,8 +58,8 @@ type
     /// <summary> 适用于加载时创建 </summary>
     constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); overload; virtual;
     // 抽象方法，供继承
-    function ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: TStyleMatch): Integer; virtual;
-    procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: TParaMatch); virtual;
+    function ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch): Integer; virtual;
+    procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: THCParaMatch); virtual;
 
     // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); virtual;
@@ -82,7 +82,7 @@ type
     /// <summary> 分散对齐时是否分间距 </summary>
     function JustifySplit: Boolean; virtual;
     /// <summary> 更新光标位置 </summary>
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); virtual;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); virtual;
 
     /// <summary> 获取在指定高度内的结束位置处最下端(暂时没用到注释了) </summary>
     /// <param name="AHeight">指定的高度范围</param>
@@ -136,6 +136,7 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
+    procedure Assign(Source: THCCustomItem); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -183,10 +184,11 @@ type
     procedure SetTextStyleNo(const Value: Integer); virtual;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+    procedure Assign(Source: THCCustomItem); override;
     function GetOffsetAt(const X: Integer): Integer; override;
     function JustifySplit: Boolean; override;
     function ApplySelectTextStyle(const AStyle: THCStyle;
-      const AMatchStyle: TStyleMatch): Integer; override;
+      const AMatchStyle: THCStyleMatch): Integer; override;
     function SelectExists: Boolean; override;
     property TextStyleNo: Integer read FTextStyleNo write SetTextStyleNo;
   end;
@@ -199,6 +201,7 @@ type
     FMinWidth, FMinHeight: Integer;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+    procedure Assign(Source: THCCustomItem); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -245,7 +248,7 @@ type
     function CanDrag: Boolean; override;
 
     /// <summary> 更新光标位置 </summary>
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     function SelectExists: Boolean; override;
 
     /// <summary> 约束到指定大小范围内 </summary>
@@ -270,13 +273,20 @@ implementation
 { THCCustomRectItem }
 
 procedure THCCustomRectItem.ApplySelectParaStyle(const AStyle: THCStyle;
-  const AMatchStyle: TParaMatch);
+  const AMatchStyle: THCParaMatch);
 begin
 end;
 
 function THCCustomRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
-  const AMatchStyle: TStyleMatch): Integer;
+  const AMatchStyle: THCStyleMatch): Integer;
 begin
+end;
+
+procedure THCCustomRectItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FWidth := (Source as THCCustomRectItem).Width;
+  FHeight := (Source as THCCustomRectItem).Height;
 end;
 
 function THCCustomRectItem.BreakByOffset(const AOffset: Integer): THCCustomItem;
@@ -389,7 +399,7 @@ begin
   Result := Self;
 end;
 
-procedure THCCustomRectItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCCustomRectItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
 end;
 
@@ -659,7 +669,7 @@ begin
   inherited DoUndoDestroy(Sender);
 end;
 
-procedure THCResizeRectItem.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCResizeRectItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   if Self.Active then
     ACaretInfo.Visible := False;
@@ -892,9 +902,15 @@ end;
 { THCTextRectItem }
 
 function THCTextRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
-  const AMatchStyle: TStyleMatch): Integer;
+  const AMatchStyle: THCStyleMatch): Integer;
 begin
   FTextStyleNo := AMatchStyle.GetMatchStyleNo(AStyle, FTextStyleNo);
+end;
+
+procedure THCTextRectItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FTextStyleNo := (Source as THCTextRectItem).TextStyleNo;
 end;
 
 constructor THCTextRectItem.Create(const AOwnerData: THCCustomData);
@@ -1068,6 +1084,12 @@ begin
 end;
 
 { THCControlItem }
+
+procedure THCControlItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FAutoSize := (Source as THCControlItem).AutoSize;
+end;
 
 constructor THCControlItem.Create(const AOwnerData: THCCustomData);
 begin

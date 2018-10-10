@@ -39,6 +39,8 @@ type
       const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string; const AChecked: Boolean); virtual;
+
+    procedure Assign(Source: THCCustomItem); override;
     property Checked: Boolean read FChecked write SetChecked;
     property Text: string read FText write FText;
   end;
@@ -56,6 +58,13 @@ const
 function THCCheckBoxItem.GetBoxRect: TRect;
 begin
   Result := Classes.Bounds(FMargin, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize)
+end;
+
+procedure THCCheckBoxItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FChecked := (Source as THCCheckBoxItem).Checked;  // ¶Á¹´Ñ¡×´Ì¬
+  FText := (Source as THCCheckBoxItem).Text;
 end;
 
 constructor THCCheckBoxItem.Create(const AOwnerData: THCCustomData; const AText: string;

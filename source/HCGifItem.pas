@@ -36,6 +36,7 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
+    procedure Assign(Source: THCCustomItem); override;
     procedure LoadFromFile(const AFileName: string);
     property Image: TGIFImage read FImage;
   end;
@@ -43,6 +44,12 @@ type
 implementation
 
 { THCGifItem }
+
+procedure THCGifItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FImage.Assign((Source as THCGifItem).Image);
+end;
 
 constructor THCGifItem.Create(const AOwnerData: THCCustomData);
 begin

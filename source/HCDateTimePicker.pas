@@ -48,7 +48,7 @@ type
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
 
-    procedure GetCaretInfo(var ACaretInfo: TCaretInfo); override;
+    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
 
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -56,6 +56,7 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData; const ADateTime: TDateTime); virtual;
     //destructor Destroy; override;
+    procedure Assign(Source: THCCustomItem); override;
     property Format: string read FFormat write SetFormat;
     property DateTime: TDateTime read FDateTime write SetDateTime;
   end;
@@ -66,6 +67,13 @@ uses
   DateUtils;
 
 { THCDateTimePicker }
+
+procedure THCDateTimePicker.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FFormat := (Source as THCDateTimePicker).Format;
+  FDateTime := (Source as THCDateTimePicker).DateTime;
+end;
 
 constructor THCDateTimePicker.Create(const AOwnerData: THCCustomData; const ADateTime: TDateTime);
 begin
@@ -693,7 +701,7 @@ begin
   end;
 end;
 
-procedure THCDateTimePicker.GetCaretInfo(var ACaretInfo: TCaretInfo);
+procedure THCDateTimePicker.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   ACaretInfo.Visible := False;
 end;

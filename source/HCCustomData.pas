@@ -563,7 +563,7 @@ begin
       vX := X - vDrawRect.Left;
       vY := Y - vDrawRect.Top - GetLineSpace(vDrawItemNo) div 2;
 
-      Result := (FItems[AItemNo] as THCCustomRectItem).CoordInSelect(vX, vY)
+      Result := (FItems[AItemNo] as THCCustomRectItem).CoordInSelect(vX, vY);
     end
     else
       Result := OffsetInSelect(AItemNo, AOffset);  // 对应的AOffset在选中内容中
@@ -689,7 +689,7 @@ begin
   {if IsEmptyData then
     Result := 0
   else}
-    Result := FSelectInfo.StartItemNo
+    Result := FSelectInfo.StartItemNo;
 end;
 
 function THCCustomData.DeleteSelected: Boolean;
@@ -843,7 +843,7 @@ begin
 
   if GetDrawItemStyle(ADrawNo) >= THCStyle.Null then
   begin
-    vCanvas := FStyle.CreateStyleCanvas;
+    vCanvas := THCStyle.CreateStyleCanvas;
     try
       FStyle.TextStyles[GetDrawItemStyle(ADrawNo)].ApplyStyle(vCanvas);
       GetTextMetrics(vCanvas.Handle, vTextMetric);
@@ -860,7 +860,7 @@ begin
         plsFix: Result := LineSpaceMin;
       end;
     finally
-      FStyle.DestroyStyleCanvas(vCanvas);
+      THCStyle.DestroyStyleCanvas(vCanvas);
     end;
   end;
 end;
@@ -910,7 +910,7 @@ begin
   Result := 0;
   vDrawItem := FDrawItems[ADrawItemNo];
   vItem  := FItems[vDrawItem.ItemNo];
-  if vItem.StyleNo < FStyle.Null then  // 非文本
+  if vItem.StyleNo < THCStyle.Null then  // 非文本
     Result := (vItem as THCCustomRectItem).GetOffsetAt(X - vDrawItem.Rect.Left)
   else  // 文本
   begin
@@ -1425,7 +1425,7 @@ begin
   end;
 
   vMaxHi := 0;
-  vCanvas := FStyle.CreateStyleCanvas;
+  vCanvas := THCStyle.CreateStyleCanvas;
   try
     vMaxDrawNo := vFirst;
     for i := vFirst to vLast do
@@ -1445,7 +1445,7 @@ begin
       end;
     end;
   finally
-    FStyle.DestroyStyleCanvas(vCanvas);
+    THCStyle.DestroyStyleCanvas(vCanvas);
   end;
 
   Result := GetDrawItemLineSpace(vMaxDrawNo);
@@ -2698,7 +2698,7 @@ end;
 
 procedure THCCustomData.SaveToStream(const AStream: TStream);
 begin
-  SaveToStream(AStream, 0, 0, Items.Count - 1, Items.Last.Length);
+  SaveToStream(AStream, 0, 0, FItems.Count - 1, FItems.Last.Length);
 end;
 
 procedure THCCustomData.SaveSelectToStream(const AStream: TStream);
@@ -2807,7 +2807,7 @@ end;
 
 function THCCustomData.SaveToText: string;
 begin
-  SaveToText(0, 0, Items.Count - 1, Items.Last.Length);
+  SaveToText(0, 0, FItems.Count - 1, FItems.Last.Length);
 end;
 
 procedure THCCustomData.SelectAll;

@@ -4834,15 +4834,18 @@ var
     end;
 
     // 新选中范围外的清除选中
-    if vOldStartItemNo > SelectInfo.StartItemNo then
+    if vOldStartItemNo >= 0 then  // 有旧选中Item
     begin
-      for i := vOldStartItemNo downto SelectInfo.StartItemNo + 1 do
-        Items[i].DisSelect;
-    end
-    else
-    begin
-      for i := vOldStartItemNo to SelectInfo.StartItemNo - 1 do
-        Items[i].DisSelect;
+      if vOldStartItemNo > SelectInfo.StartItemNo then
+      begin
+        for i := vOldStartItemNo downto SelectInfo.StartItemNo + 1 do
+          Items[i].DisSelect;
+      end
+      else
+      begin
+        for i := vOldStartItemNo to SelectInfo.StartItemNo - 1 do
+          Items[i].DisSelect;
+      end;
     end;
 
     if SelectInfo.EndItemNo < 0 then  // 有选中变成无选中

@@ -234,12 +234,12 @@ type
     function CanEdit: Boolean;
     procedure DeleteItems(const AStartNo: Integer; const AEndNo: Integer = -1);
 
-    /// <summary> 在光标处换行 </summary>
-    function InsertBreak: Boolean;
-
     /// <summary> 添加Data到当前 </summary>
     /// <param name="ASrcData">源Data</param>
     procedure AddData(const ASrcData: THCCustomData);
+
+    /// <summary> 在光标处换行 </summary>
+    function InsertBreak: Boolean;
 
     /// <summary> 在光标处插入字符串(可带回车换行符) </summary>
     function InsertText(const AText: string): Boolean;
@@ -1421,6 +1421,8 @@ var
   i, vAddStartNo: Integer;
   vItem: THCCustomItem;
 begin
+  Self.InitializeField;
+
   if Self.Items.Last.CanConcatItems(ASrcData.Items.First) then
   begin
     Self.Items.Last.Text := Self.Items.Last.Text + ASrcData.Items.First.Text;
@@ -1431,9 +1433,17 @@ begin
 
   for i := vAddStartNo to ASrcData.Items.Count - 1 do
   begin
-    vItem := CreateItemByStyle(ASrcData.Items[i].StyleNo);
-    vItem.Assign(ASrcData.Items[i]);
-    Self.Items.Add(vItem);
+    if (ASrcData.Items[i].StyleNo < THCStyle.Null)
+      or ((ASrcData.Items[i].StyleNo > THCStyle.Null) and (ASrcData.Items[i].Text <> ''))
+    then
+    begin
+      vItem := CreateItemByStyle(ASrcData.Items[i].StyleNo);
+      vItem.Assign(ASrcData.Items[i]);
+      //vItem.ParaFirst := False;  // 需要考虑合并
+      vItem.Active := False;
+      vItem.DisSelect;
+      Self.Items.Add(vItem);
+    end;
   end;
 end;
 

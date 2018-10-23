@@ -1199,17 +1199,23 @@ end;
 
 function THCCustomSection.ActiveDataChangeByAction(const AFunction: THCFunction): Boolean;
 var
-  vHeight, vDrawItemCount, vCurItemNo, vNewItemNo: Integer;
+  vOldHeight, vDrawItemCount, vCurItemNo, vNewItemNo: Integer;
+  vItemChangeNearPageBreak: Boolean;
 begin
   if not FActiveData.CanEdit then Exit(False);
   if FActiveData.FloatItemIndex >= 0 then Exit(False);
 
   // 记录变动前的状态
-  vHeight := FActiveData.Height;
+  vOldHeight := FActiveData.Height;
   // 应用选中文本样式等操作，并不引起高度变化，但会引起DrawItem数量变化
   // 也需要重新计算各页起始结束DrawItem
   vDrawItemCount := FActiveData.DrawItems.Count;  // 变动前的DrawItem数量
   vCurItemNo := FActiveData.GetCurItemNo;
+
+  if (vCurItemNo >= 0) and (ActiveData.Items[vCurItemNo].StyleNo < THCStyle.Null) then
+    vItemChangeNearPageBreak := (FActiveData.Items[vCurItemNo] as THCCustomRectItem).ChangeNearPageBreak  // 是否在此页开头或结尾分页
+  else
+    vItemChangeNearPageBreak := False;
 
   Result := AFunction;  // 处理变动
 
@@ -1219,7 +1225,8 @@ begin
     vNewItemNo := 0;
 
   if (vDrawItemCount <> FActiveData.DrawItems.Count)  // DrawItem数量变化了
-    or (vHeight <> FActiveData.Height)  // 数据高度变化了
+    or (vOldHeight <> FActiveData.Height)  // 数据高度变化了
+    or vItemChangeNearPageBreak  // 在分页处变动一定要重绘 原因见 201810172235
   then
   begin
     if FActiveData = FPageData then
@@ -1920,7 +1927,8 @@ begin
     vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPageDrawLeft),
       APaintInfo.GetScaleY(Max(vPageDrawTop + vHeaderAreaHeight, vPageDataScreenTop)),
       APaintInfo.GetScaleX(vPageDrawRight),
-      APaintInfo.GetScaleY(Min(vPageDrawBottom - FPageSize.PageMarginBottomPix, vPageDataScreenBottom)));
+      // 底部让出1像素，否则表格底部边框和数据绘制底部一样时，边框绘制不出来。Rgn比Rect约束了1像素？
+      APaintInfo.GetScaleY(Min(vPageDrawBottom - FPageSize.PageMarginBottomPix, vPageDataScreenBottom)) + 1);
     try
       SelectClipRgn(ACanvas.Handle, vPaintRegion);  // 设置绘制有效区域
       PaintPageData;
@@ -1994,10 +2002,7 @@ end;
 
 procedure THCCustomSection.BuildSectionPages(const AStartItemNo: Integer);
 var
-  vPageIndex, vPageDataFmtTop, vPageDataFmtBottom, vContentHeight,
-  vSuplus,  // 所有因换页向下偏移量的总和
-  vBreakSeat  // 分页位置，不同RectItem的含义不同，表格表示 vBreakRow
-    : Integer;
+  vPageIndex, vPageDataFmtTop, vPageDataFmtBottom, vContentHeight: Integer;
 
   {$REGION '_FormatNewPage'}
   procedure _FormatNewPage(const APrioEndDItemNo, ANewStartDItemNo: Integer);
@@ -2016,6 +2021,9 @@ var
   procedure _FormatRectItemCheckPageBreak(const ADrawItemNo: Integer);
   var
     vRectItem: THCCustomRectItem;
+    vSuplus,  // 所有因换页向下偏移量的总和
+    vBreakSeat  // 分页位置，不同RectItem的含义不同，表格表示 vBreakRow
+      : Integer;
 
     {$REGION '_RectItemCheckPage'}
     procedure _RectItemCheckPage(const AStartSeat: Integer);  // 开始分页计算的位置，不同RectItem含义不同，表格表示AStartRowNo
@@ -2055,8 +2063,8 @@ var
 
         vDrawRect := FPageData.DrawItems[ADrawItemNo].Rect;
 
-        if vSuplus = 0 then  // 第一次计算分页
-          InflateRect(vDrawRect, 0, -FPageData.GetLineSpace(ADrawItemNo) div 2);  // 减掉行间距
+        //if vSuplus = 0 then  // 第一次计算分页
+          InflateRect(vDrawRect, 0, -FPageData.GetLineSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去年行间距能放下不换页的效果
 
         vRectItem.CheckFormatPageBreak(  // 去除行间距后，判断表格跨页位置
           FPages.Count - 1,

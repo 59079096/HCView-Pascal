@@ -237,24 +237,24 @@ end;
 
 procedure TTableRow.SetHeight(const Value: Integer);
 var
-  i, vMaxHeight: Integer;
+  i, vMaxDataHeight: Integer;
 begin
   if FHeight <> Value then
   begin
-    vMaxHeight := 0;
+    vMaxDataHeight := 0;
     for i := 0 to FColCount - 1 do  // 找行中最高的单元格
     begin
-      if Cols[i].CellData <> nil then
+      if (Cols[i].CellData <> nil) and (Cols[i].RowSpan = 0) then  // 不是被合并的单元格，不是行合并的行单元格
       begin
-        if Cols[i].CellData.Height > vMaxHeight then
-          vMaxHeight := Cols[i].CellData.Height;
+        if Cols[i].CellData.Height > vMaxDataHeight then
+          vMaxDataHeight := Cols[i].CellData.Height;
       end;
     end;
 
-    if vMaxHeight < Value then  // 设置的高度大于最高内容，以设置的为准
+    if vMaxDataHeight < Value then  // 设置的高度大于最高内容，以设置的为准(这里应该是Data高度+上下FCellVPadding和Value比更准确)
       FHeight := Value
     else
-      FHeight := vMaxHeight;
+      FHeight := vMaxDataHeight;
 
     for i := 0 to FColCount - 1 do
       Cols[i].Height := FHeight;

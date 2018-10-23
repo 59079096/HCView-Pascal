@@ -64,9 +64,7 @@ type
 
     property CellData: THCTableCellData read FCellData write FCellData;
 
-    /// <summary>
-    /// 单元格宽度，为不使用全局的GCellPadding，数据的宽度在TableItem中处理
-    /// </summary>
+    /// <summary> 单元格宽度(含CellHPadding)，数据的宽度在TableItem中处理 </summary>
     property Width: Integer read FWidth write FWidth;
     /// <summary> 单元格高度(含CellVPadding * 2 主要用于合并目标单元格，如果发生合并，则>=数据高度) </summary>
     property Height: Integer read FHeight write SetHeight;

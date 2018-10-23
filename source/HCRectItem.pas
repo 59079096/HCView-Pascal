@@ -89,6 +89,7 @@ type
     /// <param name="ADItemMostBottom">最底端DItem的底部位置</param>
     //procedure GetPageFmtBottomInfo(const AHeight: Integer; var ADItemMostBottom: Integer); virtual;
 
+    // 准备判断分页前触发，可用于清除自己记录的分页信息，准备重新计算分页
     procedure CheckFormatPageBreakBefor; virtual;
 
     /// <summary> 计算格式化后的分页位置 </summary>
@@ -103,6 +104,9 @@ type
     procedure CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
       ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer;
       var ABreakSeat, AFmtOffset, AFmtHeightInc: Integer); virtual;
+
+    // 变动是否在分页处
+    function ChangeNearPageBreak: Boolean; virtual;
 
     function InsertItem(const AItem: THCCustomItem): Boolean; virtual;
     function InsertText(const AText: string): Boolean; virtual;
@@ -297,6 +301,11 @@ end;
 function THCCustomRectItem.CanConcatItems(const AItem: THCCustomItem): Boolean;
 begin
   Result := False;
+end;
+
+function THCCustomRectItem.ChangeNearPageBreak: Boolean;
+begin
+  Result := False;  // 需求见 201810172235
 end;
 
 procedure THCCustomRectItem.CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,

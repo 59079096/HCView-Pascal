@@ -470,7 +470,6 @@ begin
     vPaintInfo.ScaleY := FDrawHeight / FHCView.Sections[vSection].PageHeightPix;
 
     FBitmap.SetSize(FDrawWidth, FDrawHeight);
-    FBitmap.Canvas.Brush.Style := bsSolid;
     FBitmap.Canvas.Brush.Color := FHCView.Style.BackgroudColor;
     FBitmap.Canvas.FillRect(Bounds(0, 0, FBitmap.Width, FBitmap.Height));
 

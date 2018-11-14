@@ -29,14 +29,15 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+
+    function GetText: string; override;
+    procedure SetText(const Value: string); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string);
     destructor Destroy; override;
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
-
-    property Text: string read FText write FText;
   end;
 
 implementation
@@ -111,6 +112,11 @@ begin
     ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
+function THCQRCodeItem.GetText: string;
+begin
+  Result := FText;
+end;
+
 procedure THCQRCodeItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
@@ -162,6 +168,12 @@ begin
   AStream.WriteBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
     AStream.WriteBuffer(vBuffer[0], vSize);
+end;
+
+procedure THCQRCodeItem.SetText(const Value: string);
+begin
+  if FText <> Value then
+    FText := Value;
 end;
 
 end.

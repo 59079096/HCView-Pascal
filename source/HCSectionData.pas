@@ -150,25 +150,25 @@ end;
 
 procedure THCPageData.SaveToText(const AFileName: string; const AEncoding: TEncoding);
 var
-  Stream: TStream;
+  vStream: TStream;
 begin
-  Stream := TFileStream.Create(AFileName, fmCreate);
+  vStream := TFileStream.Create(AFileName, fmCreate);
   try
-    SaveToTextStream(Stream, AEncoding);
+    SaveToTextStream(vStream, AEncoding);
   finally
-    Stream.Free;
+    vStream.Free;
   end;
 end;
 
 procedure THCPageData.SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
 var
-  Buffer, Preamble: TBytes;
+  vBuffer, vPreamble: TBytes;
 begin
-  Buffer := AEncoding.GetBytes(GetTextStr);
-  Preamble := AEncoding.GetPreamble;
-  if Length(Preamble) > 0 then
-    AStream.WriteBuffer(Preamble[0], Length(Preamble));
-  AStream.WriteBuffer(Buffer[0], Length(Buffer));
+  vBuffer := AEncoding.GetBytes(GetTextStr);
+  vPreamble := AEncoding.GetPreamble;
+  if Length(vPreamble) > 0 then
+    AStream.WriteBuffer(vPreamble[0], Length(vPreamble));
+  AStream.WriteBuffer(vBuffer[0], Length(vBuffer));
 end;
 
 {$IFDEF DEBUG}

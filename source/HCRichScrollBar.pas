@@ -83,7 +83,6 @@ begin
       begin
         if Assigned(FAreaMarks) then
         begin
-          ACanvas.Brush.Style := bsSolid;
           ACanvas.Brush.Color := clBlue;
 
           for i := 0 to FAreaMarks.Count - 1 do

@@ -56,6 +56,9 @@ type
 
 implementation
 
+uses
+  HCCommon;
+
 { THCParaStyle }
 
 procedure THCParaStyle.AssignEx(const ASource: THCParaStyle);
@@ -64,9 +67,10 @@ begin
   //Self.FLineSpace := ASource.LineSpace;
   //Self.FLineSpaceHalf := ASource.LineSpaceHalf;
   Self.FFristIndent := ASource.FristIndent;
-  Self.LeftIndent := ASource.LeftIndent;
+  Self.FLeftIndent := ASource.LeftIndent;
   Self.FBackColor := ASource.BackColor;
   Self.FAlignHorz := ASource.AlignHorz;
+  Self.FAlignVert := ASource.AlignVert;
 end;
 
 constructor THCParaStyle.Create;
@@ -108,8 +112,16 @@ begin
   //FLineSpaceHalf := FLineSpace div 2;
   AStream.ReadBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
   AStream.ReadBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
-  AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
+
+  if AFileVersion > 18 then
+    LoadColorFromStream(FBackColor, AStream)
+  else
+    AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
+
   AStream.ReadBuffer(FAlignHorz, SizeOf(FAlignHorz));
+
+  if AFileVersion > 17 then
+    AStream.ReadBuffer(FAlignVert, SizeOf(FAlignVert));
 end;
 
 procedure THCParaStyle.SaveToStream(const AStream: TStream);
@@ -117,8 +129,10 @@ begin
   AStream.WriteBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
   AStream.WriteBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
   AStream.WriteBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
-  AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
+  //AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
+  SaveColorToStream(FBackColor, AStream);
   AStream.WriteBuffer(FAlignHorz, SizeOf(FAlignHorz));
+  AStream.WriteBuffer(FAlignVert, SizeOf(FAlignVert));
 end;
 
 end.

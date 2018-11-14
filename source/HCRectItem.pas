@@ -807,7 +807,7 @@ begin
                   vW := -vTempW;
               end
               else  // 对角线上面，纵向以横向为准
-                vH := -vTempH
+                vH := -vTempH;
             end;
 
             FResizeWidth := Width - vW;
@@ -855,7 +855,7 @@ begin
   begin
     FResizing := False;
 
-    if (FResizeWidth < 0) or (FResizeHeight < 0) then  Exit;
+    if (FResizeWidth < 0) or (FResizeHeight < 0) then Exit;
 
     Undo_Resize(FResizeWidth, FResizeHeight);
     Width := FResizeWidth;
@@ -914,6 +914,7 @@ function THCTextRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
   const AMatchStyle: THCStyleMatch): Integer;
 begin
   FTextStyleNo := AMatchStyle.GetMatchStyleNo(AStyle, FTextStyleNo);
+  Result := FTextStyleNo;
 end;
 
 procedure THCTextRectItem.Assign(Source: THCCustomItem);

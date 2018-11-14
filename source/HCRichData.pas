@@ -19,7 +19,7 @@ uses
   HCCommon, HCUndoRichData, HCList;
 
 type
-  TDomain = class
+  THCDomain = class
   strict private
     FBeginNo, FEndNo: Integer;
   public
@@ -37,14 +37,14 @@ type
     FDomainStartDeletes: THCIntegerList;  // 仅用于选中删除时，当域起始结束都选中时，删除了结束后标明起始的可删除
     FHotDomain,  // 当前高亮域
     FActiveDomain  // 当前激活域
-      : TDomain;
+      : THCDomain;
     FHotDomainRGN, FActiveDomainRGN: HRGN;
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FOnCreateItemByStyle: TStyleItemEvent;
 
     procedure GetDomainFrom(const AItemNo, AOffset: Integer;
-      const ADomain: TDomain);
-    function GetActiveDomain: TDomain;
+      const ADomain: THCDomain);
+    function GetActiveDomain: THCDomain;
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
     function CanDeleteItem(const AItemNo: Integer): Boolean; override;
@@ -99,8 +99,8 @@ type
     procedure GetCaretInfoCur(var ACaretInfo: THCCaretInfo);
     procedure TraverseItem(const ATraverse: TItemTraverse);
 
-    property HotDomain: TDomain read FHotDomain;
-    property ActiveDomain: TDomain read GetActiveDomain;
+    property HotDomain: THCDomain read FHotDomain;
+    property ActiveDomain: THCDomain read GetActiveDomain;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
   end;
 
@@ -210,8 +210,8 @@ end;
 constructor THCRichData.Create(const AStyle: THCStyle);
 begin
   FDomainStartDeletes := THCIntegerList.Create;
-  FHotDomain := TDomain.Create;
-  FActiveDomain := TDomain.Create;
+  FHotDomain := THCDomain.Create;
+  FActiveDomain := THCDomain.Create;
   inherited Create(AStyle);
 end;
 
@@ -405,7 +405,7 @@ begin
 end;
 
 procedure THCRichData.GetDomainFrom(const AItemNo, AOffset: Integer;
-  const ADomain: TDomain);
+  const ADomain: THCDomain);
 var
   i, vStartNo, vEndNo, vCount: Integer;
 begin
@@ -426,7 +426,7 @@ begin
       begin
         ADomain.BeginNo := AItemNo;  // 当前即为起始标识
         vEndNo := AItemNo + 1;
-      enD
+      end
       else  // 光标在前面
       begin
         if AItemNo > 0 then  // 不是第一个
@@ -502,7 +502,7 @@ begin
   end;
 end;
 
-function THCRichData.GetActiveDomain: TDomain;
+function THCRichData.GetActiveDomain: THCDomain;
 begin
   Result := nil;
   if FActiveDomain.BeginNo >= 0 then
@@ -1001,20 +1001,20 @@ begin
   end;
 end;
 
-{ TDomain }
+{ THCDomain }
 
-procedure TDomain.Clear;
+procedure THCDomain.Clear;
 begin
   FBeginNo := -1;
   FEndNo := -1;
 end;
 
-function TDomain.Contain(const AItemNo: Integer): Boolean;
+function THCDomain.Contain(const AItemNo: Integer): Boolean;
 begin
   Result := (AItemNo >= FBeginNo) and (AItemNo <= FEndNo);
 end;
 
-constructor TDomain.Create;
+constructor THCDomain.Create;
 begin
   Clear;
 end;

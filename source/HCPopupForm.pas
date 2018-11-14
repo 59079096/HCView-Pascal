@@ -150,10 +150,12 @@ begin
     with Message do
     begin
       if (Width > 32768) or (Height > 32768) then
+      begin
         with CalcCursorPos do
         begin
           FOnMouseDown(Self, Button, KeysToShiftState(Keys) + Shift + MouseOriginToShiftState, X, Y);
-        end
+        end;
+      end
       else
         FOnMouseDown(Self, Button, KeysToShiftState(Keys) + Shift + MouseOriginToShiftState, XPos, YPos);
     end;
@@ -299,7 +301,8 @@ var
             CM_DEACTIVATE, WM_ACTIVATEAPP:
               Break;
           end;
-            Application.HandleMessage;
+
+          Application.HandleMessage;
         end
         else
           TApplicationAccess(Application).Idle(vMsg);
@@ -381,8 +384,8 @@ begin
     vWndCls.lpfnWndProc   := @DefWindowProc;
     vWndCls.cbClsExtra    := 0;
     vWndCls.cbWndExtra    := SizeOf(DWord) * 2;
-    vWndCls.hIcon         := LoadIcon(hInstance,MakeIntResource('MAINICON'));
-    vWndCls.hIconSm       := LoadIcon(hInstance,MakeIntResource('MAINICON'));
+    vWndCls.hIcon         := LoadIcon(hInstance, MakeIntResource('MAINICON'));
+    vWndCls.hIconSm       := LoadIcon(hInstance, MakeIntResource('MAINICON'));
     vWndCls.hCursor       := LoadCursor(0, IDC_ARROW);
     vWndCls.hbrBackground := GetStockObject(white_Brush);
     vWndCls.lpszMenuName  := nil;
@@ -390,7 +393,7 @@ begin
     if RegisterClassEx(vWndCls) = 0 then
     begin
       //MessageBox(0, '×¢²áTCustomPopup´íÎó!', 'TCFCustomPopup', MB_OK);
-      raise Exception.Create('Òì³££º×¢²áTCustomPopup´íÎó!');
+      raise Exception.Create('Òì³££º×¢²áTHCPopupForm´íÎó!');
       Exit;
     end;
   end;
@@ -502,7 +505,7 @@ begin
     wm_KeyFirst..wm_KeyLast:  // jt+
       begin
         if Message.WParam = vk_Escape then
-          ClosePopup(True);;
+          ClosePopup(True);
       end;
 
     WM_LBUTTONDOWN: WMLButtonDown(TWMLButtonDown(Message));

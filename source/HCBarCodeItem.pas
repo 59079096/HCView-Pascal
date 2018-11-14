@@ -30,15 +30,14 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
-    procedure SetText(const Value: string);
+    function GetText: string; override;
+    procedure SetText(const Value: string); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string);
     destructor Destroy; override;
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
-
-    property Text: string read FText write SetText;
   end;
 
 implementation
@@ -86,6 +85,11 @@ begin
 
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
+function THCBarCodeItem.GetText: string;
+begin
+  Result := FText;
 end;
 
 procedure THCBarCodeItem.LoadFromStream(const AStream: TStream;

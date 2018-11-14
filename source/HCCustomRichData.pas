@@ -305,7 +305,7 @@ implementation
 uses
   HCTableItem, HCImageItem, HCCheckBoxItem, HCTabItem, HCLineItem, HCExpressItem,
   HCPageBreakItem, HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem,
-  HCFractionItem, HCDateTimePicker, HCRadioGroup;
+  HCFractionItem, HCDateTimePicker, HCRadioGroup, HCSupSubScriptItem;
 
 { THCCustomRichData }
 
@@ -328,7 +328,7 @@ begin
       THCStyle.Image: Result := THCImageItem.Create(Self, 0, 0);
       THCStyle.Table: Result := THCTableItem.Create(Self, 1, 1, 1);
       THCStyle.Tab: Result := TTabItem.Create(Self, 0, 0);
-      THCStyle.Line: Result := TLineItem.Create(Self, 1, 1);
+      THCStyle.Line: Result := THCLineItem.Create(Self, 1, 1);
       THCStyle.Express: Result := THCExpressItem.Create(Self, '', '', '', '');
       // RsVector
       THCStyle.Domain: Result := CreateDefaultDomainItem;
@@ -342,6 +342,7 @@ begin
       THCStyle.Fraction: Result := THCFractionItem.Create(Self, '', '');
       THCStyle.DateTimePicker: Result := THCDateTimePicker.Create(Self, Now);
       THCStyle.RadioGroup: Result := THCRadioGroup.Create(Self);
+      THCStyle.SupSubScript: Result := THCSupSubScriptItem.Create(Self, '', '');
     else
       raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建Item代码！');
     end;
@@ -784,7 +785,7 @@ begin
             if Items[SelectInfo.EndItemNo - vDelCount].ParaFirst <> vSelStartParaFirst then
             begin
               Undo_ItemParaFirst(SelectInfo.EndItemNo - vDelCount, 0, vSelStartParaFirst);
-              Items[SelectInfo.EndItemNo - vDelCount].ParaFirst := vSelStartParaFirst
+              Items[SelectInfo.EndItemNo - vDelCount].ParaFirst := vSelStartParaFirst;
             end;
           end
           else
@@ -1117,7 +1118,7 @@ begin
           SelectInfo.StartItemNo := vCarteItemNo;
           SelectInfo.StartItemOffset := Items[vCarteItemNo].Length;
           Self.Style.CurStyleNo := Items[vCarteItemNo].StyleNo;
-          Result := DoTextItemInsert  // 在前一个后面插入
+          Result := DoTextItemInsert;  // 在前一个后面插入
         end
         else  // 最前或前一个还是RectItem
         begin
@@ -1196,6 +1197,7 @@ begin
   else  // 从0开始，适用于处理外部调用提供的方法(非内部操作)引起的Item变化且没处理Item对应的DrawItem的情况
   begin
     DrawItems.Clear;
+    InitializeField;
     FormatData(0, Items.Count - 1);
   end;
 end;
@@ -1653,7 +1655,7 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION 'ApplyStartItem选中在不同Item中，处理选中起始Item'}
+  {$REGION 'ApplyRangeStartItem选中在不同Item中，处理选中起始Item'}
   procedure ApplyRangeStartItem(const AItemNo: Integer);
   var
     vAfterItem: THCCustomItem;
@@ -1685,7 +1687,7 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION 'ApplyEndItem选中在不同Item中，处理选中结束Item'}
+  {$REGION 'ApplyRangeEndItem选中在不同Item中，处理选中结束Item'}
   procedure ApplyRangeEndItem(const AItemNo: Integer);
   var
     vBeforItem: THCCustomItem;
@@ -2139,16 +2141,15 @@ end;
 
 function THCCustomRichData.InsertLine(const ALineHeight: Integer): Boolean;
 var
-  vItem: TLineItem;
-  vData: THCCustomRichData;
+  vItem: THCLineItem;
+  vTopData: THCCustomRichData;
 begin
   Result := False;
 
   if not CanEdit then Exit;
 
-  vData := GetTopLevelData;
-  vItem := TLineItem.Create(vData, vData.Width, 21);
-  vItem.LineHeght := ALineHeight;
+  vTopData := GetTopLevelData;
+  vItem := THCLineItem.Create(vTopData, vTopData.Width, ALineHeight);
 
   Result := InsertItem(vItem);
   InitializeMouseField;  // 201807311101
@@ -2223,13 +2224,11 @@ end;
 procedure THCCustomRichData.Undo_DeleteItem(const AItemNo, AOffset: Integer);
 var
   vUndo: THCUndo;
-  vUndoList: THCUndoList;
   vItemAction: THCItemUndoAction;
 begin
   if EnableUndo then
   begin
-    vUndoList := GetUndoList;
-    vUndo := vUndoList.Last;
+    vUndo := GetUndoList.Last;
     if vUndo <> nil then
     begin
       vItemAction := vUndo.ActionAppend(uatDeleteItem, AItemNo, AOffset) as THCItemUndoAction;
@@ -2372,7 +2371,7 @@ begin
           end;
         end
         else
-          vItem.ParaFirst := False
+          vItem.ParaFirst := False;
       end;
 
       Items.Insert(vInsPos + i, vItem);
@@ -2552,7 +2551,7 @@ begin
           Items.Insert(vCurItemNo, AItem);
           Undo_InsertItem(vCurItemNo, 0);
 
-          ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo, 1);
+          ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo + 1, 1);
           ReSetSelectAndCaret(vCurItemNo);
         end
         else  // 同一段中插入
@@ -2750,7 +2749,7 @@ var
           AOffset := OffsetBefor;
       end
       else
-      if AItemNo > 0then  // 在最开头，往前一个最后
+      if AItemNo > 0 then  // 在最开头，往前一个最后
       begin
         Items[AItemNo].DisSelect;
         AItemNo := AItemNo - 1;
@@ -4264,7 +4263,7 @@ var
             end;
           end;
         end
-        else  // Item是行第一个、行首Item删除空了，
+        else  // Item是行第一个、行首Item删除空了
         begin
           GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
 
@@ -4510,18 +4509,17 @@ end;
 function THCCustomRichData.LoadItemFromStreamAlone(
   const AStream: TStream): THCCustomItem;
 var
-  vFileExt, vFileVersion: string;
+  vFileExt: string;
   viVersion: Word;
+  vLan: Byte;
   vStyleNo, vParaNo: Integer;
   vTextStyle: THCTextStyle;
   vParaStyle: THCParaStyle;
 begin
   AStream.Position := 0;
-  _LoadFileFormatAndVersion(AStream, vFileExt, vFileVersion);  // 文件格式和版本
+  _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLan);  // 文件格式和版本
   if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
-
-  viVersion := GetVersionAsInteger(vFileVersion);
 
   AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
   Result := CreateItemByStyle(vStyleNo);
@@ -4595,8 +4593,8 @@ procedure THCCustomRichData.MouseDown(Button: TMouseButton; Shift: TShiftState; 
     CoordToItemOffset(X, Y, AItemNo, AOffset, vX, vY);
     Items[AItemNo].MouseDown(Button, Shift, vX, vY);
 
-    if Assigned(OnItemMouseDown) then
-      OnItemMouseDown(Self, AItemNo, Button, Shift, vX, vY);
+    if Assigned(FOnItemMouseDown) then
+      FOnItemMouseDown(Self, AItemNo, Button, Shift, vX, vY);
   end;
   {$ENDREGION}
 
@@ -4682,8 +4680,8 @@ var
   //vOldMouseMoveItemOffset,
   vMoveDrawItemNo: Integer;
 
-  {$REGION ' AdjustSelectRang '}
-  procedure AdjustSelectRang;
+  {$REGION ' AdjustSelectRange '}
+  procedure AdjustSelectRange;
   var
     i, vOldStartItemNo, vOldEndItemNo: Integer;
     vLeftToRight: Boolean;
@@ -4876,7 +4874,7 @@ var
   vMouseMoveItemNo, vMouseMoveItemOffset: Integer;
   vRestrain: Boolean;
 begin
-  if SelectedResizing then  // RectItem缩放ing，继续缩放
+  if SelectedResizing then  // RectItem resizing，goon
   begin
     FMouseMoveItemNo := FMouseDownItemNo;
     FMouseMoveItemOffset := FMouseDownItemOffset;
@@ -4914,7 +4912,7 @@ begin
     FSelectSeekNo := vMouseMoveItemNo;
     FSelectSeekOffset := vMouseMoveItemOffset;
 
-    AdjustSelectRang;  // 确定SelectRang
+    AdjustSelectRange;  // 确定SelectRang
     MatchItemSelectState;  // 设置选中范围内的Item选中状态
     Style.UpdateInfoRePaint;
     Style.UpdateInfoReCaret;
@@ -5270,5 +5268,3 @@ begin
 end;
 
 end.
-
-

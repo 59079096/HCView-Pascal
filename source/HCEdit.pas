@@ -14,7 +14,7 @@ unit HCEdit;
 interface
 
 uses
-  Windows, Classes, Controls, Graphics, Messages, SysUtils, IMM, HCRichData,
+  Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCRichData,
   HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem;
 
 const
@@ -44,12 +44,12 @@ type
     /// <summary> 是否由滚动条位置变化引起的更新 </summary>
     procedure CheckUpdateInfo(const AScrollBar: Boolean = False);
     procedure DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
-      var ScrollPos: Integer);
+      const ScrollPos: Integer);
 
     /// <summary> 文档"背板"变动(数据无变化，如对称边距，缩放视图) </summary>
     procedure DoMapChanged;
     procedure DoCaretChange;
-    procedure DoSectionDataCheckUpdateInfo;
+    procedure DoDataCheckUpdateInfo;
     procedure DoChange;
     procedure UpdateBuffer;
     procedure BeginUpdate;
@@ -215,9 +215,9 @@ begin
   begin
     vStream := TMemoryStream.Create;
     try
-      //_SaveFileFormatAndVersion(vStream);  // 保存文件格式和版本
+      _SaveFileFormatAndVersion(vStream);  // 保存文件格式和版本
       //DoCopyDataBefor(vStream);  // 通知保存事件
-      //_DeleteUnUsedStyle;  // 保存已使用的样式
+      _DeleteUnUsedStyle;  // 保存已使用的样式
       FStyle.SaveToStream(vStream);
       FData.GetTopLevelData.SaveSelectToStream(vStream);
       vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
@@ -332,14 +332,14 @@ begin
   Result := True;
 end;
 
-procedure THCEdit.DoSectionDataCheckUpdateInfo;
+procedure THCEdit.DoDataCheckUpdateInfo;
 begin
   if FUpdateCount = 0 then
     CheckUpdateInfo;
 end;
 
 procedure THCEdit.DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
-  var ScrollPos: Integer);
+  const ScrollPos: Integer);
 begin
   FStyle.UpdateInfoRePaint;
   FStyle.UpdateInfoReCaret(False);
@@ -424,7 +424,7 @@ begin
         DoChange;
 
       VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
-        DoSectionDataCheckUpdateInfo;
+        DoDataCheckUpdateInfo;
     end;
   end;
   CheckUpdateInfo;
@@ -461,17 +461,16 @@ end;
 
 procedure THCEdit.LoadFromStream(const AStream: TStream);
 var
-  vFileExt, vFileVersion: string;
+  vFileExt: string;
   viVersion: Word;
+  vLan: Byte;
 begin
   FData.Clear;
   FStyle.Initialize;
   AStream.Position := 0;
-  _LoadFileFormatAndVersion(AStream, vFileExt, vFileVersion);  // 文件格式和版本
+  _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLan);  // 文件格式和版本
   if vFileExt <> HC_EXT then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
-
-  viVersion := GetVersionAsInteger(vFileVersion);
 
   FStyle.LoadFromStream(AStream, viVersion);  // 加载样式表
   FData.LoadFromStream(AStream, FStyle, viVersion);
@@ -508,15 +507,17 @@ procedure THCEdit.MouseMove(Shift: TShiftState; X, Y: Integer);
 
 begin
   inherited;
+  GCursor := crIBeam;
   FData.MouseMove(Shift, X - Self.Padding.Left + FHScrollBar.Position,
     Y - Self.Padding.Top + FVScrollBar.Position);
   if ShowHint then
     ProcessHint;
 
   if FStyle.UpdateInfo.Draging then
-    GCursor := crDrag;
+    Screen.Cursor := crDrag
+  else
+    Cursor := GCursor;
 
-  Cursor := GCursor;
   CheckUpdateInfo;  // 高亮光标下
 end;
 
@@ -527,8 +528,16 @@ begin
   if Button = mbRight then Exit;  // 右键弹出菜单
   FData.MouseUp(Button, Shift, X - Self.Padding.Left + FHScrollBar.Position,
     Y - Self.Padding.Top + FVScrollBar.Position);
+
+  if FStyle.UpdateInfo.Draging then
+    Screen.Cursor := crDefault;
+
   Cursor := GCursor;
+
   CheckUpdateInfo;  // 在选中区域中按下不移动弹起鼠标时需要更新
+
+  FStyle.UpdateInfo.Selecting := False;
+  FStyle.UpdateInfo.Draging := False;
 end;
 
 procedure THCEdit.Paint;
@@ -542,8 +551,10 @@ var
   vStream: TMemoryStream;
   vMem: Cardinal;
   vPtr: Pointer;
-  vSize, viVersion: Integer;
-  vFileFormat, vFileVersion: string;
+  vSize: Integer;
+  viVersion: Word;
+  vFileFormat: string;
+  vLan: Byte;
   vStyle: THCStyle;
 begin
   if Clipboard.HasFormat(HC_FILEFORMAT) then
@@ -563,8 +574,7 @@ begin
       end;
       //
       vStream.Position := 0;
-      _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion);  // 文件格式和版本
-      viVersion := GetVersionAsInteger(vFileVersion);
+      _LoadFileFormatAndVersion(vStream, vFileFormat, viVersion, vLan);  // 文件格式和版本
       //DoPasteDataBefor(vStream, viVersion);
       vStyle := THCStyle.Create;
       try
@@ -579,7 +589,14 @@ begin
   end
   else
   if Clipboard.HasFormat(CF_TEXT) then
-    FData.InsertText(Clipboard.AsText);
+  begin
+    Self.BeginUpdate;
+    try
+      FData.InsertText(Clipboard.AsText);
+    finally
+      Self.EndUpdate;
+    end;
+  end;
 end;
 
 procedure THCEdit.ReBuildCaret(const AScrollBar: Boolean);
@@ -587,11 +604,9 @@ var
   vCaretInfo: THCCaretInfo;
   vDisplayHeight: Integer;
 begin
-  if not Self.Focused then Exit;
-
   if FCaret = nil then Exit;
 
-  if FStyle.UpdateInfo.Draging or FData.SelectExists then
+  if (not Self.Focused) or ((not Style.UpdateInfo.Draging) and FData.SelectExists) then
   begin
     FCaret.Hide;
     Exit;
@@ -651,10 +666,11 @@ begin
   inherited;
   FDataBmp.SetSize(GetDisplayWidth, GetDisplayHeight);
   FData.Width := FDataBmp.Width - Self.Padding.Left - Self.Padding.Right;
+  FData.ReFormat(0);
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
-  CheckUpdateInfo;
+  DoMapChanged;
 end;
 
 procedure THCEdit.SaveToFile(const AFileName: string);

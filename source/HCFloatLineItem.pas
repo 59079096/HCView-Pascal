@@ -103,7 +103,6 @@ begin
   {vRgn := CreatePolygonRgn(vPointArr, 4, WINDING);
   try
     ACanvas.Brush.Color := clRed;
-    ACanvas.Brush.Style := bsSolid;
     FrameRgn(ACanvas.Handle, vRgn, ACanvas.Brush.Handle, 2, 2);
   finally
     DeleteObject(vRgn);

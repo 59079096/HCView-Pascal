@@ -63,7 +63,7 @@ end;
 procedure THCCheckBoxItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
-  FChecked := (Source as THCCheckBoxItem).Checked;  // ¶Á¹´Ñ¡×´Ì¬
+  FChecked := (Source as THCCheckBoxItem).Checked;  // ¹´Ñ¡×´Ì¬
   FText := (Source as THCCheckBoxItem).Text;
 end;
 

@@ -768,7 +768,7 @@ begin
     DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
-    ReleaseDC(ACanvas.Handle, vDCState);
+    RestoreDC(ACanvas.Handle, vDCState);
   end;
 end;
 
@@ -784,7 +784,7 @@ begin
     DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
-    ReleaseDC(ACanvas.Handle, vDCState);
+    RestoreDC(ACanvas.Handle, vDCState);
   end;
 end;
 
@@ -2634,7 +2634,6 @@ begin
         // ÎÄ×Ö±³¾°
         if FStyle.TextStyles[vPrioStyleNo].BackColor <> clNone then
         begin
-          ACanvas.Brush.Style := bsSolid;
           ACanvas.Brush.Color := FStyle.TextStyles[vPrioStyleNo].BackColor;
           ACanvas.FillRect(Rect(vDrawRect.Left, vDrawRect.Top, vDrawRect.Left + vDItem.Width, vDrawRect.Bottom));
         end;

@@ -124,6 +124,7 @@ type
     mniSplitCol: TMenuItem;
     mniN47: TMenuItem;
     mniN45: TMenuItem;
+    mniN46: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAnnotationClick(Sender: TObject);
@@ -176,7 +177,6 @@ type
     procedure mniN23Click(Sender: TObject);
     procedure mniN33Click(Sender: TObject);
     procedure mniN34Click(Sender: TObject);
-    procedure mniN35Click(Sender: TObject);
     procedure mniN36Click(Sender: TObject);
     procedure mniN37Click(Sender: TObject);
     procedure mniTablePropertyClick(Sender: TObject);
@@ -193,6 +193,7 @@ type
     procedure mniSplitRowClick(Sender: TObject);
     procedure mniSplitColClick(Sender: TObject);
     procedure mniN45Click(Sender: TObject);
+    procedure mniN46Click(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -221,7 +222,7 @@ uses
   frm_InsertTable, frm_PageSet, HCStyle, HCRectItem, HCTableItem, HCTextItem,
   HCDrawItem, HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem,
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
-  HCDateTimePicker, HCSupSubScript, HCRadioGroup, EmrToothItem, EmrFangJiaoItem,
+  HCDateTimePicker, HCSupSubScriptItem, HCRadioGroup, EmrToothItem, EmrFangJiaoItem,
   frm_Paragraph, frm_TableProperty, frm_SearchAndReplace, frm_PrintView,
   frm_ControlItemProperty, frm_TableBorderBackColor;
 
@@ -453,15 +454,15 @@ end;
 
 procedure TfrmHCViewDemo.btnprintClick(Sender: TObject);
 var
-  vDlgPrint: TPrintDialog;
+  vPrintDlg: TPrintDialog;
 begin
-  vDlgPrint := TPrintDialog.Create(nil);
+  vPrintDlg := TPrintDialog.Create(nil);
   try
-    vDlgPrint.MaxPage := FHCView.PageCount;
-    if vDlgPrint.Execute then
+    vPrintDlg.MaxPage := FHCView.PageCount;
+    if vPrintDlg.Execute then
       FHCView.Print(Printer.Printers[Printer.PrinterIndex]);
   finally
-    FreeAndNil(vDlgPrint);
+    FreeAndNil(vPrintDlg);
   end;
 end;
 
@@ -823,11 +824,6 @@ begin
   FHCView.InsertItem(vFractionItem);
 end;
 
-procedure TfrmHCViewDemo.mniN35Click(Sender: TObject);
-begin
-  btnprintClick(Sender);
-end;
-
 procedure TfrmHCViewDemo.mniN36Click(Sender: TObject);
 begin
   FHCView.PrintCurPageByActiveLine(False, False);
@@ -884,6 +880,11 @@ var
 begin
   vSupSubScriptItem := THCSupSubScriptItem.Create(FHCView.ActiveSectionTopLevelData, '20g', 'ÏÈ¼å');
   FHCView.InsertItem(vSupSubScriptItem);
+end;
+
+procedure TfrmHCViewDemo.mniN46Click(Sender: TObject);
+begin
+  btnprintClick(Sender);
 end;
 
 procedure TfrmHCViewDemo.mniSplitRowClick(Sender: TObject);
@@ -990,7 +991,7 @@ var
 begin
   vDlg := TSaveDialog.Create(Self);
   try
-    vDlg.Filter := 'hcf|*' + HC_EXT + '|pdf|*.pdf';
+    vDlg.Filter := HC_EXT + '|*' + HC_EXT + '|pdf|*.pdf';
     vDlg.Execute;
     if vDlg.FileName <> '' then
     begin
@@ -1034,7 +1035,7 @@ begin
       vDlg.Execute;
       if vDlg.FileName <> '' then
       begin
-        if ExtractFileName(vDlg.FileName) <> HC_EXT then
+        if ExtractFileExt(vDlg.FileName) <> HC_EXT then
           vDlg.FileName := vDlg.FileName + HC_EXT;
         FHCView.SaveToFile(vDlg.FileName);
       end;
@@ -1104,6 +1105,11 @@ begin
     mniDeleteCurRow.Enabled := vTableItem.CurRowCanDelete;
     mniDeleteCurCol.Enabled := vTableItem.CurColCanDelete;
     mniMerge.Enabled := vTableItem.SelectedCellCanMerge;
+
+    if vTableItem.BorderVisible then
+      mniDisBorder.Caption := 'Òþ²Ø±ß¿ò'
+    else
+      mniDisBorder.Caption := 'ÏÔÊ¾±ß¿ò';
   end;
   actCut.Enabled := (not FHCView.ActiveSection.ReadOnly) and vTopData.SelectExists;
   actCopy.Enabled := actCut.Enabled;

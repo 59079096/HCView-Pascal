@@ -111,7 +111,7 @@ begin
       begin
         vFmtOffset := DrawItems[i].Rect.Top - DrawItems[i - 1].Rect.Bottom;
         if vFmtOffset > Result then
-          Result :=  vFmtOffset;
+          Result := vFmtOffset;
       end;
     end;
 
@@ -136,7 +136,7 @@ end;
 
 function THCTableCellData.DeleteSelected: Boolean;
 begin
-  inherited DeleteSelected;
+  Result := inherited DeleteSelected;
   FCellSelectedAll := False;
 end;
 

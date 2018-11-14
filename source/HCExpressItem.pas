@@ -225,6 +225,7 @@ begin
           System.Insert(AText, FLeftText, FCaretOffset + 1);
           Inc(FCaretOffset, System.Length(AText));
           Self.SizeChanged := True;
+          Result := True;
         end;
 
       ceaRight:
@@ -232,12 +233,15 @@ begin
           System.Insert(AText, FRightText, FCaretOffset + 1);
           Inc(FCaretOffset, System.Length(AText));
           Self.SizeChanged := True;
+          Result := True;
         end;
 
     else
       Result := inherited InsertText(AText);
     end;
-  end;
+  end
+  else
+    Result := False;
 end;
 
 procedure THCExpressItem.KeyDown(var Key: Word; Shift: TShiftState);
@@ -386,7 +390,7 @@ begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
     OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
-    vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, vS, vX)
+    vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, vS, vX);
   end
   else
     vOffset := -1;

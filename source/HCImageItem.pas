@@ -5,7 +5,7 @@
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
 {                                                       }
-{          文档ImageItem(图像)对象实现单元             }
+{          文档ImageItem(图像)对象实现单元              }
 {                                                       }
 {*******************************************************}
 
@@ -176,9 +176,19 @@ end;
 
 procedure THCImageItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vImgSize: Cardinal;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  FImage.LoadFromStream(AStream);  // 会触发OnChange
+
+  if AFileVersion < 20 then
+    FImage.LoadFromStream(AStream)  // 会触发OnChange
+  else  // 兼容C#版本
+  begin
+    AStream.ReadBuffer(vImgSize, SizeOf(vImgSize));
+    if vImgSize > 0 then
+      FImage.LoadFromStream(AStream);  // 会触发OnChange
+  end;
 end;
 
 procedure THCImageItem.PaintTop(const ACanvas: TCanvas);
@@ -235,6 +245,9 @@ procedure THCImageItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
+
+
+
   FImage.SaveToStream(AStream);
 end;
 

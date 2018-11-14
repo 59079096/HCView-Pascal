@@ -106,7 +106,6 @@ begin
 
   if (FActiveArea = dtaYear) and (FNewYear <> '') and (not APaintInfo.Print) then
   begin
-    ACanvas.Brush.Style := bsSolid;
     ACanvas.Brush.Color := AStyle.SelColor;
     ACanvas.FillRect(vAreaRect);
     Windows.DrawText(ACanvas.Handle, FNewYear, -1, vAreaRect, DT_RIGHT or DT_SINGLELINE);

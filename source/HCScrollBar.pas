@@ -26,7 +26,7 @@ type
     scTrack, scTop, scBottom, scEndScroll);
 
   TScrollEvent = procedure(Sender: TObject; ScrollCode: TScrollCode;
-    var ScrollPos: Integer) of object;
+    const ScrollPos: Integer) of object;
 
   TBarControl = (cbcBar, cbcLeftBtn, cbcThum, cbcRightBtn);
 
@@ -126,7 +126,6 @@ type
     procedure Resize; override;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
     procedure ScrollStep(ScrollCode: TScrollCode);
-    destructor Destroy; override;
     procedure Paint; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
@@ -139,6 +138,7 @@ type
     property Percent: Single read FPercent write FPercent;
   public
     constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
     procedure PaintToEx(const ACanvas: TCanvas);
     property Max: Integer read FMax write SetMax;
     property Min: Integer read FMin write SetMin;
@@ -264,7 +264,6 @@ procedure THCScrollBar.PaintToEx(const ACanvas: TCanvas);
 var
   vRect: TRect;
 begin
-  ACanvas.Brush.Style := bsSolid;
   ACanvas.Brush.Color := TitleBackColor;
   ACanvas.FillRect(Bounds(0, 0, Width, Height));
   case FOrientation of

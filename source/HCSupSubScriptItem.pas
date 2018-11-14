@@ -1,5 +1,3 @@
-unit HCSupSubScript;
-
 {*******************************************************}
 {                                                       }
 {               HCView V1.1  作者：荆通                 }
@@ -10,6 +8,8 @@ unit HCSupSubScript;
 {       文档SupSubScript(同时上下标)对象实现单元        }
 {                                                       }
 {*******************************************************}
+
+unit HCSupSubScriptItem;
 
 interface
 
@@ -74,10 +74,8 @@ begin
     if ATextStyle.BackColor = clNone then
       Brush.Style := bsClear
     else
-    begin
-      Brush.Style := bsSolid;
       Brush.Color := ATextStyle.BackColor;
-    end;
+
     Font.Color := ATextStyle.Color;
     Font.Name := ATextStyle.Family;
     Font.Size := Round(ATextStyle.Size * 2 / 3);
@@ -128,7 +126,7 @@ constructor THCSupSubScriptItem.Create(const AOwnerData: THCCustomData;
   const ASupText, ASubText: string);
 begin
   inherited Create(AOwnerData);
-  Self.StyleNo := THCStyle.Fraction;
+  Self.StyleNo := THCStyle.SupSubScript;
   FPadding := 1;
   FActiveArea := TExpressArea.ceaNone;
   FCaretOffset := -1;
@@ -271,7 +269,10 @@ begin
     Inc(FCaretOffset, System.Length(AText));
 
     Self.SizeChanged := True;
-  end;
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 procedure THCSupSubScriptItem.KeyDown(var Key: Word; Shift: TShiftState);
@@ -410,7 +411,7 @@ begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
     ApplySupSubStyle(OwnerData.Style.TextStyles[TextStyleNo], OwnerData.Style.DefCanvas);
-    vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, vS, vX)
+    vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, vS, vX);
   end
   else
     vOffset := -1;

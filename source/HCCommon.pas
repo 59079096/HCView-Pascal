@@ -27,14 +27,21 @@ const
   HCS_EXCEPTION_VOIDSOURCECELL = HC_EXCEPTION + '源单元格无法再获取源单元格！';
 
   HC_EXT = '.hcf';
+  HC_FILELAN = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++
 
-  // 1.3 支持浮动对象保存和读取(未处理向下兼容)
-  // 1.4 支持表格单元格边框显示属性的保存和读取
-  // 1.5 重构行间距的计算方式
-  // 1.6 EditItem增加边框属性
-  // 1.7 增加了重构后的行间距的存储
-  HC_FileVersion = '1.7';
-  HC_FileVersionInt = 17;
+  {1.3 支持浮动对象保存和读取(未处理向下兼容)
+   1.4 支持表格单元格边框显示属性的保存和读取
+   1.5 重构行间距的计算方式
+   1.6 EditItem增加边框属性
+   1.7 增加了重构后的行间距的存储
+   1.8 增加了段样式垂直对齐样式的存储
+   1.9 重构了颜色的存储方式以便于兼容其他语言生成的文件
+   2.0 ImageItem存图像时增加图像数据大小的存储以兼容不同语言图像数据的存储方式
+       文件保存时增加由哪种编程语言生成的标识
+  }
+
+  HC_FileVersion = '2.0';
+  HC_FileVersionInt = 20;
 
   LineSpaceMin = 8;  // 行间距最小值
   PagePadding = 20;  // 节页面显示时之间的间距
@@ -155,10 +162,14 @@ type
 
   procedure HCLoadTextFromStream(const AStream: TStream; var S: string);
 
+  procedure SaveColorToStream(const AColor: TColor; const AStream: TStream);
+  procedure LoadColorFromStream(var AColor: TColor; const AStream: TStream);
+
   /// <summary> 保存文件格式、版本 </summary>
   procedure _SaveFileFormatAndVersion(const AStream: TStream);
   /// <summary> 读取文件格式、版本 </summary>
-  procedure _LoadFileFormatAndVersion(const AStream: TStream; var AFileFormat, AVersion: string);
+  procedure _LoadFileFormatAndVersion(const AStream: TStream;
+    var AFileFormat: string; var AVersion: Word; var ALan: Byte);
 
   {$IFDEF DEBUG}
   procedure DrawDebugInfo(const ACanvas: TCanvas; const ALeft, ATop: Integer; const AInfo: string);
@@ -356,31 +367,86 @@ begin
     if AVersion[i] in ['0'..'9'] then
       vsVer := vsVer + AVersion[i];
   end;
-  Result := vsVer.ToInteger;
+  Result := StrToInt(vsVer);
 end;
 
 /// <summary> 保存文件格式、版本 </summary>
 procedure _SaveFileFormatAndVersion(const AStream: TStream);
 var
   vS: string;
+  vLan: Byte;
 begin
   vS := HC_EXT;
   AStream.WriteBuffer(vS[1], Length(vS) * SizeOf(Char));
   // 版本
   vS := HC_FileVersion;
   AStream.WriteBuffer(vS[1], Length(vS) * SizeOf(Char));
+  // 使用的编程语言
+  vLan := HC_FILELAN;
+  AStream.WriteBuffer(vLan, 1);
 end;
 
 /// <summary> 读取文件格式、版本 </summary>
-procedure _LoadFileFormatAndVersion(const AStream: TStream; var AFileFormat, AVersion: string);
+procedure _LoadFileFormatAndVersion(const AStream: TStream;
+  var AFileFormat: string; var AVersion: Word; var ALan: Byte);
+var
+  vFileVersion: string;
 begin
   // 文件格式
   SetLength(AFileFormat, Length(HC_EXT));
   AStream.ReadBuffer(AFileFormat[1], Length(HC_EXT) * SizeOf(Char));
 
   // 版本
-  SetLength(AVersion, Length(HC_FileVersion));
-  AStream.ReadBuffer(AVersion[1], Length(HC_FileVersion) * SizeOf(Char));
+  SetLength(vFileVersion, Length(HC_FileVersion));
+  AStream.ReadBuffer(vFileVersion[1], Length(HC_FileVersion) * SizeOf(Char));
+  AVersion := GetVersionAsInteger(vFileVersion);
+
+  if AVersion > 19 then // 使用的编程语言
+    AStream.ReadBuffer(ALan, 1);
+end;
+
+procedure SaveColorToStream(const AColor: TColor; const AStream: TStream);
+var
+  vByte: Byte;
+begin
+  if AColor = clNone then
+  begin
+    vByte := 0;
+    AStream.WriteBuffer(vByte, 1);
+    AStream.WriteBuffer(vByte, 1);
+    AStream.WriteBuffer(vByte, 1);
+    AStream.WriteBuffer(vByte, 1);
+  end
+  else
+  begin
+    vByte := Byte(AColor shr 24);
+    AStream.WriteBuffer(vByte, 1);
+
+    vByte := GetRValue(AColor);
+    AStream.WriteBuffer(vByte, 1);
+
+    vByte := GetGValue(AColor);
+    AStream.WriteBuffer(vByte, 1);
+
+    vByte := GetBValue(AColor);
+    AStream.WriteBuffer(vByte, 1);
+  end;
+end;
+
+procedure LoadColorFromStream(var AColor: TColor; const AStream: TStream);
+var
+  vA, vR, vG, vB: Byte;
+begin
+  AStream.ReadBuffer(vA, 1);
+  AStream.ReadBuffer(vR, 1);
+  AStream.ReadBuffer(vG, 1);
+  AStream.ReadBuffer(vB, 1);
+
+  if vA = 0 then
+    AColor := clNone
+  else
+  if vA = 255 then
+    AColor := vB shl 16 + vG shl 8 + vR;
 end;
 
 function GetCharOffsetByX(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
@@ -450,7 +516,7 @@ end;
 
 procedure THCCaret.Show;
 begin
-  Show(X, Y);
+  Self.Show(X, Y);
 end;
 
 

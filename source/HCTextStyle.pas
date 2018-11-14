@@ -59,6 +59,9 @@ type
 
 implementation
 
+uses
+  HCCommon;
+
 { THCTextStyle }
 
 procedure THCTextStyle.ApplyStyle(const ACanvas: TCanvas; const AScale: Single = 1);
@@ -71,10 +74,8 @@ begin
     if FBackColor = clNone then
       Brush.Style := bsClear
     else
-    begin
-      Brush.Style := bsSolid;
       Brush.Color := FBackColor;
-    end;
+
     Font.Color := FColor;
     Font.Name := FFamily;
     Font.Size := Round(FSize);
@@ -187,8 +188,17 @@ begin
   end;
 
   AStream.ReadBuffer(FFontStyles, SizeOf(FFontStyles));
-  AStream.ReadBuffer(FColor, SizeOf(FColor));
-  AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
+
+  if AFileVersion > 18 then
+  begin
+    LoadColorFromStream(FColor, AStream);
+    LoadColorFromStream(FBackColor, AStream);
+  end
+  else
+  begin
+    AStream.ReadBuffer(FColor, SizeOf(FColor));
+    AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
+  end;
 end;
 
 procedure THCTextStyle.SaveToStream(const AStream: TStream);
@@ -205,8 +215,10 @@ begin
     AStream.WriteBuffer(vBuffer[0], vSize);
 
   AStream.WriteBuffer(FFontStyles, SizeOf(FFontStyles));
-  AStream.WriteBuffer(FColor, SizeOf(FColor));
-  AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
+  SaveColorToStream(FColor, AStream);
+  SaveColorToStream(FBackColor, AStream);
+  //AStream.WriteBuffer(FColor, SizeOf(FColor));
+  //AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
 end;
 
 procedure THCTextStyle.SetFamily(const Value: TFontName);

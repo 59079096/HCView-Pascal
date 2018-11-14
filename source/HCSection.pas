@@ -298,7 +298,7 @@ type
       const AParts: TSaveParts = [saHeader, saPage, saFooter]);
     procedure SaveToStream(const AStream: TStream;
       const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]);
-    procedure SaveToText(const AFileName: string);
+    procedure SaveToText(const AFileName: string; const AEncoding: TEncoding);
     procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word);
@@ -1160,7 +1160,7 @@ function THCCustomSection.InsertBreak: Boolean;
 begin
   Result := ActiveDataChangeByAction(function(): Boolean
     begin
-      Result := FPageData.InsertBreak;
+      Result := FActiveData.InsertBreak;
     end);
 end;
 
@@ -1274,7 +1274,7 @@ var
 begin
   if not FActiveData.CanEdit then Exit;
 
-  if FActiveData.KeyDownFloatItem(Key, Shift) then  // FloatItem使用了访键
+  if FActiveData.KeyDownFloatItem(Key, Shift) then  // FloatItem使用了按键
   begin
     DoActiveDataCheckUpdateInfo;
     Exit;
@@ -2042,7 +2042,7 @@ var
         vPageDataFmtTop := vPageDataFmtBottom;
         vPageDataFmtBottom := vPageDataFmtTop + vContentHeight;
 
-        _FormatNewPage(ADrawItemNo - 1, ADrawItemNo)  // 新建页
+        _FormatNewPage(ADrawItemNo - 1, ADrawItemNo);  // 新建页
       end
       else
       if FPageData.DrawItems[ADrawItemNo].Rect.Bottom > vPageDataFmtBottom then  // 当前页放不下表格整体(带行间距)
@@ -2314,9 +2314,9 @@ begin
   AStream.Position := vEndPos;
 end;
 
-procedure THCCustomSection.SaveToText(const AFileName: string);
+procedure THCCustomSection.SaveToText(const AFileName: string; const AEncoding: TEncoding);
 begin
-  FPageData.SaveToText(AFileName, TEncoding.Unicode);
+  FPageData.SaveToText(AFileName, AEncoding);
 end;
 
 procedure THCCustomSection.SectionCoordToPage(const APageIndex, X, Y: Integer; var APageX,
@@ -2339,7 +2339,7 @@ end;
 
 function THCCustomSection.SelectExists: Boolean;
 begin
-  Result := FActiveData.SelectExists
+  Result := FActiveData.SelectExists;
 end;
 
 procedure THCCustomSection.SetHeaderOffset(const Value: Integer);

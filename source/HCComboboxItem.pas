@@ -34,7 +34,7 @@ type
     // DropDown²¿·Ö
     function ScrollBarVisible: Boolean;
     function GetItemRect: TRect;
-    procedure DoScroll(Sender: TObject; ScrollCode: TScrollCode; var ScrollPos: Integer);
+    procedure DoScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
     function GetItemIndexAt(const X, Y: Integer): Integer;
     procedure DoItemsChange(Sender: TObject);
     procedure DoPopupFormPaint(const ACanvas: TCanvas; const AClientRect: TRect);
@@ -168,7 +168,7 @@ var
   vPt: TPoint;
 begin
   if Assigned(FOnPopupItem) then
-    FOnPopupItem(Self);
+    FOnPopupItem(Self.Items);
 
   vPt := OwnerData.GetScreenCoord(FButtonDrawRect.Left - (Self.Width - FButtonDrawRect.Width),
     FButtonDrawRect.Bottom + 1);
@@ -307,7 +307,7 @@ begin
     else
       ACanvas.Brush.Color := clInfoBk;
 
-    ACanvas.TextOut(2, vTop, FItems[i]);
+    ACanvas.TextOut(2, vTop + 1, FItems[i]);
     vTop := vTop + DROPDOWNITEMHEIGHT;
   end;
 
@@ -320,7 +320,7 @@ begin
 end;
 
 procedure THCComboboxItem.DoScroll(Sender: TObject; ScrollCode: TScrollCode;
-  var ScrollPos: Integer);
+  const ScrollPos: Integer);
 begin
   FPopupForm.UpdatePopup;
 end;
@@ -368,6 +368,8 @@ begin
     vTop := Y;
 
   Result := vTop div DROPDOWNITEMHEIGHT;
+  if Result > FItems.Count - 1 then
+    Result := FItems.Count - 1;
 end;
 
 function THCComboboxItem.GetItemRect: TRect;

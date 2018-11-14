@@ -73,6 +73,7 @@ type
     Fraction = -17;
     DateTimePicker = -18;
     RadioGroup = -19;
+    SupSubScript = -20;
     Custom = -1000;  // 自定义类型分界线
   public
     constructor Create; virtual;

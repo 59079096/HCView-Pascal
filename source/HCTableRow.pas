@@ -25,7 +25,7 @@ type
   PPointerList = ^TPointerList;
   TPointerList = array[0..MaxListSize] of Pointer;
 
-  TTableRow = class(TObject)
+  THCTableRow = class(TObject)
   private
     FList: PPointerList;
     FColCount,
@@ -74,9 +74,9 @@ implementation
 uses
   SysUtils, Math;
 
-{ TTableRow }
+{ THCTableRow }
 
-function TTableRow.Add(Item: Pointer): Integer;
+function THCTableRow.Add(Item: Pointer): Integer;
 begin
   if FColCount = FCapacity then
     SetCapacity(FCapacity + 4);  // 每次扩充4个
@@ -85,7 +85,7 @@ begin
   Inc(FColCount);
 end;
 
-function TTableRow.Insert(Index: Integer; Item: Pointer): Boolean;
+function THCTableRow.Insert(Index: Integer; Item: Pointer): Boolean;
 begin
   if (Index < 0) or (Index > FColCount) then
     raise Exception.CreateFmt('[Insert]非法数据:%d', [Index]);
@@ -99,7 +99,7 @@ begin
   Result := True;
 end;
 
-procedure TTableRow.SetRowWidth(const AWidth: Integer);
+procedure THCTableRow.SetRowWidth(const AWidth: Integer);
 var
   i, vWidth: Integer;
 begin
@@ -118,7 +118,7 @@ begin
   Cols[FColCount - 1].Width := AWidth - (FColCount - 1) * vWidth;  // 结余的全部给最后一个单元格
 end;
 
-{function TTableRow.CalcFormatHeight: Integer;
+{function THCTableRow.CalcFormatHeight: Integer;
 var
   i, vH: Integer;
 begin
@@ -136,13 +136,13 @@ begin
   end;
 end;}
 
-procedure TTableRow.Clear;
+procedure THCTableRow.Clear;
 begin
   SetColCount(0);
   SetCapacity(0);
 end;
 
-constructor TTableRow.Create(const AStyle: THCStyle; const AColCount: Integer);
+constructor THCTableRow.Create(const AStyle: THCStyle; const AColCount: Integer);
 var
   vCell: THCTableCell;
   i: Integer;
@@ -157,7 +157,7 @@ begin
   FAutoHeight := True;
 end;
 
-procedure TTableRow.Delete(Index: Integer);
+procedure THCTableRow.Delete(Index: Integer);
 begin
   if (Index < 0) or (Index >= FColCount) then
     raise Exception.CreateFmt('[Delete]非法的 Index:%d', [Index]);
@@ -167,18 +167,18 @@ begin
   Dec(FColCount);
 end;
 
-destructor TTableRow.Destroy;
+destructor THCTableRow.Destroy;
 begin
   Clear;
   inherited;
 end;
 
-function TTableRow.GetCols(Index: Integer): THCTableCell;
+function THCTableRow.GetCols(Index: Integer): THCTableCell;
 begin
   Result := THCTableCell(Items[Index]);
 end;
 
-function TTableRow.ClearFormatExtraHeight: Integer;
+function THCTableRow.ClearFormatExtraHeight: Integer;
 var
   i, vMaxDiff: Integer;
 begin
@@ -198,14 +198,14 @@ begin
   Result := Result + vMaxDiff;
 end;
 
-function TTableRow.GetItems(Index: Integer): Pointer;
+function THCTableRow.GetItems(Index: Integer): Pointer;
 begin
   if (Index < 0) or (Index >= FColCount) then
-    raise Exception.CreateFmt('异常:[TTableRow.GetItems]参数Index值%d超出范围！', [Index]);
+    raise Exception.CreateFmt('异常:[THCTableRow.GetItems]参数Index值%d超出范围！', [Index]);
   Result := FList^[Index];
 end;
 
-procedure TTableRow.SetCapacity(const Value: Integer);
+procedure THCTableRow.SetCapacity(const Value: Integer);
 begin
   if (Value < FColCount) or (Value > MaxListSize) then
     raise Exception.CreateFmt('[SetCapacity]非法数据:%d', [Value]);
@@ -219,7 +219,7 @@ begin
   end;
 end;
 
-procedure TTableRow.SetColCount(const Value: Integer);
+procedure THCTableRow.SetColCount(const Value: Integer);
 var
   i: Integer;
 begin
@@ -235,7 +235,7 @@ begin
   FColCount := Value;
 end;
 
-procedure TTableRow.SetHeight(const Value: Integer);
+procedure THCTableRow.SetHeight(const Value: Integer);
 var
   i, vMaxDataHeight: Integer;
 begin
@@ -261,7 +261,7 @@ begin
   end;
 end;
 
-procedure TTableRow.SetItems(Index: Integer; const Value: Pointer);
+procedure THCTableRow.SetItems(Index: Integer; const Value: Pointer);
 begin
   if (Index < 0) or (Index >= FColCount) then
     raise Exception.CreateFmt('[SetItems]异常:%d', [Index]);

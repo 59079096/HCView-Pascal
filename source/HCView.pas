@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, SynPdf,
-  Generics.Collections, HCCommon, HCRichData, HCCustomRichData, HCDrawItem,
+  Generics.Collections, SysUtils, HCCommon, HCRichData, HCCustomRichData, HCDrawItem,
   HCSection, HCScrollBar, HCRichScrollBar, HCParaStyle, HCTextStyle, HCRectItem,
   HCTextItem, HCItem, HCFloatItem, HCUndo;
 
@@ -91,7 +91,7 @@ type
     function GetSymmetryMargin: Boolean;
     procedure SetSymmetryMargin(const Value: Boolean);
     procedure DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
-      var ScrollPos: Integer);
+      const ScrollPos: Integer);
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
     //
     function NewDefaultSection: THCSection;
@@ -407,8 +407,8 @@ type
     /// <summary> 文档保存为PDF格式 </summary>
     procedure SaveAsPDF(const AFileName: string);
 
-    /// <summary> 文档保存为PDF格式 </summary>
-    procedure SaveAsText(const AFileName: string);
+    /// <summary> 文档保存为Text格式 </summary>
+    procedure SaveAsText(const AFileName: string; const AEncoding: TEncoding);
 
     /// <summary> 文档保存到流 </summary>
     procedure SaveToStream(const AStream: TStream;
@@ -416,7 +416,7 @@ type
 
     // 读取文档
     /// <summary> 读取Txt文件 </summary>
-    procedure LoadFromText(const AFileName: string);
+    procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
 
     /// <summary> 读取hcf文件 </summary>
     procedure LoadFromFile(const AFileName: string);
@@ -617,7 +617,7 @@ type
 implementation
 
 uses
-  Printers, Imm, SysUtils, Forms, Math, Clipbrd, HCImageItem, Xml.XMLDoc, Xml.XMLIntf;
+  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, Xml.XMLDoc, Xml.XMLIntf;
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
@@ -756,18 +756,22 @@ begin
       FStyle.SaveToStream(vStream);
       Self.ActiveSectionTopLevelData.SaveSelectToStream(vStream);
       vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
-      if vMem = 0 then
-        raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
-      vPtr := GlobalLock(vMem);
-      Move(vStream.Memory^, vPtr^, vStream.Size);
-      GlobalUnlock(vMem);
+      try
+        if vMem = 0 then
+          raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
+        vPtr := GlobalLock(vMem);
+        Move(vStream.Memory^, vPtr^, vStream.Size);
+      finally
+        GlobalUnlock(vMem);
+      end;
     finally
       vStream.Free;
     end;
     
-    Clipboard.Clear;
     Clipboard.Open;
     try
+      Clipboard.Clear;
+
       Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);  // HC格式
       Clipboard.AsText := Self.ActiveSectionTopLevelData.SaveSelectToText;  // 文本格式
     finally
@@ -1028,7 +1032,7 @@ end;
 
 procedure THCView.DoSaveAfter(const AStream: TStream);
 begin
-  SetIsChanged(False);
+  //SetIsChanged(False);  做定备份保存时不能做为业务保存成功
 end;
 
 procedure THCView.DoSaveBefor(const AStream: TStream);
@@ -1087,19 +1091,18 @@ end;
 procedure THCView.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const ALoadSectionProc: TLoadSectionProc);
 var
-  vFileExt, vFileVersion: string;
-  viVersion: Word;
+  vFileExt: string;
+  vVersion: Word;
+  vLan: Byte;
 begin
   AStream.Position := 0;
-  _LoadFileFormatAndVersion(AStream, vFileExt, vFileVersion);  // 文件格式和版本
+  _LoadFileFormatAndVersion(AStream, vFileExt, vVersion, vLan);  // 文件格式和版本
   if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
 
-  viVersion := GetVersionAsInteger(vFileVersion);
-
-  DoLoadBefor(AStream, viVersion);  // 触发加载前事件
-  AStyle.LoadFromStream(AStream, viVersion);  // 加载样式表
-  ALoadSectionProc(viVersion);  // 加载节数量、节数据
+  DoLoadBefor(AStream, vVersion);  // 触发加载前事件
+  AStyle.LoadFromStream(AStream, vVersion);  // 加载样式表
+  ALoadSectionProc(vVersion);  // 加载节数量、节数据
   DoMapChanged;
 end;
 
@@ -1160,8 +1163,8 @@ procedure THCView.FormatData;
 var
   i: Integer;
 begin
-  for i := 0 to Sections.Count - 1 do
-    Sections[i].FormatData;
+  for i := 0 to FSections.Count - 1 do
+    FSections[i].FormatData;
 
   FStyle.UpdateInfoRePaint;
   FStyle.UpdateInfoReCaret;
@@ -1463,7 +1466,7 @@ begin
   try
     Result := ActiveSection.InsertTable(ARowCount, AColCount);
   finally
-    Self.EndUpdate
+    Self.EndUpdate;
   end;
 end;
 
@@ -1595,11 +1598,11 @@ begin
   end;
 end;
 
-procedure THCView.LoadFromText(const AFileName: string);
+procedure THCView.LoadFromText(const AFileName: string; const AEncoding: TEncoding);
 begin
   Self.Clear;
   FStyle.Initialize;
-  ActiveSection.LoadFromText(AFileName, TEncoding.ASCII);
+  ActiveSection.LoadFromText(AFileName, AEncoding);
 end;
 
 function THCView.MergeTableSelectCells: Boolean;
@@ -1689,7 +1692,7 @@ begin
   CheckUpdateInfo;  // 可能需要高亮鼠标处Item
 
   if FStyle.UpdateInfo.Draging then
-    Screen.Cursor := GCursor
+    Screen.Cursor := GCursor  // 放到OnDrag里是不是就不用设置Screen了或者设置Self.DragKind？
   else
     Cursor := GCursor;
 end;
@@ -1740,7 +1743,7 @@ begin
 end;
 
 procedure THCView.DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
-    var ScrollPos: Integer);
+    const ScrollPos: Integer);
 begin
   FStyle.UpdateInfoRePaint;
   FStyle.UpdateInfoReCaret(False);
@@ -1825,8 +1828,10 @@ var
   vStream: TMemoryStream;
   vMem: Cardinal;
   vPtr: Pointer;
-  vSize, viVersion: Integer;
-  vFileFormat, vFileVersion: string;
+  vSize: Integer;
+  vFileFormat: string;
+  vFileVersion: Word;
+  vLan: Byte;
   vStyle: THCStyle;
 begin
   if Clipboard.HasFormat(HC_FILEFORMAT) then
@@ -1846,15 +1851,14 @@ begin
       end;
       //
       vStream.Position := 0;
-      _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion);  // 文件格式和版本
-      viVersion := GetVersionAsInteger(vFileVersion);
-      DoPasteDataBefor(vStream, viVersion);
+      _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion, vLan);  // 文件格式和版本
+      DoPasteDataBefor(vStream, vFileVersion);
       vStyle := THCStyle.Create;
       try
-        vStyle.LoadFromStream(vStream, viVersion);
+        vStyle.LoadFromStream(vStream, vFileVersion);
         Self.BeginUpdate;
         try
-          ActiveSection.InsertStream(vStream, vStyle, viVersion);
+          ActiveSection.InsertStream(vStream, vStyle, vFileVersion);
         finally
           Self.EndUpdate;
         end;
@@ -1971,7 +1975,7 @@ var
   i: Integer;
   vPages: array of Integer;
 begin
-  SetLength(vPages, AEndPageIndex - AEndPageIndex + 1);
+  SetLength(vPages, AEndPageIndex - AStartPageIndex + 1);
   for i := AStartPageIndex to AEndPageIndex do
     vPages[i] := i;
 
@@ -2039,7 +2043,6 @@ begin
             vMarginLeft, vMarginRight);
 
           // "抹"掉不需要显示的地方
-          vPrintCanvas.Brush.Style := bsSolid;
           vPrintCanvas.Brush.Color := clWhite;
 
           if APrintHeader then  // 打印页眉
@@ -2143,7 +2146,6 @@ begin
             vMarginLeft, vMarginRight);
 
           // "抹"掉不需要显示的地方
-          vPrintCanvas.Brush.Style := bsSolid;
           vPrintCanvas.Brush.Color := clWhite;
 
           if APrintHeader then  // 打印页眉
@@ -2178,7 +2180,7 @@ begin
           if not APrintFooter then  // 不打印页脚
           begin
             vRect := Rect(vPrintOffsetX + vMarginLeft,
-              vPrintOffsetY + + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
+              vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
               vPrintOffsetX + Self.ActiveSection.PageWidthPix - vMarginRight,
               vPrintOffsetY + Self.ActiveSection.PageHeightPix);
 
@@ -2187,7 +2189,7 @@ begin
           else  // 打印页脚
           begin
             vRect := Rect(vPrintOffsetX + vMarginLeft,
-              vPrintOffsetY + + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
+              vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
               vPrintOffsetX + Self.ActiveSection.PageWidthPix - vMarginRight,
               vPrintOffsetY + Self.ActiveSection.PageHeightPix - Self.ActiveSection.PageMarginBottomPix);
           end;
@@ -2483,13 +2485,13 @@ begin
   end;
 end;
 
-procedure THCView.SaveAsText(const AFileName: string);
+procedure THCView.SaveAsText(const AFileName: string; const AEncoding: TEncoding);
 var
   i: Integer;
 begin
   // 各节数据
   for i := 0 to FSections.Count - 1 do
-    FSections[i].SaveToText(AFileName);
+    FSections[i].SaveToText(AFileName, AEncoding);
 end;
 
 procedure THCView.SaveToStream(const AStream: TStream;
@@ -2662,25 +2664,28 @@ begin
   begin
     // 获取指向DeviceMode的指针
     vPDMode := GlobalLock(vHDMode);
-    if vPDMode <> nil then
-    begin
-      vPDMode^.dmPaperSize := FSections[ASectionIndex].PaperSize;
-      if vPDMode^.dmPaperSize = DMPAPER_USER then  // 自定义纸张
+    try
+      if vPDMode <> nil then
       begin
-        //vPDMode^.dmPaperSize := DMPAPER_USER;
-        vPDMode^.dmPaperLength := Round(FSections[ASectionIndex].PaperHeight * 10); //纸长你可用变量获得纸张的长、宽。
-        vPDMode^.dmPaperWidth := Round(FSections[ASectionIndex].PaperWidth * 10);   //纸宽
-        vPDMode^.dmFields := vPDMode^.dmFields or DM_PAPERSIZE or DM_PAPERLENGTH or DM_PAPERWIDTH;
+        vPDMode^.dmPaperSize := FSections[ASectionIndex].PaperSize;
+        if vPDMode^.dmPaperSize = DMPAPER_USER then  // 自定义纸张
+        begin
+          //vPDMode^.dmPaperSize := DMPAPER_USER;
+          vPDMode^.dmPaperLength := Round(FSections[ASectionIndex].PaperHeight * 10); //纸长你可用变量获得纸张的长、宽。
+          vPDMode^.dmPaperWidth := Round(FSections[ASectionIndex].PaperWidth * 10);   //纸宽
+          vPDMode^.dmFields := vPDMode^.dmFields or DM_PAPERSIZE or DM_PAPERLENGTH or DM_PAPERWIDTH;
+        end;
+
+        if FSections[ASectionIndex].PageOrientation = TPageOrientation.cpoPortrait then
+          vPDMode^.dmOrientation := DMORIENT_PORTRAIT
+        else
+          vPDMode^.dmOrientation := DMORIENT_LANDSCAPE;
       end;
 
-      if FSections[ASectionIndex].PageOrientation = TPageOrientation.cpoPortrait then
-        vPDMode^.dmOrientation := DMORIENT_PORTRAIT
-      else
-        vPDMode^.dmOrientation := DMORIENT_LANDSCAPE;
+      ResetDC(Printer.Handle, vPDMode^);
+    finally
+      GlobalUnlock(vHDMode);
     end;
-
-    ResetDC(Printer.Handle, vPDMode^);
-    GlobalUnlock(vHDMode);
     //Printer.SetPrinter(vDevice, vDriver, vPort, vHDMode);
   end;
 end;
@@ -2837,7 +2842,7 @@ procedure THCView.UpdateView(const ARect: TRect);
         if vFirstPage >= 0 then
         begin
           FDisplayFirstSection := i;
-          FSections[FDisplayFirstSection].DisplayFirstPageIndex := j;
+          FSections[FDisplayFirstSection].DisplayFirstPageIndex := vFirstPage;
           Break;
         end;
       end;
@@ -2859,7 +2864,7 @@ procedure THCView.UpdateView(const ARect: TRect);
           if vLastPage >= 0 then
           begin
             FDisplayLastSection := i;
-            FSections[FDisplayLastSection].DisplayLastPageIndex := j;
+            FSections[FDisplayLastSection].DisplayLastPageIndex := vLastPage;
             Break;
           end;
         end;
@@ -2973,7 +2978,7 @@ begin
     // 告诉输入法当前光标位置信息
     vCF.ptCurrentPos := Point(FCaret.X, FCaret.Y + 5);  // 输入法弹出窗体位置
     vCF.dwStyle := CFS_RECT;
-    vCF.rcArea  := ClientRect;
+    vCF.rcArea := ClientRect;
     ImmSetCompositionWindow(vhIMC, @vCF);
   finally
     ImmReleaseContext(Handle, vhIMC);
@@ -3035,7 +3040,7 @@ begin
           // 取出字符串
           SetLength(vBuffer, vSize);
           ImmGetCompositionString(vhIMC, GCS_RESULTSTR, vBuffer, vSize);
-          SetLength(vBuffer, vSize);  // vSize - 2
+          //SetLength(vBuffer, vSize);  // vSize - 2
           vS := WideStringOf(vBuffer);
           if vS <> '' then
           begin
@@ -3186,7 +3191,6 @@ begin
         DT_TOP or DT_LEFT or DT_WORDBREAK or DT_EDITCONTROL or DT_CALCRECT, nil);  // 计算区域
 
       // 填充批注区域
-      ACanvas.Brush.Style := bsSolid;
       ACanvas.Brush.Color := clYellow;
       vPaintRect := vTextRect;
       InflateRect(vPaintRect, 5, 5);

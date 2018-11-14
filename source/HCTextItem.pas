@@ -133,9 +133,11 @@ begin
   inherited SaveToStream(AStream, AStart, AEnd);
   vS := GetTextPart(AStart + 1, AEnd - AStart);
   vBuffer := BytesOf(vS);
-  if System.Length(vBuffer) > HC_TEXTMAXSIZE then
-    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
   vDSize := System.Length(vBuffer);
+
+  if vDSize > HC_TEXTMAXSIZE then
+    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
+
   AStream.WriteBuffer(vDSize, SizeOf(vDSize));
   if vDSize > 0 then
     AStream.WriteBuffer(vBuffer[0], vDSize);

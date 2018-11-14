@@ -234,7 +234,10 @@ begin
     Inc(FCaretOffset, System.Length(AText));
 
     Self.SizeChanged := True;
-  end;
+    Result := True;
+  end
+  else
+    Result := False;
 end;
 
 procedure THCFractionItem.KeyDown(var Key: Word; Shift: TShiftState);
@@ -373,7 +376,7 @@ begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
     OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
-    vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, vS, vX)
+    vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, vS, vX);
   end
   else
     vOffset := -1;

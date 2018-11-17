@@ -17,7 +17,7 @@ uses
   Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, SynPdf,
   Generics.Collections, SysUtils, HCCommon, HCRichData, HCCustomRichData, HCDrawItem,
   HCSection, HCScrollBar, HCRichScrollBar, HCParaStyle, HCTextStyle, HCRectItem,
-  HCTextItem, HCItem, HCFloatItem, HCUndo;
+  HCTextItem, HCItem, HCCustomFloatItem, HCUndo;
 
 type
   THCPageScrollModel = (psmVertical, psmHorizontal);
@@ -136,7 +136,9 @@ type
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const ALoadSectionProc: TLoadSectionProc);
 
-    procedure DoNewUndo(const Sender: THCUndo);
+    function DoUndoNew: THCUndo;
+    function DoUndoGroupBegin(const AItemNo, AOffset: Integer): THCUndoGroupBegin;
+    function DoUndoGroupEnd(const AItemNo, AOffset: Integer): THCUndoGroupEnd;
     procedure DoUndo(const Sender: THCUndo);
     procedure DoRedo(const Sender: THCUndo);
 
@@ -265,7 +267,7 @@ type
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
 
     /// <summary> 插入浮动Item </summary>
-    function InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
+    function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 
     /// <summary> 插入批注(暂未实现) </summary>
     function InsertAnnotate(const AText: string): Boolean;
@@ -710,6 +712,16 @@ end;
 
 procedure THCView.CheckUpdateInfo;
 begin
+  if FUpdateCount > 0 then Exit;
+
+  // ReBuildCaret会通知外部重新获取当前预览页和光标所在页，
+  // UpdateView里会计算当前显示页，所以要先于ReBuildCaret
+  if FStyle.UpdateInfo.RePaint then
+  begin
+    FStyle.UpdateInfo.RePaint := False;
+    UpdateView;
+  end;
+
   if (FCaret <> nil) and FStyle.UpdateInfo.ReCaret then  // 先处理光标，因为可能光标处有些需要高亮重绘
   begin
     FStyle.UpdateInfo.ReCaret := False;
@@ -717,12 +729,6 @@ begin
     FStyle.UpdateInfo.ReStyle := False;
     FStyle.UpdateInfo.ReScroll := False;
     UpdateImmPosition;
-  end;
-
-  if FStyle.UpdateInfo.RePaint then
-  begin
-    FStyle.UpdateInfo.RePaint := False;
-    UpdateView;
   end;
 end;
 
@@ -794,7 +800,7 @@ begin
   FUndoList := THCUndoList.Create;
   FUndoList.OnUndo := DoUndo;
   FUndoList.OnRedo := DoRedo;
-  FUndoList.OnNewUndo := DoNewUndo;
+  FUndoList.OnUndoNew := DoUndoNew;
 
   FFileName := '';
   FIsChanged := False;
@@ -932,12 +938,6 @@ begin
   Result := True;
 end;
 
-procedure THCView.DoNewUndo(const Sender: THCUndo);
-begin
-  Sender.SectionIndex := FActiveSectionIndex;
-  Sender.Data := ActiveSection.ActiveData;
-end;
-
 procedure THCView.DoSectionPaintPage(Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
@@ -1024,8 +1024,11 @@ end;
 
 procedure THCView.DoRedo(const Sender: THCUndo);
 begin
-  if FActiveSectionIndex <> Sender.SectionIndex then
-    SetActiveSectionIndex(Sender.SectionIndex);
+  if FActiveSectionIndex <> (Sender as THCSectionUndo).SectionIndex then
+    SetActiveSectionIndex((Sender as THCSectionUndo).SectionIndex);
+
+  FHScrollBar.Position := (Sender as THCSectionUndo).HScrollPos;
+  FVScrollBar.Position := (Sender as THCSectionUndo).VScrollPos;
 
   ActiveSection.Redo(Sender);
 end;
@@ -1061,8 +1064,7 @@ end;
 
 procedure THCView.DoSectionDataCheckUpdateInfo(Sender: TObject);
 begin
-  if FUpdateCount = 0 then
-    CheckUpdateInfo;
+  CheckUpdateInfo;
 end;
 
 procedure THCView.DoCaretChange;
@@ -1081,6 +1083,15 @@ end;
 
 procedure THCView.DoCopyDataBefor(const AStream: TStream);
 begin
+end;
+
+function THCView.DoUndoNew: THCUndo;
+begin
+  Result := THCSectionUndo.Create;
+  (Result as THCSectionUndo).SectionIndex := FActiveSectionIndex;
+  (Result as THCSectionUndo).HScrollPos := FHScrollBar.Position;
+  (Result as THCSectionUndo).VScrollPos := FVScrollBar.Position;
+  Result.Data := ActiveSection.ActiveData;
 end;
 
 function THCView.DoInsertText(const AText: string): Boolean;
@@ -1139,10 +1150,33 @@ end;
 
 procedure THCView.DoUndo(const Sender: THCUndo);
 begin
-  if FActiveSectionIndex <> Sender.SectionIndex then
-    SetActiveSectionIndex(Sender.SectionIndex);
+  if FActiveSectionIndex <> (Sender as THCSectionUndo).SectionIndex then
+    SetActiveSectionIndex((Sender as THCSectionUndo).SectionIndex);
+
+  FHScrollBar.Position := (Sender as THCSectionUndo).HScrollPos;
+  FVScrollBar.Position := (Sender as THCSectionUndo).VScrollPos;
 
   ActiveSection.Undo(Sender);
+end;
+
+function THCView.DoUndoGroupBegin(const AItemNo,
+  AOffset: Integer): THCUndoGroupBegin;
+begin
+  Result := THCSectionUndoGroupBegin.Create;
+  (Result as THCSectionUndoGroupBegin).SectionIndex := FActiveSectionIndex;
+  (Result as THCSectionUndoGroupBegin).HScrollPos := FHScrollBar.Position;
+  (Result as THCSectionUndoGroupBegin).VScrollPos := FVScrollBar.Position;
+  Result.Data := ActiveSection.ActiveData;
+end;
+
+function THCView.DoUndoGroupEnd(const AItemNo,
+  AOffset: Integer): THCUndoGroupEnd;
+begin
+  Result := THCSectionUndoGroupEnd.Create;
+  (Result as THCSectionUndoGroupEnd).SectionIndex := FActiveSectionIndex;
+  (Result as THCSectionUndoGroupEnd).HScrollPos := FHScrollBar.Position;
+  (Result as THCSectionUndoGroupEnd).VScrollPos := FVScrollBar.Position;
+  Result.Data := ActiveSection.ActiveData;
 end;
 
 procedure THCView.DoLoadAfter(const AStream: TStream; const AFileVersion: Word);
@@ -1326,7 +1360,7 @@ begin
   Result := Self.ActiveSection.InsertBreak;
 end;
 
-function THCView.InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
+function THCView.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 begin
   Result := ActiveSection.InsertFloatItem(AFloatItem);
 end;
@@ -1574,25 +1608,36 @@ procedure THCView.LoadFromStream(const AStream: TStream);
 var
   vByte: Byte;
   vSection: THCSection;
+  vSaveUndoEnable: Boolean;
 begin
   Self.BeginUpdate;
   try
-    Self.Clear;
-    AStream.Position := 0;
-    DoLoadFromStream(AStream, FStyle, procedure(const AFileVersion: Word)
-      var
-        i: Integer;
-      begin
-        AStream.ReadBuffer(vByte, 1);  // 节数量
-        // 各节数据
-        FSections[0].LoadFromStream(AStream, FStyle, AFileVersion);
-        for i := 1 to vByte - 1 do
+    // 清除撤销恢复数据
+    FUndoList.Clear;
+    vSaveUndoEnable := FUndoList.Enable;
+    try
+      FUndoList.Enable := False;
+
+      Self.Clear;
+      AStream.Position := 0;
+      DoLoadFromStream(AStream, FStyle, procedure(const AFileVersion: Word)
+        var
+          i: Integer;
         begin
-          vSection := NewDefaultSection;
-          vSection.LoadFromStream(AStream, FStyle, AFileVersion);
-          FSections.Add(vSection);
-        end;
-      end);
+          AStream.ReadBuffer(vByte, 1);  // 节数量
+          // 各节数据
+          FSections[0].LoadFromStream(AStream, FStyle, AFileVersion);
+          for i := 1 to vByte - 1 do
+          begin
+            vSection := NewDefaultSection;
+            vSection.LoadFromStream(AStream, FStyle, AFileVersion);
+            FSections.Add(vSection);
+          end;
+        end);
+    finally
+      if vSaveUndoEnable then
+        FUndoList.Enable := True;
+    end;
   finally
     Self.EndUpdate;
   end;

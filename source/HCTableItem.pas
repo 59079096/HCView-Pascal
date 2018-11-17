@@ -105,8 +105,7 @@ type
 
     FResizeInfo: TResizeInfo;
 
-    FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto,
-      FEnableUndo: Boolean;
+    FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto: Boolean;
 
     { 选中信息(只有选中起始和结束行都>=0才说明有选中多个单元格
      在单个单元格中选择时结束行、列信息为-1 }
@@ -119,7 +118,6 @@ type
     procedure InitializeMouseInfo;
 
     function DoCellDataGetRootData: THCCustomData;
-    function DoCellDataGetEnableUndo: Boolean;
 
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
@@ -218,7 +216,7 @@ type
     procedure TraverseItem(const ATraverse: TItemTraverse); override;
 
     // 撤销重做相关方法
-    procedure DoNewUndo(const Sender: THCUndo); override;
+    function DoUndoNew: THCUndo; override;
     procedure DoUndoDestroy(const Sender: THCUndo); override;
     procedure DoUndo(const Sender: THCUndo); override;
     procedure DoRedo(const Sender: THCUndo); override;
@@ -515,7 +513,6 @@ begin
   FCellHPadding := 2;
   FCellVPadding := 2;
   FDraging := False;
-  FEnableUndo := True;
   FBorderWidth := 1;
   FBorderColor := clBlack;
   FBorderVisible := True;
@@ -765,22 +762,18 @@ begin
   Result := OwnerData.GetRootData;
 end;
 
-function THCTableItem.DoCellDataGetEnableUndo: Boolean;
-begin
-  Result := OwnerData.Style.EnableUndo and FEnableUndo;
-end;
-
-procedure THCTableItem.DoNewUndo(const Sender: THCUndo);
+function THCTableItem.DoUndoNew: THCUndo;
 var
   vCell: THCTableCell;
   vUndoCell: THCUndoCell;
 begin
+  Result := THCUndo.Create;
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
     vUndoCell := THCUndoCell.Create;
     vUndoCell.Row := FSelectCellRang.StartRow;
     vUndoCell.Col := FSelectCellRang.StartCol;
-    Sender.Data := vUndoCell;
+    Result.Data := vUndoCell;
   end;
 end;
 
@@ -1237,12 +1230,7 @@ begin
       vMirror := Sender.Data as THCUndoMirror;
       vMirror.Stream.Position := 0;
       vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
-      FEnableUndo := False;
-      try
-        Self.LoadFromStream(vMirror.Stream, OwnerData.Style, HC_FileVersionInt);
-      finally
-        FEnableUndo := True;
-      end;
+      Self.LoadFromStream(vMirror.Stream, OwnerData.Style, HC_FileVersionInt);
 
       vMirror.Stream.Clear;
       vMirror.Stream.CopyFrom(vStream, 0);  // 保存恢复前状态
@@ -1271,9 +1259,8 @@ begin
       vCellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
       vCellData.OnCreateItemByStyle := (OwnerData as THCRichData).OnCreateItemByStyle;
       vCellData.OnCreateItem := (OwnerData as THCCustomRichData).OnCreateItem;
-      vCellData.OnGetUndoList := Self.GetSelfUndoList;
+      vCellData.OnGetUndoList := Self.GetUndoList;
       vCellData.OnGetRootData := DoCellDataGetRootData;
-      vCellData.OnGetEnableUndo := DoCellDataGetEnableUndo;
     end;
   end;
 end;
@@ -1313,12 +1300,7 @@ begin
       vMirror := Sender.Data as THCUndoMirror;
       vMirror.Stream.Position := 0;
       vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
-      FEnableUndo := False;
-      try
-        Self.LoadFromStream(vMirror.Stream, OwnerData.Style, HC_FileVersionInt);
-      finally
-        FEnableUndo := True;
-      end;
+      Self.LoadFromStream(vMirror.Stream, OwnerData.Style, HC_FileVersionInt);
 
       vMirror.Stream.Clear;
       vMirror.Stream.CopyFrom(vStream, 0);  // 保存撤销前状态
@@ -3944,12 +3926,14 @@ procedure THCTableItem.Undo_ColResize(const ACol, AOldWidth,
   ANewWidth: Integer);
 var
   vUndo: THCUndo;
+  vUndoList: THCUndoList;
   vUndoColSize: THCUndoColSize;
 begin
-  if OwnerData.Style.EnableUndo then
+  vUndoList := GetUndoList;
+  if vUndoList.Enable then
   begin
-    Undo_StartRecord;
-    vUndo := GetSelfUndoList.Last;
+    Undo_New;
+    vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
       vUndoColSize := THCUndoColSize.Create;
@@ -3965,12 +3949,14 @@ end;
 procedure THCTableItem.Undo_MergeCells;
 var
   vUndo: THCUndo;
+  vUndoList: THCUndoList;
   vMirror: THCUndoMirror;
 begin
-  if OwnerData.Style.EnableUndo then
+  vUndoList := GetUndoList;
+  if vUndoList.Enable then
   begin
-    Undo_StartRecord;
-    vUndo := GetSelfUndoList.Last;
+    Undo_New;
+    vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
       vMirror := THCUndoMirror.Create;

@@ -14,13 +14,13 @@ unit HCFloatLineItem;
 interface
 
 uses
-  Windows, SysUtils, Classes, Controls, Graphics, Messages, HCFloatItem, HCStyle,
+  Windows, SysUtils, Classes, Controls, Graphics, Messages, HCCustomFloatItem, HCStyle,
   HCItem, HCCustomData, HCCommon;
 
 type
   TLineObj = (cloNone, cloLine, cloLeftOrTop, cloRightOrBottom);
 
-  THCFloatLineItem = class(THCFloatItem)  // 可浮动LineItem
+  THCFloatLineItem = class(THCCustomFloatItem)  // 可浮动LineItem
   private
     FStartPt, FEndPt, FLeftTop: TPoint;
     FMouseDownObj: TLineObj;

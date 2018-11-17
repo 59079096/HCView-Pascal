@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, SysUtils, HCRichData, HCSectionData,
-  HCCustomRichData, HCTextStyle, HCParaStyle, HCItem, HCFloatItem, HCDrawItem,
+  HCCustomRichData, HCTextStyle, HCParaStyle, HCItem, HCCustomFloatItem, HCDrawItem,
   HCPage, HCCommon, HCStyle, HCCustomData, HCUndo;
 
 type
@@ -122,22 +122,6 @@ type
     function GetReadOnly: Boolean;
     procedure SetReadOnly(const Value: Boolean);
   protected
-    /// <summary> 获取光标在Dtat中的位置信息并映射到指定页面 </summary>
-    /// <param name="APageIndex">要映射到的页序号</param>
-    /// <param name="ACaretInfo">光标位置信息</param>
-    procedure GetPageCaretInfo(var ACaretInfo: THCCaretInfo); virtual;
-    /// <summary> 绘制指定页到指定的位置，为配合打印，开放ADisplayWidth, ADisplayHeight参数 </summary>
-    /// <param name="APageIndex">要绘制的页码</param>
-    /// <param name="ALeft">绘制X偏移</param>
-    /// <param name="ATop">绘制Y偏移</param>
-    /// <param name="ACanvas"></param>
-    procedure PaintPage(const APageIndex, ALeft, ATop: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo); virtual;
-    procedure Clear; virtual;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); virtual;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
-    //
     procedure KillFocus;
 
     // 纸张信息
@@ -256,6 +240,22 @@ type
     procedure ApplyParaBackColor(const AColor: TColor);
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
 
+    /// <summary> 获取光标在Dtat中的位置信息并映射到指定页面 </summary>
+    /// <param name="APageIndex">要映射到的页序号</param>
+    /// <param name="ACaretInfo">光标位置信息</param>
+    procedure GetPageCaretInfo(var ACaretInfo: THCCaretInfo);
+    /// <summary> 绘制指定页到指定的位置，为配合打印，开放ADisplayWidth, ADisplayHeight参数 </summary>
+    /// <param name="APageIndex">要绘制的页码</param>
+    /// <param name="ALeft">绘制X偏移</param>
+    /// <param name="ATop">绘制Y偏移</param>
+    /// <param name="ACanvas"></param>
+    procedure PaintPage(const APageIndex, ALeft, ATop: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure Clear; virtual;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer);
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+
     /// <summary> 某页在整个节中的Top位置 </summary>
     /// <param name="APageIndex"></param>
     /// <returns></returns>
@@ -305,6 +305,7 @@ type
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean;
     procedure FormatData;
+
     procedure Undo(const AUndo: THCUndo);
     procedure Redo(const ARedo: THCUndo);
     // 属性
@@ -366,14 +367,6 @@ type
 
   THCSection = class(THCCustomSection)
   public
-    procedure GetPageCaretInfo(var ACaretInfo: THCCaretInfo); override;
-    procedure PaintPage(const APageIndex, ALeft, ATop: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo); override;
-    procedure Clear; override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-
     /// <summary> 当前位置开始查找指定的内容 </summary>
     /// <param name="AKeyword">要查找的关键字</param>
     /// <param name="AForward">True：向前，False：向后</param>
@@ -381,7 +374,7 @@ type
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean;
 
-    function InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
+    function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
   end;
 
 implementation
@@ -2459,45 +2452,12 @@ end;
 
 { THCSection }
 
-procedure THCSection.Clear;
-begin
-  inherited Clear;
-end;
-
-procedure THCSection.GetPageCaretInfo(var ACaretInfo: THCCaretInfo);
-begin
-  inherited GetPageCaretInfo(ACaretInfo);
-end;
-
-function THCSection.InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
+function THCSection.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 begin
   if not FActiveData.CanEdit then Exit(False);
   AFloatItem.PageIndex := FActivePageIndex;
   Result := FActiveData.InsertFloatItem(AFloatItem);
   DoDataChanged(Self);
-end;
-
-procedure THCSection.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
-begin
-  inherited MouseDown(Button, Shift, X, Y);
-end;
-
-procedure THCSection.MouseMove(Shift: TShiftState; X, Y: Integer);
-begin
-  inherited MouseMove(Shift, X, Y);
-end;
-
-procedure THCSection.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
-begin
-  inherited MouseUp(Button, Shift, X, Y);
-end;
-
-procedure THCSection.PaintPage(const APageIndex, ALeft, ATop: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-begin
-  inherited PaintPage(APageIndex, ALeft, ATop, ACanvas, APaintInfo);
 end;
 
 function THCSection.Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean;

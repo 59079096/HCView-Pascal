@@ -48,7 +48,6 @@ type
     FPixelsPerMMX, FPixelsPerMMY: Single;  // 1毫米dpi数
     FUpdateInfo: TUpdateInfo;
     FShowLineLastMark: Boolean;  // 是否显示换行符
-    FEnableUndo: Boolean;
 
     FOnInvalidateRect: TInvalidateRectEvent;
   protected
@@ -116,13 +115,12 @@ type
     property PixelsPerMMY: single read FPixelsPerMMY;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowLineLastMark: Boolean read FShowLineLastMark write SetShowLineLastMark;
-    property EnableUndo: Boolean read FEnableUndo write FEnableUndo;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
   end;
 
-  THCFloatStyle = class(TObject)
+  THCFloatStyle = class(TObject)  // 浮动Item样式
   public const
-    Line = 1;
+    Line = 1;  // 直线
   end;
 
 implementation
@@ -167,7 +165,6 @@ begin
   FBackgroudColor := $00FFFFFE;
   FSelColor := clSkyBlue;
   FShowLineLastMark := True;
-  FEnableUndo := False;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;
   FParaStyles := TObjectList<THCParaStyle>.Create;

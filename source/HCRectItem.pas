@@ -46,12 +46,12 @@ type
     procedure SetHeight(const Value: Integer); virtual;
 
     // 撤销重做相关方法
-    procedure DoNewUndo(const Sender: THCUndo); virtual;
+    function DoUndoNew: THCUndo; virtual;
     procedure DoUndoDestroy(const Sender: THCUndo); virtual;
     procedure DoUndo(const Sender: THCUndo); virtual;
     procedure DoRedo(const Sender: THCUndo); virtual;
-    procedure Undo_StartRecord;
-    function GetSelfUndoList: THCUndoList;
+    procedure Undo_New;
+    function GetUndoList: THCUndoList;
   public
     /// <summary> 适用于工作期间创建 </summary>
     constructor Create(const AOwnerData: THCCustomData); overload; virtual;
@@ -364,7 +364,7 @@ begin
   Result := False;
 end;
 
-procedure THCCustomRectItem.DoNewUndo(const Sender: THCUndo);
+function THCCustomRectItem.DoUndoNew: THCUndo;
 begin
   // Sender.Data可绑定自定义的对象
 end;
@@ -443,20 +443,18 @@ begin
   Result := nil;
 end;
 
-function THCCustomRectItem.GetSelfUndoList: THCUndoList;
+function THCCustomRectItem.GetUndoList: THCUndoList;
 var
-  vMainUndoList: THCUndoList;
   vItemAction: THCItemSelfUndoAction;
 begin
-  Result := nil;
-  vMainUndoList := FOnGetMainUndoList;
-  if vMainUndoList.Last.Actions.Last is THCItemSelfUndoAction then
+  Result := FOnGetMainUndoList;
+  if (Result.Enable) and (Result.Last.Actions.Last is THCItemSelfUndoAction) then
   begin
-    vItemAction := vMainUndoList.Last.Actions.Last as THCItemSelfUndoAction;
+    vItemAction := Result.Last.Actions.Last as THCItemSelfUndoAction;
     if not Assigned(vItemAction.&Object) then
     begin
       vItemAction.&Object := THCUndoList.Create;
-      (vItemAction.&Object as THCUndoList).OnNewUndo := DoNewUndo;
+      (vItemAction.&Object as THCUndoList).OnUndoNew := DoUndoNew;
       (vItemAction.&Object as THCUndoList).OnUndo := DoUndo;
       (vItemAction.&Object as THCUndoList).OnRedo := DoRedo;
     end;
@@ -571,10 +569,13 @@ procedure THCCustomRectItem.TraverseItem(const ATraverse: TItemTraverse);
 begin
 end;
 
-procedure THCCustomRectItem.Undo_StartRecord;
+procedure THCCustomRectItem.Undo_New;
+var
+  vUndoList: THCUndoList;
 begin
-  if FOwnerData.Style.EnableUndo then
-    GetSelfUndoList.NewUndo;
+  vUndoList := GetUndoList;
+  if vUndoList.Enable then
+    vUndoList.UndoNew;
 end;
 
 function THCCustomRectItem.WantKeyDown(const Key: Word;
@@ -889,12 +890,14 @@ end;
 procedure THCResizeRectItem.Undo_Resize(const ANewWidth, ANewHeight: Integer);
 var
   vUndo: THCUndo;
+  vUndoList: THCUndoList;
   vUndoSize: THCUndoSize;
 begin
-  if OwnerData.Style.EnableUndo then
+  vUndoList := GetUndoList;
+  if vUndoList.Enable then
   begin
-    Undo_StartRecord;
-    vUndo := GetSelfUndoList.Last;
+    Undo_New;
+    vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
       vUndoSize := THCUndoSize.Create;

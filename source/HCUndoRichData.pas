@@ -274,7 +274,7 @@ begin
     end;
   end
   else
-  if AUndo is THCUndoGroupStart then  // 组开始
+  if AUndo is THCUndoGroupBegin then  // 组开始
   begin
     if AUndo.IsUndo then  // 组撤销(无Action)
     begin
@@ -284,8 +284,8 @@ begin
       begin
         ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemCount, FItemCount);
 
-        SelectInfo.StartItemNo := (AUndo as THCUndoGroupStart).ItemNo;
-        SelectInfo.StartItemOffset := (AUndo as THCUndoGroupStart).Offset;
+        SelectInfo.StartItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
+        SelectInfo.StartItemOffset := (AUndo as THCUndoGroupBegin).Offset;
 
         Style.UpdateInfoReCaret;
         Style.UpdateInfoRePaint;
@@ -295,7 +295,7 @@ begin
     begin
       if FUndoGroupCount = 0 then  // 组恢复开始
       begin
-        FFormatFirstItemNo := (AUndo as THCUndoGroupStart).ItemNo;
+        FFormatFirstItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         FFormatLastItemNo := FFormatFirstItemNo;
         FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
 
@@ -352,6 +352,7 @@ begin
 
     SelectInfo.StartItemNo := vCaretItemNo;
     SelectInfo.StartItemOffset := vCaretOffset;
+    CaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo;
 
     Style.UpdateInfoReCaret;
     Style.UpdateInfoRePaint;

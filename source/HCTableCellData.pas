@@ -18,7 +18,6 @@ uses
 
 type
   TGetRootDataEvent = function (): THCCustomData of object;
-  TGetEnableUndoEvent = function (): Boolean of object;
 
   THCTableCellData = class(THCRichData)
   private
@@ -31,7 +30,6 @@ type
       : Boolean;
     FCellHeight: Integer;  // 所属单元格高度(因合并或手动拖高，单元格高度会大于等于其内数据高度)
     FOnGetRootData: TGetRootDataEvent;
-    FOnGetEnableUndo: TGetEnableUndoEvent;
     function PointInCellRect(const APt: TPoint): Boolean;
   protected
     function GetHeight: Cardinal; override;
@@ -45,8 +43,6 @@ type
 
     procedure _FormatReadyParam(const AStartItemNo: Integer;
       var APrioDrawItemNo: Integer; var APos: TPoint); override;
-
-    function EnableUndo: Boolean; override;
 
     procedure SetActive(const Value: Boolean);
   public
@@ -87,7 +83,6 @@ type
     property Active: Boolean read FActive write SetActive;
 
     property OnGetRootData: TGetRootDataEvent read FOnGetRootData write FOnGetRootData;
-    property OnGetEnableUndo: TGetEnableUndoEvent read FOnGetEnableUndo write FOnGetEnableUndo;
   end;
 
 implementation
@@ -144,14 +139,6 @@ function THCTableCellData.DisSelect: Boolean;
 begin
   Result := inherited DisSelect;
   FCellSelectedAll := False;
-end;
-
-function THCTableCellData.EnableUndo: Boolean;
-begin
-  if Assigned(FOnGetEnableUndo) then
-    Result := OnGetEnableUndo
-  else
-    Result := inherited EnableUndo;
 end;
 
 function THCTableCellData.GetHeight: Cardinal;

@@ -146,7 +146,10 @@ begin
   if AFileVersion > 11 then
   begin
     AStream.ReadBuffer(FAlignVert, SizeOf(FAlignVert));  // 垂直对齐方式
-    AStream.ReadBuffer(FBackgroundColor, SizeOf(FBackgroundColor));  // 背景色
+    if AFileVersion > 18 then
+      LoadColorFromStream(FBackgroundColor, AStream)
+    else
+      AStream.ReadBuffer(FBackgroundColor, SizeOf(FBackgroundColor));  // 背景色
   end;
 
   if AFileVersion > 13 then

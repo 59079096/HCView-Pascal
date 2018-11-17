@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Graphics, SysUtils, Controls, Generics.Collections, HCCustomRichData,
   HCCustomData, HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle, HCTextStyle,
-  HCRichData, HCFloatItem;
+  HCRichData, HCCustomFloatItem;
 
 type
   TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
@@ -29,14 +29,14 @@ type
     FOnReadOnlySwitch: TNotifyEvent;
     FOnGetScreenCoord: TGetScreenCoordEvent;
 
-    FFloatItems: TObjectList<THCFloatItem>;  // THCItems支持Add时控制暂时不用
+    FFloatItems: TObjectList<THCCustomFloatItem>;  // THCItems支持Add时控制暂时不用
     FFloatItemIndex, FMouseDownIndex, FMouseMoveIndex,
     FMouseX, FMouseY
       : Integer;
 
-    function CreateFloatItemByStyle(const AStyleNo: Integer): THCFloatItem;
+    function CreateFloatItemByStyle(const AStyleNo: Integer): THCCustomFloatItem;
     function GetFloatItemAt(const X, Y: Integer): Integer;
-    function GetActiveFloatItem: THCFloatItem;
+    function GetActiveFloatItem: THCCustomFloatItem;
   protected
     function GetScreenCoord(const X, Y: Integer): TPoint; override;
     procedure SetReadOnly(const Value: Boolean); override;
@@ -53,7 +53,7 @@ type
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
 
     /// <summary> 插入浮动Item </summary>
-    function InsertFloatItem(const AFloatItem: THCFloatItem): Boolean;
+    function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 
     procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
       AEndItemNo, AEndOffset: Integer); override;
@@ -64,8 +64,8 @@ type
       AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
     property FloatItemIndex: Integer read FFloatItemIndex;
-    property ActiveFloatItem: THCFloatItem read GetActiveFloatItem;
-    property FloatItems: TObjectList<THCFloatItem> read FFloatItems;
+    property ActiveFloatItem: THCCustomFloatItem read GetActiveFloatItem;
+    property FloatItems: TObjectList<THCCustomFloatItem> read FFloatItems;
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
   end;
@@ -395,7 +395,7 @@ procedure THCPageData.PaintFloatItems(const APageIndex, ADataDrawLeft,
   const APaintInfo: TPaintInfo);
 var
   i: Integer;
-  vFloatItem: THCFloatItem;
+  vFloatItem: THCCustomFloatItem;
 begin
   for i := 0 to FFloatItems.Count - 1 do
   begin
@@ -434,7 +434,7 @@ end;
 
 constructor THCSectionData.Create(const AStyle: THCStyle);
 begin
-  FFloatItems := TObjectList<THCFloatItem>.Create;
+  FFloatItems := TObjectList<THCCustomFloatItem>.Create;
   FFloatItemIndex := -1;
   FMouseDownIndex := -1;
   FMouseMoveIndex := -1;
@@ -443,7 +443,7 @@ begin
 end;
 
 function THCSectionData.CreateFloatItemByStyle(
-  const AStyleNo: Integer): THCFloatItem;
+  const AStyleNo: Integer): THCCustomFloatItem;
 begin
   Result := nil;
   case AStyleNo of
@@ -459,7 +459,7 @@ begin
   inherited Destroy;
 end;
 
-function THCSectionData.GetActiveFloatItem: THCFloatItem;
+function THCSectionData.GetActiveFloatItem: THCCustomFloatItem;
 begin
   if FFloatItemIndex < 0 then
     Result := nil
@@ -482,7 +482,7 @@ end;
 function THCSectionData.GetFloatItemAt(const X, Y: Integer): Integer;
 var
   i: Integer;
-  vFloatItem: THCFloatItem;
+  vFloatItem: THCCustomFloatItem;
 begin
   Result := -1;
   for i := 0 to FFloatItems.Count - 1 do
@@ -503,8 +503,7 @@ begin
     Result := FOnGetScreenCoord(X, Y);
 end;
 
-function THCSectionData.InsertFloatItem(
-  const AFloatItem: THCFloatItem): Boolean;
+function THCSectionData.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 var
   vStartNo, vStartOffset, vDrawNo: Integer;
 begin
@@ -564,7 +563,7 @@ procedure THCSectionData.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vFloatCount, vStyleNo: Integer;
-  vFloatItem: THCFloatItem;
+  vFloatItem: THCCustomFloatItem;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   if AFileVersion > 12 then
@@ -620,7 +619,7 @@ end;
 function THCSectionData.MouseMoveFloatItem(Shift: TShiftState; X, Y: Integer): Boolean;
 var
   vItemIndex: Integer;
-  vFloatItem: THCFloatItem;
+  vFloatItem: THCCustomFloatItem;
 begin
   Result := True;
 
@@ -665,7 +664,7 @@ end;
 
 function THCSectionData.MouseUpFloatItem(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
 var
-  vFloatItem: THCFloatItem;
+  vFloatItem: THCCustomFloatItem;
 begin
   Result := True;
 
@@ -684,7 +683,7 @@ procedure THCSectionData.PaintFloatItems(const APageIndex, ADataDrawLeft,
   ADataDrawTop, AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   i: Integer;
-  vFloatItem: THCFloatItem;
+  vFloatItem: THCCustomFloatItem;
 begin
   for i := 0 to FFloatItems.Count - 1 do
   begin

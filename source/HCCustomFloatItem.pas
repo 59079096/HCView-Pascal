@@ -9,7 +9,7 @@
 {                                                       }
 {*******************************************************}
 
-unit HCFloatItem;
+unit HCCustomFloatItem;
 
 interface
 
@@ -21,7 +21,7 @@ const
   PointSize = 5;
 
 type
-  THCFloatItem = class(THCResizeRectItem)  // 可浮动Item
+  THCCustomFloatItem = class(THCResizeRectItem)  // 可浮动Item
   private
     FLeft, FTop, FPageIndex: Integer;
     FDrawRect: TRect;
@@ -44,29 +44,29 @@ type
 
 implementation
 
-{ THCFloatItem }
+{ THCCustomFloatItem }
 
-procedure THCFloatItem.Assign(Source: THCCustomItem);
+procedure THCCustomFloatItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
-  FLeft := (Source as THCFloatItem).Left;
-  FTop := (Source as THCFloatItem).Top;
-  Width := (Source as THCFloatItem).Width;
-  Height := (Source as THCFloatItem).Height;
+  FLeft := (Source as THCCustomFloatItem).Left;
+  FTop := (Source as THCCustomFloatItem).Top;
+  Width := (Source as THCCustomFloatItem).Width;
+  Height := (Source as THCCustomFloatItem).Height;
 end;
 
-constructor THCFloatItem.Create(const AOwnerData: THCCustomData);
+constructor THCCustomFloatItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
   //Self.StyleNo := THCStyle.FloatItem;
 end;
 
-function THCFloatItem.PtInClient(const APoint: TPoint): Boolean;
+function THCCustomFloatItem.PtInClient(const APoint: TPoint): Boolean;
 begin
   Result := PtInRect(Bounds(0, 0, Width, Height), APoint);
 end;
 
-procedure THCFloatItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+procedure THCCustomFloatItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop,
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
@@ -76,7 +76,7 @@ begin
     ACanvas.DrawFocusRect(FDrawRect);
 end;
 
-procedure THCFloatItem.LoadFromStream(const AStream: TStream;
+procedure THCCustomFloatItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vValue: Integer;
@@ -91,12 +91,12 @@ begin
   Height := vValue;
 end;
 
-function THCFloatItem.PtInClient(const X, Y: Integer): Boolean;
+function THCCustomFloatItem.PtInClient(const X, Y: Integer): Boolean;
 begin
   Result := PtInClient(Point(X, Y));
 end;
 
-procedure THCFloatItem.SaveToStream(const AStream: TStream; const AStart,
+procedure THCCustomFloatItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 var
   vValue: Integer;

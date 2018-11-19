@@ -922,6 +922,7 @@ procedure TfrmHCViewDemo.mniN9Click(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
   vImageItem: THCImageItem;
+  vTopData: THCCustomRichData;
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
@@ -930,8 +931,10 @@ begin
     begin
       if vOpenDlg.FileName <> '' then
       begin
-        vImageItem := THCImageItem.Create(FHCView.ActiveSectionTopLevelData);
+        vTopData := FHCView.ActiveSectionTopLevelData;
+        vImageItem := THCImageItem.Create(vTopData);
         vImageItem.LoadFromBmpFile(vOpenDlg.FileName);
+        vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
         Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
         FHCView.InsertItem(vImageItem);
       end;

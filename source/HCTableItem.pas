@@ -117,6 +117,8 @@ type
 
     procedure InitializeMouseInfo;
 
+    procedure InitializeCellData(const ACellData: THCTableCellData);
+
     function DoCellDataGetRootData: THCCustomData;
 
     /// <summary> 表格行有添加时 </summary>
@@ -216,10 +218,10 @@ type
     procedure TraverseItem(const ATraverse: TItemTraverse); override;
 
     // 撤销重做相关方法
-    function DoUndoNew: THCUndo; override;
-    procedure DoUndoDestroy(const Sender: THCUndo); override;
-    procedure DoUndo(const Sender: THCUndo); override;
-    procedure DoRedo(const Sender: THCUndo); override;
+    function DoSelfUndoNew: THCUndo; override;
+    procedure DoSelfUndoDestroy(const AUndo: THCUndo); override;
+    procedure DoSelfUndo(const AUndo: THCUndo); override;
+    procedure DoSelfRedo(const ARedo: THCUndo); override;
     procedure Undo_ColResize(const ACol, AOldWidth, ANewWidth: Integer);
     procedure Undo_MergeCells;
 
@@ -762,18 +764,19 @@ begin
   Result := OwnerData.GetRootData;
 end;
 
-function THCTableItem.DoUndoNew: THCUndo;
+function THCTableItem.DoSelfUndoNew: THCUndo;
 var
   vCell: THCTableCell;
-  vUndoCell: THCUndoCell;
+  vCellUndoData: THCCellUndoData;
 begin
-  Result := THCUndo.Create;
+  Result := nil;
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
-    vUndoCell := THCUndoCell.Create;
-    vUndoCell.Row := FSelectCellRang.StartRow;
-    vUndoCell.Col := FSelectCellRang.StartCol;
-    Result.Data := vUndoCell;
+    Result := THCDataUndo.Create;
+    vCellUndoData := THCCellUndoData.Create;
+    vCellUndoData.Row := FSelectCellRang.StartRow;
+    vCellUndoData.Col := FSelectCellRang.StartCol;
+    Result.Data := vCellUndoData;
   end;
 end;
 
@@ -1196,50 +1199,50 @@ begin
   {$ENDREGION}
 end;
 
-procedure THCTableItem.DoRedo(const Sender: THCUndo);
+procedure THCTableItem.DoSelfRedo(const ARedo: THCUndo);
 var
-  vRedoCell: THCUndoCell;
-  vColSize: THCUndoColSize;
-  vMirror: THCUndoMirror;
+  vRedoCellUndoData: THCCellUndoData;
+  vColSizeUndoData: THCColSizeUndoData;
+  vMirrorUndoData: THCMirrorUndoData;
   vStream: TMemoryStream;
   vStyleNo: Integer;
 begin
-  if Sender.Data is THCUndoCell then
+  if ARedo.Data is THCCellUndoData then
   begin
-    vRedoCell := Sender.Data as THCUndoCell;
-    Cells[vRedoCell.Row, vRedoCell.Col].CellData.Redo(Sender);
+    vRedoCellUndoData := ARedo.Data as THCCellUndoData;
+    Cells[vRedoCellUndoData.Row, vRedoCellUndoData.Col].CellData.Redo(ARedo);
   end
   else
-  if Sender.Data is THCUndoColSize then
+  if ARedo.Data is THCColSizeUndoData then
   begin
-    vColSize := Sender.Data as THCUndoColSize;
-    if vColSize.Col < FColWidths.Count - 1 then
+    vColSizeUndoData := ARedo.Data as THCColSizeUndoData;
+    if vColSizeUndoData.Col < FColWidths.Count - 1 then
     begin
-      FColWidths[vColSize.Col + 1] := FColWidths[vColSize.Col + 1] +
-        FColWidths[vColSize.Col] - vColSize.NewWidth;
+      FColWidths[vColSizeUndoData.Col + 1] := FColWidths[vColSizeUndoData.Col + 1] +
+        FColWidths[vColSizeUndoData.Col] - vColSizeUndoData.NewWidth;
     end;
-    FColWidths[vColSize.Col] := vColSize.NewWidth;
+    FColWidths[vColSizeUndoData.Col] := vColSizeUndoData.NewWidth;
   end
   else
-  if Sender.Data is THCUndoMirror then
+  if ARedo.Data is THCMirrorUndoData then
   begin
     vStream := TMemoryStream.Create;
     try
       Self.SaveToStream(vStream);  // 记录恢复前状态
 
-      vMirror := Sender.Data as THCUndoMirror;
-      vMirror.Stream.Position := 0;
-      vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
-      Self.LoadFromStream(vMirror.Stream, OwnerData.Style, HC_FileVersionInt);
+      vMirrorUndoData := ARedo.Data as THCMirrorUndoData;
+      vMirrorUndoData.Stream.Position := 0;
+      vMirrorUndoData.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
+      Self.LoadFromStream(vMirrorUndoData.Stream, OwnerData.Style, HC_FileVersionInt);
 
-      vMirror.Stream.Clear;
-      vMirror.Stream.CopyFrom(vStream, 0);  // 保存恢复前状态
+      vMirrorUndoData.Stream.Clear;
+      vMirrorUndoData.Stream.CopyFrom(vStream, 0);  // 保存恢复前状态
     finally
       vStream.Free;
     end;
   end
   else
-    inherited DoRedo(Sender);
+    inherited DoSelfRedo(ARedo);
 end;
 
 procedure THCTableItem.DoRowAdd(const ARow: THCTableRow);
@@ -1251,73 +1254,63 @@ begin
   begin
     vCellData := ARow.Cols[i].CellData;
     if vCellData <> nil then
-    begin
-      vCellData.OnInsertItem := (OwnerData as THCCustomRichData).OnInsertItem;
-      vCellData.OnItemResized := (OwnerData as THCCustomRichData).OnItemResized;
-      vCellData.OnDrawItemPaintAfter := (OwnerData as THCCustomRichData).OnDrawItemPaintAfter;
-      vCellData.OnDrawItemPaintBefor := (OwnerData as THCCustomRichData).OnDrawItemPaintBefor;
-      vCellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
-      vCellData.OnCreateItemByStyle := (OwnerData as THCRichData).OnCreateItemByStyle;
-      vCellData.OnCreateItem := (OwnerData as THCCustomRichData).OnCreateItem;
-      vCellData.OnGetUndoList := Self.GetUndoList;
-      vCellData.OnGetRootData := DoCellDataGetRootData;
-    end;
+      InitializeCellData(vCellData);
   end;
 end;
 
-procedure THCTableItem.DoUndo(const Sender: THCUndo);
+procedure THCTableItem.DoSelfUndo(const AUndo: THCUndo);
 var
-  vCell: THCUndoCell;
-  vColSize: THCUndoColSize;
-  vMirror: THCUndoMirror;
+  vCellUndoData: THCCellUndoData;
+  vColSizeUndoData: THCColSizeUndoData;
+  vMirrorUndoData: THCMirrorUndoData;
   vStyleNo: Integer;
   vStream: TMemoryStream;
 begin
-  if Sender.Data is THCUndoCell then
+  if AUndo.Data is THCCellUndoData then
   begin
-    vCell := Sender.Data as THCUndoCell;
-    Cells[vCell.Row, vCell.Col].CellData.Undo(Sender);
+    vCellUndoData := AUndo.Data as THCCellUndoData;
+    Cells[vCellUndoData.Row, vCellUndoData.Col].CellData.Undo(AUndo);
   end
   else
-  if Sender.Data is THCUndoColSize then
+  if AUndo.Data is THCColSizeUndoData then
   begin
-    vColSize := Sender.Data as THCUndoColSize;
-    if vColSize.Col < FColWidths.Count - 1 then
+    vColSizeUndoData := AUndo.Data as THCColSizeUndoData;
+    if vColSizeUndoData.Col < FColWidths.Count - 1 then
     begin
-      FColWidths[vColSize.Col + 1] := FColWidths[vColSize.Col + 1] +
-        FColWidths[vColSize.Col] - vColSize.OldWidth;
+      FColWidths[vColSizeUndoData.Col + 1] := FColWidths[vColSizeUndoData.Col + 1] +
+        FColWidths[vColSizeUndoData.Col] - vColSizeUndoData.OldWidth;
     end;
-    FColWidths[vColSize.Col] := vColSize.OldWidth;
+    FColWidths[vColSizeUndoData.Col] := vColSizeUndoData.OldWidth;
   end
   else
-  if Sender.Data is THCUndoMirror then
+  if AUndo.Data is THCMirrorUndoData then
   begin
     vStream := TMemoryStream.Create;
     try
       Self.SaveToStream(vStream);  // 记录撤销前状态
 
       // 恢复原样
-      vMirror := Sender.Data as THCUndoMirror;
-      vMirror.Stream.Position := 0;
-      vMirror.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
-      Self.LoadFromStream(vMirror.Stream, OwnerData.Style, HC_FileVersionInt);
+      vMirrorUndoData := AUndo.Data as THCMirrorUndoData;
+      vMirrorUndoData.Stream.Position := 0;
+      vMirrorUndoData.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
+      Self.LoadFromStream(vMirrorUndoData.Stream, OwnerData.Style, HC_FileVersionInt);
 
-      vMirror.Stream.Clear;
-      vMirror.Stream.CopyFrom(vStream, 0);  // 保存撤销前状态
+      vMirrorUndoData.Stream.Clear;
+      vMirrorUndoData.Stream.CopyFrom(vStream, 0);  // 保存撤销前状态
     finally
       vStream.Free;
     end;
   end
   else
-    inherited DoUndo(Sender);
+    inherited DoSelfUndo(AUndo);
 end;
 
-procedure THCTableItem.DoUndoDestroy(const Sender: THCUndo);
+procedure THCTableItem.DoSelfUndoDestroy(const AUndo: THCUndo);
 begin
-  if Sender.Data is THCUndoCell then
-    (Sender.Data as THCUndoCell).Free;
+  if AUndo.Data is THCCellUndoData then
+    (AUndo.Data as THCCellUndoData).Free;
 
-  inherited DoUndoDestroy(Sender);
+  inherited DoSelfUndoDestroy(AUndo);
 end;
 
 procedure THCTableItem.KeyDown(var Key: Word; Shift: TShiftState);
@@ -2442,6 +2435,19 @@ begin
     X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
 end;
 
+procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
+begin
+  ACellData.OnInsertItem := (OwnerData as THCCustomRichData).OnInsertItem;
+  ACellData.OnItemResized := (OwnerData as THCCustomRichData).OnItemResized;
+  ACellData.OnDrawItemPaintAfter := (OwnerData as THCCustomRichData).OnDrawItemPaintAfter;
+  ACellData.OnDrawItemPaintBefor := (OwnerData as THCCustomRichData).OnDrawItemPaintBefor;
+  ACellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
+  ACellData.OnCreateItemByStyle := (OwnerData as THCRichData).OnCreateItemByStyle;
+  ACellData.OnCreateItem := (OwnerData as THCCustomRichData).OnCreateItem;
+  ACellData.OnGetUndoList := Self.GetSelfUndoList;
+  ACellData.OnGetRootData := DoCellDataGetRootData;
+end;
+
 procedure THCTableItem.InitializeMouseInfo;
 begin
   //FSelectCellRang.Initialize;  // 造成表格中调用其他工具窗体（失去焦点触发KillFocus）插入数据元时失败
@@ -2467,6 +2473,7 @@ begin
     begin
       vCell := THCTableCell.Create(OwnerData.Style);
       vCell.Width := vWidth;
+      InitializeCellData(vCell.CellData);
 
       if (ACol < FColWidths.Count) and (FRows[vRow].Cols[ACol].ColSpan < 0) then  // 合并的源列
       begin
@@ -3927,21 +3934,21 @@ procedure THCTableItem.Undo_ColResize(const ACol, AOldWidth,
 var
   vUndo: THCUndo;
   vUndoList: THCUndoList;
-  vUndoColSize: THCUndoColSize;
+  vColSizeUndoData: THCColSizeUndoData;
 begin
-  vUndoList := GetUndoList;
+  vUndoList := GetSelfUndoList;
   if vUndoList.Enable then
   begin
-    Undo_New;
+    SelfUndo_New;
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vUndoColSize := THCUndoColSize.Create;
-      vUndoColSize.Col := ACol;
-      vUndoColSize.OldWidth := AOldWidth;
-      vUndoColSize.NewWidth := ANewWidth;
+      vColSizeUndoData := THCColSizeUndoData.Create;
+      vColSizeUndoData.Col := ACol;
+      vColSizeUndoData.OldWidth := AOldWidth;
+      vColSizeUndoData.NewWidth := ANewWidth;
 
-      vUndo.Data := vUndoColSize;
+      vUndo.Data := vColSizeUndoData;
     end;
   end;
 end;
@@ -3950,19 +3957,19 @@ procedure THCTableItem.Undo_MergeCells;
 var
   vUndo: THCUndo;
   vUndoList: THCUndoList;
-  vMirror: THCUndoMirror;
+  vMirrorUndoData: THCMirrorUndoData;
 begin
-  vUndoList := GetUndoList;
+  vUndoList := GetSelfUndoList;
   if vUndoList.Enable then
   begin
-    Undo_New;
+    SelfUndo_New;
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vMirror := THCUndoMirror.Create;
-      Self.SaveToStream(vMirror.Stream);
+      vMirrorUndoData := THCMirrorUndoData.Create;
+      Self.SaveToStream(vMirrorUndoData.Stream);
 
-      vUndo.Data := vMirror;
+      vUndo.Data := vMirrorUndoData;
     end;
   end;
 end;

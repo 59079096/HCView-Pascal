@@ -20,7 +20,7 @@ type
 
   { THCUndo.Data部分 }
 
-  THCUndoMirror = class(TObject)
+  THCMirrorUndoData = class(TObject)
   private
     FStream: TMemoryStream;
   public
@@ -29,18 +29,18 @@ type
     property Stream: TMemoryStream read FStream write FStream;
   end;
 
-  THCUndoBaseData = class(TObject)  // 两个整形值基类
+  THCBaseKeysUndoData = class(TObject)  // 两个整形值基类
   private
     A, B: Integer;
   end;
 
-  THCUndoCell = class(THCUndoBaseData)  // 单元格内部HCData自己处理
+  THCCellUndoData = class(THCBaseKeysUndoData)  // 单元格内部HCData自己处理
   public
     property Row: Integer read A write A;
     property Col: Integer read B write B;
   end;
 
-  THCUndoColSize = class(THCUndoBaseData)  // 改变列宽
+  THCColSizeUndoData = class(THCBaseKeysUndoData)  // 改变列宽
   private
     FCol: Integer;
   public
@@ -49,7 +49,7 @@ type
     property NewWidth: Integer read B write B;
   end;
 
-  THCUndoSize = class(THCUndoBaseData)  // Item尺寸改变(用于RectItem)
+  THCSizeUndoData = class(THCBaseKeysUndoData)  // Item尺寸改变(用于RectItem)
   private
     FNewWidth, FNewHeight: Integer;
   public
@@ -209,7 +209,7 @@ type
   THCUndoList = class(TObjectList<THCUndo>)
   private
     FSeek: Integer;
-    FEnable: Boolean;
+    FEnable: Boolean;  // 是否可以执行撤销恢复
     FMaxUndoCount: Cardinal;
     FOnUndoNew: TUndoNewEvent;
     FOnUndoGroupStart: TUndoGroupBeginEvent;
@@ -230,6 +230,7 @@ type
 
     property Enable: Boolean read FEnable write FEnable;
     property MaxUndoCount: Cardinal read FMaxUndoCount write FMaxUndoCount;
+    property Seek: Integer read FSeek;
     property OnUndoNew: TUndoNewEvent read FOnUndoNew write FOnUndoNew;
     property OnUndoGroupStart: TUndoGroupBeginEvent read FOnUndoGroupStart write FOnUndoGroupStart;
     property OnUndoGroupEnd: TUndoGroupEndEvent read FOnUndoGroupEnd write FOnUndoGroupEnd;
@@ -540,14 +541,14 @@ begin
   inherited Destroy;
 end;
 
-{ THCUndoMirror }
+{ THCMirrorUndoData }
 
-constructor THCUndoMirror.Create;
+constructor THCMirrorUndoData.Create;
 begin
   FStream := TMemoryStream.Create;
 end;
 
-destructor THCUndoMirror.Destroy;
+destructor THCMirrorUndoData.Destroy;
 begin
   if FStream <> nil then
     FStream.Free;

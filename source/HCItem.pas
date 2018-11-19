@@ -135,8 +135,8 @@ type
       const AFileVersion: Word); virtual;
 
     // 撤销重做相关方法
-    procedure Undo(const AObject: TObject);
-    procedure Redo(const AObject: TObject);
+    procedure Undo(const AUndoAction: THCCustomUndoAction); virtual;
+    procedure Redo(const ARedoAction: THCCustomUndoAction); virtual;
     //
     property Options: TItemOptions read FOptions;
     property Text: string read GetText write SetText;
@@ -306,10 +306,8 @@ procedure THCCustomItem.PaintTop(const ACanvas: TCanvas);
 begin
 end;
 
-procedure THCCustomItem.Redo(const AObject: TObject);
+procedure THCCustomItem.Redo(const ARedoAction: THCCustomUndoAction);
 begin
-  if AObject is THCUndoList then
-    THCUndoList(AObject).Redo;
 end;
 
 procedure THCCustomItem.SelectComplate;
@@ -328,10 +326,8 @@ procedure THCCustomItem.SetText(const Value: string);
 begin
 end;
 
-procedure THCCustomItem.Undo(const AObject: TObject);
+procedure THCCustomItem.Undo(const AUndoAction: THCCustomUndoAction);
 begin
-  if AObject is THCUndoList then
-    THCUndoList(AObject).Undo;
 end;
 
 procedure THCCustomItem.SaveToStream(const AStream: TStream);

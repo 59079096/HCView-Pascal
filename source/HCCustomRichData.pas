@@ -968,13 +968,13 @@ var
 begin
   vUndoList := GetUndoList;
   if vUndoList.Enable then
-    GetUndoList.UndoGroupBegin(AItemNo, AOffset);
+    vUndoList.UndoGroupBegin(AItemNo, AOffset);
 end;
 
 procedure THCCustomRichData.Undo_New;
 var
-  vUndo: THCUndo;
   vUndoList: THCUndoList;
+  vUndo: THCUndo;
 begin
   vUndoList := GetUndoList;
   if vUndoList.Enable then

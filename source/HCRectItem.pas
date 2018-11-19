@@ -46,12 +46,17 @@ type
     procedure SetHeight(const Value: Integer); virtual;
 
     // 撤销重做相关方法
-    function DoUndoNew: THCUndo; virtual;
-    procedure DoUndoDestroy(const Sender: THCUndo); virtual;
-    procedure DoUndo(const Sender: THCUndo); virtual;
-    procedure DoRedo(const Sender: THCUndo); virtual;
-    procedure Undo_New;
-    function GetUndoList: THCUndoList;
+    procedure Undo(const AUndoAction: THCCustomUndoAction); override;
+    procedure Redo(const ARedoAction: THCCustomUndoAction); override;
+    //
+    procedure SelfUndoListInitializate(const AUndoList: THCUndoList);
+    procedure SelfUndo_New;
+    function GetSelfUndoList: THCUndoList;
+
+    procedure DoSelfUndoDestroy(const AUndo: THCUndo); virtual;
+    function DoSelfUndoNew: THCUndo; virtual;
+    procedure DoSelfUndo(const AUndo: THCUndo); virtual;
+    procedure DoSelfRedo(const ARedo: THCUndo); virtual;
   public
     /// <summary> 适用于工作期间创建 </summary>
     constructor Create(const AOwnerData: THCCustomData); overload; virtual;
@@ -232,10 +237,10 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
 
     // 撤销恢复相关方法
-    procedure Undo_Resize(const ANewWidth, ANewHeight: Integer);
-    procedure DoUndoDestroy(const Sender: THCUndo); override;
-    procedure DoUndo(const Sender: THCUndo); override;
-    procedure DoRedo(const Sender: THCUndo); override;
+    procedure SelfUndo_Resize(const ANewWidth, ANewHeight: Integer);
+    procedure DoSelfUndoDestroy(const AUndo: THCUndo); override;
+    procedure DoSelfUndo(const AUndo: THCUndo); override;
+    procedure DoSelfRedo(const ARedo: THCUndo); override;
 
     function GetResizing: Boolean; virtual;
     procedure SetResizing(const Value: Boolean); virtual;
@@ -364,23 +369,23 @@ begin
   Result := False;
 end;
 
-function THCCustomRectItem.DoUndoNew: THCUndo;
+function THCCustomRectItem.DoSelfUndoNew: THCUndo;
 begin
   // Sender.Data可绑定自定义的对象
 end;
 
-procedure THCCustomRectItem.DoRedo(const Sender: THCUndo);
+procedure THCCustomRectItem.DoSelfRedo(const ARedo: THCUndo);
 begin
 end;
 
-procedure THCCustomRectItem.DoUndo(const Sender: THCUndo);
+procedure THCCustomRectItem.DoSelfUndo(const AUndo: THCUndo);
 begin
 end;
 
-procedure THCCustomRectItem.DoUndoDestroy(const Sender: THCUndo);
+procedure THCCustomRectItem.DoSelfUndoDestroy(const AUndo: THCUndo);
 begin
-  if Sender.Data <> nil then
-    Sender.Data.Free;
+  if AUndo.Data <> nil then
+    AUndo.Data.Free;
 end;
 
 procedure THCCustomRectItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -443,20 +448,18 @@ begin
   Result := nil;
 end;
 
-function THCCustomRectItem.GetUndoList: THCUndoList;
+function THCCustomRectItem.GetSelfUndoList: THCUndoList;
 var
   vItemAction: THCItemSelfUndoAction;
 begin
   Result := FOnGetMainUndoList;
-  if (Result.Enable) and (Result.Last.Actions.Last is THCItemSelfUndoAction) then
+  if Result.Enable and (Result.Last.Actions.Last is THCItemSelfUndoAction) then
   begin
     vItemAction := Result.Last.Actions.Last as THCItemSelfUndoAction;
     if not Assigned(vItemAction.&Object) then
     begin
       vItemAction.&Object := THCUndoList.Create;
-      (vItemAction.&Object as THCUndoList).OnUndoNew := DoUndoNew;
-      (vItemAction.&Object as THCUndoList).OnUndo := DoUndo;
-      (vItemAction.&Object as THCUndoList).OnRedo := DoRedo;
+      SelfUndoListInitializate(vItemAction.&Object as THCUndoList);
     end;
 
     Result := vItemAction.&Object as THCUndoList;
@@ -471,6 +474,14 @@ end;
 function THCCustomRectItem.GetWidth: Integer;
 begin
   Result := FWidth;
+end;
+
+procedure THCCustomRectItem.SelfUndoListInitializate(
+  const AUndoList: THCUndoList);
+begin
+  AUndoList.OnUndoNew := DoSelfUndoNew;
+  AUndoList.OnUndo := DoSelfUndo;
+  AUndoList.OnRedo := DoSelfRedo;
 end;
 
 function THCCustomRectItem.InsertGraphic(const AGraphic: TGraphic;
@@ -529,6 +540,21 @@ begin
   Self.Active := PtInRect(Rect(0, 0, FWidth, FHeight), Point(X, Y));
 end;
 
+procedure THCCustomRectItem.Redo(const ARedoAction: THCCustomUndoAction);
+var
+  vUndoList: THCUndoList;
+begin
+  if ARedoAction is THCItemSelfUndoAction then
+  begin
+    vUndoList := (ARedoAction as THCItemSelfUndoAction).&Object as THCUndoList;
+    if vUndoList.Seek < 0 then  //
+      SelfUndoListInitializate(vUndoList);  // 插入RectItem撤销后会删除，再恢复是从流加载的新实例，相关事件已经名存实亡了，需要重新赋值
+    vUndoList.Redo;
+  end
+  else
+    inherited Redo(ARedoAction);
+end;
+
 procedure THCCustomRectItem.SaveSelectToStream(const AStream: TStream);
 begin
 end;
@@ -569,11 +595,24 @@ procedure THCCustomRectItem.TraverseItem(const ATraverse: TItemTraverse);
 begin
 end;
 
-procedure THCCustomRectItem.Undo_New;
+procedure THCCustomRectItem.Undo(const AUndoAction: THCCustomUndoAction);
 var
   vUndoList: THCUndoList;
 begin
-  vUndoList := GetUndoList;
+  if AUndoAction is THCItemSelfUndoAction then
+  begin
+    vUndoList := (AUndoAction as THCItemSelfUndoAction).&Object as THCUndoList;
+    vUndoList.Undo;
+  end
+  else
+    inherited Undo(AUndoAction);
+end;
+
+procedure THCCustomRectItem.SelfUndo_New;
+var
+  vUndoList: THCUndoList;
+begin
+  vUndoList := GetSelfUndoList;
   if vUndoList.Enable then
     vUndoList.UndoNew;
 end;
@@ -643,40 +682,40 @@ begin
   end;
 end;
 
-procedure THCResizeRectItem.DoRedo(const Sender: THCUndo);
+procedure THCResizeRectItem.DoSelfRedo(const ARedo: THCUndo);
 var
-  vSizeAction: THCUndoSize;
+  vSizeUndoData: THCSizeUndoData;
 begin
-  if Sender.Data is THCUndoSize then
+  if ARedo.Data is THCSizeUndoData then
   begin
-    vSizeAction := Sender.Data as THCUndoSize;
-    Self.Width := vSizeAction.NewWidth;
-    Self.Height := vSizeAction.NewHeight;
+    vSizeUndoData := ARedo.Data as THCSizeUndoData;
+    Self.Width := vSizeUndoData.NewWidth;
+    Self.Height := vSizeUndoData.NewHeight;
   end
   else
-    inherited DoRedo(Sender);
+    inherited DoSelfRedo(ARedo);
 end;
 
-procedure THCResizeRectItem.DoUndo(const Sender: THCUndo);
+procedure THCResizeRectItem.DoSelfUndo(const AUndo: THCUndo);
 var
-  vSizeAction: THCUndoSize;
+  vSizeUndoData: THCSizeUndoData;
 begin
-  if Sender.Data is THCUndoSize then
+  if AUndo.Data is THCSizeUndoData then
   begin
-    vSizeAction := Sender.Data as THCUndoSize;
-    Self.Width := vSizeAction.OldWidth;
-    Self.Height := vSizeAction.OldHeight;
+    vSizeUndoData := AUndo.Data as THCSizeUndoData;
+    Self.Width := vSizeUndoData.OldWidth;
+    Self.Height := vSizeUndoData.OldHeight;
   end
   else
-    inherited DoUndo(Sender);
+    inherited DoSelfUndo(AUndo);
 end;
 
-procedure THCResizeRectItem.DoUndoDestroy(const Sender: THCUndo);
+procedure THCResizeRectItem.DoSelfUndoDestroy(const AUndo: THCUndo);
 begin
-  if Sender.Data is THCUndoSize then
-    (Sender.Data as THCUndoSize).Free;
+  if AUndo.Data is THCSizeUndoData then
+    (AUndo.Data as THCSizeUndoData).Free;
 
-  inherited DoUndoDestroy(Sender);
+  inherited DoSelfUndoDestroy(AUndo);
 end;
 
 procedure THCResizeRectItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
@@ -858,7 +897,7 @@ begin
 
     if (FResizeWidth < 0) or (FResizeHeight < 0) then Exit;
 
-    Undo_Resize(FResizeWidth, FResizeHeight);
+    SelfUndo_Resize(FResizeWidth, FResizeHeight);
     Width := FResizeWidth;
     Height := FResizeHeight;
   end;
@@ -887,26 +926,26 @@ begin
     FResizing := Value;
 end;
 
-procedure THCResizeRectItem.Undo_Resize(const ANewWidth, ANewHeight: Integer);
+procedure THCResizeRectItem.SelfUndo_Resize(const ANewWidth, ANewHeight: Integer);
 var
   vUndo: THCUndo;
   vUndoList: THCUndoList;
-  vUndoSize: THCUndoSize;
+  vSizeUndoData: THCSizeUndoData;
 begin
-  vUndoList := GetUndoList;
+  vUndoList := GetSelfUndoList;
   if vUndoList.Enable then
   begin
-    Undo_New;
+    SelfUndo_New;
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vUndoSize := THCUndoSize.Create;
-      vUndoSize.OldWidth := Self.Width;
-      vUndoSize.OldHeight := Self.Height;
-      vUndoSize.NewWidth := ANewWidth;
-      vUndoSize.NewHeight := ANewHeight;
+      vSizeUndoData := THCSizeUndoData.Create;
+      vSizeUndoData.OldWidth := Self.Width;
+      vSizeUndoData.OldHeight := Self.Height;
+      vSizeUndoData.NewWidth := ANewWidth;
+      vSizeUndoData.NewHeight := ANewHeight;
 
-      vUndo.Data := vUndoSize;
+      vUndo.Data := vSizeUndoData;
     end;
   end;
 end;

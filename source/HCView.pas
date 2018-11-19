@@ -1845,27 +1845,15 @@ procedure THCView.Paste;
   procedure PasteImage;
   var
     vImageItem: THCImageItem;
-
-    procedure RestrainImageSize;
-    var
-      vContentWidth, vContentHeight: Integer;
-    begin
-      with ActiveSection do
-      begin
-        vContentWidth := PageWidthPix - PageMarginLeftPix - PageMarginRightPix;
-        vContentHeight := PageHeightPix - GetHeaderAreaHeight - PageMarginBottomPix;
-      end;
-
-      vImageItem.RestrainSize(vContentWidth, vContentHeight);
-    end;
-
+    vTopData: THCCustomRichData;
   begin
-    vImageItem := THCImageItem.Create(Self.ActiveSectionTopLevelData);
+    vTopData := Self.ActiveSectionTopLevelData;
+    vImageItem := THCImageItem.Create(vTopData);
     vImageItem.Image.Assign(Clipboard);
     vImageItem.Width := vImageItem.Image.Width;
     vImageItem.Height := vImageItem.Image.Height;
 
-    RestrainImageSize;
+    vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
     Self.InsertItem(vImageItem);
   end;
 
@@ -2342,11 +2330,18 @@ end;
 
 procedure THCView.Redo;
 begin
-  BeginUpdate;
+  if FUndoList.Enable then  // 恢复过程不要产生新的Redo
   try
-    FUndoList.Redo;
+    FUndoList.Enable := False;
+
+    BeginUpdate;
+    try
+      FUndoList.Redo;
+    finally
+      EndUpdate;
+    end;
   finally
-    EndUpdate;
+    FUndoList.Enable := True;
   end;
 end;
 
@@ -2839,11 +2834,18 @@ end;
 
 procedure THCView.Undo;
 begin
-  BeginUpdate;
+  if FUndoList.Enable then  // 撤销过程不要产生新的Undo
   try
-    FUndoList.Undo;
+    FUndoList.Enable := False;
+
+    BeginUpdate;
+    try
+      FUndoList.Undo;
+    finally
+      EndUpdate;
+    end;
   finally
-    EndUpdate;
+    FUndoList.Enable := True;
   end;
 end;
 

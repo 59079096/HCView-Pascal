@@ -202,9 +202,9 @@ var
       vCaretItemNo := vAction.ItemNo;
       vCaretOffset := vAction.Offset;
       if AUndo.IsUndo then
-        Items[vCaretItemNo].Undo(vAction.&Object)
+        Items[vCaretItemNo].Undo(vAction)
       else
-        Items[vCaretItemNo].Redo(vAction.&Object);
+        Items[vCaretItemNo].Redo(vAction);
     end;
 
   begin
@@ -214,7 +214,6 @@ var
       uatDeleteItem: UndoRedoDeleteItem;
       uatInsertItem: UndoRedoInsertItem;
       uatItemProperty: UndoRedoItemProperty;
-      //uatItemMirror: UndoRedoItemMirror;
       uatItemSelf: UndoRedoItemSelf;
     end;
   end;

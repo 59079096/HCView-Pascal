@@ -588,15 +588,18 @@ begin
       GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
       FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
 
+      Undo_New;
+
       if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).IsSelectComplateTheory then  // 理论全选了
       begin
-        Undo_New;
-
         GetParaItemRang(SelectInfo.StartItemNo, vParaFirstItemNo, vParaLastItemNo);
         Result := DeleteItemSelectComplate;
       end
       else
+      begin
+        UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner);
         Result := (Items[SelectInfo.StartItemNo] as THCCustomRectItem).DeleteSelected;
+      end;
 
       ReFormatData_(vFormatFirstItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
     end

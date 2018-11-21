@@ -372,6 +372,7 @@ end;
 function THCCustomRectItem.DoSelfUndoNew: THCUndo;
 begin
   // Sender.Data可绑定自定义的对象
+  Result := THCUndo.Create;
 end;
 
 procedure THCCustomRectItem.DoSelfRedo(const ARedo: THCUndo);
@@ -547,9 +548,14 @@ begin
   if ARedoAction is THCItemSelfUndoAction then
   begin
     vUndoList := (ARedoAction as THCItemSelfUndoAction).&Object as THCUndoList;
-    if vUndoList.Seek < 0 then  //
-      SelfUndoListInitializate(vUndoList);  // 插入RectItem撤销后会删除，再恢复是从流加载的新实例，相关事件已经名存实亡了，需要重新赋值
-    vUndoList.Redo;
+    if Assigned(vUndoList) then
+    begin
+      if vUndoList.Seek < 0 then  //
+        SelfUndoListInitializate(vUndoList);  // 插入RectItem撤销后会删除，再恢复是从流加载的新实例，相关事件已经名存实亡了，需要重新赋值
+      vUndoList.Redo;
+    end
+    else
+      inherited Redo(ARedoAction);
   end
   else
     inherited Redo(ARedoAction);
@@ -602,7 +608,10 @@ begin
   if AUndoAction is THCItemSelfUndoAction then
   begin
     vUndoList := (AUndoAction as THCItemSelfUndoAction).&Object as THCUndoList;
-    vUndoList.Undo;
+    if Assigned(vUndoList) then
+      vUndoList.Undo
+    else
+      inherited Undo(AUndoAction);
   end
   else
     inherited Undo(AUndoAction);

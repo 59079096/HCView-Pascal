@@ -77,6 +77,7 @@ constructor THCParaStyle.Create;
 begin
   FFristIndent := 0;
   FLeftIndent := 0;
+  FLineSpaceMode := TParaLineSpaceMode.pls150;
   FBackColor := clSilver;
   FAlignHorz := TParaAlignHorz.pahJustify;
   FAlignVert := TParaAlignVert.pavCenter;

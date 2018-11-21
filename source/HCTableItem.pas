@@ -21,7 +21,7 @@ uses
 
 type
   TSelectCellRang = class
-  private
+  strict private
     FStartRow,  // 选中起始行
     FStartCol,  // 选中起始列
     FEndRow,    // 选中结束行
@@ -223,6 +223,7 @@ type
     procedure DoSelfUndo(const AUndo: THCUndo); override;
     procedure DoSelfRedo(const ARedo: THCUndo); override;
     procedure Undo_ColResize(const ACol, AOldWidth, ANewWidth: Integer);
+    procedure Undo_RowResize(const ARow, AOldHeight, ANewHeight: Integer);
     procedure Undo_MergeCells;
 
     function GetRowCount: Integer;
@@ -710,8 +711,8 @@ begin
 
   DisSelectSelectedCell;
 
-  FSelectCellRang.Initialize;
   Self.InitializeMouseInfo;
+  FSelectCellRang.Initialize;
 
   FSelecting := False;
   FDraging := False;
@@ -769,7 +770,6 @@ var
   vCell: THCTableCell;
   vCellUndoData: THCCellUndoData;
 begin
-  Result := nil;
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
     Result := THCDataUndo.Create;
@@ -777,7 +777,9 @@ begin
     vCellUndoData.Row := FSelectCellRang.StartRow;
     vCellUndoData.Col := FSelectCellRang.StartCol;
     Result.Data := vCellUndoData;
-  end;
+  end
+  else
+    Result := inherited DoSelfUndoNew;
 end;
 
 procedure THCTableItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -1203,13 +1205,19 @@ procedure THCTableItem.DoSelfRedo(const ARedo: THCUndo);
 var
   vRedoCellUndoData: THCCellUndoData;
   vColSizeUndoData: THCColSizeUndoData;
+  vRowSizeUndoData: THCRowSizeUndoData;
   vMirrorUndoData: THCMirrorUndoData;
   vStream: TMemoryStream;
   vStyleNo: Integer;
 begin
+  Self.InitializeMouseInfo;
+  FSelectCellRang.Initialize;
+
   if ARedo.Data is THCCellUndoData then
   begin
     vRedoCellUndoData := ARedo.Data as THCCellUndoData;
+    FSelectCellRang.StartRow := vRedoCellUndoData.Row;
+    FSelectCellRang.StartCol := vRedoCellUndoData.Col;
     Cells[vRedoCellUndoData.Row, vRedoCellUndoData.Col].CellData.Redo(ARedo);
   end
   else
@@ -1222,6 +1230,12 @@ begin
         FColWidths[vColSizeUndoData.Col] - vColSizeUndoData.NewWidth;
     end;
     FColWidths[vColSizeUndoData.Col] := vColSizeUndoData.NewWidth;
+  end
+  else
+  if ARedo.Data is THCRowSizeUndoData then
+  begin
+    vRowSizeUndoData := ARedo.Data as THCRowSizeUndoData;
+    FRows[vRowSizeUndoData.Row].Height := vRowSizeUndoData.NewHeight;
   end
   else
   if ARedo.Data is THCMirrorUndoData then
@@ -1262,13 +1276,20 @@ procedure THCTableItem.DoSelfUndo(const AUndo: THCUndo);
 var
   vCellUndoData: THCCellUndoData;
   vColSizeUndoData: THCColSizeUndoData;
+  vRowSizeUndoData: THCRowSizeUndoData;
   vMirrorUndoData: THCMirrorUndoData;
   vStyleNo: Integer;
   vStream: TMemoryStream;
 begin
+  Self.InitializeMouseInfo;
+  FSelectCellRang.Initialize;
+
   if AUndo.Data is THCCellUndoData then
   begin
     vCellUndoData := AUndo.Data as THCCellUndoData;
+    FSelectCellRang.StartRow := vCellUndoData.Row;
+    FSelectCellRang.StartCol := vCellUndoData.Col;
+
     Cells[vCellUndoData.Row, vCellUndoData.Col].CellData.Undo(AUndo);
   end
   else
@@ -1281,6 +1302,12 @@ begin
         FColWidths[vColSizeUndoData.Col] - vColSizeUndoData.OldWidth;
     end;
     FColWidths[vColSizeUndoData.Col] := vColSizeUndoData.OldWidth;
+  end
+  else
+  if AUndo.Data is THCRowSizeUndoData then
+  begin
+    vRowSizeUndoData := AUndo.Data as THCRowSizeUndoData;
+    FRows[vRowSizeUndoData.Row].Height := vRowSizeUndoData.OldHeight;
   end
   else
   if AUndo.Data is THCMirrorUndoData then
@@ -1806,9 +1833,9 @@ var
   begin
     if not FSelectCellRang.EditCell then
     begin
-      for vRow := FSelectCellRang.FStartRow to FSelectCellRang.FEndRow do
+      for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
       begin
-        for vCol := FSelectCellRang.FStartCol to FSelectCellRang.FEndCol do
+        for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
         begin
           {if (vRow = vMoveRow) and (vCol = vMoveCol) then else 什么情况下需要跳过?}
           if Cells[vRow, vCol].CellData <> nil then
@@ -2001,6 +2028,7 @@ begin
       vPt.Y := Y - FMouseDownY;  // // 不使用FResizeInfo.DestY(会造成按下处弹出也有偏移)
       if vPt.Y <> 0 then
       begin
+        Undo_RowResize(FMouseDownRow, FRows[FMouseDownRow].Height, FRows[FMouseDownRow].Height + vPt.Y);
         FRows[FMouseDownRow].Height := FRows[FMouseDownRow].Height + vPt.Y;
         FRows[FMouseDownRow].AutoHeight := False;
        end;
@@ -3970,6 +3998,30 @@ begin
       Self.SaveToStream(vMirrorUndoData.Stream);
 
       vUndo.Data := vMirrorUndoData;
+    end;
+  end;
+end;
+
+procedure THCTableItem.Undo_RowResize(const ARow, AOldHeight,
+  ANewHeight: Integer);
+var
+  vUndo: THCUndo;
+  vUndoList: THCUndoList;
+  vRowSizeUndoData: THCRowSizeUndoData;
+begin
+  vUndoList := GetSelfUndoList;
+  if vUndoList.Enable then
+  begin
+    SelfUndo_New;
+    vUndo := vUndoList.Last;
+    if vUndo <> nil then
+    begin
+      vRowSizeUndoData := THCRowSizeUndoData.Create;
+      vRowSizeUndoData.Row := ARow;
+      vRowSizeUndoData.OldHeight := AOldHeight;
+      vRowSizeUndoData.NewHeight := ANewHeight;
+
+      vUndo.Data := vRowSizeUndoData;
     end;
   end;
 end;

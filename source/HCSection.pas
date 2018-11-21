@@ -373,6 +373,7 @@ type
     /// <param name="AMatchCase">True：区分大小写，False：不区分大小写</param>
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean;
+    function Replace(const AText: string): Boolean;
 
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
   end;
@@ -2458,6 +2459,14 @@ begin
   AFloatItem.PageIndex := FActivePageIndex;
   Result := FActiveData.InsertFloatItem(AFloatItem);
   DoDataChanged(Self);
+end;
+
+function THCSection.Replace(const AText: string): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.Replace(AText);
+    end);
 end;
 
 function THCSection.Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean;

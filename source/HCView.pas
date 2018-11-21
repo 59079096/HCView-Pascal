@@ -492,6 +492,11 @@ type
     function Search(const AKeyword: string; const AForward: Boolean = False;
       const AMatchCase: Boolean = False): Boolean;
 
+    /// <summary> 替换已经通过查找选中的内容 </summary>
+    /// <param name="AText">要替换为的内容</param>
+    /// <returns>是否替换成功</returns>
+    function Replace(const AText: string): Boolean;
+
     // 属性部分
     /// <summary> 当前文档名称 </summary>
     property FileName: string read FFileName write FFileName;
@@ -1010,7 +1015,7 @@ end;
 
 function THCView.DoSectionGetUndoList: THCUndoList;
 begin
-  Result := FUndoList;// THCUndo.Create;
+  Result := FUndoList;
 end;
 
 procedure THCView.DoPasteDataBefor(const AStream: TStream; const AVersion: Word);
@@ -2343,6 +2348,11 @@ begin
   finally
     FUndoList.Enable := True;
   end;
+end;
+
+function THCView.Replace(const AText: string): Boolean;
+begin
+  Result := Self.ActiveSection.Replace(AText);
 end;
 
 procedure THCView.FormatSection(const ASectionIndex: Integer);

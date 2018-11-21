@@ -49,6 +49,15 @@ type
     property NewWidth: Integer read B write B;
   end;
 
+  THCRowSizeUndoData = class(THCBaseKeysUndoData)  // 改变行高
+  private
+    FRow: Integer;
+  public
+    property Row: Integer read FRow write FRow;
+    property OldHeight: Integer read A write A;
+    property NewHeight: Integer read B write B;
+  end;
+
   THCSizeUndoData = class(THCBaseKeysUndoData)  // Item尺寸改变(用于RectItem)
   private
     FNewWidth, FNewHeight: Integer;
@@ -134,7 +143,7 @@ type
   THCCustomUndo = class(TObject)
   private
     FActions: THCUndoActions;
-    FIsUndo: Boolean;
+    FIsUndo: Boolean;  // 撤销状态
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -292,14 +301,19 @@ procedure THCUndoList.DoNewUndo(const AUndo: THCUndo);
 var
   i, vIndex: Integer;
 begin
-  if (FSeek >= 0) and (FSeek < Count - 1) then
+  if FSeek < Self.Count - 1 then
   begin
-    if Items[FSeek].IsUndo then
-      Inc(FSeek);
-    Self.DeleteRange(FSeek, Count - FSeek);
+    if FSeek >= 0 then
+    begin
+      if Items[FSeek].IsUndo then
+        Inc(FSeek);
+      Self.DeleteRange(FSeek, Self.Count - FSeek);
+    end
+    else
+      Self.Clear;
   end;
 
-  if Count > FMaxUndoCount then
+  if Self.Count > FMaxUndoCount then
   begin
     if Items[0] is THCUndoGroupBegin then  // 整组删除
     begin
@@ -370,15 +384,15 @@ procedure THCUndoList.Redo;
 var
   i, vOver, vLastId: Integer;
 begin
-  if FSeek < Count - 1 then
+  if FSeek < Self.Count - 1 then
   begin
     if Items[FSeek + 1] is THCUndoGroupBegin then
     begin
       vOver := 0;
-      vLastId := Count - 1;
+      vLastId := Self.Count - 1;
 
       // 找结束
-      for i := FSeek + 2 to Count - 1 do
+      for i := FSeek + 2 to Self.Count - 1 do
       begin
         if Items[i] is THCUndoGroupEnd then
         begin
@@ -395,8 +409,7 @@ begin
           Inc(vOver);
       end;
 
-      // 重做组内各个Redo
-      while FSeek < vLastId do
+      while FSeek < vLastId do  // 重做组内各个Redo
         DoSeekRedoEx;
     end
     else
@@ -443,8 +456,7 @@ begin
           Inc(vOver);
       end;
 
-      // 撤销组内各个Undo
-      while FSeek >= vLastId do
+      while FSeek >= vLastId do  // 撤销组内各个Undo
         DoSeekUndoEx;
     end
     else

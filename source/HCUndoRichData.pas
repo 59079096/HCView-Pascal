@@ -19,7 +19,7 @@ uses
 type
   THCUndoRichData = class(THCCustomRichData)
   private
-    FFormatFirstItemNo, FFormatLastItemNo, FUndoGroupCount, FItemCount: Integer;
+    FFormatFirstItemNo, FFormatLastItemNo, FUndoGroupCount, FItemAddCount: Integer;
     procedure DoUndoRedo(const AUndo: THCCustomUndo);
   public
     constructor Create(const AStyle: THCStyle); override;
@@ -38,12 +38,12 @@ constructor THCUndoRichData.Create(const AStyle: THCStyle);
 begin
   inherited Create(AStyle);
   FUndoGroupCount := 0;
-  FItemCount := 0;
+  FItemAddCount := 0;
 end;
 
 procedure THCUndoRichData.DoUndoRedo(const AUndo: THCCustomUndo);
 var
-  vCaretItemNo, vCaretOffset: Integer;
+  vCaretItemNo, vCaretOffset, vCaretDrawItemNo: Integer;
 
   procedure DoUndoRedoAction(const AAction: THCCustomUndoAction;
     const AIsUndo: Boolean);
@@ -61,12 +61,12 @@ var
       if AIsUndo then
       begin
         Insert(vAction.Text, vText, vAction.Offset);
-        vCaretOffset := vAction.Offset;
+        vCaretOffset := vAction.Offset + vLen - 1;
       end
       else
       begin
         Delete(vText, vAction.Offset, vLen);
-        vCaretOffset := vAction.Offset - vLen;
+        vCaretOffset := vAction.Offset - 1;
       end;
 
       Items[vAction.ItemNo].Text := vText;
@@ -109,14 +109,14 @@ var
       begin
         vItem := LoadItemFromStreamAlone(vAction.ItemStream);
         Items.Insert(vAction.ItemNo, vItem);
-        Inc(FItemCount);
+        Inc(FItemAddCount);
 
         vCaretOffset := vAction.Offset;
       end
       else  // 重做
       begin
         Items.Delete(vAction.ItemNo);
-        Dec(FItemCount);
+        Dec(FItemAddCount);
 
         if vCaretItemNo > 0 then
         begin
@@ -143,7 +143,7 @@ var
       if AIsUndo then  // 撤销
       begin
         Items.Delete(vAction.ItemNo);
-        Dec(FItemCount);
+        Dec(FItemAddCount);
 
         if vCaretItemNo > 0 then
         begin
@@ -160,13 +160,17 @@ var
       begin
         vItem := LoadItemFromStreamAlone(vAction.ItemStream);
         Items.Insert(vAction.ItemNo, vItem);
-        Inc(FItemCount);
+        Inc(FItemAddCount);
 
         vCaretItemNo := vAction.ItemNo;
         if Items[vCaretItemNo].StyleNo > THCStyle.Null then
           vCaretOffset := Items[vCaretItemNo].Length
         else
           vCaretOffset := OffsetAfter;
+
+        vCaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo + 1;
+        if vCaretDrawItemNo > Self.DrawItems.Count - 1 then
+          vCaretDrawItemNo := Self.DrawItems.Count - 1;
       end;
     end;
 
@@ -251,7 +255,7 @@ begin
 
         SelectInfo.Initialize;
         Self.InitializeField;
-        FItemCount := 0;
+        FItemAddCount := 0;
       end;
 
       Inc(FUndoGroupCount);  // 增加组撤销读数
@@ -262,7 +266,7 @@ begin
 
       if FUndoGroupCount = 0 then  // 组恢复结束
       begin
-        ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemCount, FItemCount);
+        ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupEnd).Offset;
@@ -281,7 +285,7 @@ begin
 
       if FUndoGroupCount = 0 then  // 组撤销结束
       begin
-        ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemCount, FItemCount);
+        ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupBegin).Offset;
@@ -300,7 +304,7 @@ begin
 
         SelectInfo.Initialize;
         Self.InitializeField;
-        FItemCount := 0;
+        FItemAddCount := 0;
       end;
 
       Inc(FUndoGroupCount);  // 增加组恢复读数
@@ -313,7 +317,8 @@ begin
   begin
     SelectInfo.Initialize;
     Self.InitializeField;
-    FItemCount := 0;
+    FItemAddCount := 0;
+    vCaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo;
 
     if AUndo.Actions.First.ItemNo > AUndo.Actions.Last.ItemNo then
     begin
@@ -347,11 +352,11 @@ begin
 
   if FUndoGroupCount = 0 then
   begin
-    ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemCount, FItemCount);
+    ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
     SelectInfo.StartItemNo := vCaretItemNo;
     SelectInfo.StartItemOffset := vCaretOffset;
-    CaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo;
+    CaretDrawItemNo := vCaretDrawItemNo;
 
     Style.UpdateInfoReCaret;
     Style.UpdateInfoRePaint;

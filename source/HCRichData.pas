@@ -95,6 +95,7 @@ type
     /// <param name="AMatchCase">True：区分大小写，False：不区分大小写</param>
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean;
+    function Replace(const AText: string): Boolean;
 
     procedure GetCaretInfoCur(var ACaretInfo: THCCaretInfo);
     procedure TraverseItem(const ATraverse: TItemTraverse);
@@ -658,6 +659,12 @@ begin
       ACanvas.Brush.Color := vOldColor;
     end;
   end;
+end;
+
+function THCRichData.Replace(const AText: string): Boolean;
+begin
+//  DeleteSelected;
+//  InsertText(AText);
 end;
 
 function THCRichData.Search(const AKeyword: string; const AForward,

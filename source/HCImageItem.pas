@@ -243,12 +243,21 @@ end;
 
 procedure THCImageItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
+var
+  vStream: TMemoryStream;
+  vSize: Cardinal;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
 
-
-
-  FImage.SaveToStream(AStream);
+  vStream := TMemoryStream.Create;
+  try
+    FImage.SaveToStream(vStream);
+    vSize := vStream.Size;
+    AStream.WriteBuffer(vSize, SizeOf(vSize));
+    AStream.WriteBuffer(vStream.Memory^, vStream.Size);
+  finally
+    vStream.Free;
+  end;
 end;
 
 end.

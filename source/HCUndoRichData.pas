@@ -211,6 +211,21 @@ var
         Items[vCaretItemNo].Redo(vAction);
     end;
 
+    procedure UndoRedoItemMirror;
+    var
+      vAction: THCItemUndoAction;
+      vItem: THCCustomItem;
+    begin
+      vAction := AAction as THCItemUndoAction;
+      vCaretItemNo := vAction.ItemNo;
+      vCaretOffset := vAction.Offset;
+      vItem := Items[vCaretItemNo];
+      if AUndo.IsUndo then
+        LoadItemFromStreamAlone(vAction.ItemStream, vItem)
+      else
+        LoadItemFromStreamAlone(vAction.ItemStream, vItem);
+    end;
+
   begin
     case AAction.Tag of
       uatDeleteText: UndoRedoDeleteText;
@@ -219,6 +234,7 @@ var
       uatInsertItem: UndoRedoInsertItem;
       uatItemProperty: UndoRedoItemProperty;
       uatItemSelf: UndoRedoItemSelf;
+      uatItemMirror: UndoRedoItemMirror;
     end;
   end;
 
@@ -249,8 +265,8 @@ begin
     begin
       if FUndoGroupCount = 0 then  // 组撤销开始
       begin
-        FFormatFirstItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
-        FFormatLastItemNo := FFormatFirstItemNo;
+        FFormatFirstItemNo := GetUndoList.CurGroupBegin.ItemNo;
+        FFormatLastItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
         FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;
@@ -270,11 +286,14 @@ begin
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupEnd).Offset;
+        CaretDrawItemNo := (AUndo as THCUndoGroupEnd).CaretDrawItemNo;
 
         Style.UpdateInfoReCaret;
         Style.UpdateInfoRePaint;
       end;
     end;
+
+    Exit;
   end
   else
   if AUndo is THCUndoGroupBegin then  // 组开始
@@ -289,6 +308,7 @@ begin
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupBegin).Offset;
+        CaretDrawItemNo := (AUndo as THCUndoGroupBegin).CaretDrawItemNo;
 
         Style.UpdateInfoReCaret;
         Style.UpdateInfoRePaint;
@@ -309,6 +329,8 @@ begin
 
       Inc(FUndoGroupCount);  // 增加组恢复读数
     end;
+
+    Exit;
   end;
 
   if AUndo.Actions.Count = 0 then Exit;  // 组操作都没有Action，由此处跳出
@@ -354,13 +376,14 @@ begin
   begin
     ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
-    SelectInfo.StartItemNo := vCaretItemNo;
-    SelectInfo.StartItemOffset := vCaretOffset;
     CaretDrawItemNo := vCaretDrawItemNo;
 
     Style.UpdateInfoReCaret;
     Style.UpdateInfoRePaint;
   end;
+
+  SelectInfo.StartItemNo := vCaretItemNo;
+  SelectInfo.StartItemOffset := vCaretOffset;
 end;
 
 procedure THCUndoRichData.Redo(const ARedo: THCCustomUndo);

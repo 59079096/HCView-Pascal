@@ -31,6 +31,7 @@ type
   end;
 
   TStyleItemEvent = function (const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem of object;
+  TOnCanEditEvent = function(const Sender: TObject): Boolean of object;
 
   THCRichData = class(THCUndoRichData)  // 富文本数据类，可做为其他显示富文本类的基类
   private
@@ -41,6 +42,7 @@ type
     FHotDomainRGN, FActiveDomainRGN: HRGN;
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FOnCreateItemByStyle: TStyleItemEvent;
+    FOnCanEdit: TOnCanEditEvent;
 
     procedure GetDomainFrom(const AItemNo, AOffset: Integer;
       const ADomain: THCDomain);
@@ -76,6 +78,7 @@ type
     function InsertItem(const AItem: THCCustomItem): Boolean; override;
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
       const AOffsetBefor: Boolean = True): Boolean; override;
+    function CanEdit: Boolean; override;
 
     /// <summary> 设置选中范围，仅供外部使用内部不使用 </summary>
     procedure SetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer);
@@ -103,6 +106,7 @@ type
     property HotDomain: THCDomain read FHotDomain;
     property ActiveDomain: THCDomain read GetActiveDomain;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
+    property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
   end;
 
 implementation
@@ -132,6 +136,13 @@ begin
         Result := FDomainStartDeletes.IndexOf(AItemNo) >= 0;  // 结束标识已经删除了
     end;
   end;
+end;
+
+function THCRichData.CanEdit: Boolean;
+begin
+  Result := inherited CanEdit;
+  if Result and Assigned(FOnCanEdit) then
+    Result := FOnCanEdit(Self);
 end;
 
 function THCRichData.CheckInsertItemCount(const AStartNo,

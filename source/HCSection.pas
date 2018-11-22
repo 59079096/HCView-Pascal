@@ -73,6 +73,7 @@ type
     FOnItemResized: TDataItemEvent;
     FOnCreateItem: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
+    FOnCanEdit: TOnCanEditEvent;
     FOnGetUndoList: TGetUndoListEvent;
 
     /// <summary> 返回当前节指定的垂直偏移处对应的页 </summary>
@@ -101,6 +102,7 @@ type
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
+    function DoDataCanEdit(const Sender: TObject): Boolean;
     procedure DoDataCreateItem(Sender: TObject);
     function DoDataGetUndoList: THCUndoList;
 
@@ -362,6 +364,7 @@ type
     property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
+    property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
   end;
 
@@ -540,6 +543,7 @@ var
     AData.OnInsertItem := DoDataInsertItem;
     AData.OnItemResized := DoDataItemResized;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
+    AData.OnCanEdit := DoDataCanEdit;
     AData.OnCreateItem := DoDataCreateItem;
     AData.OnReadOnlySwitch := DoDataReadOnlySwitch;
     AData.OnGetScreenCoord := DoGetScreenCoordEvent;
@@ -622,6 +626,14 @@ procedure THCCustomSection.DoActiveDataCheckUpdateInfo;
 begin
   if Assigned(FOnCheckUpdateInfo) then
     FOnCheckUpdateInfo(Self);
+end;
+
+function THCCustomSection.DoDataCanEdit(const Sender: TObject): Boolean;
+begin
+  if Assigned(FOnCanEdit) then
+    Result := FOnCanEdit(Sender)
+  else
+    Result := True;
 end;
 
 procedure THCCustomSection.DoDataChanged(Sender: TObject);
@@ -2226,14 +2238,23 @@ begin
 end;
 
 procedure THCCustomSection.Redo(const ARedo: THCUndo);
+var
+  vUndoList: THCUndoList;
 begin
-  if FActiveData <> ARedo.Data then
-    SetActiveData(ARedo.Data as THCSectionData);
+  vUndoList := DoDataGetUndoList;
+  //if vUndoList.Enable then  // 不能判断，因为撤销恢复过程会屏蔽，防止产生新的撤销恢复
+  if not vUndoList.GroupWorking then
+  begin
+    if FActiveData <> ARedo.Data then
+      SetActiveData(ARedo.Data as THCSectionData);
 
-  ActiveDataChangeByAction(function(): Boolean
-    begin
-      FActiveData.Redo(ARedo);
-    end);
+    ActiveDataChangeByAction(function(): Boolean
+      begin
+        FActiveData.Redo(ARedo);
+      end);
+  end
+  else
+    (ARedo.Data as THCSectionData).Redo(ARedo);
 end;
 
 procedure THCCustomSection.ReFormatActiveItem;
@@ -2441,14 +2462,23 @@ begin
 end;
 
 procedure THCCustomSection.Undo(const AUndo: THCUndo);
+var
+  vUndoList: THCUndoList;
 begin
-  if FActiveData <> AUndo.Data then
-    SetActiveData(AUndo.Data as THCSectionData);
+  vUndoList := DoDataGetUndoList;
+  //if vUndoList.Enable then  // 不能判断，因为撤销恢复过程会屏蔽，防止产生新的撤销恢复
+  if not vUndoList.GroupWorking then
+  begin
+    if FActiveData <> AUndo.Data then
+      SetActiveData(AUndo.Data as THCSectionData);
 
-  ActiveDataChangeByAction(function(): Boolean
-    begin
-      FActiveData.Undo(AUndo);
-    end);
+    ActiveDataChangeByAction(function(): Boolean
+      begin
+        FActiveData.Undo(AUndo);
+      end);
+  end
+  else
+    (AUndo.Data as THCSectionData).Undo(AUndo);
 end;
 
 { THCSection }

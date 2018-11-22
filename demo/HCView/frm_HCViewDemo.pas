@@ -62,9 +62,9 @@ type
     mniC1: TMenuItem;
     btnLineSpace: TToolButton;
     pmLineSpace: TPopupMenu;
-    mniLineSpace: TMenuItem;
-    mniN17: TMenuItem;
-    mniN21: TMenuItem;
+    mniLS100: TMenuItem;
+    mniLS150: TMenuItem;
+    mniLS200: TMenuItem;
     mniDisBorder: TMenuItem;
     mniInsertRowTop: TMenuItem;
     mniInsertRowBottom: TMenuItem;
@@ -92,7 +92,7 @@ type
     btn4: TToolButton;
     btn5: TToolButton;
     mniEdit1: TMenuItem;
-    mniN2: TMenuItem;
+    mniLSFix: TMenuItem;
     mniN18: TMenuItem;
     mniN19: TMenuItem;
     mniCombobox1: TMenuItem;
@@ -109,7 +109,6 @@ type
     mniN38: TMenuItem;
     mniN39: TMenuItem;
     mniN40: TMenuItem;
-    mniN41: TMenuItem;
     actSearch: TAction;
     mniN42: TMenuItem;
     actCut: TAction;
@@ -117,7 +116,7 @@ type
     actPaste: TAction;
     mniControlItem: TMenuItem;
     mniN43: TMenuItem;
-    mniN1151: TMenuItem;
+    mniLS115: TMenuItem;
     mniN44: TMenuItem;
     mniRadioButton1: TMenuItem;
     mniSplitRow: TMenuItem;
@@ -143,7 +142,7 @@ type
     procedure mniN9Click(Sender: TObject);
     procedure mniN14Click(Sender: TObject);
     procedure mniC1Click(Sender: TObject);
-    procedure mniLineSpaceClick(Sender: TObject);
+    procedure mniLS100Click(Sender: TObject);
     procedure mniDisBorderClick(Sender: TObject);
     procedure mniInsertRowTopClick(Sender: TObject);
     procedure mniInsertRowBottomClick(Sender: TObject);
@@ -168,7 +167,7 @@ type
     procedure btn4Click(Sender: TObject);
     procedure btn5Click(Sender: TObject);
     procedure mniEdit1Click(Sender: TObject);
-    procedure mniN2Click(Sender: TObject);
+    procedure mniLSFixClick(Sender: TObject);
     procedure mniN18Click(Sender: TObject);
     procedure mniN19Click(Sender: TObject);
     procedure mniCombobox1Click(Sender: TObject);
@@ -194,6 +193,7 @@ type
     procedure mniSplitColClick(Sender: TObject);
     procedure mniN45Click(Sender: TObject);
     procedure mniN46Click(Sender: TObject);
+    procedure pmLineSpacePopup(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -575,7 +575,7 @@ begin
   end;
 end;
 
-procedure TfrmHCViewDemo.mniLineSpaceClick(Sender: TObject);
+procedure TfrmHCViewDemo.mniLS100Click(Sender: TObject);
 begin
   if Sender is TMenuItem then
   begin
@@ -739,7 +739,7 @@ begin
   FHCView.InsertSectionBreak;
 end;
 
-procedure TfrmHCViewDemo.mniN2Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniLSFixClick(Sender: TObject);
 var
   vsLineSpace: string;
   vSpace: Integer;
@@ -1057,6 +1057,17 @@ begin
     vFrmTableProperty.SetHCView(FHCView);
   finally
     FreeAndNil(vFrmTableProperty);
+  end;
+end;
+
+procedure TfrmHCViewDemo.pmLineSpacePopup(Sender: TObject);
+begin
+  case FHCView.Style.ParaStyles[FHCView.Style.CurParaNo].LineSpaceMode of
+    pls100: mniLS100.Checked := True;
+    pls115: mniLS115.Checked := True;
+    pls150: mniLS150.Checked := True;
+    pls200: mniLS200.Checked := True;
+    plsFix: mniLSFix.Checked := True;
   end;
 end;
 

@@ -105,7 +105,9 @@ type
 
     FResizeInfo: TResizeInfo;
 
-    FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto: Boolean;
+    FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto,
+    FLastChangeFormated  // 最后变动已经格式化完了
+      : Boolean;
 
     { 选中信息(只有选中起始和结束行都>=0才说明有选中多个单元格
      在单个单元格中选择时结束行、列信息为-1 }
@@ -466,12 +468,16 @@ procedure THCTableItem.FormatToDrawItem(const ARichData: THCCustomData;
     begin
       if vRow.Cols[vC].CellData <> nil then
       begin
-        vWidth := FColWidths[vC];
-        for i := 1 to vRow.Cols[vC].ColSpan do
-          vWidth := vWidth + FBorderWidth + FColWidths[vC + i];
-        vRow.Cols[vC].Width := vWidth;
-        vRow.Cols[vC].CellData.Width := vWidth - FCellHPadding - FCellHPadding;
-        vRow.Cols[vC].CellData.ReFormat(0);
+        if not FLastChangeFormated then  // 最后的变动没有格式化过
+        begin
+          vWidth := FColWidths[vC];
+          for i := 1 to vRow.Cols[vC].ColSpan do
+            vWidth := vWidth + FBorderWidth + FColWidths[vC + i];
+
+          vRow.Cols[vC].Width := vWidth;
+          vRow.Cols[vC].CellData.Width := vWidth - FCellHPadding - FCellHPadding;
+          vRow.Cols[vC].CellData.ReFormat(0);
+        end;
         vRow.Cols[vC].Height := FCellHPadding + vRow.Cols[vC].CellData.Height + FCellHPadding;
       end
     end;
@@ -487,6 +493,7 @@ begin
     ConvertRow(vR);  // 格式化行，并计算行高度
     UpdateCellSize(vR);  // 以行中所有无行合并操作列中最大高度更新其他列
   end;
+  FLastChangeFormated := False;
 
   FormatRowFrom(0);
 
@@ -542,6 +549,9 @@ begin
   FColWidths := TList<Integer>.Create;
   for i := 0 to AColCount - 1 do
     FColWidths.Add(FRows[0].Cols[i].Width);
+
+  FMangerUndo := True;  // 自己管理自己的撤销和恢复操作
+  FLastChangeFormated := False;
 end;
 
 function THCTableItem.CurColCanDelete: Boolean;
@@ -1483,6 +1493,8 @@ begin
       procedure
       begin
         vEditCell.CellData.KeyDown(vOldKey, Shift);
+        if vOldKey <> 0 then  // 表格变动已经格式化了
+          FLastChangeFormated := True;
       end);
 
     if (vOldKey = 0) and IsDirectionKey(Key) then  // 单元格Data没处理，且是方向键
@@ -2471,6 +2483,7 @@ begin
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCCustomRichData).OnDrawItemPaintBefor;
   ACellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
   ACellData.OnCreateItemByStyle := (OwnerData as THCRichData).OnCreateItemByStyle;
+  ACellData.OnCanEdit := (OwnerData as THCRichData).OnCanEdit;
   ACellData.OnCreateItem := (OwnerData as THCCustomRichData).OnCreateItem;
   ACellData.OnGetUndoList := Self.GetSelfUndoList;
   ACellData.OnGetRootData := DoCellDataGetRootData;

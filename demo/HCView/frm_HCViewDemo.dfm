@@ -315,7 +315,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00480110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00540110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1311,9 +1311,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       end
       object mniN40: TMenuItem
         Action = actSearch
-      end
-      object mniN41: TMenuItem
-        Caption = #26367#25442
+        Caption = #26597#25214'/'#26367#25442
       end
     end
     object mniN12: TMenuItem
@@ -1513,36 +1511,43 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
   end
   object pmLineSpace: TPopupMenu
+    AutoHotkeys = maManual
+    OnPopup = pmLineSpacePopup
     Left = 272
     Top = 56
-    object mniLineSpace: TMenuItem
-      Caption = '1.0'
+    object mniLS100: TMenuItem
+      Caption = #21333#20493
       GroupIndex = 1
-      OnClick = mniLineSpaceClick
+      RadioItem = True
+      OnClick = mniLS100Click
     end
-    object mniN1151: TMenuItem
+    object mniLS115: TMenuItem
       Tag = 1
       Caption = '1.15'#20493
       GroupIndex = 1
-      OnClick = mniLineSpaceClick
+      RadioItem = True
+      OnClick = mniLS100Click
     end
-    object mniN17: TMenuItem
+    object mniLS150: TMenuItem
       Tag = 2
-      Caption = '1.5'
+      Caption = '1.5'#20493
       GroupIndex = 1
-      OnClick = mniLineSpaceClick
+      RadioItem = True
+      OnClick = mniLS100Click
     end
-    object mniN21: TMenuItem
+    object mniLS200: TMenuItem
       Tag = 3
-      Caption = '2.0'
+      Caption = #20004#20493
       GroupIndex = 1
-      OnClick = mniLineSpaceClick
+      RadioItem = True
+      OnClick = mniLS100Click
     end
-    object mniN2: TMenuItem
+    object mniLSFix: TMenuItem
       Tag = 4
       Caption = #22266#23450#20540
       GroupIndex = 1
-      OnClick = mniN2Click
+      RadioItem = True
+      OnClick = mniLSFixClick
     end
   end
   object actlst: TActionList

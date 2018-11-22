@@ -96,9 +96,10 @@ type
     function IsSelectSeekStart: Boolean;
 
     { 撤销恢复相关方法+ }
+    procedure Undo_New;
     procedure Undo_GroupBegin(const AItemNo, AOffset: Integer);
     procedure Undo_GroupEnd(const AItemNo, AOffset: Integer);
-    procedure Undo_New;
+
     /// <summary> 删除Text </summary>
     /// <param name="AItemNo">操作发生时的ItemNo</param>
     /// <param name="AOffset">删除的起始位置</param>
@@ -118,6 +119,7 @@ type
     procedure UndoAction_ItemParaFirst(const AItemNo, AOffset: Integer; const ANewParaFirst: Boolean);
 
     procedure UndoAction_ItemSelf(const AItemNo, AOffset: Integer);
+    procedure UndoAction_ItemMirror(const AItemNo, AOffset: Integer);
     { 撤销恢复相关方法- }
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
@@ -185,7 +187,8 @@ type
 
     // Item单独保存和读取事件
     procedure SaveItemToStreamAlone(const AItem: THCCustomItem; const AStream: TStream);
-    function LoadItemFromStreamAlone(const AStream: TStream): THCCustomItem;
+    function LoadItemFromStreamAlone(const AStream: TStream): THCCustomItem; overload;
+    procedure LoadItemFromStreamAlone(const AStream: TStream; var AItem: THCCustomItem); overload;
 
     function CalcContentHeight: Integer;
   public
@@ -241,7 +244,7 @@ type
       const AFileVersion: Word): Boolean; override;
     //
     procedure DblClick(X, Y: Integer);
-    function CanEdit: Boolean;
+    function CanEdit: Boolean; virtual;
     procedure DeleteItems(const AStartNo: Integer; const AEndNo: Integer = -1);
 
     /// <summary> 添加Data到当前 </summary>
@@ -923,6 +926,25 @@ begin
     begin
       vTextAction := vUndo.ActionAppend(uatInsertText, AItemNo, AOffset) as THCTextUndoAction;
       vTextAction.Text := AText;
+    end;
+  end;
+end;
+
+procedure THCCustomRichData.UndoAction_ItemMirror(const AItemNo,
+  AOffset: Integer);
+var
+  vUndo: THCUndo;
+  vUndoList: THCUndoList;
+  vItemAction: THCItemUndoAction;
+begin
+  vUndoList := GetUndoList;
+  if vUndoList.Enable then
+  begin
+    vUndo := vUndoList.Last;
+    if vUndo <> nil then
+    begin
+      vItemAction := vUndo.ActionAppend(uatItemMirror, AItemNo, AOffset) as THCItemUndoAction;
+      SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
     end;
   end;
 end;
@@ -2829,51 +2851,56 @@ begin
 
   if not CanEdit then Exit;
 
-  DeleteSelected;
+  Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+  try
+    DeleteSelected;
 
-  vParaFirst := False;
-  vPCharStart := PChar(AText);
-  vPCharEnd := vPCharStart + Length(AText);
-  if vPCharStart = vPCharEnd then Exit;
-  vPtr := vPCharStart;
-  while vPtr < vPCharEnd do
-  begin
-    case vPtr^ of
-      #13:
-        begin
-          System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-
-          if vParaFirst then
+    vParaFirst := False;
+    vPCharStart := PChar(AText);
+    vPCharEnd := vPCharStart + Length(AText);
+    if vPCharStart = vPCharEnd then Exit;
+    vPtr := vPCharStart;
+    while vPtr < vPCharEnd do
+    begin
+      case vPtr^ of
+        #13:
           begin
-            vTextItem := CreateDefaultTextItem;
-            vTextItem.ParaFirst := True;
-            vTextItem.Text := vS;
-            Result := InsertItem(vTextItem);
-          end
-          else
-            Result := DoInsertText(vS);
+            System.SetString(vS, vPCharStart, vPtr - vPCharStart);
 
-          vParaFirst := True;
+            if vParaFirst then
+            begin
+              vTextItem := CreateDefaultTextItem;
+              vTextItem.ParaFirst := True;
+              vTextItem.Text := vS;
+              Result := InsertItem(vTextItem);
+            end
+            else
+              Result := DoInsertText(vS);
 
-          Inc(vPtr);
-          vPCharStart := vPtr;
-          Continue;
-        end;
+            vParaFirst := True;
 
-      #10:
-        begin
-          Inc(vPtr);
-          vPCharStart := vPtr;
-          Continue;
-        end;
+            Inc(vPtr);
+            vPCharStart := vPtr;
+            Continue;
+          end;
+
+        #10:
+          begin
+            Inc(vPtr);
+            vPCharStart := vPtr;
+            Continue;
+          end;
+      end;
+
+      Inc(vPtr);
     end;
 
-    Inc(vPtr);
+    System.SetString(vS, vPCharStart, vPtr - vPCharStart);
+
+    Result := DoInsertText(vS);
+  finally
+    Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   end;
-
-  System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-
-  Result := DoInsertText(vS);
 
   InitializeMouseField;  // 201807311101
 
@@ -4671,9 +4698,13 @@ begin
   then
   begin
     Undo_New;
-    UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner);
 
     vRectItem := vCarteItem as THCCustomRectItem;
+    if vRectItem.MangerUndo then
+      UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+    else
+      UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
     vRectItem.KeyPress(Key);
     if vRectItem.SizeChanged then
     begin
@@ -4718,6 +4749,47 @@ begin
   ReSetSelectAndCaret(0, 0);
 end;
 
+procedure THCCustomRichData.LoadItemFromStreamAlone(const AStream: TStream;
+  var AItem: THCCustomItem);
+var
+  vFileExt: string;
+  viVersion: Word;
+  vLan: Byte;
+  vStyleNo, vParaNo: Integer;
+  vTextStyle: THCTextStyle;
+  vParaStyle: THCParaStyle;
+begin
+  AStream.Position := 0;
+  _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLan);  // 文件格式和版本
+  if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
+    raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
+
+  AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
+  AItem.LoadFromStream(AStream, nil, viVersion);
+
+  if vStyleNo > THCStyle.Null then
+  begin
+    vTextStyle := THCTextStyle.Create;
+    try
+      vTextStyle.LoadFromStream(AStream, viVersion);
+      vStyleNo := Style.GetStyleNo(vTextStyle, True);
+      AItem.StyleNo := vStyleNo;
+    finally
+      FreeAndNil(vTextStyle);
+    end;
+  end;
+
+  vParaStyle := THCParaStyle.Create;
+  try
+    vParaStyle.LoadFromStream(AStream, viVersion);
+    vParaNo := Style.GetParaNo(vParaStyle, True);
+  finally
+    FreeAndNil(vParaStyle);
+  end;
+
+  AItem.ParaNo := vParaNo;
+end;
+
 function THCCustomRichData.LoadItemFromStreamAlone(
   const AStream: TStream): THCCustomItem;
 var
@@ -4735,7 +4807,7 @@ begin
 
   AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
   Result := CreateItemByStyle(vStyleNo);
-  Result.LoadFromStream(AStream, Style, viVersion);
+  Result.LoadFromStream(AStream, nil, viVersion);
 
   if vStyleNo > THCStyle.Null then
   begin

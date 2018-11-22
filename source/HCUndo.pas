@@ -18,7 +18,7 @@ uses
 
 type
 
-  { THCUndo.Data部分 }
+  { THCUndo.Data部分，一般由Item自己使用 }
 
   THCMirrorUndoData = class(TObject)
   private
@@ -71,7 +71,7 @@ type
   { UndoAction部分 }
 
   TUndoActionTag = (uatDeleteText, uatInsertText, uatDeleteItem, uatInsertItem,
-    uatItemProperty, uatItemSelf);
+    uatItemProperty, uatItemSelf, uatItemMirror);
 
   THCCustomUndoAction = class(TObject)
   private
@@ -168,14 +168,21 @@ type
     property CaretDrawItemNo: Integer read FCaretDrawItemNo write FCaretDrawItemNo;
   end;
 
-  THCSectionUndo = class(THCDataUndo)
+  THCEditUndo = class(THCDataUndo)
   private
-    FSectionIndex, FHScrollPos, FVScrollPos: Integer;
+    FHScrollPos, FVScrollPos: Integer;
+  public
+    constructor Create; override;
+    property HScrollPos: Integer read FHScrollPos write FHScrollPos;
+    property VScrollPos: Integer read FVScrollPos write FVScrollPos;
+  end;
+
+  THCSectionUndo = class(THCEditUndo)
+  private
+    FSectionIndex: Integer;
   public
     constructor Create; override;
     property SectionIndex: Integer read FSectionIndex write FSectionIndex;
-    property HScrollPos: Integer read FHScrollPos write FHScrollPos;
-    property VScrollPos: Integer read FVScrollPos write FVScrollPos;
   end;
 
   THCUndoGroupBegin = class(THCDataUndo)
@@ -186,32 +193,46 @@ type
     property Offset: Integer read FOffset write FOffset;
   end;
 
-  THCUndoGroupEnd = class(THCUndoGroupBegin);
-
-  THCSectionUndoGroupBegin = class(THCUndoGroupBegin)
+  THCUndoEditGroupBegin = class(THCUndoGroupBegin)
   private
-    FSectionIndex, FHScrollPos, FVScrollPos: Integer;
+    FHScrollPos, FVScrollPos: Integer;
   public
     constructor Create; override;
-    property SectionIndex: Integer read FSectionIndex write FSectionIndex;
     property HScrollPos: Integer read FHScrollPos write FHScrollPos;
     property VScrollPos: Integer read FVScrollPos write FVScrollPos;
   end;
 
-  THCSectionUndoGroupEnd = class(THCUndoGroupEnd)
+  THCSectionUndoGroupBegin = class(THCUndoEditGroupBegin)
   private
-    FSectionIndex, FHScrollPos, FVScrollPos: Integer;
+    FSectionIndex: Integer;
   public
     constructor Create; override;
     property SectionIndex: Integer read FSectionIndex write FSectionIndex;
+  end;
+
+  THCUndoGroupEnd = class(THCUndoGroupBegin);
+
+  THCUndoEditGroupEnd = class(THCUndoGroupEnd)
+  private
+    FHScrollPos, FVScrollPos: Integer;
+  public
+    constructor Create; override;
     property HScrollPos: Integer read FHScrollPos write FHScrollPos;
     property VScrollPos: Integer read FVScrollPos write FVScrollPos;
+  end;
+
+  THCSectionUndoGroupEnd = class(THCUndoEditGroupEnd)
+  private
+    FSectionIndex: Integer;
+  public
+    constructor Create; override;
+    property SectionIndex: Integer read FSectionIndex write FSectionIndex;
   end;
 
   TUndoNewEvent = function(): THCUndo of object;
   TUndoEvent = procedure (const Sender: THCUndo) of object;
-  TUndoGroupBeginEvent = function(const AItemNo, AOffset: Integer): THCUndoGroupBegin;
-  TUndoGroupEndEvent = function(const AItemNo, AOffset: Integer): THCUndoGroupEnd;
+  TUndoGroupBeginEvent = function(const AItemNo, AOffset: Integer): THCUndoGroupBegin of object;
+  TUndoGroupEndEvent = function(const AItemNo, AOffset: Integer): THCUndoGroupEnd of object;
 
   { UndoList部分 }
 
@@ -219,7 +240,13 @@ type
   private
     FSeek: Integer;
     FEnable: Boolean;  // 是否可以执行撤销恢复
-    FMaxUndoCount: Cardinal;
+    FGroupWorking: Boolean;  // 组操作锁
+    FMaxUndoCount: Cardinal;  // 撤销恢复链的最大长度
+
+    // 当前组撤销恢复时的组起始和组结束
+    FGroupBegin: THCUndoGroupBegin;
+    FGroupEnd: THCUndoGroupEnd;
+
     FOnUndoNew: TUndoNewEvent;
     FOnUndoGroupStart: TUndoGroupBeginEvent;
     FOnUndoGroupEnd: TUndoGroupEndEvent;
@@ -240,6 +267,9 @@ type
     property Enable: Boolean read FEnable write FEnable;
     property MaxUndoCount: Cardinal read FMaxUndoCount write FMaxUndoCount;
     property Seek: Integer read FSeek;
+    property GroupWorking: Boolean read FGroupWorking;
+    property CurGroupBegin: THCUndoGroupBegin read FGroupBegin;
+    property CurGroupEnd: THCUndoGroupEnd read FGroupEnd;
     property OnUndoNew: TUndoNewEvent read FOnUndoNew write FOnUndoNew;
     property OnUndoGroupStart: TUndoGroupBeginEvent read FOnUndoGroupStart write FOnUndoGroupStart;
     property OnUndoGroupEnd: TUndoGroupEndEvent read FOnUndoGroupEnd write FOnUndoGroupEnd;
@@ -290,6 +320,8 @@ begin
   FSeek := -1;
   FMaxUndoCount := 99;
   FEnable := True;
+  FGroupBegin := nil;
+  FGroupEnd := nil;
 end;
 
 destructor THCUndoList.Destroy;
@@ -382,23 +414,23 @@ procedure THCUndoList.Redo;
   end;
 
 var
-  i, vOver, vLastId: Integer;
+  i, vOver, vEndIndex: Integer;
 begin
   if FSeek < Self.Count - 1 then
   begin
-    if Items[FSeek + 1] is THCUndoGroupBegin then
+    if Self.Items[FSeek + 1] is THCUndoGroupBegin then
     begin
       vOver := 0;
-      vLastId := Self.Count - 1;
+      vEndIndex := Self.Count - 1;
 
       // 找结束
       for i := FSeek + 2 to Self.Count - 1 do
       begin
-        if Items[i] is THCUndoGroupEnd then
+        if Self.Items[i] is THCUndoGroupEnd then
         begin
           if vOver = 0 then
           begin
-            vLastId := i;
+            vEndIndex := i;
             Break;
           end
           else
@@ -409,8 +441,22 @@ begin
           Inc(vOver);
       end;
 
-      while FSeek < vLastId do  // 重做组内各个Redo
-        DoSeekRedoEx;
+      FGroupBegin := Self.Items[FSeek + 1] as THCUndoGroupBegin;
+      FGroupEnd := Self.Items[vEndIndex] as THCUndoGroupEnd;
+      try
+        FGroupWorking := True;
+        while FSeek < vEndIndex do  // 重做组内各个Redo
+        begin
+          if FSeek = vEndIndex - 1 then
+            FGroupWorking := False;
+
+          DoSeekRedoEx;
+        end;
+      finally
+        FGroupWorking := False;
+        FGroupBegin := nil;
+        FGroupEnd := nil;
+      end;
     end
     else
       DoSeekRedoEx;
@@ -422,30 +468,30 @@ procedure THCUndoList.Undo;
   procedure DoSeekUndoEx;
   begin
     if Assigned(FOnUndo) then
-      FOnUndo(Items[FSeek]);
+      FOnUndo(Self.Items[FSeek]);
 
-    Items[FSeek].IsUndo := False;
+    Self.Items[FSeek].IsUndo := False;
     Dec(FSeek);
   end;
 
 var
-  i, vOver, vLastId: Integer;
+  i, vOver, vBeginIndex: Integer;
 begin
   if FSeek >= 0 then
   begin
-    if Items[FSeek] is THCUndoGroupEnd then  // 组撤销操作从后往前第1个
+    if Self.Items[FSeek] is THCUndoGroupEnd then  // 组撤销操作从后往前第1个
     begin
       vOver := 0;
 
       // 找从后往前最后1个
-      vLastId := 0;
+      vBeginIndex := 0;
       for i := FSeek - 1 downto 0 do
       begin
         if Items[i] is THCUndoGroupBegin then
         begin
           if vOver = 0 then
           begin
-            vLastId := i;
+            vBeginIndex := i;
             Break;
           end
           else
@@ -456,8 +502,22 @@ begin
           Inc(vOver);
       end;
 
-      while FSeek >= vLastId do  // 撤销组内各个Undo
-        DoSeekUndoEx;
+      FGroupBegin := Self.Items[vBeginIndex] as THCUndoGroupBegin;
+      FGroupEnd := Self.Items[FSeek] as THCUndoGroupEnd;
+      try
+        FGroupWorking := True;
+        while FSeek >= vBeginIndex do  // 撤销组内各个Undo
+        begin
+          if FSeek = vBeginIndex then
+            FGroupWorking := False;
+
+          DoSeekUndoEx;
+        end;
+      finally
+        FGroupWorking := False;
+        FGroupBegin := nil;
+        FGroupEnd := nil;
+      end;
     end
     else
       DoSeekUndoEx;
@@ -473,7 +533,7 @@ begin
     uatDeleteText, uatInsertText:
       Result := THCTextUndoAction.Create;
 
-    uatDeleteItem, uatInsertItem:
+    uatDeleteItem, uatInsertItem, uatItemMirror:
       Result := THCItemUndoAction.Create;
 
     uatItemProperty:
@@ -573,8 +633,6 @@ constructor THCSectionUndo.Create;
 begin
   inherited Create;
   FSectionIndex := -1;
-  FHScrollPos := 0;
-  FVScrollPos := 0;
 end;
 
 { THCSectionUndoGroupBegin }
@@ -583,6 +641,31 @@ constructor THCSectionUndoGroupBegin.Create;
 begin
   inherited Create;
   FSectionIndex := -1;
+end;
+
+{ THCEditUndo }
+
+constructor THCEditUndo.Create;
+begin
+  inherited Create;
+  FHScrollPos := 0;
+  FVScrollPos := 0;
+end;
+
+{ THCUndoEditGroupBegin }
+
+constructor THCUndoEditGroupBegin.Create;
+begin
+  inherited Create;
+  FHScrollPos := 0;
+  FVScrollPos := 0;
+end;
+
+{ THCUndoEditGroupEnd }
+
+constructor THCUndoEditGroupEnd.Create;
+begin
+  inherited Create;
   FHScrollPos := 0;
   FVScrollPos := 0;
 end;
@@ -593,8 +676,6 @@ constructor THCSectionUndoGroupEnd.Create;
 begin
   inherited Create;
   FSectionIndex := -1;
-  FHScrollPos := 0;
-  FVScrollPos := 0;
 end;
 
 end.

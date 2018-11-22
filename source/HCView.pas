@@ -72,6 +72,7 @@ type
     FOnMouseDown, FOnMouseUp: TMouseEvent;
     FOnCaretChange, FOnVerScroll, FOnSectionCreateItem, FOnSectionReadOnlySwitch: TNotifyEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
+    FOnSectionCanEdit: TOnCanEditEvent;
     FOnSectionInsertItem: TItemNotifyEvent;
     FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TDrawItemPaintEvent;
 
@@ -93,6 +94,7 @@ type
     procedure DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
       const ScrollPos: Integer);
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
+    function DoSectionCanEdit(const Sender: TObject): Boolean;
     //
     function NewDefaultSection: THCSection;
 
@@ -616,6 +618,8 @@ type
 
     property OnSectionCreateStyleItem: TStyleItemEvent read FOnSectionCreateStyleItem write FOnSectionCreateStyleItem;
 
+    property OnSectionCanEdit: TOnCanEditEvent read FOnSectionCanEdit write FOnSectionCanEdit;
+
     property PopupMenu;
   end;
 
@@ -806,6 +810,8 @@ begin
   FUndoList.OnUndo := DoUndo;
   FUndoList.OnRedo := DoRedo;
   FUndoList.OnUndoNew := DoUndoNew;
+  FUndoList.OnUndoGroupStart := DoUndoGroupBegin;
+  FUndoList.OnUndoGroupEnd := DoUndoGroupEnd;
 
   FFileName := '';
   FIsChanged := False;
@@ -1029,11 +1035,23 @@ end;
 
 procedure THCView.DoRedo(const Sender: THCUndo);
 begin
-  if FActiveSectionIndex <> (Sender as THCSectionUndo).SectionIndex then
-    SetActiveSectionIndex((Sender as THCSectionUndo).SectionIndex);
+  if Sender is THCSectionUndo then
+  begin
+    if FActiveSectionIndex <> (Sender as THCSectionUndo).SectionIndex then
+      SetActiveSectionIndex((Sender as THCSectionUndo).SectionIndex);
 
-  FHScrollBar.Position := (Sender as THCSectionUndo).HScrollPos;
-  FVScrollBar.Position := (Sender as THCSectionUndo).VScrollPos;
+    FHScrollBar.Position := (Sender as THCSectionUndo).HScrollPos;
+    FVScrollBar.Position := (Sender as THCSectionUndo).VScrollPos;
+  end
+  else
+  if Sender is THCSectionUndoGroupEnd then
+  begin
+    if FActiveSectionIndex <> (Sender as THCSectionUndoGroupEnd).SectionIndex then
+      SetActiveSectionIndex((Sender as THCSectionUndoGroupEnd).SectionIndex);
+
+    FHScrollBar.Position := (Sender as THCSectionUndoGroupEnd).HScrollPos;
+    FVScrollBar.Position := (Sender as THCSectionUndoGroupEnd).VScrollPos;
+  end;
 
   ActiveSection.Redo(Sender);
 end;
@@ -1046,6 +1064,14 @@ end;
 procedure THCView.DoSaveBefor(const AStream: TStream);
 begin
   // 用于外部程序存储自定义数据，如上次浏览位置等
+end;
+
+function THCView.DoSectionCanEdit(const Sender: TObject): Boolean;
+begin
+  if Assigned(FOnSectionCanEdit) then
+    Result := FOnSectionCanEdit(Sender)
+  else
+    Result := True;
 end;
 
 procedure THCView.DoSectionCreateItem(Sender: TObject);
@@ -1155,11 +1181,23 @@ end;
 
 procedure THCView.DoUndo(const Sender: THCUndo);
 begin
-  if FActiveSectionIndex <> (Sender as THCSectionUndo).SectionIndex then
-    SetActiveSectionIndex((Sender as THCSectionUndo).SectionIndex);
+  if Sender is THCSectionUndo then
+  begin
+    if FActiveSectionIndex <> (Sender as THCSectionUndo).SectionIndex then
+      SetActiveSectionIndex((Sender as THCSectionUndo).SectionIndex);
 
-  FHScrollBar.Position := (Sender as THCSectionUndo).HScrollPos;
-  FVScrollBar.Position := (Sender as THCSectionUndo).VScrollPos;
+    FHScrollBar.Position := (Sender as THCSectionUndo).HScrollPos;
+    FVScrollBar.Position := (Sender as THCSectionUndo).VScrollPos;
+  end
+  else
+  if Sender is THCSectionUndoGroupBegin then
+  begin
+    if FActiveSectionIndex <> (Sender as THCSectionUndoGroupBegin).SectionIndex then
+      SetActiveSectionIndex((Sender as THCSectionUndoGroupBegin).SectionIndex);
+
+    FHScrollBar.Position := (Sender as THCSectionUndoGroupBegin).HScrollPos;
+    FVScrollBar.Position := (Sender as THCSectionUndoGroupBegin).VScrollPos;
+  end;
 
   ActiveSection.Undo(Sender);
 end;
@@ -1172,6 +1210,7 @@ begin
   (Result as THCSectionUndoGroupBegin).HScrollPos := FHScrollBar.Position;
   (Result as THCSectionUndoGroupBegin).VScrollPos := FVScrollBar.Position;
   Result.Data := ActiveSection.ActiveData;
+  Result.CaretDrawItemNo := ActiveSection.ActiveData.CaretDrawItemNo;
 end;
 
 function THCView.DoUndoGroupEnd(const AItemNo,
@@ -1182,6 +1221,7 @@ begin
   (Result as THCSectionUndoGroupEnd).HScrollPos := FHScrollBar.Position;
   (Result as THCSectionUndoGroupEnd).VScrollPos := FVScrollBar.Position;
   Result.Data := ActiveSection.ActiveData;
+  Result.CaretDrawItemNo := ActiveSection.ActiveData.CaretDrawItemNo;
 end;
 
 procedure THCView.DoLoadAfter(const AStream: TStream; const AFileVersion: Word);
@@ -1780,6 +1820,7 @@ begin
   Result.OnCheckUpdateInfo := DoSectionDataCheckUpdateInfo;
   Result.OnCreateItem := DoSectionCreateItem;
   Result.OnCreateItemByStyle := DoSectionCreateStyleItem;
+  Result.OnCanEdit := DoSectionCanEdit;
   Result.OnInsertItem := DoSectionInsertItem;
   Result.OnReadOnlySwitch := DoSectionReadOnlySwitch;
   Result.OnGetScreenCoord := DoSectionGetScreenCoord;
@@ -3244,7 +3285,7 @@ begin
       // 计算批注文本显示区域
       vTextRect := Rect(ARect.Right + 30, vPos, ARect.Right + AnnotationWidth - 10,
         vAnnotation.DrawItemRect.Bottom);
-      DrawTextEx(ACanvas.Handle, PChar(vAnnotation.Text), -1, vTextRect,
+      Windows.DrawTextEx(ACanvas.Handle, PChar(vAnnotation.Text), -1, vTextRect,
         DT_TOP or DT_LEFT or DT_WORDBREAK or DT_EDITCONTROL or DT_CALCRECT, nil);  // 计算区域
 
       // 填充批注区域

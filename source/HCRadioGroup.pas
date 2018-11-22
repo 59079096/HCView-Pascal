@@ -166,7 +166,7 @@ begin
     FItems[i].Position.X := vLeft;
     FItems[i].Position.Y := vTop;
 
-    vLeft := vLeft + RadioButtonWidth + vSize.cx;
+    vLeft := vLeft + RadioButtonWidth + vSize.cx + FMargin;
   end;
 
   Height := vTop + vSize.cy + FMargin;

@@ -36,10 +36,11 @@ type
     // 标识内部高度是否发生了变化，用于此Item内部格式化时给其所属的Data标识需要重新格式化此Item
     // 如表格的一个单元格内容变化在没有引起表格整体变化时，不需要重新格式化表格，也不需要重新计算页数
     // 由拥有此Item的Data使用完后应该立即赋值为False，可参考TableItem.KeyPress的使用
-    FSizeChanged: Boolean;
+    FSizeChanged,
     FCanPageBreak: Boolean;  // 在当前页显示不下时是否可以分页截断显示
     FOnGetMainUndoList: TGetUndoListEvent;
   protected
+    FMangerUndo: Boolean;  // 是否自己管理撤销恢复
     function GetWidth: Integer; virtual;
     procedure SetWidth(const Value: Integer); virtual;
     function GetHeight: Integer; virtual;
@@ -158,6 +159,7 @@ type
     /// <summary> 在当前页显示不下时是否可以分页截断显示 </summary>
     property CanPageBreak: Boolean read FCanPageBreak write FCanPageBreak;
     property OwnerData: THCCustomData read FOwnerData;
+    property MangerUndo: Boolean read FMangerUndo;
   end;
 
   THCDomainItemClass = class of THCDomainItem;
@@ -355,6 +357,7 @@ begin
   FTextWrapping := False;
   FSizeChanged := False;
   FCanPageBreak := False;
+  FMangerUndo := False;
 end;
 
 constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer);

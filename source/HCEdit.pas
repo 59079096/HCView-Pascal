@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCRichData,
-  HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem;
+  HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCUndo;
 
 const
   HC_EDIT_EXT = '.hef';
@@ -26,6 +26,7 @@ type
     FStyle: THCStyle;
     FData: THCRichData;
     FDataBmp: TBitmap;  // 数据显示位图
+    FUndoList: THCUndoList;
     FCaret: THCCaret;
     FHScrollBar: THCScrollBar;
     FVScrollBar: THCScrollBar;
@@ -91,6 +92,13 @@ type
     procedure Paste;
     //
     function DataChangeByAction(const AFun: THCFunction): Boolean;
+
+    function DoGetUndoList: THCUndoList;
+    function DoUndoNew: THCUndo;
+    function DoUndoGroupBegin(const AItemNo, AOffset: Integer): THCUndoGroupBegin;
+    function DoUndoGroupEnd(const AItemNo, AOffset: Integer): THCUndoGroupEnd;
+    procedure DoUndo(const Sender: THCUndo);
+    procedure DoRedo(const Sender: THCUndo);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -108,10 +116,18 @@ type
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
     property Style: THCStyle read FStyle;
     property Changed: Boolean read FChanged write FChanged;
+    /// <summary> 全选 </summary>
+    procedure SelectAll;
     procedure SaveToFile(const AFileName: string);
     procedure LoadFromFile(const AFileName: string);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream);
+
+    /// <summary> 撤销 </summary>
+    procedure Undo;
+
+    /// <summary> 重做 </summary>
+    procedure Redo;
   published
     property OnMouseDown: TMouseEvent read FOnMouseDown write FOnMouseDown;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
@@ -246,8 +262,17 @@ begin
   //
   FStyle := THCStyle.CreateEx(True, True);
 
+  FUndoList := THCUndoList.Create;
+  FUndoList.OnUndo := DoUndo;
+  FUndoList.OnRedo := DoRedo;
+  FUndoList.OnUndoNew := DoUndoNew;
+  FUndoList.OnUndoGroupStart := DoUndoGroupBegin;
+  FUndoList.OnUndoGroupEnd := DoUndoGroupEnd;
+
   FData := THCRichData.Create(FStyle);
   FData.Width := 200;
+  FData.OnGetUndoList := DoGetUndoList;
+
   FDataBmp := TBitmap.Create;
 
   // 垂直滚动条，范围在Resize中设置
@@ -332,10 +357,101 @@ begin
   Result := True;
 end;
 
+procedure THCEdit.DoRedo(const Sender: THCUndo);
+var
+  vUndoList: THCUndoList;
+begin
+  if Sender is THCEditUndo then
+  begin
+    FHScrollBar.Position := (Sender as THCEditUndo).HScrollPos;
+    FVScrollBar.Position := (Sender as THCEditUndo).VScrollPos;
+  end
+  else
+  if Sender is THCUndoEditGroupEnd then
+  begin
+    FHScrollBar.Position := (Sender as THCUndoEditGroupEnd).HScrollPos;
+    FVScrollBar.Position := (Sender as THCUndoEditGroupEnd).VScrollPos;
+  end;
+
+  vUndoList := DoGetUndoList;
+  //if vUndoList.Enable then  // 不能判断，因为撤销恢复过程会屏蔽，防止产生新的撤销恢复
+  if not vUndoList.GroupWorking then
+  begin
+    DataChangeByAction(function(): Boolean
+      begin
+        FData.Redo(Sender);
+      end);
+  end
+  else
+    FData.Redo(Sender);
+end;
+
+procedure THCEdit.DoUndo(const Sender: THCUndo);
+var
+  vUndoList: THCUndoList;
+begin
+  if Sender is THCEditUndo then
+  begin
+    FHScrollBar.Position := (Sender as THCEditUndo).HScrollPos;
+    FVScrollBar.Position := (Sender as THCEditUndo).VScrollPos;
+  end
+  else
+  if Sender is THCUndoEditGroupBegin then
+  begin
+    FHScrollBar.Position := (Sender as THCUndoEditGroupBegin).HScrollPos;
+    FVScrollBar.Position := (Sender as THCUndoEditGroupBegin).VScrollPos;
+  end;
+
+  vUndoList := DoGetUndoList;
+  //if vUndoList.Enable then  // 不能判断，因为撤销恢复过程会屏蔽，防止产生新的撤销恢复
+  if not vUndoList.GroupWorking then
+  begin
+    DataChangeByAction(function(): Boolean
+      begin
+        FData.Undo(Sender);
+      end);
+  end
+  else
+    FData.Undo(Sender);
+end;
+
+function THCEdit.DoUndoGroupBegin(const AItemNo,
+  AOffset: Integer): THCUndoGroupBegin;
+begin
+  Result := THCUndoEditGroupBegin.Create;
+  (Result as THCUndoEditGroupBegin).HScrollPos := FHScrollBar.Position;
+  (Result as THCUndoEditGroupBegin).VScrollPos := FVScrollBar.Position;
+  Result.Data := FData;
+  Result.CaretDrawItemNo := FData.CaretDrawItemNo;
+end;
+
+function THCEdit.DoUndoGroupEnd(const AItemNo,
+  AOffset: Integer): THCUndoGroupEnd;
+begin
+  Result := THCUndoEditGroupEnd.Create;
+  (Result as THCUndoEditGroupEnd).HScrollPos := FHScrollBar.Position;
+  (Result as THCUndoEditGroupEnd).VScrollPos := FVScrollBar.Position;
+  Result.Data := FData;
+  Result.CaretDrawItemNo := FData.CaretDrawItemNo;
+end;
+
+function THCEdit.DoUndoNew: THCUndo;
+begin
+  Result := THCEditUndo.Create;
+  (Result as THCEditUndo).HScrollPos := FHScrollBar.Position;
+  (Result as THCEditUndo).VScrollPos := FVScrollBar.Position;
+  Result.Data := FData;
+end;
+
 procedure THCEdit.DoDataCheckUpdateInfo;
 begin
   if FUpdateCount = 0 then
     CheckUpdateInfo;
+end;
+
+function THCEdit.DoGetUndoList: THCUndoList;
+begin
+  Result := FUndoList;
 end;
 
 procedure THCEdit.DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
@@ -404,6 +520,21 @@ procedure THCEdit.KeyDown(var Key: Word; Shift: TShiftState);
   begin
     Result := (ssCtrl in Shift) and (Key = ord('V')) and not (ssAlt in Shift);
   end;
+
+  function IsSelectAllShortKey: Boolean;
+  begin
+    Result := (Shift = [ssCtrl]) and (Key = ord('A'));
+  end;
+
+  function IsUndoKey: Boolean;
+  begin
+    Result := (Shift = [ssCtrl]) and (Key = ord('Z'));
+  end;
+
+  function IsRedoKey: Boolean;
+  begin
+    Result := (Shift = [ssCtrl]) and (Key = ord('Y'));
+  end;
   {$ENDREGION}
 
 begin
@@ -416,6 +547,15 @@ begin
   else
   if IsPasteShortKey(Key, Shift) then
     Self.Paste
+  else
+  if IsSelectAllShortKey then
+    Self.SelectAll
+  else
+  if IsUndoKey then
+    Self.Undo
+  else
+  if IsRedoKey then
+    Self.Redo
   else
   begin
     FData.KeyDown(Key, Shift);
@@ -661,6 +801,23 @@ begin
   DoCaretChange;
 end;
 
+procedure THCEdit.Redo;
+begin
+  if FUndoList.Enable then  // 恢复过程不要产生新的Redo
+  try
+    FUndoList.Enable := False;
+
+    BeginUpdate;
+    try
+      FUndoList.Redo;
+    finally
+      EndUpdate;
+    end;
+  finally
+    FUndoList.Enable := True;
+  end;
+end;
+
 procedure THCEdit.Resize;
 begin
   inherited;
@@ -693,6 +850,14 @@ begin
   FData.SaveToStream(AStream);
 end;
 
+procedure THCEdit.SelectAll;
+begin
+  FData.SelectAll;
+
+  FStyle.UpdateInfoRePaint;
+  CheckUpdateInfo;
+end;
+
 procedure THCEdit.SetBounds(ALeft, ATop, AWidth, AHeight: Integer);
 begin
   inherited;
@@ -703,6 +868,23 @@ begin
   FHScrollBar.Top := Height - FHScrollBar.Height;
   FHScrollBar.Width := Width - FVScrollBar.Width;
   FHScrollBar.PageSize := FHScrollBar.Width;
+end;
+
+procedure THCEdit.Undo;
+begin
+  if FUndoList.Enable then  // 撤销过程不要产生新的Undo
+  try
+    FUndoList.Enable := False;
+
+    BeginUpdate;
+    try
+      FUndoList.Undo;
+    finally
+      EndUpdate;
+    end;
+  finally
+    FUndoList.Enable := True;
+  end;
 end;
 
 procedure THCEdit.UpdateBuffer;

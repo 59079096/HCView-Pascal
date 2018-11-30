@@ -192,7 +192,8 @@ procedure THCDrawItems.Notify(Ptr: Pointer; Action: TListNotification);
 begin
   if Action = TListNotification.lnDeleted then
     THCCustomDrawItem(Ptr).Free;
-  inherited;
+
+  inherited Notify(Ptr, Action);
 end;
 
 procedure THCDrawItems.SetItem(Index: Integer; const Value: THCCustomDrawItem);

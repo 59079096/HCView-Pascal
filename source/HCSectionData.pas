@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Graphics, SysUtils, Controls, Generics.Collections, HCCustomRichData,
   HCCustomData, HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle, HCTextStyle,
-  HCRichData, HCCustomFloatItem;
+  HCRichData, HCCustomFloatItem, HCRectItem;
 
 type
   TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
@@ -81,17 +81,17 @@ type
     FShowLineNo: Boolean;  // 行号
     FReFormatStartItemNo: Integer;
     function GetPageDataFmtTop(const APageIndex: Integer): Integer;
+    procedure PageDataPostAnnotate(const APageDataFmtTop, ADrawTop,
+      ADrawBottom: Integer);
   protected
-    procedure ReFormatData_(const AStartItemNo: Integer; const ALastItemNo: Integer = -1;
+    procedure _ReFormatData(const AStartItemNo: Integer; const ALastItemNo: Integer = -1;
       const AExtraItemCount: Integer = 0); override;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    {$IFDEF DEBUG}
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    {$ENDIF}
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure SaveToStream(const AStream: TStream); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -106,9 +106,6 @@ type
 
     /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
-
-    /// <summary> 插入批注 </summary>
-    function InsertAnnotate(const AText: string): Boolean;
     //
     // 保存
     function GetTextStr: string;
@@ -129,7 +126,7 @@ implementation
 {$I HCView.inc}
 
 uses
-  Math, HCTextItem, HCRectItem, HCImageItem, HCTableItem, HCPageBreakItem,
+  Math, HCTextItem, HCImageItem, HCTableItem, HCPageBreakItem,
   HCFloatLineItem;
 
 { THCPageData }
@@ -171,13 +168,13 @@ begin
   AStream.WriteBuffer(vBuffer[0], Length(vBuffer));
 end;
 
-{$IFDEF DEBUG}
 procedure THCPageData.DoDrawItemPaintAfter(const AData: THCCustomData;
   const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  inherited;
+  inherited DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);;
   {$IFDEF SHOWITEMNO}
   if ADrawItemNo = Items[DrawItems[ADrawItemNo].ItemNo].FirstDItemNo then  //
   {$ENDIF}
@@ -191,7 +188,6 @@ begin
     {$ENDIF}
   end;
 end;
-{$ENDIF}
 
 procedure THCPageData.DoDrawItemPaintBefor(const AData: THCCustomData;
   const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
@@ -281,15 +277,6 @@ begin
   Result := '';
   for i := 0 to Items.Count - 1 do
     Result := Result + Items[i].Text;
-end;
-
-function THCPageData.InsertAnnotate(const AText: string): Boolean;
-//var
-//  vAnnotaeItem: TAnnotaeItem;
-begin
-  Result := False;
-  // 当前选中的内容添加批注，暂时未完成
-//  Self.InsertItem(vAnnotaeItem);
 end;
 
 function THCPageData.InsertPageBreak: Boolean;
@@ -390,6 +377,12 @@ begin
     inherited MouseDown(Button, Shift, X, Y);
 end;
 
+procedure THCPageData.PageDataPostAnnotate(const APageDataFmtTop, ADrawTop,
+  ADrawBottom: Integer);
+begin
+
+end;
+
 procedure THCPageData.PaintFloatItems(const APageIndex, ADataDrawLeft,
   ADataDrawTop, AVOffset: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
@@ -413,11 +406,11 @@ begin
   end;
 end;
 
-procedure THCPageData.ReFormatData_(const AStartItemNo, ALastItemNo,
+procedure THCPageData._ReFormatData(const AStartItemNo, ALastItemNo,
   AExtraItemCount: Integer);
 begin
   FReFormatStartItemNo := AStartItemNo;
-  inherited ReFormatData_(AStartItemNo, ALastItemNo, AExtraItemCount);
+  inherited _ReFormatData(AStartItemNo, ALastItemNo, AExtraItemCount);
 end;
 
 { THCSectionData }

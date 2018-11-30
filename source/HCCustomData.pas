@@ -55,13 +55,17 @@ type
     procedure DrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+    procedure DrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
+      const ADrawRect, AClearRect: TRect; const ADrawText: string; const ADataDrawLeft,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
   protected
     /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
     procedure MatchItemSelectState;
 
     /// <summary> 式化时，记录起始DrawItem和段最后的DrawItem </summary>
     /// <param name="AStartItemNo"></param>
-    procedure FormatItemPrepare(const AStartItemNo: Integer; const AEndItemNo: Integer = -1);
+    procedure _FormatItemPrepare(const AStartItemNo: Integer; const AEndItemNo: Integer = -1);
 
     /// <summary>
     /// 转换指定Item指定Offs格式化为DItem
@@ -108,6 +112,9 @@ type
 
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
+    procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
+      const ADrawRect, AClearRect: TRect; const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
@@ -610,13 +617,13 @@ end;
 
 function THCCustomData.CreateDefaultDomainItem: THCCustomItem;
 begin
-  Result := THCDomainItem.Create(Self);
+  Result := HCDefaultDomainItemClass.Create(Self);
   Result.ParaNo := FStyle.CurParaNo;
 end;
 
 function THCCustomData.CreateDefaultTextItem: THCCustomItem;
 begin
-  Result := THCTextItem.Create;
+  Result := HCDefaultTextItemClass.CreateByText('');  // 必需有参数否则不能调用属性创建;
   if FStyle.CurStyleNo < THCStyle.Null then
     Result.StyleNo := 0
   else
@@ -756,6 +763,14 @@ procedure THCCustomData.DoDrawItemPaintBefor(const AData: THCCustomData;
 begin
 end;
 
+procedure THCCustomData.DoDrawItemPaintContent(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+  ADataScreenBottom: Integer; const ACanvas: TCanvas;
+  const APaintInfo: TPaintInfo);
+begin
+end;
+
 procedure THCCustomData.DrawItemPaintAfter(const AData: THCCustomData;
   const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -783,6 +798,22 @@ begin
   try
     DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  finally
+    RestoreDC(ACanvas.Handle, vDCState);
+  end;
+end;
+
+procedure THCCustomData.DrawItemPaintContent(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+  ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+var
+  vDCState: Integer;
+begin
+  vDCState := SaveDC(ACanvas.Handle);
+  try
+    DoDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
+      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
     RestoreDC(ACanvas.Handle, vDCState);
   end;
@@ -1399,11 +1430,12 @@ end;
 
 function THCCustomData.GetLineSpace(const ADrawNo: Integer): Integer;
 var
-  i, vFirst, vLast, vHi, vMaxHi, vMaxDrawNo: Integer;
+  i, vFirst, vLast, vHi, vMaxHi, vMaxDrawItemNo: Integer;
   vCanvas: TCanvas;
 begin
   Result := 0;
 
+  // 找行起始和结束DrawItem
   vFirst := -1;
   for i := ADrawNo downto 0 do
   begin
@@ -1424,10 +1456,11 @@ begin
     end;
   end;
 
+  // 找行中最高的DrawItem
   vMaxHi := 0;
   vCanvas := THCStyle.CreateStyleCanvas;
   try
-    vMaxDrawNo := vFirst;
+    vMaxDrawItemNo := vFirst;
     for i := vFirst to vLast do
     begin
       if GetDrawItemStyle(i) < THCStyle.Null then
@@ -1440,15 +1473,15 @@ begin
 
       if vHi > vMaxHi then
       begin
-        vMaxHi := vHi;  // 记下最大的高度
-        vMaxDrawNo := i;
+        vMaxHi := vHi;
+        vMaxDrawItemNo := i;  // 记下最高的DrawItemNo
       end;
     end;
   finally
     THCStyle.DestroyStyleCanvas(vCanvas);
   end;
 
-  Result := GetDrawItemLineSpace(vMaxDrawNo);
+  Result := GetDrawItemLineSpace(vMaxDrawItemNo);  // 根据最高的DrawItem取行间距
 end;
 
 {procedure THCCustomData.GetParaDrawItemRang(const AItemNo: Integer;
@@ -2025,7 +2058,7 @@ var
     else
     if viBreakOffset = 1 then  // 当前行剩余空间连第一个字符也放不下
     begin
-      if vFirstCharWidth > AContentWidth then  // Data的宽度不足一个字符
+      if vFirstCharWidth > AContentWidth then  // Data的整体宽度不足一个字符
       begin
         vRect.Left := APos.X;
         vRect.Top := APos.Y;
@@ -2044,7 +2077,7 @@ var
         if viBreakOffset < viLen then
           DoFormatTextItemToDrawItems(viBreakOffset + 1, AContentWidth, vCharWidths[viBreakOffset - 1]);
       end
-      else  // Data的宽度足够一个字符
+      else  // Data的整体宽度足够一个字符
       begin
         vRemainderWidth := APlaceWidth;
         FinishLine(ALastDrawItemNo, vRemainderWidth);
@@ -2457,30 +2490,26 @@ var
   vPrioStyleNo, vPrioParaNo, vVOffset, vTextHeight, vLineSpace: Integer;
   vItem: THCCustomItem;
   vRectItem: THCCustomRectItem;
-  vDItem: THCCustomDrawItem;
+  vDrawItem: THCCustomDrawItem;
   vAlignHorz: TParaAlignHorz;
-  vDrawRect: TRect;
+  vDrawRect, vClearRect: TRect;
   vText: string;
-
-  //vCharWidths: array of Integer;
-  {j, vFit, }vLen: Integer;
-  //vSize: TSize;
+  vLen: Integer;
 
   vDrawsSelectAll: Boolean;
   vDCState: Integer;
-  //vTextMetric: TTextMetric;
 begin
   if FItems.Count = 0 then Exit;
 
   vVOffset := ADataDrawTop - AVOffset;  // 将数据起始位置映射到绘制位置
 
-  GetDataDrawItemRang(Max(ADataDrawTop, ADataScreenTop) - vVOffset,  // 可显示出来的DItem范围
+  GetDataDrawItemRang(Max(ADataDrawTop, ADataScreenTop) - vVOffset,  // 可显示出来的DrawItem范围
     Min(ADataDrawBottom, ADataScreenBottom) - vVOffset, vFristDItemNo, vLastDItemNo);
 
   if (vFristDItemNo < 0) or (vLastDItemNo < 0) then Exit;
 
   // 选中信息
-  vSelStartDNo := GetSelectStartDrawItemNo;  // 选中起始DItem
+  vSelStartDNo := GetSelectStartDrawItemNo;  // 选中起始DrawItem
   if vSelStartDNo < 0 then
     vSelStartDOffs := -1
   else
@@ -2503,9 +2532,9 @@ begin
 
     for i := vFristDItemNo to vLastDItemNo do  // 遍历要绘制的数据
     begin
-      vDItem := FDrawItems[i];
-      vItem := FItems[vDItem.ItemNo];
-      vDrawRect := vDItem.Rect;
+      vDrawItem := FDrawItems[i];
+      vItem := FItems[vDrawItem.ItemNo];
+      vDrawRect := vDrawItem.Rect;
       OffsetRect(vDrawRect, ADataDrawLeft, vVOffset);  // 偏移到指定的画布绘制位置(SectionData时为页数据在格式化中可显示起始位置)
 
       if FDrawItems[i].LineFirst then
@@ -2521,11 +2550,33 @@ begin
         vAlignHorz := FStyle.ParaStyles[vItem.ParaNo].AlignHorz;  // 段内容水平对齐方式
       end;
 
+      vClearRect := vDrawRect;
       if vItem.StyleNo < THCStyle.Null then  // RectItem自行处理绘制
       begin
-        vRectItem := vItem as THCCustomRectItem;
+        InflateRect(vClearRect, 0, -vLineSpace div 2);  // 除去行间距净Rect，即内容的显示区域
 
+        vRectItem := vItem as THCCustomRectItem;
         vPrioStyleNo := vRectItem.StyleNo;
+
+        if vRectItem.JustifySplit then  // 分散占空间
+        begin
+          if ((vAlignHorz = pahJustify) and (not IsLineLastDrawItem(i)))  // 两端对齐且不是段最后
+            or (vAlignHorz = pahScatter)  // 分散对齐
+          then
+            vClearRect.Inflate(-(vClearRect.Width - vRectItem.Width) div 2, 0)
+          else
+            vClearRect.Right := vClearRect.Left + vRectItem.Width;
+        end;
+
+        case FStyle.ParaStyles[vItem.ParaNo].AlignVert of  // 垂直对齐方式
+          pavCenter: InflateRect(vClearRect, 0, -(vClearRect.Height - vRectItem.Height) div 2);
+          pavTop: ;
+        else
+          vClearRect.Top := vClearRect.Bottom - vRectItem.Height;
+        end;
+
+        DrawItemPaintContent(Self, i, vDrawRect, vClearRect, '', ADataDrawLeft,
+          ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
         if vRectItem.IsSelectComplate then  // 选中背景区域
         begin
@@ -2533,27 +2584,7 @@ begin
           ACanvas.FillRect(vDrawRect);
         end;
 
-        // 除去行间距净Rect，即内容的显示区域
-        InflateRect(vDrawRect, 0, -vLineSpace div 2);
-
-        if vRectItem.JustifySplit then  // 分散占空间
-        begin
-          if ((vAlignHorz = pahJustify) and (not IsLineLastDrawItem(i)))  // 两端对齐且不是段最后
-            or (vAlignHorz = pahScatter)  // 分散对齐
-          then
-            vDrawRect.Inflate(-(vDrawRect.Width - vRectItem.Width) div 2, 0)
-          else
-            vDrawRect.Right := vDrawRect.Left + vRectItem.Width;
-        end;
-
-        case FStyle.ParaStyles[vItem.ParaNo].AlignVert of  // 垂直对齐方式
-          pavCenter: InflateRect(vDrawRect, 0, -(vDrawRect.Height - vRectItem.Height) div 2);
-          pavTop: ;
-        else
-          vDrawRect.Top := vDrawRect.Bottom - vRectItem.Height;
-        end;
-
-        vItem.PaintTo(FStyle, vDrawRect, ADataDrawTop, ADataDrawBottom,
+        vItem.PaintTo(FStyle, vClearRect, ADataDrawTop, ADataDrawBottom,
           ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
       end
       else  // 文本Item
@@ -2576,14 +2607,37 @@ begin
             vTextHeight := vTextHeight + vTextHeight;
         end;
 
-        { 绘制文字、段、选中情况下的背景 }
+        // 除去行间距净Rect，即内容的显示区域
+        InflateRect(vClearRect, 0, -(vClearRect.Height - vTextHeight) div 2);
+
+        case FStyle.ParaStyles[vItem.ParaNo].AlignVert of  // 垂直对齐方式
+          pavCenter: vTextDrawTop := vClearRect.Top + (vClearRect.Bottom - vClearRect.Top - vTextHeight) div 2;
+          pavTop: vTextDrawTop := vClearRect.Top;
+        else
+          vTextDrawTop := vClearRect.Bottom - vTextHeight;
+        end;
+
+        if tsSubscript in FStyle.TextStyles[vPrioStyleNo].FontStyles then  // 上标时位置不变，下标时中间位置
+          vTextDrawTop := vTextDrawTop + vTextHeight div 2;
+
+        if FStyle.TextStyles[vPrioStyleNo].BackColor <> clNone then  // 文字背景
+        begin
+          ACanvas.Brush.Color := FStyle.TextStyles[vPrioStyleNo].BackColor;
+          ACanvas.FillRect(Rect(vClearRect.Left, vClearRect.Top, vClearRect.Left + vDrawItem.Width, vClearRect.Bottom));
+        end;
+
+        vText := Copy(vItem.Text, vDrawItem.CharOffs, vDrawItem.CharLen);  // 为减少判断，没有直接使用GetDrawItemText(i)
+        DrawItemPaintContent(Self, i, vDrawRect, vClearRect, vText, ADataDrawLeft,
+          ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+
+        {$REGION ' 绘制优先级更高的选中情况下的背景 '}
         if not APaintInfo.Print then  // 不是打印
         begin
           if vDrawsSelectAll then  // 当前要绘制的起始和结束DrawItem都被选中或单元格被全选中，背景为选中
           begin
             ACanvas.Brush.Color := FStyle.SelColor;
             ACanvas.FillRect(Rect(vDrawRect.Left, vDrawRect.Top,
-              vDrawRect.Left + vDItem.Width, Math.Min(vDrawRect.Bottom, ADataScreenBottom)));
+              vDrawRect.Left + vDrawItem.Width, Math.Min(vDrawRect.Bottom, ADataScreenBottom)));
           end
           else  // 处理一部分选中
           if vSelEndDNo >= 0 then  // 有选中内容，部分背景为选中
@@ -2617,35 +2671,15 @@ begin
               ACanvas.FillRect(vDrawRect);
           end;
         end;
-
-        // 除去行间距净Rect，即内容的显示区域
-        InflateRect(vDrawRect, 0, -(vDrawRect.Height - vTextHeight) div 2);//FStyle.ParaStyles[vItem.ParaNo].LineSpaceHalf);
-
-        case FStyle.ParaStyles[vItem.ParaNo].AlignVert of  // 垂直对齐方式
-          pavCenter: vTextDrawTop := vDrawRect.Top + (vDrawRect.Bottom - vDrawRect.Top - vTextHeight) div 2;
-          pavTop: vTextDrawTop := vDrawRect.Top;
-        else
-          vTextDrawTop := vDrawRect.Bottom - vTextHeight;
-        end;
-
-        if tsSubscript in FStyle.TextStyles[vPrioStyleNo].FontStyles then  // 上标时位置不变，下标时中间位置
-          vTextDrawTop := vTextDrawTop + vTextHeight div 2;
-
-        // 文字背景
-        if FStyle.TextStyles[vPrioStyleNo].BackColor <> clNone then
-        begin
-          ACanvas.Brush.Color := FStyle.TextStyles[vPrioStyleNo].BackColor;
-          ACanvas.FillRect(Rect(vDrawRect.Left, vDrawRect.Top, vDrawRect.Left + vDItem.Width, vDrawRect.Bottom));
-        end;
+        {$ENDREGION}
 
         vItem.PaintTo(FStyle, vDrawRect, ADataDrawTop, ADataDrawBottom,
           ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);  // 触发Item绘制事件
 
         // 绘制文本
-        ACanvas.Brush.Style := bsClear;
-        vText := Copy(vItem.Text, vDItem.CharOffs, vDItem.CharLen);  // 为减少判断，没有直接使用GetDrawItemText(i)
         if vText <> '' then
         begin
+          ACanvas.Brush.Style := bsClear;
           case vAlignHorz of  // 水平对齐方式
             pahLeft, pahRight, pahCenter:  // 一般对齐
               begin
@@ -2656,13 +2690,13 @@ begin
 
                 vLen := Length(vText);
 
-                Windows.ExtTextOut(ACanvas.Handle, vDrawRect.Left, vTextDrawTop,
+                Windows.ExtTextOut(ACanvas.Handle, vClearRect.Left, vTextDrawTop,
                   ETO_OPAQUE, nil, PChar(vText), vLen, nil);  // 参数说明见 201805161718
                 //Windows.TextOut(ACanvas.Handle, vDrawRect.Left, vTextDrawTop, PChar(S), vLen);
               end;
 
             pahJustify, pahScatter:  // 两端、分散对齐
-              DrawTextJsutify(vDrawRect, vText, IsLineLastDrawItem(i));
+              DrawTextJsutify(vClearRect, vText, IsLineLastDrawItem(i));
           end;
         end
         else  // 空行
@@ -2672,7 +2706,7 @@ begin
         end;
       end;
 
-      DrawItemPaintAfter(Self, i, vDrawRect, ADataDrawLeft, ADataDrawBottom,
+      DrawItemPaintAfter(Self, i, vClearRect, ADataDrawLeft, ADataDrawBottom,
         ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);  // 绘制内容后
     end;
   finally
@@ -2681,7 +2715,7 @@ begin
   end;
 end;
 
-procedure THCCustomData.FormatItemPrepare(const AStartItemNo: Integer;
+procedure THCCustomData._FormatItemPrepare(const AStartItemNo: Integer;
   const AEndItemNo: Integer = -1);
 var
   vFirstDrawItemNo, vLastDrawItemNo: Integer;

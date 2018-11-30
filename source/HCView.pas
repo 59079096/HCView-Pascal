@@ -17,35 +17,38 @@ uses
   Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, SynPdf,
   Generics.Collections, SysUtils, HCCommon, HCRichData, HCCustomRichData, HCDrawItem,
   HCSection, HCScrollBar, HCRichScrollBar, HCParaStyle, HCTextStyle, HCRectItem,
-  HCTextItem, HCItem, HCCustomFloatItem, HCUndo;
+  HCTextItem, HCItem, HCCustomFloatItem, HCUndo, HCSectionData;
 
 type
   THCPageScrollModel = (psmVertical, psmHorizontal);
 
   TLoadSectionProc = reference to procedure(const AFileVersion: Word);
 
-  TAnnotate = class(TObject)  // 批注
-  private
-    FDrawItemRect, FPaintRect: TRect;
-    FText: string;
+  THCAnnotate = class(TObject)  // Data批注信息
   public
-    property DrawItemRect: TRect read FDrawItemRect write FDrawItemRect;
-    property PaintRect: TRect read FPaintRect write FPaintRect;
-    property Text: string read FText write FText;
+    Section: TObject;
+    Data: THCCustomData;
+    Item: THCCustomItem;
+    DrawRect, Rect: TRect;
   end;
 
-  THCAnnotates = class(TObjectList<TAnnotate>)  // 批注s
-  strict private
-    FIndex: Integer;
+  THCAnnotates = class(TObjectList<THCAnnotate>)  // 批注s
+  private
+    FActiveIndex, FPageDrawFirst, FPageDrawLast: Integer;
+  protected
+    procedure Notify(const Value: THCAnnotate; Action: TCollectionNotification); override;
   public
     constructor Create;
-    procedure PaintTo(const ACanvas: TCanvas; const ARect: TRect;
-      const APaintInfo: TSectionPaintInfo);
-    procedure AddAnnotation(const ADrawItemRect: TRect; const AText: string);
+    procedure RemoveByItem(const AItem: THCCustomItem);
+    procedure PaintSectionWholePageBefor(const Sender: TObject; const ARect: TRect;
+      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure PaintSectionWholePageAfter(const Sender: TObject; const ARect: TRect;
+      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure MouseDown(const X, Y: Integer);
+    property ActiveIndex: Integer read FActiveIndex write FActiveIndex;
   end;
 
-  TPaintEvent = procedure (const ACanvas: TCanvas) of object;
+  TPaintEvent = procedure(const ACanvas: TCanvas) of object;
 
   THCView = class(TCustomControl)
   private
@@ -62,7 +65,6 @@ type
     FUpdateCount: Integer;
     FZoom: Single;
     FAutoZoom,  // 自动缩放
-    FShowAnnotation: Boolean;  // 显示批注
     FIsChanged: Boolean;  // 是否发生了改变
     FAnnotates: THCAnnotates;  // 批注
 
@@ -73,11 +75,11 @@ type
     FOnCaretChange, FOnVerScroll, FOnSectionCreateItem, FOnSectionReadOnlySwitch: TNotifyEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
     FOnSectionCanEdit: TOnCanEditEvent;
-    FOnSectionInsertItem: TItemNotifyEvent;
-    FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TDrawItemPaintEvent;
+    FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemNotifyEvent;
+    FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent;
 
     FOnSectionPaintHeader, FOnSectionPaintFooter, FOnSectionPaintPage,
-      FOnSectionPaintWholePage: TSectionPagePaintEvent;
+      FOnSectionPaintWholePageBefor, FOnSectionPaintWholePageAfter: TSectionPagePaintEvent;
     FOnUpdateViewBefor, FOnUpdateViewAfter: TPaintEvent;
 
     FOnChange, FOnChangedSwitch: TNotifyEvent;
@@ -150,25 +152,34 @@ type
     procedure DoSectionCreateItem(Sender: TObject);
     procedure DoSectionReadOnlySwitch(Sender: TObject);
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
-    procedure DoSectionInsertItem(const AItem: THCCustomItem);
-    procedure DoSectionDrawItemPaintBefor(const AData: THCCustomData;
+    procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData;
+      const AItem: THCCustomItem);
+    procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData;
+      const AItem: THCCustomItem);
+    procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DoSectionDrawItemPaintAfter(const AData: THCCustomData;
+    procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
-    procedure DoSectionPaintHeader(Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintFooter(Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintPage(Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintWholePage(Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionDrawItemPaintContent(const AData: THCCustomData;
+      const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+      const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
+    procedure DoSectionPaintHeader(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintFooter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintPage(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintWholePageBefor(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintWholePageAfter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     function DoSectionGetUndoList: THCUndoList;
 
     procedure DoStyleInvalidateRect(const ARect: TRect);
@@ -223,7 +234,6 @@ type
     //
     procedure SetPageScrollModel(const Value: THCPageScrollModel);
     procedure SetViewModel(const Value: THCViewModel);
-    procedure SetShowAnnotation(const Value: Boolean);
     procedure SetActiveSectionIndex(const Value: Integer);
     //
     procedure SetIsChanged(const Value: Boolean);
@@ -271,8 +281,8 @@ type
     /// <summary> 插入浮动Item </summary>
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 
-    /// <summary> 插入批注(暂未实现) </summary>
-    function InsertAnnotate(const AText: string): Boolean;
+    /// <summary> 插入批注 </summary>
+    function InsertAnnotate(const ATitle, AText: string): Boolean;
 
     /// <summary> 从当前位置后换行 </summary>
     function InsertBreak: Boolean;
@@ -282,6 +292,8 @@ type
 
     /// <summary> 从当前位置后分节 </summary>
     function InsertSectionBreak: Boolean;
+
+    function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
 
     /// <summary> 当前表格选中行下面插入行 </summary>
     function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
@@ -554,13 +566,15 @@ type
     property OnSectionCreateItem: TNotifyEvent read FOnSectionCreateItem write FOnSectionCreateItem;
 
     /// <summary> 节有新的Item插入时触发 </summary>
-    property OnSectionItemInsert: TItemNotifyEvent read FOnSectionInsertItem write FOnSectionInsertItem;
+    property OnSectionItemInsert: TSectionDataItemNotifyEvent read FOnSectionInsertItem write FOnSectionInsertItem;
+
+    property OnSectionRemoveItem: TSectionDataItemNotifyEvent read FOnSectionRemoveItem write FOnSectionRemoveItem;
 
     /// <summary> Item绘制开始前触发 </summary>
-    property OnSectionDrawItemPaintBefor: TDrawItemPaintEvent read FOnSectionDrawItemPaintBefor write FOnSectionDrawItemPaintBefor;
+    property OnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent read FOnSectionDrawItemPaintBefor write FOnSectionDrawItemPaintBefor;
 
     /// <summary> DrawItem绘制完成后触发 </summary>
-    property OnSectionDrawItemPaintAfter: TDrawItemPaintEvent read FOnSectionDrawItemPaintAfter write FOnSectionDrawItemPaintAfter;
+    property OnSectionDrawItemPaintAfter: TSectionDrawItemPaintEvent read FOnSectionDrawItemPaintAfter write FOnSectionDrawItemPaintAfter;
 
     /// <summary> 节页眉绘制时触发 </summary>
     property OnSectionPaintHeader: TSectionPagePaintEvent read FOnSectionPaintHeader write FOnSectionPaintHeader;
@@ -571,8 +585,11 @@ type
     /// <summary> 节页面绘制时触发 </summary>
     property OnSectionPaintPage: TSectionPagePaintEvent read FOnSectionPaintPage write FOnSectionPaintPage;
 
-    /// <summary> 节整页绘制时触发 </summary>
-    property OnSectionPaintWholePage: TSectionPagePaintEvent read FOnSectionPaintWholePage write FOnSectionPaintWholePage;
+    /// <summary> 节整页绘制前触发 </summary>
+    property OnSectionPaintWholePageBefor: TSectionPagePaintEvent read FOnSectionPaintWholePageBefor write FOnSectionPaintWholePageBefor;
+
+    /// <summary> 节整页绘制后触发 </summary>
+    property OnSectionPaintWholePageAfter: TSectionPagePaintEvent read FOnSectionPaintWholePageAfter write FOnSectionPaintWholePageAfter;
 
     /// <summary> 节只读属性有变化时触发 </summary>
     property OnSectionReadOnlySwitch: TNotifyEvent read FOnSectionReadOnlySwitch write FOnSectionReadOnlySwitch;
@@ -582,9 +599,6 @@ type
 
     /// <summary> 界面显示模式：页面、Web </summary>
     property ViewModel: THCViewModel read FViewModel write SetViewModel;
-
-    /// <summary> 是否显示批注 </summary>
-    property ShowAnnotation: Boolean read FShowAnnotation write SetShowAnnotation;
 
     /// <summary> 是否根据宽度自动计算缩放比例 </summary>
     property AutoZoom: Boolean read FAutoZoom write FAutoZoom;
@@ -709,7 +723,7 @@ begin
       vHMax := vWidth;
   end;
 
-  if FShowAnnotation then
+  if FAnnotates.Count > 0 then
     vHMax := vHMax + AnnotationWidth;
 
   vVMax := ZoomIn(vVMax + PagePadding);  // 补充最后一页后面的PagePadding
@@ -720,25 +734,34 @@ begin
 end;
 
 procedure THCView.CheckUpdateInfo;
+var
+  vCaretChange: Boolean;
 begin
   if FUpdateCount > 0 then Exit;
 
-  // ReBuildCaret会通知外部重新获取当前预览页和光标所在页，
-  // UpdateView里会计算当前显示页，所以要先于ReBuildCaret
+  // UpdateView里会计算当前显示页，ReBuildCaret里会通知外部重新获取当前预览页和光标所在页
+  // ReBuildCaret后有些需要高亮重绘，所以要先处理，所以防止处理完通知外部取页数不对的问题
+  // 使用vCaretChange将通知放到最后
+  if (FCaret <> nil) and FStyle.UpdateInfo.ReCaret then  // 先处理光标，因为可能光标处有些需要高亮重绘
+  begin
+    ReBuildCaret;
+    vCaretChange := True;
+    FStyle.UpdateInfo.ReCaret := False;
+    FStyle.UpdateInfo.ReStyle := False;
+    FStyle.UpdateInfo.ReScroll := False;
+    UpdateImmPosition;
+  end
+  else
+    vCaretChange := False;
+
   if FStyle.UpdateInfo.RePaint then
   begin
     FStyle.UpdateInfo.RePaint := False;
     UpdateView;
   end;
 
-  if (FCaret <> nil) and FStyle.UpdateInfo.ReCaret then  // 先处理光标，因为可能光标处有些需要高亮重绘
-  begin
-    FStyle.UpdateInfo.ReCaret := False;
-    ReBuildCaret;
-    FStyle.UpdateInfo.ReStyle := False;
-    FStyle.UpdateInfo.ReScroll := False;
-    UpdateImmPosition;
-  end;
+  if vCaretChange then
+    DoCaretChange;
 end;
 
 procedure THCView.Clear;
@@ -813,10 +836,11 @@ begin
   FUndoList.OnUndoGroupStart := DoUndoGroupBegin;
   FUndoList.OnUndoGroupEnd := DoUndoGroupEnd;
 
+  FAnnotates := THCAnnotates.Create;
+
   FFileName := '';
   FIsChanged := False;
   FZoom := 1;
-  FShowAnnotation := False;
   FAutoZoom := False;
   FViewModel := vmPage;
   FPageScrollModel := psmVertical;  //psmHorizontal;
@@ -884,9 +908,6 @@ end;
 
 destructor THCView.Destroy;
 begin
-  if Assigned(FAnnotates) then
-    FreeAndNil(FAnnotates);
-
   FreeAndNil(FSections);
   FreeAndNil(FCaret);
   FreeAndNil(FHScrollBar);
@@ -894,6 +915,7 @@ begin
   FreeAndNil(FDataBmp);
   FreeAndNil(FStyle);
   FreeAndNil(FUndoList);
+  FreeAndNil(FAnnotates);
   inherited Destroy;
 end;
 
@@ -949,7 +971,7 @@ begin
   Result := True;
 end;
 
-procedure THCView.DoSectionPaintPage(Sender: TObject;
+procedure THCView.DoSectionPaintPage(const Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 begin
@@ -957,7 +979,7 @@ begin
     FOnSectionPaintPage(Sender, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoSectionPaintFooter(Sender: TObject;
+procedure THCView.DoSectionPaintFooter(const Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 var
@@ -990,7 +1012,7 @@ begin
     FOnSectionPaintFooter(vSection, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoSectionPaintHeader(Sender: TObject;
+procedure THCView.DoSectionPaintHeader(const Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 begin
@@ -998,20 +1020,41 @@ begin
     FOnSectionPaintHeader(Sender, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoSectionPaintWholePage(Sender: TObject; const APageIndex: Integer;
+procedure THCView.DoSectionPaintWholePageAfter(const Sender: TObject; const APageIndex: Integer;
   const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 begin
-  if FShowAnnotation then  // 绘制批注
-    FAnnotates.PaintTo(ACanvas, ARect, APaintInfo);
+  if FAnnotates.Count > 0 then  // 绘制当前页的批注
+    FAnnotates.PaintSectionWholePageAfter(Sender, ARect, ACanvas, APaintInfo);
 
-  if Assigned(FOnSectionPaintWholePage) then
-    FOnSectionPaintWholePage(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+  if Assigned(FOnSectionPaintWholePageAfter) then
+    FOnSectionPaintWholePageAfter(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+end;
+
+procedure THCView.DoSectionPaintWholePageBefor(const Sender: TObject;
+  const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
+  const APaintInfo: TSectionPaintInfo);
+begin
+  if FAnnotates.Count > 0 then  // 当前页批注绘制前
+    FAnnotates.PaintSectionWholePageBefor(Sender, ARect, ACanvas, APaintInfo);
+
+  if Assigned(FOnSectionPaintWholePageBefor) then
+    FOnSectionPaintWholePageBefor(Sender, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
 procedure THCView.DoSectionReadOnlySwitch(Sender: TObject);
 begin
   if Assigned(FOnSectionReadOnlySwitch) then
     FOnSectionReadOnlySwitch(Sender);
+end;
+
+procedure THCView.DoSectionRemoveItem(const Sender: TObject;
+  const AData: THCCustomData; const AItem: THCCustomItem);
+begin
+  if THCAnnotateItem.IsEndMark(AItem) then  // 有批注被删除了
+    FAnnotates.RemoveByItem(AItem);
+
+  if Assigned(FOnSectionRemoveItem) then
+    FOnSectionRemoveItem(Sender, AData, AItem);
 end;
 
 function THCView.DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
@@ -1148,30 +1191,60 @@ begin
   DoMapChanged;
 end;
 
-procedure THCView.DoSectionInsertItem(const AItem: THCCustomItem);
+procedure THCView.DoSectionInsertItem(const Sender: TObject;
+  const AData: THCCustomData; const AItem: THCCustomItem);
+var
+  vAnnotate: THCAnnotate;
 begin
+  if THCAnnotateItem.IsEndMark(AItem) then  // 是批注尾
+  begin
+    vAnnotate := THCAnnotate.Create;
+    vAnnotate.Section := Sender;
+    vAnnotate.Data := AData;
+    vAnnotate.Item := AItem;
+    FAnnotates.Add(vAnnotate);
+  end;
+
+  // 自定义批注
+  {if AItem.Text = '111' then
+  begin
+    vAnnotate := THCAnnotate.Create;
+    vAnnotate.Section := Sender;
+    vAnnotate.Data := AData;
+    vAnnotate.Item := AItem;
+    FAnnotates.Add(vAnnotate);
+  end;}
+
   if Assigned(FOnSectionInsertItem) then
-    FOnSectionInsertItem(AItem);
+    FOnSectionInsertItem(Sender, AData, AItem);
 end;
 
-procedure THCView.DoSectionDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+procedure THCView.DoSectionDrawItemPaintAfter(const Sender: TObject;
+  const AData: THCCustomData; const ADrawItemNo: Integer; const ADrawRect: TRect;
+  const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnSectionDrawItemPaintAfter) then
-    FOnSectionDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnSectionDrawItemPaintAfter(Sender, AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoSectionDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+procedure THCView.DoSectionDrawItemPaintBefor(const Sender: TObject;
+  const AData: THCCustomData; const ADrawItemNo: Integer; const ADrawRect: TRect;
+  const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnSectionDrawItemPaintBefor) then
-    FOnSectionDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnSectionDrawItemPaintBefor(Sender, AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
+procedure THCView.DoSectionDrawItemPaintContent(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+  ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
+  // 高亮关键字
 end;
 
 procedure THCView.DoStyleInvalidateRect(const ARect: TRect);
@@ -1335,7 +1408,7 @@ end;
 
 function THCView.GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
 begin
-  if FShowAnnotation then  // 显示批注
+  if FAnnotates.Count > 0 then  // 显示批注
     Result := Max((GetDisplayWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix + AnnotationWidth)) div 2, ZoomIn(PagePadding))
   else
     Result := Max((GetDisplayWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix)) div 2, ZoomIn(PagePadding));
@@ -1395,14 +1468,19 @@ begin
   Result := FVScrollBar.Position;
 end;
 
-function THCView.InsertAnnotate(const AText: string): Boolean;
+function THCView.InsertAnnotate(const ATitle, AText: string): Boolean;
 begin
-  Result := ActiveSection.InsertAnnotate(AText);
+  Result := ActiveSection.InsertAnnotate(ATitle, AText);
 end;
 
 function THCView.InsertBreak: Boolean;
 begin
   Result := Self.ActiveSection.InsertBreak;
+end;
+
+function THCView.InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
+begin
+  Result := ActiveSection.InsertDomain(AMouldDomain);
 end;
 
 function THCView.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
@@ -1714,7 +1792,7 @@ begin
 
   vSectionDrawLeft := GetSectionDrawLeft(FActiveSectionIndex);
 
-  if FShowAnnotation then  // 批注在显示
+  if FAnnotates.Count > 0 then  // 批注在显示
   begin
     if (X > vSectionDrawLeft + FSections[FActiveSectionIndex].PageWidthPix)
       and (X < vSectionDrawLeft + FSections[FActiveSectionIndex].PageWidthPix + AnnotationWidth)
@@ -1724,7 +1802,9 @@ begin
       FStyle.UpdateInfoRePaint;
       DoSectionDataCheckUpdateInfo(Self);
       Exit;
-    end;
+    end
+    else
+      FAnnotates.FActiveIndex := -1;
   end;
 
   // 映射到节页面(白色区域)
@@ -1822,14 +1902,17 @@ begin
   Result.OnCreateItemByStyle := DoSectionCreateStyleItem;
   Result.OnCanEdit := DoSectionCanEdit;
   Result.OnInsertItem := DoSectionInsertItem;
+  Result.OnRemoveItem := DoSectionRemoveItem;
   Result.OnReadOnlySwitch := DoSectionReadOnlySwitch;
   Result.OnGetScreenCoord := DoSectionGetScreenCoord;
   Result.OnDrawItemPaintAfter := DoSectionDrawItemPaintAfter;
   Result.OnDrawItemPaintBefor := DoSectionDrawItemPaintBefor;
+  Result.OnDrawItemPaintContent := DoSectionDrawItemPaintContent;
   Result.OnPaintHeader := DoSectionPaintHeader;
   Result.OnPaintFooter := DoSectionPaintFooter;
   Result.OnPaintPage := DoSectionPaintPage;
-  Result.OnPaintWholePage := DoSectionPaintWholePage;
+  Result.OnPaintWholePageBefor := DoSectionPaintWholePageBefor;
+  Result.OnPaintWholePageAfter := DoSectionPaintWholePageAfter;
   Result.OnGetUndoList := DoSectionGetUndoList;
 end;
 
@@ -2371,7 +2454,6 @@ begin
     FCaret.Height := vDisplayHeight - FCaret.Y;
 
   FCaret.Show;
-  DoCaretChange;
 end;
 
 procedure THCView.Redo;
@@ -2426,7 +2508,7 @@ begin
 
   if FAutoZoom then
   begin
-    if FShowAnnotation then  // 显示批注
+    if FAnnotates.Count > 0 then  // 显示批注
       FZoom := (vDisplayWidth - PagePadding * 2) / (ActiveSection.PageWidthPix + AnnotationWidth)
     else
       FZoom := (vDisplayWidth - PagePadding * 2) / ActiveSection.PageWidthPix;
@@ -2789,20 +2871,6 @@ begin
     FSections[i].ReadOnly := Value;
 end;
 
-procedure THCView.SetShowAnnotation(const Value: Boolean);
-begin
-  if FShowAnnotation <> Value then
-  begin
-    if not Assigned(FAnnotates) then
-      FAnnotates := THCAnnotates.Create;
-
-    FShowAnnotation := Value;
-    FStyle.UpdateInfoRePaint;
-    FStyle.UpdateInfoReCaret(False);
-    DoMapChanged;
-  end;
-end;
-
 procedure THCView.SetShowLineActiveMark(const Value: Boolean);
 var
   i: Integer;
@@ -2995,9 +3063,6 @@ begin
   begin
     FDataBmp.Canvas.Lock;
     try
-      if FShowAnnotation then
-        FAnnotates.Clear;
-
       // 创建一个新的剪切区域，该区域是当前剪切区域和一个特定矩形的交集
       IntersectClipRect(FDataBmp.Canvas.Handle, ARect.Left, ARect.Top, ARect.Right, ARect.Bottom);
 
@@ -3019,7 +3084,7 @@ begin
 
         vScaleInfo := vPaintInfo.ScaleCanvas(FDataBmp.Canvas);
         try
-          if Assigned(FOnUpdateViewBefor) then  // 本次重绘开始
+          if Assigned(FOnUpdateViewBefor) then  // 本次窗口重绘开始
             FOnUpdateViewBefor(FDataBmp.Canvas);
 
           for i := FDisplayFirstSection to FDisplayLastSection do
@@ -3034,7 +3099,7 @@ begin
           for i := 0 to vPaintInfo.TopItems.Count - 1 do  // 绘制顶层Item
             vPaintInfo.TopItems[i].PaintTop(FDataBmp.Canvas);
 
-          if Assigned(FOnUpdateViewAfter) then  // 本次重绘结束
+          if Assigned(FOnUpdateViewAfter) then  // 本次窗口重绘结束
             FOnUpdateViewAfter(FDataBmp.Canvas);
         finally
           vPaintInfo.RestoreCanvasScale(FDataBmp.Canvas, vScaleInfo);
@@ -3172,7 +3237,10 @@ end;
 procedure THCView.WMSetFocus(var Message: TWMSetFocus);
 begin
   inherited;
-  ReBuildCaret;
+  FStyle.UpdateInfoReCaret;
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReScroll;
+  CheckUpdateInfo;
 end;
 
 procedure THCView.WndProc(var Message: TMessage);
@@ -3211,20 +3279,10 @@ end;
 
 { THCAnnotates }
 
-procedure THCAnnotates.AddAnnotation(const ADrawItemRect: TRect; const AText: string);
-var
-  vAnnotation: TAnnotate;
-begin
-  vAnnotation := TAnnotate.Create;
-  vAnnotation.DrawItemRect := ADrawItemRect;
-  vAnnotation.Text := AText;
-  Self.Add(vAnnotation);
-end;
-
 constructor THCAnnotates.Create;
 begin
-  inherited Create(True);
-  FIndex := -1;
+  inherited Create(False);
+  FActiveIndex := -1;
 end;
 
 procedure THCAnnotates.MouseDown(const X, Y: Integer);
@@ -3232,80 +3290,216 @@ var
   i: Integer;
   vPt: TPoint;
 begin
-  FIndex := -1;
+  FActiveIndex := -1;
   vPt := Point(X, Y);
   for i := 0 to Self.Count - 1 do
   begin
-    if PtInRect(Self[i].PaintRect, vPt) then
+    if PtInRect(Self.Items[i].Rect, vPt) then
     begin
-      FIndex := i;
+      FActiveIndex := i;
       Break;
     end;
   end;
 end;
 
-procedure THCAnnotates.PaintTo(const ACanvas: TCanvas; const ARect: TRect;
-  const APaintInfo: TSectionPaintInfo);
-var
-  i, vPos: Integer;
-  vAnnotation: TAnnotate;
-  vTextRect, vPaintRect: TRect;
+procedure THCAnnotates.Notify(const Value: THCAnnotate;
+  Action: TCollectionNotification);
 begin
-  if APaintInfo.Print then Exit;
-
-  ACanvas.Brush.Color := $00F4F4F4;
-  ACanvas.FillRect(Rect(ARect.Right, ARect.Top, ARect.Right + AnnotationWidth, ARect.Bottom));
-  if Self.Count > 0 then
+  inherited Notify(Value, Action);
+  if Action = TCollectionNotification.cnAdded then
   begin
-    vPos := 0;
 
-    //ACanvas.Refresh;
-    ACanvas.Font.Size := 8;
-    //ACanvas.Pen.Mode := TPenMode.pmXor;
-    for i := 0 to Self.Count - 1 do
+  end;
+end;
+
+procedure THCAnnotates.PaintSectionWholePageAfter(const Sender: TObject; const ARect: TRect;
+  const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+var
+  i, vVOffset, vTop, vBottom, vRePlace, vSpace: Integer;
+  vTextRect: TRect;
+  vData: THCRichData;
+  vAnnotate: THCAnnotate;
+  vText: string;
+begin
+  if Self.Count > 0 then  // 有批注
+  begin
+    ACanvas.Brush.Color := $00F4F4F4;  // 填充批注区域
+    ACanvas.FillRect(Rect(ARect.Right, ARect.Top, ARect.Right + AnnotationWidth, ARect.Bottom));
+
+    if FPageDrawFirst >= 0 then  // 本页有批注
     begin
-      if i <> FIndex then
+      ACanvas.Font.Size := 8;
+
+      // 计算本页各批注显示位置
+      vTop := Self[FPageDrawFirst].DrawRect.Top;
+      for i := FPageDrawFirst to FPageDrawLast do
       begin
-        ACanvas.Pen.Style := TPenStyle.psDot;
-        ACanvas.Pen.Color := clRed;
-      end
-      else
-      begin
-        ACanvas.Pen.Style := TPenStyle.psSolid;
-        ACanvas.Pen.Color := clMaroon;
+        vAnnotate := Self[i];
+        if vAnnotate.DrawRect.Top > vTop then
+          vTop := vAnnotate.DrawRect.Top;
+
+        vText := vAnnotate.Item.Text;
+        vAnnotate.Rect := Rect(0, 0, AnnotationWidth - 30, 0);
+        Windows.DrawTextEx(ACanvas.Handle, PChar(vText), -1, vAnnotate.Rect,
+          DT_TOP or DT_LEFT or DT_WORDBREAK or DT_CALCRECT, nil);  // 计算区域
+        if vAnnotate.Rect.Right < AnnotationWidth - 30 then
+          vAnnotate.Rect.Right := AnnotationWidth - 30;
+
+        vAnnotate.Rect.Offset(ARect.Right + 20, vTop + 5);
+        vAnnotate.Rect.Inflate(5, 5);
+
+        vTop := vAnnotate.Rect.Bottom + 5;
       end;
 
-      vAnnotation := Self.Items[i];
-      if vPos < vAnnotation.DrawItemRect.Top then
-        vPos := vAnnotation.DrawItemRect.Top
+      if Self[FPageDrawLast].Rect.Bottom > ARect.Bottom then  // 超过页底部了，重新排列本页各批注显示位置
+      begin
+        vVOffset := Self[FPageDrawLast].Rect.Bottom - ARect.Bottom + 5;  // 需要上移这么大的空间可放下
+
+        vSpace := 0;  // 各批注之间除固定间距外的空隙
+        vRePlace := -1;  // 从哪一个开始调整
+        vTop := Self[FPageDrawLast].Rect.Top;
+        for i := FPageDrawLast - 1 downto FPageDrawFirst do  // 紧凑排列，去掉中间的空隙
+        begin
+          vSpace := vTop - Self[i].Rect.Bottom - 5;
+          vVOffset := vVOffset - vSpace;  // 消减后的剩余
+          if vVOffset <= 0 then  // 空隙够了
+          begin
+            vRePlace := i + 1;
+            if vVOffset < 0 then
+              vSpace := vSpace + vVOffset;  // vRePlace处实际需要偏移的量
+
+            Break;
+          end;
+
+          vTop := Self[i].Rect.Top;
+        end;
+
+        if vRePlace < 0 then  // 当前页批注全部紧凑后仍放不下，看看页面顶部到第一个批注之间的空隙
+        begin
+          vRePlace := FPageDrawFirst;
+          vSpace := Self[FPageDrawFirst].Rect.Top - ARect.Top - 5;
+          if vSpace > vVOffset then  // 间距超出需要的
+            vSpace := vVOffset;  // 只调整到需要的位置
+        end;
+
+        Self[vRePlace].Rect.Offset(0, -vSpace);
+        vTop := Self[vRePlace].Rect.Bottom + 5;
+        for i := vRePlace + 1 to FPageDrawLast do
+        begin
+          vVOffset := vTop - Self[i].Rect.Top;
+          Self[i].Rect.Offset(0, vVOffset);
+          vTop := Self[i].Rect.Bottom + 5;
+        end;
+      end;
+
+      ACanvas.Pen.Color := clRed;
+      for i := FPageDrawFirst to FPageDrawLast do  // 绘制批注
+      begin
+        vAnnotate := Self[i];
+
+        vData := vAnnotate.Data as THCRichData;
+
+        if i <> FActiveIndex then
+        begin
+          if (vData.ActiveAnnotate.BeginNo > 0) and (vData.ActiveAnnotate.Contain(vData.Items.IndexOf(vAnnotate.Item))) then
+          begin
+            ACanvas.Pen.Style := TPenStyle.psSolid;
+            ACanvas.Pen.Width := 2;
+            ACanvas.Brush.Color := AnnotateBKActiveColor;
+          end
+          else
+          if (vData.HotAnnotate.BeginNo > 0) and (vData.HotAnnotate.Contain(vData.Items.IndexOf(vAnnotate.Item))) then
+          begin
+            ACanvas.Pen.Style := TPenStyle.psSolid;
+            ACanvas.Pen.Width := 1;
+            ACanvas.Brush.Color := AnnotateBKActiveColor;
+          end
+          else
+          begin
+            ACanvas.Pen.Style := TPenStyle.psDot;
+            ACanvas.Pen.Width := 1;
+            ACanvas.Brush.Color := AnnotateBKColor;
+          end;
+        end
+        else
+        begin
+          ACanvas.Pen.Style := TPenStyle.psSolid;
+          ACanvas.Pen.Width := 2;
+          ACanvas.Brush.Color := AnnotateBKActiveColor;
+        end;
+
+        ACanvas.RoundRect(vAnnotate.Rect, 5, 5);  // 填充批注区域
+
+        // 绘制批注文本
+        vText := vAnnotate.Item.Text;
+        vTextRect := vAnnotate.Rect;
+        vTextRect.Inflate(-5, -5);
+        DrawTextEx(ACanvas.Handle, PChar(i.ToString + vText), -1, vTextRect, DT_VCENTER or DT_LEFT or DT_WORDBREAK, nil);
+
+        // 绘制指向线
+        ACanvas.Brush.Style := bsClear;
+        ACanvas.MoveTo(vAnnotate.DrawRect.Right, vAnnotate.DrawRect.Bottom);
+        ACanvas.LineTo(ARect.Right, vAnnotate.DrawRect.Bottom);
+        ACanvas.LineTo(vAnnotate.Rect.Left, vTextRect.Top);
+      end;
+    end;
+  end;
+end;
+
+procedure THCAnnotates.PaintSectionWholePageBefor(const Sender: TObject;
+  const ARect: TRect; const ACanvas: TCanvas;
+  const APaintInfo: TSectionPaintInfo);
+var
+  i, vHeaderAreaHeight, vVOffset, vTop, vBottom, vMarginLeft, vMarginRight: Integer;
+  vSection: THCSection;
+  vAnnotate: THCAnnotate;
+  vDrawItem: THCCustomDrawItem;
+begin
+  if Self.Count > 0 then  // 有批注
+  begin
+    vSection := Sender as THCSection;
+    vHeaderAreaHeight := vSection.GetHeaderAreaHeight;  // 页眉高度
+    vSection.GetPageMarginLeftAndRight(APaintInfo.PageIndex, vMarginLeft, vMarginRight);
+    //正文中的批注
+    vVOffset := ARect.Top + vHeaderAreaHeight - APaintInfo.PageDataFmtTop;
+    vTop := APaintInfo.PageDataFmtTop;
+    vBottom := vTop + vSection.PageHeightPix - vHeaderAreaHeight - vSection.PageMarginBottomPix;
+
+    FPageDrawFirst := -1;
+    FPageDrawLast := -1;
+    for i := 0 to Self.Count - 1 do  // 找本页的起始和结束批注
+    begin
+      vAnnotate := Self[i];
+      vDrawItem := vAnnotate.Data.DrawItems[vAnnotate.Item.FirstDItemNo];
+      if vDrawItem.Rect.Top > vBottom then
+        Break
       else
-      if vAnnotation.DrawItemRect.Top <= vPos then
-        vPos := vPos + (vAnnotation.DrawItemRect.Bottom - vAnnotation.DrawItemRect.Top);
+      if vDrawItem.Rect.Bottom > vTop then
+      begin
+        vAnnotate.DrawRect := vDrawItem.Rect;
+        vAnnotate.DrawRect.Offset(ARect.Left + vMarginLeft, vVOffset);
 
-      // 计算批注文本显示区域
-      vTextRect := Rect(ARect.Right + 30, vPos, ARect.Right + AnnotationWidth - 10,
-        vAnnotation.DrawItemRect.Bottom);
-      Windows.DrawTextEx(ACanvas.Handle, PChar(vAnnotation.Text), -1, vTextRect,
-        DT_TOP or DT_LEFT or DT_WORDBREAK or DT_EDITCONTROL or DT_CALCRECT, nil);  // 计算区域
+        FPageDrawLast := i;
+        if FPageDrawFirst < 0 then
+          FPageDrawFirst := i;
+      end;
+    end;
+  end;
+end;
 
-      // 填充批注区域
-      ACanvas.Brush.Color := clYellow;
-      vPaintRect := vTextRect;
-      InflateRect(vPaintRect, 5, 5);
-      ACanvas.RoundRect(vPaintRect, 5, 5);
+procedure THCAnnotates.RemoveByItem(const AItem: THCCustomItem);
+var
+  i: Integer;
+begin
+  for i := 0 to Self.Count - 1 do
+  begin
+    if Self.Items[i].Item.Equals(AItem) then
+    begin
+      Self.Delete(i);
+      if FActiveIndex = i then
+        FActiveIndex := -1;
 
-      vAnnotation.PaintRect := vPaintRect;  // 记录 PaintRect
-
-      // 绘制指向线
-      ACanvas.Brush.Style := bsClear;
-      ACanvas.MoveTo(vAnnotation.DrawItemRect.Right, vAnnotation.DrawItemRect.Bottom + 2);
-      ACanvas.LineTo(ARect.Right, vAnnotation.DrawItemRect.Bottom + 2);
-      ACanvas.LineTo(ARect.Right + 30, vPos);
-
-      // 绘制批注文本
-      DrawTextEx(ACanvas.Handle, PChar(vAnnotation.Text), -1, vTextRect, DT_TOP or DT_LEFT or DT_WORDBREAK, nil);
-
-      vPos := vTextRect.Bottom + 5;
+      Break;
     end;
   end;
 end;

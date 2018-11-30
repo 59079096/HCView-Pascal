@@ -2477,7 +2477,8 @@ end;
 
 procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
 begin
-  ACellData.OnInsertItem := (OwnerData as THCCustomRichData).OnInsertItem;
+  ACellData.OnInsertItem := (OwnerData as THCRichData).OnInsertItem;
+  ACellData.OnRemoveItem := (OwnerData as THCRichData).OnRemoveItem;
   ACellData.OnItemResized := (OwnerData as THCCustomRichData).OnItemResized;
   ACellData.OnDrawItemPaintAfter := (OwnerData as THCCustomRichData).OnDrawItemPaintAfter;
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCCustomRichData).OnDrawItemPaintBefor;
@@ -3978,7 +3979,7 @@ var
   vColSizeUndoData: THCColSizeUndoData;
 begin
   vUndoList := GetSelfUndoList;
-  if vUndoList.Enable then
+  if Assigned(vUndoList) and vUndoList.Enable then
   begin
     SelfUndo_New;
     vUndo := vUndoList.Last;
@@ -4001,7 +4002,7 @@ var
   vMirrorUndoData: THCMirrorUndoData;
 begin
   vUndoList := GetSelfUndoList;
-  if vUndoList.Enable then
+  if Assigned(vUndoList) and vUndoList.Enable then
   begin
     SelfUndo_New;
     vUndo := vUndoList.Last;
@@ -4023,7 +4024,7 @@ var
   vRowSizeUndoData: THCRowSizeUndoData;
 begin
   vUndoList := GetSelfUndoList;
-  if vUndoList.Enable then
+  if Assigned(vUndoList) and vUndoList.Enable then
   begin
     SelfUndo_New;
     vUndo := vUndoList.Last;

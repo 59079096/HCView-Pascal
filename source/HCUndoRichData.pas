@@ -267,7 +267,7 @@ begin
       begin
         FFormatFirstItemNo := GetUndoList.CurGroupBegin.ItemNo;
         FFormatLastItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
-        FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+        _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;
         Self.InitializeField;
@@ -282,7 +282,7 @@ begin
 
       if FUndoGroupCount = 0 then  // 组恢复结束
       begin
-        ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+        _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupEnd).Offset;
@@ -304,7 +304,7 @@ begin
 
       if FUndoGroupCount = 0 then  // 组撤销结束
       begin
-        ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+        _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupBegin).Offset;
@@ -320,7 +320,7 @@ begin
       begin
         FFormatFirstItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         FFormatLastItemNo := FFormatFirstItemNo;
-        FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+        _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;
         Self.InitializeField;
@@ -355,7 +355,7 @@ begin
       FFormatLastItemNo := GetParaLastItemNo(GetActionAffect(AUndo.Actions.Last));
     end;
 
-    FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+    _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
   end;
 
   if AUndo.IsUndo then  // 撤销
@@ -374,7 +374,7 @@ begin
 
   if FUndoGroupCount = 0 then
   begin
-    ReFormatData_(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+    _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
     CaretDrawItemNo := vCaretDrawItemNo;
 

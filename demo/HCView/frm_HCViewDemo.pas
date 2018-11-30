@@ -93,7 +93,6 @@ type
     btn5: TToolButton;
     mniEdit1: TMenuItem;
     mniLSFix: TMenuItem;
-    mniN18: TMenuItem;
     mniN19: TMenuItem;
     mniCombobox1: TMenuItem;
     mniN20: TMenuItem;
@@ -124,9 +123,10 @@ type
     mniN47: TMenuItem;
     mniN45: TMenuItem;
     mniN46: TMenuItem;
+    mniN2: TMenuItem;
+    mniN17: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure btnAnnotationClick(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
     procedure btnSymmetryMarginClick(Sender: TObject);
     procedure btnBoldClick(Sender: TObject);
@@ -168,7 +168,6 @@ type
     procedure btn5Click(Sender: TObject);
     procedure mniEdit1Click(Sender: TObject);
     procedure mniLSFixClick(Sender: TObject);
-    procedure mniN18Click(Sender: TObject);
     procedure mniN19Click(Sender: TObject);
     procedure mniCombobox1Click(Sender: TObject);
     procedure mniN20Click(Sender: TObject);
@@ -194,6 +193,8 @@ type
     procedure mniN45Click(Sender: TObject);
     procedure mniN46Click(Sender: TObject);
     procedure pmLineSpacePopup(Sender: TObject);
+    procedure mniN2Click(Sender: TObject);
+    procedure mniN17Click(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -429,11 +430,6 @@ begin
 //    + IntToStr(ADrawRect.Bottom);
 end;
 
-procedure TfrmHCViewDemo.btnAnnotationClick(Sender: TObject);
-begin
-  FHCView.ShowAnnotation := not FHCView.ShowAnnotation;
-end;
-
 procedure TfrmHCViewDemo.btnBoldClick(Sender: TObject);
 begin
   case (Sender as TToolButton).Tag of
@@ -598,10 +594,9 @@ begin
   FHCView.InsertLine(1);
 end;
 
-procedure TfrmHCViewDemo.mniN18Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniN17Click(Sender: TObject);
 begin
-  if FHCView.ActiveSection.ActiveData.SelectExists then
-    FHCView.InsertAnnotate('aaaa')
+  FHCView.InsertDomain(nil);
 end;
 
 procedure TfrmHCViewDemo.mniN19Click(Sender: TObject);
@@ -737,6 +732,11 @@ end;
 procedure TfrmHCViewDemo.mniN28Click(Sender: TObject);
 begin
   FHCView.InsertSectionBreak;
+end;
+
+procedure TfrmHCViewDemo.mniN2Click(Sender: TObject);
+begin
+  FHCView.InsertAnnotate('±êÌâ', 'ÄÚÈÝ');
 end;
 
 procedure TfrmHCViewDemo.mniLSFixClick(Sender: TObject);

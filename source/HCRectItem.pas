@@ -162,9 +162,7 @@ type
     property MangerUndo: Boolean read FMangerUndo;
   end;
 
-  THCDomainItemClass = class of THCDomainItem;
-
-  THCDomainItem = class(THCCustomRectItem)  // 域
+  THCCustomDomainItem = class(THCCustomRectItem)  // 域Item基类
   private
     FLevel: Byte;
     FMarkType: TMarkType;
@@ -183,6 +181,38 @@ type
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     property MarkType: TMarkType read FMarkType write FMarkType;
     property Level: Byte read FLevel write FLevel;
+  end;
+
+  THCDomainItemClass = class of THCDomainItem;
+
+  THCDomainItem = class(THCCustomDomainItem)  // 域
+  protected
+    procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+  public
+    constructor Create(const AOwnerData: THCCustomData); override;
+    class function IsBeginMark(const AItem: THCCustomItem): Boolean;
+    class function IsEndMark(const AItem: THCCustomItem): Boolean;
+  end;
+
+  THCAnnotateItem = class(THCCustomDomainItem)  // 批注
+  private
+    FTitle, FText: string;
+  protected
+    procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+      const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+    function GetText: string; override;
+    procedure SetText(const Value: string); override;
+  public
+    constructor Create(const AOwnerData: THCCustomData); override;
+    class function IsBeginMark(const AItem: THCCustomItem): Boolean;
+    class function IsEndMark(const AItem: THCCustomItem): Boolean;
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    property Title: string read FTitle write FTitle;
   end;
 
   THCTextRectItem = class(THCCustomRectItem)  // 带文本样式的RectItem
@@ -457,7 +487,7 @@ var
   vItemAction: THCItemSelfUndoAction;
 begin
   Result := FOnGetMainUndoList;
-  if Result.Enable and (Result.Last.Actions.Last is THCItemSelfUndoAction) then
+  if Assigned(Result) and Result.Enable and (Result.Last.Actions.Last is THCItemSelfUndoAction) then
   begin
     vItemAction := Result.Last.Actions.Last as THCItemSelfUndoAction;
     if not Assigned(vItemAction.&Object) then
@@ -625,7 +655,7 @@ var
   vUndoList: THCUndoList;
 begin
   vUndoList := GetSelfUndoList;
-  if vUndoList.Enable then
+  if Assigned(vUndoList) and vUndoList.Enable then
     vUndoList.UndoNew;
 end;
 
@@ -945,7 +975,7 @@ var
   vSizeUndoData: THCSizeUndoData;
 begin
   vUndoList := GetSelfUndoList;
-  if vUndoList.Enable then
+  if Assigned(vUndoList) and vUndoList.Enable then
   begin
     SelfUndo_New;
     vUndo := vUndoList.Last;
@@ -1024,46 +1054,26 @@ begin
     FTextStyleNo := Value;
 end;
 
-{ THCDomainItem }
+{ THCCustomDomainItem }
 
-constructor THCDomainItem.Create(const AOwnerData: THCCustomData);
+constructor THCCustomDomainItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  Self.StyleNo := THCStyle.Domain;
+  //Self.StyleNo := THCStyle.Domain;
   FLevel := 0;
   Width := 0;
   Height := 10;
 end;
 
-procedure THCDomainItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+procedure THCCustomDomainItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  inherited;
-  if not APaintInfo.Print then  // 绘制[和]
-  begin
-    if FMarkType = cmtBeg then
-    begin
-      ACanvas.Pen.Style := psSolid;
-      ACanvas.Pen.Color := clActiveBorder;
-      ACanvas.MoveTo(ADrawRect.Left + 2, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom + 1);
-      ACanvas.LineTo(ADrawRect.Left + 2, ADrawRect.Bottom + 1);
-    end
-    else
-    begin
-      ACanvas.Pen.Style := psSolid;
-      ACanvas.Pen.Color := clActiveBorder;
-      ACanvas.MoveTo(ADrawRect.Right - 2, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom + 1);
-      ACanvas.LineTo(ADrawRect.Right - 2, ADrawRect.Bottom + 1);
-    end;
-  end;
+  inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+    ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
-procedure THCDomainItem.FormatToDrawItem(const ARichData: THCCustomData;
+procedure THCCustomDomainItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
 var
   vItem: THCCustomItem;
@@ -1076,7 +1086,7 @@ begin
     begin
       vItem := ARichData.Items[AItemNo + 1];
       if (vItem.StyleNo = Self.StyleNo)  // 下一个是组标识
-        and ((vItem as THCDomainItem).MarkType = TMarkType.cmtEnd)  // 下一个是结束标识
+        and ((vItem as THCCustomDomainItem).MarkType = TMarkType.cmtEnd)  // 下一个是结束标识
       then
         Self.Width := 10  // 增加宽度以便输入时光标可方便点击
       else
@@ -1093,7 +1103,7 @@ begin
   begin
     vItem := ARichData.Items[AItemNo - 1];
     if (vItem.StyleNo = Self.StyleNo)
-      and ((vItem as THCDomainItem).MarkType = TMarkType.cmtBeg)
+      and ((vItem as THCCustomDomainItem).MarkType = TMarkType.cmtBeg)
     then  // 前一个是起始标识
       Self.Width := 10
     else
@@ -1105,7 +1115,7 @@ begin
   end;
 end;
 
-function THCDomainItem.GetOffsetAt(const X: Integer): Integer;
+function THCCustomDomainItem.GetOffsetAt(const X: Integer): Integer;
 begin
   if (X >= 0) and (X <= Width) then
   begin
@@ -1118,19 +1128,19 @@ begin
     Result := inherited GetOffsetAt(X);
 end;
 
-function THCDomainItem.JustifySplit: Boolean;
+function THCCustomDomainItem.JustifySplit: Boolean;
 begin
   Result := False;
 end;
 
-procedure THCDomainItem.LoadFromStream(const AStream: TStream;
+procedure THCCustomDomainItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   AStream.ReadBuffer(FMarkType, SizeOf(FMarkType));
 end;
 
-procedure THCDomainItem.SaveToStream(const AStream: TStream; const AStart,
+procedure THCCustomDomainItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
@@ -1176,6 +1186,134 @@ procedure THCControlItem.SaveToStream(const AStream: TStream; const AStart,
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   AStream.WriteBuffer(FAutoSize, SizeOf(FAutoSize));
+end;
+
+{ THCAnnotateItem }
+
+constructor THCAnnotateItem.Create(const AOwnerData: THCCustomData);
+begin
+  inherited Create(AOwnerData);
+  Self.StyleNo := THCStyle.Annotate;
+end;
+
+procedure THCAnnotateItem.DoPaint(const AStyle: THCStyle;
+  const ADrawRect: TRect; const ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+  ADataScreenBottom: Integer; const ACanvas: TCanvas;
+  const APaintInfo: TPaintInfo);
+begin
+  inherited;
+  if not APaintInfo.Print then  // 绘制[和]
+  begin
+    if FMarkType = cmtBeg then
+    begin
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.Pen.Color := clRed;
+      ACanvas.MoveTo(ADrawRect.Left + 2, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom + 1);
+      ACanvas.LineTo(ADrawRect.Left + 2, ADrawRect.Bottom + 1);
+    end
+    else
+    begin
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.Pen.Color := clRed;
+      ACanvas.MoveTo(ADrawRect.Right - 2, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom + 1);
+      ACanvas.LineTo(ADrawRect.Right - 2, ADrawRect.Bottom + 1);
+    end;
+  end;
+end;
+
+function THCAnnotateItem.GetText: string;
+begin
+  Result := FText;
+end;
+
+class function THCAnnotateItem.IsBeginMark(const AItem: THCCustomItem): Boolean;
+begin
+  Result := (AItem is THCAnnotateItem) and ((AItem as THCAnnotateItem).MarkType = TMarkType.cmtBeg);
+end;
+
+class function THCAnnotateItem.IsEndMark(const AItem: THCCustomItem): Boolean;
+begin
+  Result := (AItem is THCAnnotateItem) and ((AItem as THCAnnotateItem).MarkType = TMarkType.cmtEnd);
+end;
+
+procedure THCAnnotateItem.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  if FMarkType = cmtEnd then
+  begin
+    HCLoadTextFromStream(AStream, FTitle);
+    HCLoadTextFromStream(AStream, FText);
+  end;
+end;
+
+procedure THCAnnotateItem.SaveToStream(const AStream: TStream; const AStart,
+  AEnd: Integer);
+begin
+  inherited SaveToStream(AStream, AStart, AEnd);
+  if FMarkType = cmtEnd then  // 存Title、Text
+  begin
+    HCSaveTextToStream(AStream, FTitle);
+    HCSaveTextToStream(AStream, FText);
+  end;
+end;
+
+procedure THCAnnotateItem.SetText(const Value: string);
+begin
+  FText := Value;
+end;
+
+{ THCDomainItem }
+
+constructor THCDomainItem.Create(const AOwnerData: THCCustomData);
+begin
+  inherited Create(AOwnerData);
+  Self.StyleNo := THCStyle.Domain;
+end;
+
+procedure THCDomainItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
+  const ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+  ADataScreenBottom: Integer; const ACanvas: TCanvas;
+  const APaintInfo: TPaintInfo);
+begin
+  inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+    ADataScreenBottom, ACanvas, APaintInfo);
+
+  if not APaintInfo.Print then  // 绘制[和]
+  begin
+    if FMarkType = cmtBeg then
+    begin
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.Pen.Color := clActiveBorder;
+      ACanvas.MoveTo(ADrawRect.Left + 2, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom + 1);
+      ACanvas.LineTo(ADrawRect.Left + 2, ADrawRect.Bottom + 1);
+    end
+    else
+    begin
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.Pen.Color := clActiveBorder;
+      ACanvas.MoveTo(ADrawRect.Right - 2, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom + 1);
+      ACanvas.LineTo(ADrawRect.Right - 2, ADrawRect.Bottom + 1);
+    end;
+  end;
+end;
+
+class function THCDomainItem.IsBeginMark(const AItem: THCCustomItem): Boolean;
+begin
+  Result := (AItem is THCDomainItem) and ((AItem as THCDomainItem).MarkType = TMarkType.cmtBeg);
+end;
+
+class function THCDomainItem.IsEndMark(const AItem: THCCustomItem): Boolean;
+begin
+  Result := (AItem is THCDomainItem) and ((AItem as THCDomainItem).MarkType = TMarkType.cmtEnd);
 end;
 
 end.

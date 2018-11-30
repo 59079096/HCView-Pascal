@@ -47,6 +47,8 @@ const
   PagePadding = 20;  // 节页面显示时之间的间距
   PMSLineHeight = 24;  // 书写范围线的长度
   AnnotationWidth = 200;  // 批注显示区域宽度
+  AnnotateBKColor = $00D5D5FF;
+  AnnotateBKActiveColor = $00A8A8FF;
   // 不能在行首的字符             |                    |                   |
   DontLineFirstChar = '`-=[]\;'',./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；‘，。、～！＠＃￥％……＆×（）——＋｛｝｜：“《》？°';
   DontLineLastChar = '/\＼';
@@ -160,6 +162,8 @@ type
 
   function GetVersionAsInteger(const AVersion: string): Integer;
 
+  /// <summary> 保存长度小于65536个字节的字符串到流 </summary>
+  procedure HCSaveTextToStream(const AStream: TStream; const S: string);
   procedure HCLoadTextFromStream(const AStream: TStream; var S: string);
 
   procedure SaveColorToStream(const AColor: TColor; const AStream: TStream);
@@ -205,6 +209,20 @@ begin
   end;
 end;
 {$ENDIF}
+
+procedure HCSaveTextToStream(const AStream: TStream; const S: string);
+var
+  vBuffer: TBytes;
+  vSize: Word;
+begin
+  vBuffer := BytesOf(S);
+  if System.Length(vBuffer) > MAXWORD then
+    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
+  vSize := System.Length(vBuffer);
+  AStream.WriteBuffer(vSize, SizeOf(vSize));
+  if vSize > 0 then
+    AStream.WriteBuffer(vBuffer[0], vSize);
+end;
 
 procedure HCLoadTextFromStream(const AStream: TStream; var S: string);
 var

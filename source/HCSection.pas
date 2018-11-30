@@ -16,24 +16,29 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, HCRichData, HCSectionData,
   HCCustomRichData, HCTextStyle, HCParaStyle, HCItem, HCCustomFloatItem, HCDrawItem,
-  HCPage, HCCommon, HCStyle, HCCustomData, HCUndo;
+  HCPage, HCCommon, HCStyle, HCCustomData, HCRectItem, HCUndo;
 
 type
   TPrintResult = (prOk, prNoPrinter, prNoSupport, prError);
 
   TSectionPaintInfo = class(TPaintInfo)
   strict private
-    FSectionIndex, FPageIndex: Integer;
-    FPageDrawRight: Integer;
+    FSectionIndex, FPageIndex, FPageDataFmtTop: Integer;
   public
     constructor Create; override;
     property SectionIndex: Integer read FSectionIndex write FSectionIndex;
     property PageIndex: Integer read FPageIndex write FPageIndex;
-    property PageDrawRight: Integer read FPageDrawRight write FPageDrawRight;
+    property PageDataFmtTop: Integer read FPageDataFmtTop write FPageDataFmtTop;
   end;
 
-  TSectionPagePaintEvent = procedure(Sender: TObject; const APageIndex: Integer;
+  TSectionPagePaintEvent = procedure(const Sender: TObject; const APageIndex: Integer;
     const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo) of object;
+  TSectionDrawItemPaintEvent = procedure(const Sender: TObject; const AData: THCCustomData;
+      const ADrawItemNo: Integer; const ADrawRect: TRect;
+      const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
+  TSectionDataItemNotifyEvent = procedure(const Sender: TObject; const AData: THCCustomData;
+    const AItem: THCCustomItem) of object;
 
   THCCustomSection = class(TObject)
   private
@@ -67,9 +72,11 @@ type
 
     FOnGetScreenCoord: TGetScreenCoordEvent;
 
-    FOnPaintHeader, FOnPaintFooter, FOnPaintPage, FOnPaintWholePage: TSectionPagePaintEvent;
-    FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
-    FOnInsertItem: TItemNotifyEvent;
+    FOnPaintHeader, FOnPaintFooter, FOnPaintPage,
+    FOnPaintWholePageBefor, FOnPaintWholePageAfter: TSectionPagePaintEvent;
+    FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TSectionDrawItemPaintEvent;
+    FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
+    FOnInsertItem, FOnRemoveItem: TSectionDataItemNotifyEvent;
     FOnItemResized: TDataItemEvent;
     FOnCreateItem: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
@@ -90,13 +97,17 @@ type
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+    procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
+      const ADrawRect, AClearRect: TRect; const ADrawText: string;
+      const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure DoDataDrawItemPaintAfter(const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
-    procedure DoDataInsertItem(const AItem: THCCustomItem);
-
+    procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
+    procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataChanged(Sender: TObject);
 
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
@@ -219,8 +230,12 @@ type
     /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
 
+    /// <summary> 根据传入的域"模具"创建域 </summary>
+    /// <param name="AMouldDomain">"模具"调用完此方法后请自行释放</param>
+    function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
+
     /// <summary> 当前选中的内容添加批注 </summary>
-    function InsertAnnotate(const AText: string): Boolean;
+    function InsertAnnotate(const ATitle, AText: string): Boolean;
     //
     function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
     function ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
@@ -354,14 +369,17 @@ type
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
     property OnCheckUpdateInfo: TNotifyEvent read FOnCheckUpdateInfo write FOnCheckUpdateInfo;
-    property OnInsertItem: TItemNotifyEvent read FOnInsertItem write FOnInsertItem;
+    property OnInsertItem: TSectionDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
+    property OnRemoveItem: TSectionDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
     property OnItemResized: TDataItemEvent read FOnItemResized write FOnItemResized;
     property OnPaintHeader: TSectionPagePaintEvent read FOnPaintHeader write FOnPaintHeader;
     property OnPaintFooter: TSectionPagePaintEvent read FOnPaintFooter write FOnPaintFooter;
     property OnPaintPage: TSectionPagePaintEvent read FOnPaintPage write FOnPaintPage;
-    property OnPaintWholePage: TSectionPagePaintEvent read FOnPaintWholePage write FOnPaintWholePage;
-    property OnDrawItemPaintBefor: TDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
-    property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
+    property OnPaintWholePageBefor: TSectionPagePaintEvent read FOnPaintWholePageBefor write FOnPaintWholePageBefor;
+    property OnPaintWholePageAfter: TSectionPagePaintEvent read FOnPaintWholePageAfter write FOnPaintWholePageAfter;
+    property OnDrawItemPaintBefor: TSectionDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
+    property OnDrawItemPaintAfter: TSectionDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
+    property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
@@ -384,7 +402,7 @@ type
 implementation
 
 uses
-  Math, HCRectItem;
+  Math;
 
 { THCCustomSection }
 
@@ -541,6 +559,7 @@ var
   begin
     AData.Width := vWidth;
     AData.OnInsertItem := DoDataInsertItem;
+    AData.OnRemoveItem := DoDataRemoveItem;
     AData.OnItemResized := DoDataItemResized;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
     AData.OnCanEdit := DoDataCanEdit;
@@ -549,6 +568,7 @@ var
     AData.OnGetScreenCoord := DoGetScreenCoordEvent;
     AData.OnDrawItemPaintBefor := DoDataDrawItemPaintBefor;
     AData.OnDrawItemPaintAfter := DoDataDrawItemPaintAfter;
+    AData.OnDrawItemPaintContent := DoDrawItemPaintContent;
     AData.OnGetUndoList := DoDataGetUndoList;
   end;
 
@@ -657,10 +677,10 @@ begin
     Result := nil;
 end;
 
-procedure THCCustomSection.DoDataInsertItem(const AItem: THCCustomItem);
+procedure THCCustomSection.DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
 begin
   if Assigned(FOnInsertItem) then
-    FOnInsertItem(AItem);
+    FOnInsertItem(Self, AData, AItem);
 end;
 
 procedure THCCustomSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
@@ -670,7 +690,7 @@ procedure THCCustomSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
 begin
   if Assigned(FOnDrawItemPaintAfter) then
   begin
-    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintAfter(Self, AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
@@ -682,7 +702,7 @@ procedure THCCustomSection.DoDataDrawItemPaintBefor(const AData: THCCustomData;
 begin
   if Assigned(FOnDrawItemPaintBefor) then
   begin
-    FOnDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintBefor(Self, AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
@@ -716,6 +736,23 @@ procedure THCCustomSection.DoDataReadOnlySwitch(Sender: TObject);
 begin
   if Assigned(FOnReadOnlySwitch) then
     FOnReadOnlySwitch(Self);
+end;
+
+procedure THCCustomSection.DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
+begin
+  if Assigned(FOnRemoveItem) then
+    OnRemoveItem(Self, AData, AItem);
+end;
+
+procedure THCCustomSection.DoDrawItemPaintContent(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+  ADataScreenBottom: Integer; const ACanvas: TCanvas;
+  const APaintInfo: TPaintInfo);
+begin
+  if Assigned(FOnDrawItemPaintContent) then
+    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
+    ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
 function THCCustomSection.DoGetScreenCoordEvent(const X, Y: Integer): TPoint;
@@ -1154,11 +1191,11 @@ begin
   Result := FPageSize.PaperWidth;
 end;
 
-function THCCustomSection.InsertAnnotate(const AText: string): Boolean;
+function THCCustomSection.InsertAnnotate(const ATitle, AText: string): Boolean;
 begin
   Result := ActiveDataChangeByAction(function(): Boolean
     begin
-      Result := FPageData.InsertAnnotate(AText);
+      Result := FActiveData.InsertAnnotate(ATitle, AText);
     end);
 end;
 
@@ -1167,6 +1204,14 @@ begin
   Result := ActiveDataChangeByAction(function(): Boolean
     begin
       Result := FActiveData.InsertBreak;
+    end);
+end;
+
+function THCCustomSection.InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.InsertDomain(AMouldDomain);
     end);
 end;
 
@@ -1756,17 +1801,13 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION ' 绘制页面数据 '}
+  {$REGION ' 绘制页面数据、提交批注 '}
   procedure PaintPageData;
   var
-    vPageDataFmtTop, vDCState: Integer;
+    vDCState: Integer;
   begin
     if (FPages[APageIndex].StartDrawItemNo < 0) or (FPages[APageIndex].EndDrawItemNo < 0) then
       Exit;
-
-    //vPageDataOffsetX := Max(AFilmOffsetX - vPageDrawLeft - PageMarginLeftPix, 0);
-    { 当前页在当前屏显出来的数据边界映射到格式化中的边界 }
-    vPageDataFmtTop := GetPageDataFmtTop(APageIndex);
 
     { 绘制数据，把Data中指定位置的数据，绘制到指定的页区域中，并按照可显示出来的区域约束 }
     FPageData.PaintData(vPageDrawLeft + vMarginLeft,  // 当前页数据要绘制到的Left
@@ -1774,7 +1815,7 @@ var
       vPageDrawBottom - PageMarginBottomPix,  // 当前页数据要绘制的Bottom
       vPageDataScreenTop,     // 界面呈现当前页数据的Top位置
       vPageDataScreenBottom,  // 界面呈现当前页数据Bottom位置
-      vPageDataFmtTop,  // 指定从哪个位置开始的数据绘制到页数据起始位置
+      APaintInfo.PageDataFmtTop,  // 指定从哪个位置开始的数据绘制到页数据起始位置
       ACanvas,
       APaintInfo);
 
@@ -1811,9 +1852,8 @@ begin
   // 当前页数据能显示出来的区域边界
   vPageDataScreenTop := Max(vPageDrawTop + vHeaderAreaHeight, 0);
   vPageDataScreenBottom := Min(vPageDrawBottom - FPageSize.PageMarginBottomPix, vScaleHeight);
-
-  APaintInfo.PageDrawRight := vPageDrawRight;
-
+  { 当前页在当前屏显出来的数据边界映射到格式化中的边界 }
+  APaintInfo.PageDataFmtTop := GetPageDataFmtTop(APageIndex);
   GetClipBox(ACanvas.Handle, vClipBoxRect);  // 保存当前的绘图区域
 
   if not APaintInfo.Print then  // 非打印时绘制的内容
@@ -1875,6 +1915,13 @@ begin
 
   end;
 
+  if Assigned(FOnPaintWholePageBefor) then  // 公开页面绘制前事件
+  begin
+    FOnPaintWholePageBefor(Self, APageIndex,
+      Rect(vPageDrawLeft, vPageDrawTop, vPageDrawRight, vPageDrawBottom),
+      ACanvas, APaintInfo);
+  end;
+
   {$REGION ' 绘制页眉 '}
   if vPageDrawTop + vHeaderAreaHeight > 0 then  // 页眉可显示
   begin
@@ -1927,7 +1974,7 @@ begin
   end;
   {$ENDREGION}
 
-  {$REGION ' 绘制正文 '}
+  {$REGION ' 绘制页面 '}
   if vPageDataScreenBottom > vPageDataScreenTop then  // 能露出数据则绘制当前页，绘制正文
   begin
     vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPageDrawLeft),
@@ -1951,7 +1998,7 @@ begin
   end;
   {$ENDREGION}
 
-  // 恢复区域，准备给整页绘制用
+  // 恢复区域，准备给整页绘制用(各部分浮动Item)
   vPaintRegion := CreateRectRgn(
     APaintInfo.GetScaleX(vPageDrawLeft),
     APaintInfo.GetScaleX(vPageDrawTop),
@@ -1998,9 +2045,9 @@ begin
     DeleteObject(vPaintRegion);
   end;
 
-  if Assigned(FOnPaintWholePage) then  // 公开页面绘制事件
+  if Assigned(FOnPaintWholePageAfter) then  // 公开页面绘制后事件
   begin
-    FOnPaintWholePage(Self, APageIndex,
+    FOnPaintWholePageAfter(Self, APageIndex,
       Rect(vPageDrawLeft, vPageDrawTop, vPageDrawRight, vPageDrawBottom),
       ACanvas, APaintInfo);
   end;
@@ -2512,7 +2559,6 @@ begin
   inherited Create;
   FSectionIndex := -1;
   FPageIndex := -1;
-  FPageDrawRight:= -1;
 end;
 
 end.

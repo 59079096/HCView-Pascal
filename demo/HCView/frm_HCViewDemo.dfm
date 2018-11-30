@@ -106,7 +106,6 @@ object frmHCViewDemo: TfrmHCViewDemo
       Hint = #25209#27880
       Caption = #25209#27880
       ImageIndex = 9
-      OnClick = btnAnnotationClick
     end
     object btnSymmetryMargin: TToolButton
       Left = 239
@@ -315,7 +314,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00540110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00600110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1394,10 +1393,6 @@ object frmHCViewDemo: TfrmHCViewDemo
         Caption = #25991#26412
         OnClick = mniN4Click
       end
-      object mniN18: TMenuItem
-        Caption = #25209#27880
-        OnClick = mniN18Click
-      end
       object mniN24: TMenuItem
         Caption = #26465#30721
         object mniN33: TMenuItem
@@ -1415,6 +1410,14 @@ object frmHCViewDemo: TfrmHCViewDemo
           Caption = #30452#32447
           OnClick = mniN39Click
         end
+      end
+      object mniN2: TMenuItem
+        Caption = #25209#27880
+        OnClick = mniN2Click
+      end
+      object mniN17: TMenuItem
+        Caption = #22495
+        OnClick = mniN17Click
       end
     end
   end

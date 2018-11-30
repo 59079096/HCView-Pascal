@@ -39,6 +39,9 @@ type
     FScaleX, FScaleY,  // 目标画布和显示器画布dpi比例(打印机dpi和显示器dpi不一致时的缩放比例)
     FZoom  // 视图设置的放大比例
       : Single;
+    // 如果要将ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
+    // 等信息增加到此类中，需要设计表格单元格Data绘制时和页面Data的这几个值不一样
+    // 需要不停的修改此类中这几个参数
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -91,14 +94,7 @@ type
     constructor Create; virtual;
 
     procedure Assign(Source: THCCustomItem); virtual;
-    /// <summary>
-    /// 绘制Item的事件
-    /// </summary>
-    /// <param name="ACanvas"></param>
-    /// <param name="ADrawRect">当前DrawItem的区域</param>
-    /// <param name="ADataDrawBottom">Item所在的Data本次绘制底部位置</param>
-    /// <param name="ADataScreenTop"></param>
-    /// <param name="ADataScreenBottom"></param>
+    /// <summary> 绘制Item的事件 </summary>
     procedure PaintTo(const AStyle: THCStyle; const ADrawRect: TRect;
       const APageDataDrawTop, APageDataDrawBottom, APageDataScreenTop, APageDataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual; final;  // 不可继承
@@ -157,11 +153,12 @@ type
 
   THCItems = class(TObjectList<THCCustomItem>)
   private
-    FOnItemInsert: TItemNotifyEvent;
+    FOnInsertItem, FOnRemoveItem: TItemNotifyEvent;
   protected
     procedure Notify(const Value: THCCustomItem; Action: TCollectionNotification); override;
   public
-    property OnItemInsert: TItemNotifyEvent read FOnItemInsert write FOnItemInsert;
+    property OnInsertItem: TItemNotifyEvent read FOnInsertItem write FOnInsertItem;
+    property OnRemoveItem: TItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
   end;
 
 implementation
@@ -365,17 +362,22 @@ end;
 procedure THCItems.Notify(const Value: THCCustomItem;
   Action: TCollectionNotification);
 begin
-  inherited;
   case Action of
     cnAdded:
       begin
-        if Assigned(FOnItemInsert) then
-          FOnItemInsert(Value);
+        if Assigned(FOnInsertItem) then
+          FOnInsertItem(Value);
       end;
 
-    cnRemoved: ;
+    cnRemoved:
+      begin
+        if Assigned(FOnRemoveItem) then
+          FOnRemoveItem(Value);
+      end;
     cnExtracted: ;
   end;
+
+  inherited Notify(Value, Action);
 end;
 
 { TPaintInfo }

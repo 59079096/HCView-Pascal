@@ -95,6 +95,11 @@ type
 
     procedure Assign(Source: THCCustomItem); virtual;
     /// <summary> 绘制Item的事件 </summary>
+    /// <param name="ACanvas"></param>
+    /// <param name="ADrawRect">当前DrawItem的区域</param>
+    /// <param name="ADataDrawBottom">Item所在的Data本次绘制底部位置</param>
+    /// <param name="ADataScreenTop"></param>
+    /// <param name="ADataScreenBottom"></param>
     procedure PaintTo(const AStyle: THCStyle; const ADrawRect: TRect;
       const APageDataDrawTop, APageDataDrawBottom, APageDataScreenTop, APageDataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual; final;  // 不可继承

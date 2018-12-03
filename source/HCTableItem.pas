@@ -276,6 +276,8 @@ type
       ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartRow: Integer;
       var ABreakRow, AFmtOffset, ACellMaxInc: Integer); override;
 
+    procedure CheckAnnotate(const AHorzOffset, AVertOffset, AHeight: Integer); override;
+
     // 变动是否在分页处
     function ChangeNearPageBreak: Boolean; override;
 
@@ -3004,6 +3006,31 @@ begin
       Result := True;
       Break;
     end;
+  end;
+end;
+
+procedure THCTableItem.CheckAnnotate(const AHorzOffset, AVertOffset, AHeight: Integer);
+var
+  vR, vC, vTop, vLeft: Integer;
+  vCellData: THCTableCellData;
+begin
+  vTop := FBorderWidth;
+  for vR := 0 to FRows.Count - 1 do
+  begin
+    vLeft := FBorderWidth;
+    for vC := 0 to FColWidths.Count - 1 do
+    begin
+      vCellData := Cells[vR, vC].CellData;
+      if Assigned(vCellData) then
+      begin
+        vCellData.CheckAnnotate(AHorzOffset + vLeft + FCellHPadding,
+          AVertOffset + vTop + FCellVPadding, 0, vCellData.DrawItems.Count - 1, 0, AHeight);
+      end;
+
+      vLeft := vLeft + FColWidths[vC] + FBorderWidth;
+    end;
+
+    vTop := vTop + FRows[vR].Height + FBorderWidth;
   end;
 end;
 

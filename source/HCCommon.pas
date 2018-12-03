@@ -437,7 +437,7 @@ begin
   end
   else
   begin
-    vByte := Byte(AColor shr 24);
+    vByte := 255;
     AStream.WriteBuffer(vByte, 1);
 
     vByte := GetRValue(AColor);

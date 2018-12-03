@@ -180,6 +180,8 @@ type
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionPaintWholePageAfter(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionAnnotateDrawItem(const Sender: TObject; const AData: THCCustomData;
+      const ADrawItemNo: Integer; const ADrawRect: TRect);
     function DoSectionGetUndoList: THCUndoList;
 
     procedure DoStyleInvalidateRect(const ARect: TRect);
@@ -1034,8 +1036,8 @@ procedure THCView.DoSectionPaintWholePageBefor(const Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 begin
-  if FAnnotates.Count > 0 then  // 当前页批注绘制前
-    FAnnotates.PaintSectionWholePageBefor(Sender, ARect, ACanvas, APaintInfo);
+  if FAnnotates.Count > 0 then
+    FAnnotates.Clear;
 
   if Assigned(FOnSectionPaintWholePageBefor) then
     FOnSectionPaintWholePageBefor(Sender, APageIndex, ARect, ACanvas, APaintInfo);
@@ -1050,9 +1052,6 @@ end;
 procedure THCView.DoSectionRemoveItem(const Sender: TObject;
   const AData: THCCustomData; const AItem: THCCustomItem);
 begin
-  if THCAnnotateItem.IsEndMark(AItem) then  // 有批注被删除了
-    FAnnotates.RemoveByItem(AItem);
-
   if Assigned(FOnSectionRemoveItem) then
     FOnSectionRemoveItem(Sender, AData, AItem);
 end;
@@ -1107,6 +1106,18 @@ end;
 procedure THCView.DoSaveBefor(const AStream: TStream);
 begin
   // 用于外部程序存储自定义数据，如上次浏览位置等
+end;
+
+procedure THCView.DoSectionAnnotateDrawItem(const Sender: TObject;
+  const AData: THCCustomData; const ADrawItemNo: Integer; const ADrawRect: TRect);
+var
+  vAnnotate: THCAnnotate;
+begin
+  vAnnotate := THCAnnotate.Create;
+  vAnnotate.Section := Sender;
+  vAnnotate.Data := AData;
+  vAnnotate.DrawRect := ADrawRect;
+  FAnnotates.Add(vAnnotate);
 end;
 
 function THCView.DoSectionCanEdit(const Sender: TObject): Boolean;
@@ -1193,28 +1204,7 @@ end;
 
 procedure THCView.DoSectionInsertItem(const Sender: TObject;
   const AData: THCCustomData; const AItem: THCCustomItem);
-var
-  vAnnotate: THCAnnotate;
 begin
-  if THCAnnotateItem.IsEndMark(AItem) then  // 是批注尾
-  begin
-    vAnnotate := THCAnnotate.Create;
-    vAnnotate.Section := Sender;
-    vAnnotate.Data := AData;
-    vAnnotate.Item := AItem;
-    FAnnotates.Add(vAnnotate);
-  end;
-
-  // 自定义批注
-  {if AItem.Text = '111' then
-  begin
-    vAnnotate := THCAnnotate.Create;
-    vAnnotate.Section := Sender;
-    vAnnotate.Data := AData;
-    vAnnotate.Item := AItem;
-    FAnnotates.Add(vAnnotate);
-  end;}
-
   if Assigned(FOnSectionInsertItem) then
     FOnSectionInsertItem(Sender, AData, AItem);
 end;
@@ -1913,6 +1903,7 @@ begin
   Result.OnPaintPage := DoSectionPaintPage;
   Result.OnPaintWholePageBefor := DoSectionPaintWholePageBefor;
   Result.OnPaintWholePageAfter := DoSectionPaintWholePageAfter;
+  Result.OnAnnotateDrawItem := DoSectionAnnotateDrawItem;
   Result.OnGetUndoList := DoSectionGetUndoList;
 end;
 
@@ -3326,6 +3317,9 @@ begin
     ACanvas.Brush.Color := $00F4F4F4;  // 填充批注区域
     ACanvas.FillRect(Rect(ARect.Right, ARect.Top, ARect.Right + AnnotationWidth, ARect.Bottom));
 
+    FPageDrawFirst := 0;
+    FPageDrawLast := Self.Count - 1;
+
     if FPageDrawFirst >= 0 then  // 本页有批注
     begin
       ACanvas.Font.Size := 8;
@@ -3338,7 +3332,7 @@ begin
         if vAnnotate.DrawRect.Top > vTop then
           vTop := vAnnotate.DrawRect.Top;
 
-        vText := vAnnotate.Item.Text;
+        vText := 'vAnnotate.Item.Text';
         vAnnotate.Rect := Rect(0, 0, AnnotationWidth - 30, 0);
         Windows.DrawTextEx(ACanvas.Handle, PChar(vText), -1, vAnnotate.Rect,
           DT_TOP or DT_LEFT or DT_WORDBREAK or DT_CALCRECT, nil);  // 计算区域
@@ -3399,39 +3393,39 @@ begin
 
         vData := vAnnotate.Data as THCRichData;
 
-        if i <> FActiveIndex then
-        begin
-          if (vData.ActiveAnnotate.BeginNo > 0) and (vData.ActiveAnnotate.Contain(vData.Items.IndexOf(vAnnotate.Item))) then
-          begin
-            ACanvas.Pen.Style := TPenStyle.psSolid;
-            ACanvas.Pen.Width := 2;
-            ACanvas.Brush.Color := AnnotateBKActiveColor;
-          end
-          else
-          if (vData.HotAnnotate.BeginNo > 0) and (vData.HotAnnotate.Contain(vData.Items.IndexOf(vAnnotate.Item))) then
-          begin
-            ACanvas.Pen.Style := TPenStyle.psSolid;
-            ACanvas.Pen.Width := 1;
-            ACanvas.Brush.Color := AnnotateBKActiveColor;
-          end
-          else
-          begin
+//        if i <> FActiveIndex then
+//        begin
+//          if (vData.ActiveAnnotate.BeginNo > 0) and (vData.ActiveAnnotate.Contain(vData.Items.IndexOf(vAnnotate.Item))) then
+//          begin
+//            ACanvas.Pen.Style := TPenStyle.psSolid;
+//            ACanvas.Pen.Width := 2;
+//            ACanvas.Brush.Color := AnnotateBKActiveColor;
+//          end
+//          else
+//          if (vData.HotAnnotate.BeginNo > 0) and (vData.HotAnnotate.Contain(vData.Items.IndexOf(vAnnotate.Item))) then
+//          begin
+//            ACanvas.Pen.Style := TPenStyle.psSolid;
+//            ACanvas.Pen.Width := 1;
+//            ACanvas.Brush.Color := AnnotateBKActiveColor;
+//          end
+//          else
+//          begin
             ACanvas.Pen.Style := TPenStyle.psDot;
             ACanvas.Pen.Width := 1;
             ACanvas.Brush.Color := AnnotateBKColor;
-          end;
-        end
-        else
-        begin
-          ACanvas.Pen.Style := TPenStyle.psSolid;
-          ACanvas.Pen.Width := 2;
-          ACanvas.Brush.Color := AnnotateBKActiveColor;
-        end;
+//          end;
+//        end
+//        else
+//        begin
+//          ACanvas.Pen.Style := TPenStyle.psSolid;
+//          ACanvas.Pen.Width := 2;
+//          ACanvas.Brush.Color := AnnotateBKActiveColor;
+//        end;
 
         ACanvas.RoundRect(vAnnotate.Rect, 5, 5);  // 填充批注区域
 
         // 绘制批注文本
-        vText := vAnnotate.Item.Text;
+        vText := 'vAnnotate.Item.Text';
         vTextRect := vAnnotate.Rect;
         vTextRect.Inflate(-5, -5);
         DrawTextEx(ACanvas.Handle, PChar(i.ToString + vText), -1, vTextRect, DT_VCENTER or DT_LEFT or DT_WORDBREAK, nil);

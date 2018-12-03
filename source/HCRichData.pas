@@ -16,10 +16,10 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, Generics.Collections, HCCustomData,
   HCCustomRichData, HCItem, HCStyle, HCParaStyle, HCTextStyle, HCTextItem, HCRectItem,
-  HCDrawItem, HCCommon, HCUndoRichData, HCList;
+  HCCommon, HCUndoRichData, HCList;
 
 type
-  THCDomainInfo = class
+  THCDomainInfo = class(TObject)
   strict private
     FBeginNo, FEndNo: Integer;
   public
@@ -31,25 +31,50 @@ type
     property EndNo: Integer read FEndNo write FEndNo;
   end;
 
+  THCDataAnnotate = class(TSelectInfo)  // Data批注信息
+  private
+    FID: Integer;
+  public
+    procedure Initialize; override;
+    procedure CopyRange(const ASrc: TSelectInfo);
+    property ID: Integer read FID write FID;
+  end;
+
+  THCDataAnnotates = class(TObjectList<THCDataAnnotate>)
+  public
+    function NewAnnotate: THCDataAnnotate;
+  end;
+
   TStyleItemEvent = function (const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem of object;
   TOnCanEditEvent = function(const Sender: TObject): Boolean of object;
   TDataItemNotifyEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
+  TDataAnnotateDrawItemEvent = procedure(const AData: THCCustomData; const ADrawItemNo: Integer; const ADrawRect: TRect) of object;
+  TDrawItemPaintContentEvent = procedure(const AData: THCCustomData;
+    const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
+    const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+    const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
   THCRichData = class(THCUndoRichData)  // 富文本数据类，可做为其他显示富文本类的基类
   private
     FDomainStartDeletes: THCIntegerList;  // 仅用于选中删除时，当域起始结束都选中时，删除了结束后标明起始的可删除
     FHotDomain,  // 当前高亮域
-    FActiveDomain,  // 当前激活域
-    FHotAnnotate,  // 当前高亮批注
-    FActiveAnnotate  // 当前激活的批注
+    FActiveDomain  // 当前激活域
       : THCDomainInfo;
+
+    FAnnotates: THCDataAnnotates;
+    FHotAnnotate,  // 当前高亮批注
+    FActiveAnnotate:  // 当前激活的批注
+      Integer;
+
     FHotDomainRGN, FActiveDomainRGN: HRGN;
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
     FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
+    FOnAnnotateDrawItem: TDataAnnotateDrawItemEvent;
+    FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
 
-    procedure GetDomainFrom(const AItemNo, AOffset, AStyleNo: Integer;
+    procedure GetDomainFrom(const AItemNo, AOffset: Integer;
       const ADomainInfo: THCDomainInfo);
     procedure DoInsertItem(const AItem: THCCustomItem);
     procedure DoRemoveItem(const AItem: THCCustomItem);
@@ -63,6 +88,10 @@ type
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+    procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
+      const ADrawRect, AClearRect: TRect; const ADrawText: string;
+      const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -87,6 +116,9 @@ type
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
       const AOffsetBefor: Boolean = True): Boolean; override;
     function CanEdit: Boolean; override;
+
+    procedure CheckAnnotate(const AHorzOffset, AVertOffset, AFirstDrawItemNo, vLastDrawItemNo,
+      AFmtTop, AFmtBottom: Integer);
 
     /// <summary> 根据传入的域"模具"创建域 </summary>
     /// <param name="AMouldDomain">"模具"调用完此方法后请自行释放</param>
@@ -120,18 +152,20 @@ type
 
     property HotDomain: THCDomainInfo read FHotDomain;
     property ActiveDomain: THCDomainInfo read FActiveDomain;
-    property HotAnnotate: THCDomainInfo read FHotAnnotate;
-    property ActiveAnnotate: THCDomainInfo read FActiveAnnotate;
+    property HotAnnotate: Integer read FHotAnnotate;
+    property ActiveAnnotate: Integer read FActiveAnnotate;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnInsertItem: TDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
+    property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
+    property OnAnnotateDrawItem: TDataAnnotateDrawItemEvent read FOnAnnotateDrawItem write FOnAnnotateDrawItem;
   end;
 
 implementation
 
 uses
-  StrUtils;
+  StrUtils, Math;
 
 { THCRichData }
 
@@ -162,6 +196,63 @@ begin
   Result := inherited CanEdit;
   if Result and Assigned(FOnCanEdit) then
     Result := FOnCanEdit(Self);
+end;
+
+procedure THCRichData.CheckAnnotate(const AHorzOffset, AVertOffset,
+  AFirstDrawItemNo, vLastDrawItemNo, AFmtTop, AFmtBottom: Integer);
+var
+  i, vLineSpace: Integer;
+  vRectItem: THCCustomRectItem;
+  vDrawRect: TRect;
+  vAlignHorz: TParaAlignHorz;
+begin
+  if Assigned(FOnAnnotateDrawItem) then
+  begin
+    for i := AFirstDrawItemNo to vLastDrawItemNo do
+    begin
+      vDrawRect := DrawItems[i].Rect;
+      if vDrawRect.Top > AFmtBottom then
+        Break;
+
+      if GetDrawItemStyle(i) < THCStyle.Null then
+      begin
+        vRectItem := Items[DrawItems[i].ItemNo] as THCCustomRectItem;
+
+        vLineSpace := GetLineSpace(i);
+        InflateRect(vDrawRect, 0, -vLineSpace div 2);  // 除去行间距净Rect，即内容的显示区域
+
+        if vRectItem.JustifySplit then  // 分散占空间
+        begin
+          vAlignHorz := Style.ParaStyles[vRectItem.ParaNo].AlignHorz;
+          if ((vAlignHorz = pahJustify) and (not IsLineLastDrawItem(i)))  // 两端对齐且不是段最后
+            or (vAlignHorz = pahScatter)  // 分散对齐
+          then
+            vDrawRect.Inflate(-(vDrawRect.Width - vRectItem.Width) div 2, 0)
+          else
+            vDrawRect.Right := vDrawRect.Left + vRectItem.Width;
+        end;
+
+        case Style.ParaStyles[vRectItem.ParaNo].AlignVert of  // 垂直对齐方式
+          pavCenter: InflateRect(vDrawRect, 0, -(vDrawRect.Height - vRectItem.Height) div 2);
+          pavTop: ;
+        else
+          vDrawRect.Top := vDrawRect.Bottom - vRectItem.Height;
+        end;
+
+        vRectItem.CheckAnnotate(vDrawRect.Left + AHorzOffset, vDrawRect.Top + AVertOffset,
+          Min(vRectItem.Height, AFmtBottom - vDrawRect.Top));
+      end
+//      else
+//      if DrawItems[i].Rect.Bottom > AFmtTop then
+//      begin
+//        if GetDrawItemText(i) = '111' then
+//        begin
+//          vDrawRect.Offset(AHorzOffset, AVertOffset);
+//          FOnAnnotateDrawItem(Self, i, vDrawRect);
+//        end;
+//      end;
+    end;
+  end;
 end;
 
 function THCRichData.CheckInsertItemCount(const AStartNo,
@@ -243,9 +334,10 @@ begin
   FDomainStartDeletes := THCIntegerList.Create;
   FHotDomain := THCDomainInfo.Create;
   FActiveDomain := THCDomainInfo.Create;
-  FHotAnnotate := THCDomainInfo.Create;
-  FActiveAnnotate := THCDomainInfo.Create;
   inherited Create(AStyle);
+  FAnnotates := THCDataAnnotates.Create;
+  FHotAnnotate := -1;
+  FActiveAnnotate := -1;
   Self.Items.OnInsertItem := DoInsertItem;
   Self.Items.OnRemoveItem := DoRemoveItem;
 end;
@@ -286,8 +378,7 @@ begin
   FHotDomain.Free;
   FActiveDomain.Free;
   FDomainStartDeletes.Free;
-  FHotAnnotate.Free;
-  FActiveAnnotate.Free;
+  FAnnotates.Free;
   inherited Destroy;
 end;
 
@@ -395,6 +486,57 @@ begin
   end;
 end;
 
+procedure THCRichData.DoDrawItemPaintContent(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+  ADataScreenBottom: Integer; const ACanvas: TCanvas;
+  const APaintInfo: TPaintInfo);
+var
+  i, vItemNo: Integer;
+  //vDrawItem: THCCustomDrawItem;
+  vAnnotate: THCDataAnnotate;
+begin
+//  if ADrawText = '111' then
+//   begin
+//     ACanvas.Brush.Color := AnnotateBKColor;
+//     ACanvas.FillRect(AClearRect);
+//   end;
+  {vDrawItem := AData.DrawItems[ADrawItemNo];
+  vItemNo := vDrawItem.ItemNo;
+  for i := 0 to FAnnotates.Count - 1 do
+  begin
+    vAnnotate := FAnnotates[i];
+    if vItemNo = vAnnotate.StartItemNo then
+    begin
+      //if vDrawItem.CharOffsetEnd then
+
+      Break;
+    end
+    else
+    if vItemNo = vAnnotate.EndItemNo then
+    begin
+      Break;
+    end
+    else
+    if (vItemNo > vAnnotate.StartItemNo) and (vItemNo < vAnnotate.EndItemNo) then
+    begin
+      ACanvas.Brush.Color := AnnotateBKColor;
+      ACanvas.FillRect(AClearRect);
+      Break;
+    end;
+  end;}
+
+  inherited DoDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect,
+    ADrawText, ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
+    ACanvas, APaintInfo);
+
+  if Assigned(FOnDrawItemPaintContent) then
+  begin
+    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
+      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  end;
+end;
+
 procedure THCRichData.DoInsertItem(const AItem: THCCustomItem);
 begin
   DoDataInsertItem(Self, AItem);
@@ -407,22 +549,22 @@ end;
 
 function THCRichData.GetDomainAnother(const AItemNo: Integer): Integer;
 var
-  vDomainItem: THCCustomDomainItem;
+  vDomainItem: THCDomainItem;
   i: Integer;
 begin
   Result := -1;
 
   // 请外部保证AItemNo对应的是THCDomainItem
-  vDomainItem := Self.Items[AItemNo] as THCCustomDomainItem;
+  vDomainItem := Self.Items[AItemNo] as THCDomainItem;
   if vDomainItem.MarkType = TMarkType.cmtEnd then  // 是结束标识
   begin
     for i := AItemNo - 1 downto 0 do  // 找起始标识
     begin
-      if Items[i] is THCCustomDomainItem then
+      if Items[i].StyleNo = THCStyle.Domain then
       begin
-        if (Items[i] as THCCustomDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始标识
+        if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始标识
         begin
-          if (Items[i] as THCCustomDomainItem).Level = vDomainItem.Level then
+          if (Items[i] as THCDomainItem).Level = vDomainItem.Level then
           begin
             Result := i;
             Break;
@@ -435,11 +577,11 @@ begin
   begin
     for i := AItemNo + 1 to Self.Items.Count - 1 do  // 找结束标识
     begin
-      if Items[i] is THCCustomDomainItem then
+      if Items[i].StyleNo = THCStyle.Domain then
       begin
-        if (Items[i] as THCCustomDomainItem).MarkType = TMarkType.cmtEnd then  // 是结束标识
+        if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结束标识
         begin
-          if (Items[i] as THCCustomDomainItem).Level = vDomainItem.Level then
+          if (Items[i] as THCDomainItem).Level = vDomainItem.Level then
           begin
             Result := i;
             Break;
@@ -450,7 +592,7 @@ begin
   end;
 end;
 
-procedure THCRichData.GetDomainFrom(const AItemNo, AOffset, AStyleNo: Integer;
+procedure THCRichData.GetDomainFrom(const AItemNo, AOffset: Integer;
   const ADomainInfo: THCDomainInfo);
 var
   i, vStartNo, vEndNo, vCount: Integer;
@@ -463,9 +605,9 @@ begin
   { 找起始标识 }
   vStartNo := AItemNo;
   vEndNo := AItemNo;
-  if Items[AItemNo].StyleNo = AStyleNo then  // 起始位置就是Group
+  if Items[AItemNo]is THCDomainItem then  // 起始位置就是Group
   begin
-    if (Items[AItemNo] as THCCustomDomainItem).MarkType = TMarkType.cmtBeg then  // 起始位置是起始标记
+    if (Items[AItemNo] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 起始位置是起始标记
     begin
       if AOffset = OffsetAfter then  // 光标在后面
       begin
@@ -505,16 +647,16 @@ begin
     begin
       for i := vStartNo downto 0 do  // 先往前找起始
       begin
-        if Items[i].StyleNo = AStyleNo then
+        if Items[i] is THCDomainItem then
         begin
-          if (Items[i] as THCCustomDomainItem).MarkType = TMarkType.cmtBeg then  // 起始标记
+          if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 起始标记
           begin
             if vCount > 0 then
               Dec(vCount)
             else
             begin
               ADomainInfo.BeginNo := i;
-              vLevel := (Items[i] as THCCustomDomainItem).Level;
+              vLevel := (Items[i] as THCDomainItem).Level;
               Break;
             end;
           end
@@ -527,11 +669,11 @@ begin
       begin
         for i := vEndNo to Items.Count - 1 do
         begin
-          if Items[i].StyleNo = AStyleNo then
+          if Items[i] is THCDomainItem then
           begin
-            if (Items[i] as THCCustomDomainItem).MarkType = TMarkType.cmtEnd then  // 是结尾
+            if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结尾
             begin
-              if (Items[i] as THCCustomDomainItem).Level = vLevel then
+              if (Items[i] as THCDomainItem).Level = vLevel then
               begin
                 ADomainInfo.EndNo := i;
                 Break;
@@ -548,16 +690,16 @@ begin
     begin
       for i := vEndNo to Self.Items.Count - 1 do  // 先往后找结束
       begin
-        if Items[i].StyleNo = AStyleNo then
+        if Items[i] is THCDomainItem then
         begin
-          if (Items[i] as THCCustomDomainItem).MarkType = TMarkType.cmtEnd then  // 结束标记
+          if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 结束标记
           begin
             if vCount > 0 then
               Dec(vCount)
             else
             begin
               ADomainInfo.EndNo := i;
-              vLevel := (Items[i] as THCCustomDomainItem).Level;
+              vLevel := (Items[i] as THCDomainItem).Level;
               Break;
             end;
           end
@@ -570,11 +712,11 @@ begin
       begin
         for i := vStartNo downto 0 do
         begin
-          if Items[i].StyleNo = AStyleNo then
+          if Items[i] is THCDomainItem then
           begin
-            if (Items[i] as THCCustomDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始
+            if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始
             begin
-              if (Items[i] as THCCustomDomainItem).Level = vLevel then
+              if (Items[i] as THCDomainItem).Level = vLevel then
               begin
                 ADomainInfo.BeginNo := i;
                 Break;
@@ -610,14 +752,7 @@ begin
         Style.UpdateInfoRePaint;
       end;
 
-      if FActiveAnnotate.BeginNo >= 0 then
-      begin
-        FActiveAnnotate.Clear;
-        Style.UpdateInfoRePaint;
-      end;
-
-      GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset,
-        THCStyle.Domain, FActiveDomain);  // 获取当前光标处ActiveDeGroup信息
+      GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, FActiveDomain);  // 获取当前光标处ActiveDeGroup信息
 
       if FActiveDomain.BeginNo >= 0 then
       begin
@@ -625,9 +760,15 @@ begin
         Style.UpdateInfoRePaint;
       end;
 
-      GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset,
-        THCStyle.Annotate, FActiveAnnotate);  // 获取当前光标处ActiveDeGroup信息
-      if FActiveAnnotate.BeginNo >= 0 then
+      if FActiveAnnotate >= 0 then  // 原来有激活的批注
+      begin
+        FActiveAnnotate := -1;
+        Style.UpdateInfoRePaint;
+      end;
+
+      //GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset,
+      //  THCStyle.Annotate, FActiveAnnotate);  // 获取当前光标处批注
+      if FActiveAnnotate >= 0 then
         Style.UpdateInfoRePaint;
     end;
   end;
@@ -657,8 +798,8 @@ begin
   inherited InitializeField;
   FHotDomain.Clear;
   FActiveDomain.Clear;
-  FHotAnnotate.Clear;
-  FActiveAnnotate.Clear;
+  FHotAnnotate := -1;
+  FActiveAnnotate := -1;
 end;
 
 function THCRichData.InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
@@ -711,102 +852,106 @@ end;
 function THCRichData.InsertAnnotate(const ATitle, AText: string): Boolean;
 var
   vBreakItem: THCCustomItem;
-  vAnnotateItem: THCAnnotateItem;
+  //vAnnotateItem: THCAnnotateItem;
   vSelectStartNo, vSelectStartOffset,
   vSelectEndNo, vSelectEndOffset,
   vFormatFirstItemNo, vFormatLastItemNo, vExtraCount: Integer;
+  vAnnotate: THCDataAnnotate;
 begin
   Result := False;
   if not CanEdit then Exit;
   if not Self.SelectExists then Exit;
 
-  vExtraCount := 0;
-  GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
-  if vFormatLastItemNo < SelectInfo.EndItemNo then
-     vFormatLastItemNo := GetParaLastItemNo(SelectInfo.EndItemNo);
-  _FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+  vAnnotate := FAnnotates.NewAnnotate;
+  vAnnotate.CopyRange(SelectInfo);
 
-  vSelectStartNo := SelectInfo.StartItemNo;
-  vSelectStartOffset := SelectInfo.StartItemOffset;
-  vSelectEndNo := SelectInfo.EndItemNo;
-  vSelectEndOffset := SelectInfo.EndItemOffset;
-
-  Self.DisSelect;
-  Self.InitializeField;
-
-  if vSelectEndOffset < Items[vSelectEndNo].Length then  // 在结束Item中间，用判断在Item最前面吗？
-  begin
-    //UndoAction_DeleteText(vCurItemNo, SelectInfo.StartItemOffset + 1, vsAfter);
-    vBreakItem := Items[vSelectEndNo].BreakByOffset(vSelectEndOffset);  // 后半部分对应的Item
-
-    // 插入后半部分对应的Item
-    Items.Insert(vSelectEndNo + 1, vBreakItem);
-    Inc(vExtraCount);
-    //UndoAction_InsertItem(SelectInfo.EndItemNo, 0);
-
-    vAnnotateItem := THCAnnotateItem.Create(Self);  // 插入批注尾
-    vAnnotateItem.MarkType := cmtEnd;
-    if FActiveAnnotate.BeginNo >= 0 then
-      vAnnotateItem.Level := (Items[FActiveAnnotate.BeginNo] as THCAnnotateItem).Level + 1;
-    vAnnotateItem.Title := ATitle;
-    vAnnotateItem.Text := AText;
-    Items.Insert(vSelectEndNo + 1, vAnnotateItem);
-    Inc(vExtraCount);
-    //UndoAction_InsertItem(SelectInfo.EndItemNo, 0);
-  end
-  else  // 在结束Item最后面
-  begin
-    vAnnotateItem := THCAnnotateItem.Create(Self);  // 插入批注尾
-    vAnnotateItem.MarkType := cmtEnd;
-    if FActiveAnnotate.BeginNo >= 0 then
-      vAnnotateItem.Level := (Items[FActiveAnnotate.BeginNo] as THCAnnotateItem).Level + 1;
-    vAnnotateItem.Title := ATitle;
-    vAnnotateItem.Text := AText;
-    Items.Insert(vSelectEndNo + 1, vAnnotateItem);
-    Inc(vExtraCount);
-  end;
-
-  if vSelectStartOffset > 0 then  // 在起始Item中间，用判断在Item最后面吗？
-  begin
-    //UndoAction_DeleteText(vCurItemNo, SelectInfo.StartItemOffset + 1, vsAfter);
-    vBreakItem := Items[vSelectStartNo].BreakByOffset(vSelectStartOffset);  // 后半部分对应的Item
-
-    // 插入后半部分对应的Item
-    Items.Insert(vSelectStartNo + 1, vBreakItem);
-    Inc(vExtraCount);
-    //UndoAction_InsertItem(SelectInfo.EndItemNo, 0);
-
-    vAnnotateItem := THCAnnotateItem.Create(Self);  // 插入批注头
-    vAnnotateItem.MarkType := cmtBeg;
-    vAnnotateItem.Title := ATitle;
-    vAnnotateItem.Text := AText;
-    Items.Insert(vSelectStartNo + 1, vAnnotateItem);
-    Inc(vExtraCount);
-    //UndoAction_InsertItem(SelectInfo.EndItemNo, 0);
-  end
-  else  // 在起始Item最前面
-  begin
-    vAnnotateItem := THCAnnotateItem.Create(Self);  // 插入批注头
-    vAnnotateItem.MarkType := cmtBeg;
-    vAnnotateItem.Title := ATitle;
-    vAnnotateItem.Text := AText;
-    Items.Insert(vSelectStartNo, vAnnotateItem);
-    Inc(vExtraCount);
-  end;
-
-  _ReFormatData(vFormatFirstItemNo, vFormatLastItemNo + vExtraCount, vExtraCount);
-  ReSetSelectAndCaret(vSelectStartNo);
+  Exit;
+//  vExtraCount := 0;
+//  GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
+//  if vFormatLastItemNo < SelectInfo.EndItemNo then
+//     vFormatLastItemNo := GetParaLastItemNo(SelectInfo.EndItemNo);
+//  _FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+//
+//  vSelectStartNo := SelectInfo.StartItemNo;
+//  vSelectStartOffset := SelectInfo.StartItemOffset;
+//  vSelectEndNo := SelectInfo.EndItemNo;
+//  vSelectEndOffset := SelectInfo.EndItemOffset;
+//
+//  Self.DisSelect;
+//  Self.InitializeField;
+//
+//  if vSelectEndOffset < Items[vSelectEndNo].Length then  // 在结束Item中间，用判断在Item最前面吗？
+//  begin
+//    //UndoAction_DeleteText(vCurItemNo, SelectInfo.StartItemOffset + 1, vsAfter);
+//    vBreakItem := Items[vSelectEndNo].BreakByOffset(vSelectEndOffset);  // 后半部分对应的Item
+//
+//    // 插入后半部分对应的Item
+//    Items.Insert(vSelectEndNo + 1, vBreakItem);
+//    Inc(vExtraCount);
+//    //UndoAction_InsertItem(SelectInfo.EndItemNo, 0);
+//
+//    vAnnotateItem := THCAnnotateItem.Create(Self);  // 插入批注尾
+//    vAnnotateItem.MarkType := cmtEnd;
+//    if FActiveAnnotate.BeginNo >= 0 then
+//      vAnnotateItem.Level := (Items[FActiveAnnotate.BeginNo] as THCAnnotateItem).Level + 1;
+//    vAnnotateItem.Title := ATitle;
+//    vAnnotateItem.Text := AText;
+//    Items.Insert(vSelectEndNo + 1, vAnnotateItem);
+//    Inc(vExtraCount);
+//    //UndoAction_InsertItem(SelectInfo.EndItemNo, 0);
+//  end
+//  else  // 在结束Item最后面
+//  begin
+//    vAnnotateItem := THCAnnotateItem.Create(Self);  // 插入批注尾
+//    vAnnotateItem.MarkType := cmtEnd;
+//    if FActiveAnnotate.BeginNo >= 0 then
+//      vAnnotateItem.Level := (Items[FActiveAnnotate.BeginNo] as THCAnnotateItem).Level + 1;
+//    vAnnotateItem.Title := ATitle;
+//    vAnnotateItem.Text := AText;
+//    Items.Insert(vSelectEndNo + 1, vAnnotateItem);
+//    Inc(vExtraCount);
+//  end;
+//
+//  if vSelectStartOffset > 0 then  // 在起始Item中间，用判断在Item最后面吗？
+//  begin
+//    //UndoAction_DeleteText(vCurItemNo, SelectInfo.StartItemOffset + 1, vsAfter);
+//    vBreakItem := Items[vSelectStartNo].BreakByOffset(vSelectStartOffset);  // 后半部分对应的Item
+//
+//    // 插入后半部分对应的Item
+//    Items.Insert(vSelectStartNo + 1, vBreakItem);
+//    Inc(vExtraCount);
+//    //UndoAction_InsertItem(SelectInfo.EndItemNo, 0);
+//
+//    vAnnotateItem := THCAnnotateItem.Create(Self);  // 插入批注头
+//    vAnnotateItem.MarkType := cmtBeg;
+//    vAnnotateItem.Title := ATitle;
+//    vAnnotateItem.Text := AText;
+//    Items.Insert(vSelectStartNo + 1, vAnnotateItem);
+//    Inc(vExtraCount);
+//    //UndoAction_InsertItem(SelectInfo.EndItemNo, 0);
+//  end
+//  else  // 在起始Item最前面
+//  begin
+//    vAnnotateItem := THCAnnotateItem.Create(Self);  // 插入批注头
+//    vAnnotateItem.MarkType := cmtBeg;
+//    vAnnotateItem.Title := ATitle;
+//    vAnnotateItem.Text := AText;
+//    Items.Insert(vSelectStartNo, vAnnotateItem);
+//    Inc(vExtraCount);
+//  end;
+//
+//  _ReFormatData(vFormatFirstItemNo, vFormatLastItemNo + vExtraCount, vExtraCount);
+//  ReSetSelectAndCaret(vSelectStartNo);
 end;
 
 procedure THCRichData.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   // 清除激活的Group信息，赋值在 GetCaretInfo
-  if (FActiveDomain.BeginNo >= 0) or (FActiveAnnotate.BeginNo >= 0) then
+  if FActiveDomain.BeginNo >= 0 then
     Style.UpdateInfoRePaint;
   FActiveDomain.Clear;
   FDrawActiveDomainRegion := False;
-  FActiveAnnotate.Clear;
 
   inherited MouseDown(Button, Shift, X, Y);
 
@@ -819,18 +964,17 @@ var
   vTopData: THCRichData;
 begin
   // 清除 FHotDeGroup 信息
-  if (FHotDomain.BeginNo >= 0) or (FHotAnnotate.BeginNo >= 0) then
+  if FHotDomain.BeginNo >= 0 then
     Style.UpdateInfoRePaint;
   FHotDomain.Clear;
   FDrawHotDomainRegion := False;
-  FHotAnnotate.Clear;
+  FHotAnnotate := -1;
 
   inherited MouseMove(Shift, X, Y);
 
   if not Self.MouseMoveRestrain then  // 在Item上
   begin
-    GetDomainFrom(Self.MouseMoveItemNo, Self.MouseMoveItemOffset,
-      THCStyle.Domain, FHotDomain);  // 取HotDeGroup
+    Self.GetDomainFrom(Self.MouseMoveItemNo, Self.MouseMoveItemOffset, FHotDomain);  // 取HotDeGroup
     vTopData := Self.GetTopLevelDataAt(X, Y) as THCRichData;
     if (vTopData = Self) or (not vTopData.FDrawHotDomainRegion) then  // 顶层是我 或 顶层不是我且顶层没有HotDeGroup  201711281352
     begin
@@ -841,9 +985,9 @@ begin
       end;
     end;
 
-    GetDomainFrom(Self.MouseMoveItemNo, Self.MouseMoveItemOffset,
-      THCStyle.Annotate, FHotAnnotate);
-    if FHotAnnotate.BeginNo >= 0 then
+//    GetDomainFrom(Self.MouseMoveItemNo, Self.MouseMoveItemOffset,
+//      THCStyle.Annotate, FHotAnnotate);
+    if FHotAnnotate >= 0 then
       Style.UpdateInfoRePaint;
   end;
 end;
@@ -892,7 +1036,7 @@ end;
 function THCRichData.Replace(const AText: string): Boolean;
 begin
 //  DeleteSelected;
-//  InsertText(AText);
+  InsertText(AText);
 end;
 
 function THCRichData.Search(const AKeyword: string; const AForward,
@@ -1252,6 +1396,30 @@ end;
 constructor THCDomainInfo.Create;
 begin
   Clear;
+end;
+
+{ THCDataAnnotate }
+
+procedure THCDataAnnotate.CopyRange(const ASrc: TSelectInfo);
+begin
+  Self.StartItemNo := ASrc.StartItemNo;
+  Self.StartItemOffset := ASrc.StartItemOffset;
+  Self.EndItemNo := ASrc.EndItemNo;
+  Self.EndItemOffset := ASrc.EndItemOffset;
+end;
+
+procedure THCDataAnnotate.Initialize;
+begin
+  inherited Initialize;
+  FID := -1;
+end;
+
+{ THCDataAnnotates }
+
+function THCDataAnnotates.NewAnnotate: THCDataAnnotate;
+begin
+  Result := THCDataAnnotate.Create;
+  Result.ID := Self.Add(Result);
 end;
 
 end.

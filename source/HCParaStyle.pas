@@ -20,8 +20,8 @@ type
   /// <summary> 段水平对齐方式：左、右、居中、两端、分散) </summary>
   TParaAlignHorz = (pahLeft, pahRight, pahCenter, pahJustify, pahScatter);
 
-  /// <summary> 段垂直对齐方式：下、居中、上) </summary>
-  TParaAlignVert = (pavBottom, pavCenter, pavTop);
+  /// <summary> 段垂直对齐方式：上、居中、下) </summary>
+  TParaAlignVert = (pavTop, pavCenter, pavBottom);
 
   TParaLineSpaceMode = (pls100, pls115, pls150, pls200, plsFix);
 

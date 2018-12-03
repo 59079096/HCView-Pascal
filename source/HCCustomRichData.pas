@@ -29,10 +29,6 @@ type
     const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
-  TDrawItemPaintContentEvent = procedure(const AData: THCCustomData;
-    const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
-    const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-    const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
   TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo: Integer;
     Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
@@ -67,7 +63,6 @@ type
     FOnItemResized: TDataItemEvent;
     FOnItemMouseDown, FOnItemMouseUp: TItemMouseEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
-    FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
 
     /// <summary> Shift按键按下时鼠标点击，根据按下位置适配选择范围 </summary>
@@ -135,10 +130,6 @@ type
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect, AClearRect: TRect; const ADrawText: string;
-      const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
     function CanDeleteItem(const AItemNo: Integer): Boolean; virtual;
 
@@ -316,7 +307,6 @@ type
     property OnItemMouseUp: TItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
     property OnDrawItemPaintBefor: TDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
     property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
-    property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
   end;
 
@@ -362,7 +352,6 @@ begin
       THCStyle.DateTimePicker: Result := THCDateTimePicker.Create(Self, Now);
       THCStyle.RadioGroup: Result := THCRadioGroup.Create(Self);
       THCStyle.SupSubScript: Result := THCSupSubScriptItem.Create(Self, '', '');
-      THCStyle.Annotate: Result := THCAnnotateItem.Create(Self);
     else
       raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建Item代码！');
     end;
@@ -620,12 +609,14 @@ begin
       begin
         Undo_New;
 
-        GetParaItemRang(SelectInfo.StartItemNo, vParaFirstItemNo, vParaLastItemNo);
         GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
         _FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
 
         if vEndItem.IsSelectComplate then  // 该TextItem全选中了
-          Result := DeleteItemSelectComplate
+        begin
+          GetParaItemRang(SelectInfo.StartItemNo, vParaFirstItemNo, vParaLastItemNo);
+          Result := DeleteItemSelectComplate;
+        end
         else  // Item部分选中
         begin
           if vEndItem.StyleNo < THCStyle.Null then  // 同一个RectItem  表格从前选中到一部分？
@@ -1044,21 +1035,6 @@ begin
   begin
     FOnDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-  end;
-end;
-
-procedure THCCustomRichData.DoDrawItemPaintContent(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
-  const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-begin
-  inherited DoDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
-    ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-
-  if Assigned(FOnDrawItemPaintContent) then
-  begin
-    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
-      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
@@ -2541,8 +2517,13 @@ begin
         begin
           GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo, SelectInfo.StartItemNo, OffsetInner);
           _FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+
           Undo_New;
-          UndoAction_ItemSelf(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+          if (Items[vInsPos] as THCCustomRectItem).MangerUndo then
+            UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+          else
+            UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
           Result := (Items[vInsPos] as THCCustomRectItem).InsertStream(AStream, AStyle, AFileVersion);
           _ReFormatData(vFormatFirstItemNo, vFormatLastItemNo);
 
@@ -2562,10 +2543,11 @@ begin
         else
         if SelectInfo.StartItemOffset = 0 then  // 其前
           vInsertBefor := Items[vInsPos].Length <> 0
-        else  // 其中
+        else  // TextItem中间
         begin
           Undo_New;
-          UndoAction_DeleteText(vInsPos, 1, Copy(Items[vInsPos].Text, 1, SelectInfo.StartItemOffset));
+          UndoAction_DeleteText(vInsPos, SelectInfo.StartItemOffset + 1,
+            Copy(Items[vInsPos].Text, SelectInfo.StartItemOffset + 1, Items[vInsPos].Length - SelectInfo.StartItemOffset));
 
           vAfterItem := Items[vInsPos].BreakByOffset(SelectInfo.StartItemOffset);  // 后半部分对应的Item
           vInsPos := vInsPos + 1;
@@ -2600,7 +2582,13 @@ begin
       AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
       vItem := CreateItemByStyle(vStyleNo);
       if vStyleNo < THCStyle.Null then
-        UndoAction_ItemSelf(i, 0);
+      begin
+        if (vItem as THCCustomRectItem).MangerUndo then
+          UndoAction_ItemSelf(i, 0)
+        else
+          UndoAction_ItemMirror(i, OffsetInner);
+      end;
+
       vItem.LoadFromStream(AStream, AStyle, AFileVersion);
       if AStyle <> nil then  // 有样式表
       begin
@@ -2640,7 +2628,7 @@ begin
     vInsetLastNo := vInsPos + vItemCount - 1;  // 光标在最后一个Item
     vCaretOffse := GetItemAfterOffset(vInsetLastNo);  // 最后一个Item后面
 
-    if vAfterItem <> nil then  // 插入操作是在Item中间，原Item补拆分成2个
+    if vAfterItem <> nil then  // 插入操作是在Item中间，原Item被拆分成2个
     begin
       if MergeItemText(Items[vInsetLastNo], vAfterItem) then  // 插入最后一个和后半部分能合并
       begin
@@ -2677,7 +2665,7 @@ begin
           and MergeItemText(Items[vInsPos - 1], Items[vInsPos])
         then  // 插入的和前面的合并
         begin
-          UndoAction_InsertText(vInsPos - 1, Items[vInsPos - 1].Length + 1, Items[vInsPos].Text);
+          UndoAction_InsertText(vInsPos - 1, Items[vInsPos - 1].Length - Items[vInsPos].Length + 1, Items[vInsPos].Text);
           UndoAction_DeleteItem(vInsPos, 0);
 
           if vItemCount = 1 then

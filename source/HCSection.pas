@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, HCRichData, HCSectionData,
   HCCustomRichData, HCTextStyle, HCParaStyle, HCItem, HCCustomFloatItem, HCDrawItem,
-  HCPage, HCCommon, HCStyle, HCCustomData, HCRectItem, HCUndo;
+  HCPage, HCRectItem, HCCommon, HCStyle, HCCustomData, HCUndo;
 
 type
   TPrintResult = (prOk, prNoPrinter, prNoSupport, prError);
@@ -39,6 +39,8 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   TSectionDataItemNotifyEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem) of object;
+  TSectionAnnotateDrawItemEvent = procedure(const Sender: TObject; const AData: THCCustomData;
+    const ADrawItemNo: Integer; const ADrawRect: TRect) of object;
 
   THCCustomSection = class(TObject)
   private
@@ -75,6 +77,7 @@ type
     FOnPaintHeader, FOnPaintFooter, FOnPaintPage,
     FOnPaintWholePageBefor, FOnPaintWholePageAfter: TSectionPagePaintEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TSectionDrawItemPaintEvent;
+    FOnAnnotateDrawItem: TSectionAnnotateDrawItemEvent;
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemNotifyEvent;
     FOnItemResized: TDataItemEvent;
@@ -97,7 +100,7 @@ type
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
+    procedure DoDataDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string;
       const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -105,6 +108,7 @@ type
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+    procedure DoDataAnnotateDrawItem(const AData: THCCustomData; const ADrawItemNo: Integer; const ADrawRect: TRect);
 
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
@@ -380,6 +384,7 @@ type
     property OnDrawItemPaintBefor: TSectionDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
     property OnDrawItemPaintAfter: TSectionDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
+    property OnAnnotateDrawItem: TSectionAnnotateDrawItemEvent read FOnAnnotateDrawItem write FOnAnnotateDrawItem;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
@@ -568,7 +573,8 @@ var
     AData.OnGetScreenCoord := DoGetScreenCoordEvent;
     AData.OnDrawItemPaintBefor := DoDataDrawItemPaintBefor;
     AData.OnDrawItemPaintAfter := DoDataDrawItemPaintAfter;
-    AData.OnDrawItemPaintContent := DoDrawItemPaintContent;
+    AData.OnDrawItemPaintContent := DoDataDrawItemPaintContent;
+    AData.OnAnnotateDrawItem := DoDataAnnotateDrawItem;
     AData.OnGetUndoList := DoDataGetUndoList;
   end;
 
@@ -648,6 +654,13 @@ begin
     FOnCheckUpdateInfo(Self);
 end;
 
+procedure THCCustomSection.DoDataAnnotateDrawItem(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect: TRect);
+begin
+  if Assigned(FOnAnnotateDrawItem) then
+    FOnAnnotateDrawItem(Self, AData, ADrawItemNo, ADrawRect);
+end;
+
 function THCCustomSection.DoDataCanEdit(const Sender: TObject): Boolean;
 begin
   if Assigned(FOnCanEdit) then
@@ -707,6 +720,16 @@ begin
   end;
 end;
 
+procedure THCCustomSection.DoDataDrawItemPaintContent(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
+  const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
+  if Assigned(FOnDrawItemPaintContent) then
+    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
+      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
 procedure THCCustomSection.DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
 var
   vData: THCCustomData;
@@ -742,17 +765,6 @@ procedure THCCustomSection.DoDataRemoveItem(const AData: THCCustomData; const AI
 begin
   if Assigned(FOnRemoveItem) then
     OnRemoveItem(Self, AData, AItem);
-end;
-
-procedure THCCustomSection.DoDrawItemPaintContent(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
-  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
-  ADataScreenBottom: Integer; const ACanvas: TCanvas;
-  const APaintInfo: TPaintInfo);
-begin
-  if Assigned(FOnDrawItemPaintContent) then
-    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
-    ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
 function THCCustomSection.DoGetScreenCoordEvent(const X, Y: Integer): TPoint;
@@ -1801,7 +1813,7 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION ' 绘制页面数据、提交批注 '}
+  {$REGION ' 绘制页面数据 '}
   procedure PaintPageData;
   var
     vDCState: Integer;
@@ -1818,6 +1830,12 @@ var
       APaintInfo.PageDataFmtTop,  // 指定从哪个位置开始的数据绘制到页数据起始位置
       ACanvas,
       APaintInfo);
+
+    FPageData.CheckAnnotate(vPageDrawLeft + vMarginLeft,
+      vPageDrawTop + vHeaderAreaHeight - APaintInfo.PageDataFmtTop,
+      FPages[APageIndex].StartDrawItemNo, FPages[APageIndex].EndDrawItemNo,
+      APaintInfo.PageDataFmtTop,
+      APaintInfo.PageDataFmtTop + PageHeightPix - vHeaderAreaHeight - PageMarginBottomPix);
 
     if Assigned(FOnPaintPage) then
     begin
@@ -2117,7 +2135,7 @@ var
         vDrawRect := FPageData.DrawItems[ADrawItemNo].Rect;
 
         //if vSuplus = 0 then  // 第一次计算分页
-          InflateRect(vDrawRect, 0, -FPageData.GetLineSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去年行间距能放下不换页的效果
+          InflateRect(vDrawRect, 0, -FPageData.GetLineSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去掉行间距能放下不换页的效果
 
         vRectItem.CheckFormatPageBreak(  // 去除行间距后，判断表格跨页位置
           FPages.Count - 1,
@@ -2290,7 +2308,7 @@ var
 begin
   vUndoList := DoDataGetUndoList;
   //if vUndoList.Enable then  // 不能判断，因为撤销恢复过程会屏蔽，防止产生新的撤销恢复
-  if not vUndoList.GroupWorking then
+  if not vUndoList.GroupWorking then  // 不在组中处理时才重新设置Data和响应变动
   begin
     if FActiveData <> ARedo.Data then
       SetActiveData(ARedo.Data as THCSectionData);
@@ -2514,7 +2532,7 @@ var
 begin
   vUndoList := DoDataGetUndoList;
   //if vUndoList.Enable then  // 不能判断，因为撤销恢复过程会屏蔽，防止产生新的撤销恢复
-  if not vUndoList.GroupWorking then
+  if not vUndoList.GroupWorking then  // 不在组中处理时才重新设置Data和响应变动
   begin
     if FActiveData <> AUndo.Data then
       SetActiveData(AUndo.Data as THCSectionData);

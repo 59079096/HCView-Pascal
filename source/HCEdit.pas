@@ -375,7 +375,7 @@ begin
 
   vUndoList := DoGetUndoList;
   //if vUndoList.Enable then  // 不能判断，因为撤销恢复过程会屏蔽，防止产生新的撤销恢复
-  if not vUndoList.GroupWorking then
+  if not vUndoList.GroupWorking then  // 不在组中处理时才重新设置Data和响应变动
   begin
     DataChangeByAction(function(): Boolean
       begin
@@ -404,7 +404,7 @@ begin
 
   vUndoList := DoGetUndoList;
   //if vUndoList.Enable then  // 不能判断，因为撤销恢复过程会屏蔽，防止产生新的撤销恢复
-  if not vUndoList.GroupWorking then
+  if not vUndoList.GroupWorking then  // 不在组中处理时才重新设置Data和响应变动
   begin
     DataChangeByAction(function(): Boolean
       begin

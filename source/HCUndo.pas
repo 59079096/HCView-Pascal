@@ -244,8 +244,9 @@ type
     FMaxUndoCount: Cardinal;  // 撤销恢复链的最大长度
 
     // 当前组撤销恢复时的组起始和组结束
-    FGroupBegin: THCUndoGroupBegin;
-    FGroupEnd: THCUndoGroupEnd;
+    //FGroupBegin: THCUndoGroupBegin;
+    //FGroupEnd: THCUndoGroupEnd;
+    FGroupBeginIndex, FGroupEndIndex: Integer;
 
     FOnUndoNew: TUndoNewEvent;
     FOnUndoGroupStart: TUndoGroupBeginEvent;
@@ -268,8 +269,8 @@ type
     property MaxUndoCount: Cardinal read FMaxUndoCount write FMaxUndoCount;
     property Seek: Integer read FSeek;
     property GroupWorking: Boolean read FGroupWorking;
-    property CurGroupBegin: THCUndoGroupBegin read FGroupBegin;
-    property CurGroupEnd: THCUndoGroupEnd read FGroupEnd;
+    property CurGroupBeginIndex: Integer read FGroupBeginIndex;
+    property CurGroupEndIndex: Integer read FGroupEndIndex;
     property OnUndoNew: TUndoNewEvent read FOnUndoNew write FOnUndoNew;
     property OnUndoGroupStart: TUndoGroupBeginEvent read FOnUndoGroupStart write FOnUndoGroupStart;
     property OnUndoGroupEnd: TUndoGroupEndEvent read FOnUndoGroupEnd write FOnUndoGroupEnd;
@@ -320,8 +321,8 @@ begin
   FSeek := -1;
   FMaxUndoCount := 99;
   FEnable := True;
-  FGroupBegin := nil;
-  FGroupEnd := nil;
+  FGroupBeginIndex := -1;
+  FGroupEndIndex := -1;
 end;
 
 destructor THCUndoList.Destroy;
@@ -331,7 +332,7 @@ end;
 
 procedure THCUndoList.DoNewUndo(const AUndo: THCUndo);
 var
-  i, vIndex: Integer;
+  i, vIndex, vOver: Integer;
 begin
   if FSeek < Self.Count - 1 then
   begin
@@ -345,17 +346,27 @@ begin
       Self.Clear;
   end;
 
-  if Self.Count > FMaxUndoCount then
+  if Self.Count > FMaxUndoCount then  // 超出列表最大允许的数量
   begin
+    vOver := 0;
+
     if Items[0] is THCUndoGroupBegin then  // 整组删除
     begin
       for i := 1 to Self.Count - 1 do
       begin
         if Items[i] is THCUndoGroupEnd then
         begin
-          vIndex := i;
-          Break;
-        end;
+          if vOver = 0 then
+          begin
+            vIndex := i;
+            Break;
+          end
+          else
+            Dec(vOver);
+        end
+        else
+        if Items[i] is THCUndoGroupBegin then
+          Inc(vOver);
       end;
 
       Self.DeleteRange(0, vIndex + 1);
@@ -441,21 +452,21 @@ begin
           Inc(vOver);
       end;
 
-      FGroupBegin := Self.Items[FSeek + 1] as THCUndoGroupBegin;
-      FGroupEnd := Self.Items[vEndIndex] as THCUndoGroupEnd;
+      FGroupBeginIndex := FSeek + 1;
+      FGroupEndIndex := vEndIndex;
       try
         FGroupWorking := True;
         while FSeek < vEndIndex do  // 重做组内各个Redo
         begin
-          if FSeek = vEndIndex - 1 then
+          if FSeek = vEndIndex - 1 then  // 组处理完了
             FGroupWorking := False;
 
           DoSeekRedoEx;
         end;
       finally
         FGroupWorking := False;
-        FGroupBegin := nil;
-        FGroupEnd := nil;
+        FGroupBeginIndex := -1;
+        FGroupEndIndex := -1;
       end;
     end
     else
@@ -502,21 +513,21 @@ begin
           Inc(vOver);
       end;
 
-      FGroupBegin := Self.Items[vBeginIndex] as THCUndoGroupBegin;
-      FGroupEnd := Self.Items[FSeek] as THCUndoGroupEnd;
+      FGroupBeginIndex := vBeginIndex;
+      FGroupEndIndex := FSeek;
       try
         FGroupWorking := True;
         while FSeek >= vBeginIndex do  // 撤销组内各个Undo
         begin
-          if FSeek = vBeginIndex then
+          if FSeek = vBeginIndex then  // 组处理完了
             FGroupWorking := False;
 
           DoSeekUndoEx;
         end;
       finally
         FGroupWorking := False;
-        FGroupBegin := nil;
-        FGroupEnd := nil;
+        FGroupBeginIndex := -1;
+        FGroupEndIndex := -1;
       end;
     end
     else

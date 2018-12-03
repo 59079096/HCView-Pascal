@@ -257,7 +257,9 @@ var
   end;
 
 var
-  i: Integer;
+  i, j: Integer;
+  vUndoList: THCUndoList;
+  vUndo: THCCustomUndo;
 begin
   if AUndo is THCUndoGroupEnd then  // 组结束(无Actions)
   begin
@@ -265,8 +267,29 @@ begin
     begin
       if FUndoGroupCount = 0 then  // 组撤销开始
       begin
-        FFormatFirstItemNo := GetUndoList.CurGroupBegin.ItemNo;
-        FFormatLastItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
+        vUndoList := GetUndoList;
+        FFormatFirstItemNo := (vUndoList[vUndoList.CurGroupBeginIndex] as THCUndoGroupBegin).ItemNo;
+        FFormatLastItemNo := (vUndoList[vUndoList.CurGroupEndIndex] as THCUndoGroupEnd).ItemNo;
+        for i := vUndoList.CurGroupEndIndex - 1 downto vUndoList.CurGroupBeginIndex + 1 do
+        begin
+          vUndo := vUndoList[i];
+          for j := vUndo.Actions.Count - 1 downto 0 do
+          begin
+            if FFormatFirstItemNo > vUndo.Actions[j].ItemNo then
+              FFormatFirstItemNo := vUndo.Actions[j].ItemNo;
+
+            if FFormatLastItemNo < vUndo.Actions[j].ItemNo then
+              FFormatLastItemNo := vUndo.Actions[j].ItemNo;
+          end;
+        end;
+        if FFormatFirstItemNo <> FFormatLastItemNo then
+        begin
+          FFormatFirstItemNo := GetParaFirstItemNo(FFormatFirstItemNo);  // 取段第一个为起始
+          FFormatLastItemNo := GetParaLastItemNo(FFormatLastItemNo);  // 取段最后一个为结束
+        end
+        else
+          GetReformatItemRange(FFormatFirstItemNo, FFormatLastItemNo, FFormatFirstItemNo, 0);
+
         _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;
@@ -382,6 +405,9 @@ begin
     Style.UpdateInfoRePaint;
   end;
 
+  // 为提高效率，组撤销或恢复时，只在最后一个(组头、尾)后再进制格式化和计算页数
+  // 所以需要每步的撤销或恢复都记录SelectInfo，以便最后一个(组头、尾)做格式化和
+  // 分页时有参照位置
   SelectInfo.StartItemNo := vCaretItemNo;
   SelectInfo.StartItemOffset := vCaretOffset;
 end;

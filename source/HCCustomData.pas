@@ -18,7 +18,7 @@ uses
   HCStyle, HCParaStyle, HCTextStyle, HCStyleMatch, HCCommon, HCUndo;
 
 type
-  TSelectInfo = class
+  TSelectInfo = class(TObject)
   strict private
     FStartItemNo,  // 不能使用DrawItem记录，因为内容变动时Item的指定Offset对应的DrawItem，可能和变动前不一样
     FStartItemOffset,  // 选中起始在第几个字符后面，0表示在Item最前面
@@ -26,8 +26,8 @@ type
     FEndItemOffset  // 选中结束在第几个字符后面
       : Integer;
   public
-    constructor Create;
-    procedure Initialize;
+    constructor Create; virtual;
+    procedure Initialize; virtual;
 
     /// <summary> 选中起始Item序号 </summary>
     property StartItemNo: Integer read FStartItemNo write FStartItemNo;
@@ -146,7 +146,8 @@ type
     /// <param name="ADrawItemNo"></param>
     /// <param name="ADrawOffs">相对与DItem的CharOffs的Offs</param>
     /// <returns></returns>
-    function GetDrawItemOffsetWidth(const ADrawItemNo, ADrawOffs: Integer): Integer;
+    function GetDrawItemOffsetWidth(const ADrawItemNo, ADrawOffs: Integer;
+      const AStyleCanvas: TCanvas = nil): Integer;
 
     /// <summary> 获取指定的Item最后面位置 </summary>
     /// <param name="AItemNo">指定的Item</param>
@@ -853,13 +854,7 @@ begin
     begin
       ALastDItemNo := i - 1;
       Break;
-    end
-    {else
-    if (FDrawItems[i].Rect.Bottom > ABottom) then
-    begin
-      ALastDItemNo := i;
-      Break;
-    end};
+    end;
   end;
   if ALastDItemNo < 0 then  // 高度超过Data高度时，以最后1个结束
     ALastDItemNo := FDrawItems.Count - 1;
@@ -1043,7 +1038,8 @@ begin
   end;
 end;
 
-function THCCustomData.GetDrawItemOffsetWidth(const ADrawItemNo, ADrawOffs: Integer): Integer;
+function THCCustomData.GetDrawItemOffsetWidth(const ADrawItemNo, ADrawOffs: Integer;
+  const AStyleCanvas: TCanvas = nil): Integer;
 var
   vStyleNo: Integer;
   vAlignHorz: TParaAlignHorz;
@@ -1054,6 +1050,7 @@ var
   vText, vS: string;
   i, j, viSplitW, vSplitCount, vMod, vCharWidth, vDOffset
     : Integer;
+  vCanvas: TCanvas;
 begin
   Result := 0;
   if ADrawOffs = 0 then Exit;
@@ -1067,13 +1064,19 @@ begin
   end
   else
   begin
-    FStyle.TextStyles[vStyleNo].ApplyStyle(FStyle.DefCanvas);
+    if Assigned(AStyleCanvas) then
+      vCanvas := AStyleCanvas
+    else
+    begin
+      vCanvas := FStyle.DefCanvas;
+      FStyle.TextStyles[vStyleNo].ApplyStyle(vCanvas);
+    end;
 
     vAlignHorz := FStyle.ParaStyles[GetDrawItemParaStyle(ADrawItemNo)].AlignHorz;
     case vAlignHorz of
       pahLeft, pahRight, pahCenter:
         begin
-          Result := FStyle.DefCanvas.TextWidth(Copy(FItems[vDItem.ItemNo].Text,
+          Result := vCanvas.TextWidth(Copy(FItems[vDItem.ItemNo].Text,
             vDItem.CharOffs, ADrawOffs));
         end;
       pahJustify, pahScatter:  // 20170220001 两端、分散对齐相关处理
@@ -1082,14 +1085,14 @@ begin
           begin
             if IsParaLastDrawItem(ADrawItemNo) then  // 两端对齐、段最后一行不处理
             begin
-              Result := FStyle.DefCanvas.TextWidth(Copy(FItems[vDItem.ItemNo].Text,
+              Result := vCanvas.TextWidth(Copy(FItems[vDItem.ItemNo].Text,
                 vDItem.CharOffs, ADrawOffs));
               Exit;
             end;
           end;
 
           vText := GetDrawItemText(ADrawItemNo);
-          viSplitW := vDItem.Width - FStyle.DefCanvas.TextWidth(vText);  // 当前DItem的Rect中用于分散的空间
+          viSplitW := vDItem.Width - vCanvas.TextWidth(vText);  // 当前DItem的Rect中用于分散的空间
           vMod := 0;
           // 计算当前Ditem内容分成几份，每一份在内容中的起始位置
           vSplitList := THCIntegerList.Create;
@@ -1108,7 +1111,7 @@ begin
             for i := 0 to vSplitList.Count - 2 do  // vSplitList最后一个是字符串长度所以多减1
             begin
               vS := Copy(vText, vSplitList[i], vSplitList[i + 1] - vSplitList[i]);  // 当前分隔的一个字符串
-              vCharWidth := FStyle.DefCanvas.TextWidth(vS);
+              vCharWidth := vCanvas.TextWidth(vS);
               if vMod > 0 then
               begin
                 Inc(vCharWidth);  // 多分的余数
@@ -1139,7 +1142,7 @@ begin
                 // 准备处理  a b c d e fgh ijklm n opq的形式(多个字符为一个分隔串)
                 for j := 1 to Length(vS) do  // 找在当前分隔的这串字符串中哪一个位置
                 begin
-                  vCharWidth := FStyle.DefCanvas.TextWidth(vS[j]);
+                  vCharWidth := vCanvas.TextWidth(vS[j]);
 
                   vDOffset := vSplitList[i] - 1 + j;
                   if vDOffset = vDItem.CharLen then  // 是当前DItem最后一个分隔串
@@ -1435,8 +1438,10 @@ var
 begin
   Result := 0;
 
+  vFirst := ADrawNo;
+  GetLineDrawItemRang(vFirst, vLast);
   // 找行起始和结束DrawItem
-  vFirst := -1;
+  {vFirst := -1;
   for i := ADrawNo downto 0 do
   begin
     if FDrawItems[i].LineFirst then
@@ -1454,7 +1459,7 @@ begin
       vLast := i - 1;
       Break;
     end;
-  end;
+  end;}
 
   // 找行中最高的DrawItem
   vMaxHi := 0;
@@ -2508,18 +2513,20 @@ begin
 
   if (vFristDItemNo < 0) or (vLastDItemNo < 0) then Exit;
 
-  // 选中信息
-  vSelStartDNo := GetSelectStartDrawItemNo;  // 选中起始DrawItem
-  if vSelStartDNo < 0 then
-    vSelStartDOffs := -1
-  else
-    vSelStartDOffs := FSelectInfo.StartItemOffset - FDrawItems[vSelStartDNo].CharOffs + 1;
-  vSelEndDNo := GetSelectEndDrawItemNo;      // 选中结束DrawItem
-  if vSelEndDNo < 0 then
-    vSelEndDOffs := -1
-  else
-    vSelEndDOffs := FSelectInfo.EndItemOffset - FDrawItems[vSelEndDNo].CharOffs + 1;
-  vDrawsSelectAll := DrawItemSelectAll;
+  if not APaintInfo.Print then  // 非打印时获取选中信息
+  begin
+    vSelStartDNo := GetSelectStartDrawItemNo;  // 选中起始DrawItem
+    if vSelStartDNo < 0 then
+      vSelStartDOffs := -1
+    else
+      vSelStartDOffs := FSelectInfo.StartItemOffset - FDrawItems[vSelStartDNo].CharOffs + 1;
+    vSelEndDNo := GetSelectEndDrawItemNo;      // 选中结束DrawItem
+    if vSelEndDNo < 0 then
+      vSelEndDOffs := -1
+    else
+      vSelEndDOffs := FSelectInfo.EndItemOffset - FDrawItems[vSelEndDNo].CharOffs + 1;
+    vDrawsSelectAll := DrawItemSelectAll;
+  end;
 
   vPrioStyleNo := -1;
   vPrioParaNo := -1;
@@ -2551,10 +2558,9 @@ begin
       end;
 
       vClearRect := vDrawRect;
+      InflateRect(vClearRect, 0, -vLineSpace div 2);  // 除去行间距净Rect，即内容的显示区域
       if vItem.StyleNo < THCStyle.Null then  // RectItem自行处理绘制
       begin
-        InflateRect(vClearRect, 0, -vLineSpace div 2);  // 除去行间距净Rect，即内容的显示区域
-
         vRectItem := vItem as THCCustomRectItem;
         vPrioStyleNo := vRectItem.StyleNo;
 
@@ -2607,9 +2613,6 @@ begin
             vTextHeight := vTextHeight + vTextHeight;
         end;
 
-        // 除去行间距净Rect，即内容的显示区域
-        InflateRect(vClearRect, 0, -(vClearRect.Height - vTextHeight) div 2);
-
         case FStyle.ParaStyles[vItem.ParaNo].AlignVert of  // 垂直对齐方式
           pavCenter: vTextDrawTop := vClearRect.Top + (vClearRect.Bottom - vClearRect.Top - vTextHeight) div 2;
           pavTop: vTextDrawTop := vClearRect.Top;
@@ -2645,15 +2648,15 @@ begin
             ACanvas.Brush.Color := FStyle.SelColor;
             if (vSelStartDNo = vSelEndDNo) and (i = vSelStartDNo) then  // 选中内容都在当前DrawItem
             begin
-              ACanvas.FillRect(Rect(vDrawRect.Left + GetDrawItemOffsetWidth(i, vSelStartDOffs),
+              ACanvas.FillRect(Rect(vDrawRect.Left + GetDrawItemOffsetWidth(i, vSelStartDOffs, FStyle.DefCanvas),
                 vDrawRect.Top,
-                vDrawRect.Left + GetDrawItemOffsetWidth(i, vSelEndDOffs),
+                vDrawRect.Left + GetDrawItemOffsetWidth(i, vSelEndDOffs, FStyle.DefCanvas),
                 Math.Min(vDrawRect.Bottom, ADataScreenBottom)));
             end
             else
             if i = vSelStartDNo then  // 选中在不同DrawItem，当前是起始
             begin
-              ACanvas.FillRect(Rect(vDrawRect.Left + GetDrawItemOffsetWidth(i, vSelStartDOffs),
+              ACanvas.FillRect(Rect(vDrawRect.Left + GetDrawItemOffsetWidth(i, vSelStartDOffs, FStyle.DefCanvas),
                 vDrawRect.Top,
                 vDrawRect.Right,
                 Math.Min(vDrawRect.Bottom, ADataScreenBottom)));
@@ -2663,7 +2666,7 @@ begin
             begin
               ACanvas.FillRect(Rect(vDrawRect.Left,
                 vDrawRect.Top,
-                vDrawRect.Left + GetDrawItemOffsetWidth(i, vSelEndDOffs),
+                vDrawRect.Left + GetDrawItemOffsetWidth(i, vSelEndDOffs, FStyle.DefCanvas),
                 Math.Min(vDrawRect.Bottom, ADataScreenBottom)));
             end
             else

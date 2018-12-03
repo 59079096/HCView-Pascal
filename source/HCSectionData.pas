@@ -81,8 +81,6 @@ type
     FShowLineNo: Boolean;  // ÐÐºÅ
     FReFormatStartItemNo: Integer;
     function GetPageDataFmtTop(const APageIndex: Integer): Integer;
-    procedure PageDataPostAnnotate(const APageDataFmtTop, ADrawTop,
-      ADrawBottom: Integer);
   protected
     procedure _ReFormatData(const AStartItemNo: Integer; const ALastItemNo: Integer = -1;
       const AExtraItemCount: Integer = 0); override;
@@ -375,12 +373,6 @@ begin
   end
   else
     inherited MouseDown(Button, Shift, X, Y);
-end;
-
-procedure THCPageData.PageDataPostAnnotate(const APageDataFmtTop, ADrawTop,
-  ADrawBottom: Integer);
-begin
-
 end;
 
 procedure THCPageData.PaintFloatItems(const APageIndex, ADataDrawLeft,

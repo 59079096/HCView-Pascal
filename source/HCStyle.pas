@@ -73,7 +73,6 @@ type
     DateTimePicker = -18;
     RadioGroup = -19;
     SupSubScript = -20;
-    Annotate = -21;
     Custom = -1000;  // 自定义类型分界线
   public
     constructor Create; virtual;

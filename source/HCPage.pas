@@ -59,13 +59,17 @@ type
   end;
 
   THCPage = class(TPersistent)
-  public
-    StartDrawItemNo,    // 起始item
-    EndDrawItemNo       // 结束item
+  private
+    FStartDrawItemNo,    // 起始item
+    FEndDrawItemNo       // 结束item
       : Integer;
+  public
     constructor Create;
     destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
+    procedure Clear;
+    property StartDrawItemNo: Integer read FStartDrawItemNo write FStartDrawItemNo;
+    property EndDrawItemNo: Integer read FEndDrawItemNo write FEndDrawItemNo;
   end;
 
   THCPages = class(TList)
@@ -203,14 +207,19 @@ end;
 procedure THCPage.Assign(Source: TPersistent);
 begin
   inherited;
-  StartDrawItemNo := (Source as THCPage).StartDrawItemNo;  // 起始item
-  EndDrawItemNo := (Source as THCPage).EndDrawItemNo;  // 结束item
+  FStartDrawItemNo := (Source as THCPage).StartDrawItemNo;  // 起始item
+  FEndDrawItemNo := (Source as THCPage).EndDrawItemNo;  // 结束item
+end;
+
+procedure THCPage.Clear;
+begin
+  FStartDrawItemNo := 0;    // 起始item
+  FEndDrawItemNo := 0;      // 结束item
 end;
 
 constructor THCPage.Create;
 begin
-  StartDrawItemNo := -1;    // 起始item
-  EndDrawItemNo := -1;      // 结束item
+  Clear;
 end;
 
 destructor THCPage.Destroy;
@@ -223,6 +232,7 @@ end;
 procedure THCPages.ClearEx;
 begin
   Count := 1;
+  Items[0].Clear;
 end;
 
 procedure THCPages.DeleteRange(const AIndex, ACount: Integer);

@@ -1502,8 +1502,8 @@ end;
 procedure THCCustomRichData.AdjustSelectRange(var AStartItemNo, AStartItemOffset,
   AEndItemNo, AEndItemNoOffset: Integer);
 var
-    i, vOldStartItemNo, vOldEndItemNo: Integer;
-    vLeftToRight: Boolean;
+  i, vOldStartItemNo, vOldEndItemNo: Integer;
+  vLeftToRight: Boolean;
 begin
   // 修正规则：向前选择起始在Item结尾时按下一个起始，向后选择结束在下一个起始时按上一个结束
   vLeftToRight := False;
@@ -2666,12 +2666,13 @@ begin
         then  // 插入的和前面的合并
         begin
           UndoAction_InsertText(vInsPos - 1, Items[vInsPos - 1].Length - Items[vInsPos].Length + 1, Items[vInsPos].Text);
+
           UndoAction_DeleteItem(vInsPos, 0);
+          Items.Delete(vInsPos);
 
           if vItemCount = 1 then
             vCaretOffse := vOffsetStart + vCaretOffse;
 
-          Items.Delete(vInsPos);
           Dec(vItemCount);
           Dec(vInsetLastNo);
         end;

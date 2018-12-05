@@ -1821,6 +1821,12 @@ var
     if (FPages[APageIndex].StartDrawItemNo < 0) or (FPages[APageIndex].EndDrawItemNo < 0) then
       Exit;
 
+//    FPageData.CheckAnnotate(vPageDrawLeft + vMarginLeft,
+//      vPageDrawTop + vHeaderAreaHeight - APaintInfo.PageDataFmtTop,
+//      FPages[APageIndex].StartDrawItemNo, FPages[APageIndex].EndDrawItemNo,
+//      APaintInfo.PageDataFmtTop,
+//      APaintInfo.PageDataFmtTop + PageHeightPix - vHeaderAreaHeight - PageMarginBottomPix);
+
     { 绘制数据，把Data中指定位置的数据，绘制到指定的页区域中，并按照可显示出来的区域约束 }
     FPageData.PaintData(vPageDrawLeft + vMarginLeft,  // 当前页数据要绘制到的Left
       vPageDrawTop + vHeaderAreaHeight,     // 当前页数据要绘制到的Top
@@ -1828,14 +1834,10 @@ var
       vPageDataScreenTop,     // 界面呈现当前页数据的Top位置
       vPageDataScreenBottom,  // 界面呈现当前页数据Bottom位置
       APaintInfo.PageDataFmtTop,  // 指定从哪个位置开始的数据绘制到页数据起始位置
+      FPages[APageIndex].StartDrawItemNo,
+      FPages[APageIndex].EndDrawItemNo,
       ACanvas,
       APaintInfo);
-
-    FPageData.CheckAnnotate(vPageDrawLeft + vMarginLeft,
-      vPageDrawTop + vHeaderAreaHeight - APaintInfo.PageDataFmtTop,
-      FPages[APageIndex].StartDrawItemNo, FPages[APageIndex].EndDrawItemNo,
-      APaintInfo.PageDataFmtTop,
-      APaintInfo.PageDataFmtTop + PageHeightPix - vHeaderAreaHeight - PageMarginBottomPix);
 
     if Assigned(FOnPaintPage) then
     begin

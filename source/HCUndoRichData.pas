@@ -270,7 +270,7 @@ begin
         vUndoList := GetUndoList;
         FFormatFirstItemNo := (vUndoList[vUndoList.CurGroupBeginIndex] as THCUndoGroupBegin).ItemNo;
         FFormatLastItemNo := (vUndoList[vUndoList.CurGroupEndIndex] as THCUndoGroupEnd).ItemNo;
-        for i := vUndoList.CurGroupEndIndex - 1 downto vUndoList.CurGroupBeginIndex + 1 do
+        {for i := vUndoList.CurGroupEndIndex - 1 downto vUndoList.CurGroupBeginIndex + 1 do
         begin
           vUndo := vUndoList[i];
           for j := vUndo.Actions.Count - 1 downto 0 do
@@ -281,7 +281,7 @@ begin
             if FFormatLastItemNo < vUndo.Actions[j].ItemNo then
               FFormatLastItemNo := vUndo.Actions[j].ItemNo;
           end;
-        end;
+        end;}
         if FFormatFirstItemNo <> FFormatLastItemNo then
         begin
           FFormatFirstItemNo := GetParaFirstItemNo(FFormatFirstItemNo);  // 取段第一个为起始
@@ -407,7 +407,7 @@ begin
 
   // 为提高效率，组撤销或恢复时，只在最后一个(组头、尾)后再进制格式化和计算页数
   // 所以需要每步的撤销或恢复都记录SelectInfo，以便最后一个(组头、尾)做格式化和
-  // 分页时有参照位置
+  // 分页时有变动前后参照位置
   SelectInfo.StartItemNo := vCaretItemNo;
   SelectInfo.StartItemOffset := vCaretOffset;
 end;

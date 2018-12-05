@@ -111,8 +111,6 @@ type
       ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer;
       var ABreakSeat, AFmtOffset, AFmtHeightInc: Integer); virtual;
 
-    procedure CheckAnnotate(const AHorzOffset, AVertOffset, AHeight: Integer); virtual;
-
     // 变动是否在分页处
     function ChangeNearPageBreak: Boolean; virtual;
 
@@ -317,10 +315,6 @@ end;
 function THCCustomRectItem.ChangeNearPageBreak: Boolean;
 begin
   Result := False;  // 需求见 201810172235
-end;
-
-procedure THCCustomRectItem.CheckAnnotate(const AHorzOffset, AVertOffset, AHeight: Integer);
-begin
 end;
 
 procedure THCCustomRectItem.CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,

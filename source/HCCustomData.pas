@@ -220,9 +220,7 @@ type
     /// <param name="AY"></param>
     procedure CoordToItemOffset(const X, Y, AItemNo, AOffset: Integer; var AX, AY: Integer);
 
-    /// <summary>
-    /// 返回Item中指定Offset处的DrawItem序号
-    /// </summary>
+    /// <summary> 返回Item中指定Offset处的DrawItem序号，如正是换行位置，返回的是下一行DrawItem </summary>
     /// <param name="AItemNo">指定Item</param>
     /// <param name="AOffset">Item中指定Offset</param>
     /// <returns>Offset处的DrawItem序号</returns>
@@ -314,10 +312,24 @@ type
     /// <param name="ADataScreenTop">屏幕区域Top</param>
     /// <param name="ADataScreenBottom">屏幕区域Bottom</param>
     /// <param name="AVOffset">指定从哪个位置开始的数据绘制到目标区域的起始位置</param>
+    /// <param name="AFristDItemNo">指定从哪个DrawItem开始绘制</param>
+    /// <param name="ALastDItemNo">指定绘制到哪个DrawItem结束</param>
+    /// <param name="ACanvas">画布</param>
+    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+      ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); overload; virtual;
+
+    /// <summary> 绘制数据 </summary>
+    /// <param name="ADataDrawLeft">绘制目标区域Left</param>
+    /// <param name="ADataDrawTop">绘制目标区域的Top</param>
+    /// <param name="ADataDrawBottom">绘制目标区域的Bottom</param>
+    /// <param name="ADataScreenTop">屏幕区域Top</param>
+    /// <param name="ADataScreenBottom">屏幕区域Bottom</param>
+    /// <param name="AVOffset">指定从哪个位置开始的数据绘制到目标区域的起始位置</param>
     /// <param name="ACanvas">画布</param>
     procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); overload; virtual;
 
     /// <summary> 根据行中某DrawItem获取当前行间距 </summary>
     /// <param name="ADrawNo">行中指定的DrawItem</param>
@@ -2399,11 +2411,10 @@ begin
   end;
 end;
 
-procedure THCCustomData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
-  ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+procedure THCCustomData.PaintData(const ADataDrawLeft, ADataDrawTop,
+  ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo,
+  ALastDItemNo: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
-  vFristDItemNo, vLastDItemNo: Integer;
   vTextDrawTop: Integer;
 
   {$REGION ' 当前显示范围内要绘制的DrawItem是否全选 '}
@@ -2416,20 +2427,20 @@ var
 
     Result :=  // 当前页是否全选中了
       (
-        (vSelStartDItemNo < vFristDItemNo)
+        (vSelStartDItemNo < AFristDItemNo)
         or
         (
-          (vSelStartDItemNo = vFristDItemNo)
+          (vSelStartDItemNo = AFristDItemNo)
           and
           (SelectInfo.StartItemOffset = FDrawItems[vSelStartDItemNo].CharOffs)
         )
       )
       and
       (
-        (vSelEndDItemNo > vLastDItemNo)
+        (vSelEndDItemNo > ALastDItemNo)
         or
         (
-          (vSelEndDItemNo = vLastDItemNo)
+          (vSelEndDItemNo = ALastDItemNo)
           and
           (SelectInfo.EndItemOffset = FDrawItems[vSelEndDItemNo].CharOffs + FDrawItems[vSelEndDItemNo].CharLen)
         )
@@ -2504,14 +2515,7 @@ var
   vDrawsSelectAll: Boolean;
   vDCState: Integer;
 begin
-  if FItems.Count = 0 then Exit;
-
-  vVOffset := ADataDrawTop - AVOffset;  // 将数据起始位置映射到绘制位置
-
-  GetDataDrawItemRang(Max(ADataDrawTop, ADataScreenTop) - vVOffset,  // 可显示出来的DrawItem范围
-    Min(ADataDrawBottom, ADataScreenBottom) - vVOffset, vFristDItemNo, vLastDItemNo);
-
-  if (vFristDItemNo < 0) or (vLastDItemNo < 0) then Exit;
+  if (AFristDItemNo < 0) or (ALastDItemNo < 0) then Exit;
 
   if not APaintInfo.Print then  // 非打印时获取选中信息
   begin
@@ -2530,14 +2534,14 @@ begin
 
   vPrioStyleNo := -1;
   vPrioParaNo := -1;
+  vVOffset := ADataDrawTop - AVOffset;  // 将数据起始位置映射到绘制位置
 
-  ACanvas.Refresh;
   vDCState := SaveDC(ACanvas.Handle);
   try
-    if not FDrawItems[vFristDItemNo].LineFirst then
-      vLineSpace := GetLineSpace(vFristDItemNo);
+    if not FDrawItems[AFristDItemNo].LineFirst then
+      vLineSpace := GetLineSpace(AFristDItemNo);
 
-    for i := vFristDItemNo to vLastDItemNo do  // 遍历要绘制的数据
+    for i := AFristDItemNo to ALastDItemNo do  // 遍历要绘制的数据
     begin
       vDrawItem := FDrawItems[i];
       vItem := FItems[vDrawItem.ItemNo];
@@ -2716,6 +2720,23 @@ begin
     RestoreDC(ACanvas.Handle, vDCState);
     //ACanvas.Refresh;  为什么有这句，表格隐藏边框后某些单元格绘制边框不正确？
   end;
+end;
+
+procedure THCCustomData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+  ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+var
+  vFirstDItemNo, vLastDItemNo, vVOffset: Integer;
+begin
+  if FItems.Count = 0 then Exit;
+
+  vVOffset := ADataDrawTop - AVOffset;  // 将数据起始位置映射到绘制位置
+
+  GetDataDrawItemRang(Max(ADataDrawTop, ADataScreenTop) - vVOffset,  // 可显示出来的DrawItem范围
+    Min(ADataDrawBottom, ADataScreenBottom) - vVOffset, vFirstDItemNo, vLastDItemNo);
+
+  PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+    ADataScreenBottom, AVOffset, vFirstDItemNo, vLastDItemNo, ACanvas, APaintInfo);
 end;
 
 procedure THCCustomData._FormatItemPrepare(const AStartItemNo: Integer;

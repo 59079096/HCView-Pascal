@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
-  ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCCustomRichData, HCItem,
+  ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
   Actions, ImageList, Printers, Clipbrd;
 
@@ -95,8 +95,6 @@ type
     mniLSFix: TMenuItem;
     mniN19: TMenuItem;
     mniCombobox1: TMenuItem;
-    mniN20: TMenuItem;
-    mniN22: TMenuItem;
     mniN23: TMenuItem;
     mniN24: TMenuItem;
     mniN33: TMenuItem;
@@ -170,8 +168,6 @@ type
     procedure mniLSFixClick(Sender: TObject);
     procedure mniN19Click(Sender: TObject);
     procedure mniCombobox1Click(Sender: TObject);
-    procedure mniN20Click(Sender: TObject);
-    procedure mniN22Click(Sender: TObject);
     procedure mniN23Click(Sender: TObject);
     procedure mniN33Click(Sender: TObject);
     procedure mniN34Click(Sender: TObject);
@@ -206,7 +202,7 @@ type
     procedure DoVerScroll(Sender: TObject);
     procedure CurTextStyleChange(const ANewStyleNo: Integer);
     procedure CurParaStyleChange(const ANewStyleNo: Integer);
-    procedure DoCanDelete(const Sender: THCCustomRichData; const AItemNo,
+    procedure DoCanDelete(const Sender: THCRichData; const AItemNo,
       AItemOffs: Integer; var ACanDelete: Boolean);
     procedure DoItemLoaded(const AItem: THCCustomItem);
     procedure DoComboboxPopupItem(Sender: TObject);
@@ -223,9 +219,8 @@ uses
   frm_InsertTable, frm_PageSet, HCStyle, HCRectItem, HCTableItem, HCTextItem,
   HCDrawItem, HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem,
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
-  HCDateTimePicker, HCSupSubScriptItem, HCRadioGroup, EmrToothItem, EmrFangJiaoItem,
-  frm_Paragraph, frm_TableProperty, frm_SearchAndReplace, frm_PrintView,
-  frm_ControlItemProperty, frm_TableBorderBackColor;
+  HCDateTimePicker, HCSupSubScriptItem, HCRadioGroup, frm_Paragraph, frm_TableProperty,
+  frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_TableBorderBackColor;
 
 {$R *.dfm}
 
@@ -343,7 +338,7 @@ begin
     FHCView.SetFocus;
 end;
 
-procedure TfrmHCViewDemo.DoCanDelete(const Sender: THCCustomRichData;
+procedure TfrmHCViewDemo.DoCanDelete(const Sender: THCRichData;
   const AItemNo, AItemOffs: Integer; var ACanDelete: Boolean);
 begin
 
@@ -686,22 +681,6 @@ begin
   FHCView.ActiveTableDeleteCurCol;
 end;
 
-procedure TfrmHCViewDemo.mniN20Click(Sender: TObject);
-var
-  vToothItem: TEmrToothItem;
-begin
-  vToothItem := TEmrToothItem.Create(FHCView.ActiveSectionTopLevelData, '', '', '', '');
-  FHCView.InsertItem(vToothItem);
-end;
-
-procedure TfrmHCViewDemo.mniN22Click(Sender: TObject);
-var
-  vFangJiaoItem: TEmrFangJiaoItem;
-begin
-  vFangJiaoItem := TEmrFangJiaoItem.Create(FHCView.ActiveSectionTopLevelData, '', '', '', '');
-  FHCView.InsertItem(vFangJiaoItem);
-end;
-
 procedure TfrmHCViewDemo.mniN23Click(Sender: TObject);
 var
   vQRCode: THCQRCodeItem;
@@ -922,7 +901,7 @@ procedure TfrmHCViewDemo.mniN9Click(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
   vImageItem: THCImageItem;
-  vTopData: THCCustomRichData;
+  vTopData: THCRichData;
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try

@@ -14,12 +14,12 @@ unit HCTableCellData;
 interface
 
 uses
-  Windows, Types, HCRichData, HCCustomData, HCCommon;
+  Windows, Types, HCViewData, HCCustomData, HCCommon;
 
 type
   TGetRootDataEvent = function (): THCCustomData of object;
 
-  THCTableCellData = class(THCRichData)
+  THCTableCellData = class(THCViewData)
   private
     FActive,
 

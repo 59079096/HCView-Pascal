@@ -14,7 +14,7 @@ unit HCEdit;
 interface
 
 uses
-  Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCRichData,
+  Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCViewData,
   HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCUndo;
 
 const
@@ -24,7 +24,7 @@ type
   THCEdit = class(TCustomControl)
   private
     FStyle: THCStyle;
-    FData: THCRichData;
+    FData: THCViewData;
     FDataBmp: TBitmap;  // 数据显示位图
     FUndoList: THCUndoList;
     FCaret: THCCaret;
@@ -269,7 +269,7 @@ begin
   FUndoList.OnUndoGroupStart := DoUndoGroupBegin;
   FUndoList.OnUndoGroupEnd := DoUndoGroupEnd;
 
-  FData := THCRichData.Create(FStyle);
+  FData := THCViewData.Create(FStyle);
   FData.Width := 200;
   FData.OnGetUndoList := DoGetUndoList;
 

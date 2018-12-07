@@ -14,9 +14,9 @@ unit HCSection;
 interface
 
 uses
-  Windows, Classes, Controls, Graphics, SysUtils, HCRichData, HCSectionData,
-  HCCustomRichData, HCTextStyle, HCParaStyle, HCItem, HCCustomFloatItem, HCDrawItem,
-  HCPage, HCRectItem, HCCommon, HCStyle, HCCustomData, HCUndo;
+  Windows, Classes, Controls, Graphics, SysUtils, HCViewData, HCSectionData,
+  HCRichData, HCTextStyle, HCParaStyle, HCItem, HCCustomFloatItem, HCDrawItem,
+  HCPage, HCRectItem, HCCommon, HCStyle, HCAnnotateData, HCCustomData, HCUndo;
 
 type
   TPrintResult = (prOk, prNoPrinter, prNoSupport, prError);
@@ -39,8 +39,10 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   TSectionDataItemNotifyEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem) of object;
-  TSectionAnnotateDrawItemEvent = procedure(const Sender: TObject; const AData: THCCustomData;
-    const ADrawItemNo: Integer; const ADrawRect: TRect) of object;
+  TSectionDrawItemAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
+    const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate) of object;
+  TSectionAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
+    const ADataAnnotate: THCDataAnnotate) of object;
 
   THCCustomSection = class(TObject)
   private
@@ -77,7 +79,10 @@ type
     FOnPaintHeader, FOnPaintFooter, FOnPaintPage,
     FOnPaintWholePageBefor, FOnPaintWholePageAfter: TSectionPagePaintEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TSectionDrawItemPaintEvent;
-    FOnAnnotateDrawItem: TSectionAnnotateDrawItemEvent;
+
+    FOnInsertAnnotate, FOnRemoveAnnotate: TSectionAnnotateEvent;
+    FOnDrawItemAnnotate: TSectionDrawItemAnnotateEvent;
+
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemNotifyEvent;
     FOnItemResized: TDataItemEvent;
@@ -108,7 +113,11 @@ type
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DoDataAnnotateDrawItem(const AData: THCCustomData; const ADrawItemNo: Integer; const ADrawRect: TRect);
+
+    procedure DoDataInsertAnnotate(const AData: THCCustomData; const ADataAnnotate: THCDataAnnotate);
+    procedure DoDataRemoveAnnotate(const AData: THCCustomData; const ADataAnnotate: THCDataAnnotate);
+    procedure DoDataDrawItemAnnotate(const AData: THCCustomData; const ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
 
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
@@ -133,7 +142,7 @@ type
     /// <param name="AY"></param>
     /// <param name="ARestrain">是否约束到Data的绝对区域中</param>
     procedure PageCoordToData(const APageIndex: Integer;
-      const AData: THCRichData; var AX, AY: Integer;
+      const AData: THCViewData; var AX, AY: Integer;
       const ARestrain: Boolean = False);
 
     function GetReadOnly: Boolean;
@@ -384,7 +393,9 @@ type
     property OnDrawItemPaintBefor: TSectionDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
     property OnDrawItemPaintAfter: TSectionDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
-    property OnAnnotateDrawItem: TSectionAnnotateDrawItemEvent read FOnAnnotateDrawItem write FOnAnnotateDrawItem;
+    property OnInsertAnnotate: TSectionAnnotateEvent read FOnInsertAnnotate write FOnInsertAnnotate;
+    property OnRemoveAnnotate: TSectionAnnotateEvent read FOnRemoveAnnotate write FOnRemoveAnnotate;
+    property OnDrawItemAnnotate: TSectionDrawItemAnnotateEvent read FOnDrawItemAnnotate write FOnDrawItemAnnotate;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
@@ -574,7 +585,9 @@ var
     AData.OnDrawItemPaintBefor := DoDataDrawItemPaintBefor;
     AData.OnDrawItemPaintAfter := DoDataDrawItemPaintAfter;
     AData.OnDrawItemPaintContent := DoDataDrawItemPaintContent;
-    AData.OnAnnotateDrawItem := DoDataAnnotateDrawItem;
+    AData.OnInsertAnnotate := DoDataInsertAnnotate;
+    AData.OnRemoveAnnotate := DoDataRemoveAnnotate;
+    AData.OnDrawItemAnnotate := DoDataDrawItemAnnotate;
     AData.OnGetUndoList := DoDataGetUndoList;
   end;
 
@@ -654,13 +667,6 @@ begin
     FOnCheckUpdateInfo(Self);
 end;
 
-procedure THCCustomSection.DoDataAnnotateDrawItem(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect);
-begin
-  if Assigned(FOnAnnotateDrawItem) then
-    FOnAnnotateDrawItem(Self, AData, ADrawItemNo, ADrawRect);
-end;
-
 function THCCustomSection.DoDataCanEdit(const Sender: TObject): Boolean;
 begin
   if Assigned(FOnCanEdit) then
@@ -690,10 +696,24 @@ begin
     Result := nil;
 end;
 
+procedure THCCustomSection.DoDataInsertAnnotate(const AData: THCCustomData;
+  const ADataAnnotate: THCDataAnnotate);
+begin
+  if Assigned(FOnInsertAnnotate) then
+    FOnInsertAnnotate(Self, AData, ADataAnnotate);
+end;
+
 procedure THCCustomSection.DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
 begin
   if Assigned(FOnInsertItem) then
     FOnInsertItem(Self, AData, AItem);
+end;
+
+procedure THCCustomSection.DoDataDrawItemAnnotate(const AData: THCCustomData;
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
+begin
+  if Assigned(FOnDrawItemAnnotate) then
+    FOnDrawItemAnnotate(Self, AData, ADrawItemNo, ADrawRect, ADataAnnotate);
 end;
 
 procedure THCCustomSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
@@ -759,6 +779,13 @@ procedure THCCustomSection.DoDataReadOnlySwitch(Sender: TObject);
 begin
   if Assigned(FOnReadOnlySwitch) then
     FOnReadOnlySwitch(Self);
+end;
+
+procedure THCCustomSection.DoDataRemoveAnnotate(const AData: THCCustomData;
+  const ADataAnnotate: THCDataAnnotate);
+begin
+  if Assigned(FOnRemoveAnnotate) then
+    FOnRemoveAnnotate(Self, AData, ADataAnnotate);
 end;
 
 procedure THCCustomSection.DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
@@ -1662,7 +1689,7 @@ begin
 end;
 
 procedure THCCustomSection.PageCoordToData(const APageIndex: Integer;
-  const AData: THCRichData; var AX, AY: Integer; const ARestrain: Boolean = False);
+  const AData: THCViewData; var AX, AY: Integer; const ARestrain: Boolean = False);
 var
   viTemp, vMarginLeft, vMarginRight: Integer;
 begin

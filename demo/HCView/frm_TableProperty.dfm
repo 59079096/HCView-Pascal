@@ -26,6 +26,10 @@ object frmTableProperty: TfrmTableProperty
     TabOrder = 0
     object tsTable: TTabSheet
       Caption = #34920#26684
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object lbl1: TLabel
         Left = 24
         Top = 10

@@ -46,7 +46,7 @@ type
 implementation
 
 uses
-  HCCustomRichData, HCTableCell, frm_TableBorderBackColor;
+  HCRichData, HCTableCell, frm_TableBorderBackColor;
 
 {$R *.dfm}
 
@@ -83,7 +83,7 @@ end;
 procedure TfrmTableProperty.SetHCView(const AHCView: THCView);
 var
   vR, vC, viValue{, vRowAlignIndex}: Integer;
-  vData: THCCustomRichData;
+  vData: THCRichData;
   vAlignVert: TAlignVert;
   vTableItem: THCTableItem;
 begin

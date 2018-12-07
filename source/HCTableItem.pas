@@ -15,8 +15,8 @@ interface
 
 uses
   Classes, SysUtils, Types, Graphics, Controls, Generics.Collections, HCDrawItem,
-  HCRectItem, HCTableRow, HCCustomData, HCCustomRichData, HCTableCell, HCTableCellData,
-  HCRichData, HCTextStyle, HCCommon, HCParaStyle, HCStyleMatch, HCItem, HCStyle,
+  HCRectItem, HCTableRow, HCCustomData, HCRichData, HCTableCell, HCTableCellData,
+  HCViewData, HCTextStyle, HCCommon, HCParaStyle, HCStyleMatch, HCItem, HCStyle,
   HCList, HCUndo;
 
 type
@@ -2471,21 +2471,21 @@ begin
   vResizeInfo := GetCellAt(X, Y, vRow, vCol);
   if (vRow < 0) or (vCol < 0) then Exit;
   vCellPt := GetCellPostion(vRow, vCol);
-  Result := (Cells[vRow, vCol].CellData as THCCustomRichData).GetTopLevelDataAt(
+  Result := (Cells[vRow, vCol].CellData as THCRichData).GetTopLevelDataAt(
     X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
 end;
 
 procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
 begin
-  ACellData.OnInsertItem := (OwnerData as THCRichData).OnInsertItem;
-  ACellData.OnRemoveItem := (OwnerData as THCRichData).OnRemoveItem;
-  ACellData.OnItemResized := (OwnerData as THCCustomRichData).OnItemResized;
-  ACellData.OnDrawItemPaintAfter := (OwnerData as THCCustomRichData).OnDrawItemPaintAfter;
-  ACellData.OnDrawItemPaintBefor := (OwnerData as THCCustomRichData).OnDrawItemPaintBefor;
+  ACellData.OnInsertItem := (OwnerData as THCViewData).OnInsertItem;
+  ACellData.OnRemoveItem := (OwnerData as THCViewData).OnRemoveItem;
+  ACellData.OnItemResized := (OwnerData as THCRichData).OnItemResized;
   ACellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
-  ACellData.OnCreateItemByStyle := (OwnerData as THCRichData).OnCreateItemByStyle;
-  ACellData.OnCanEdit := (OwnerData as THCRichData).OnCanEdit;
-  ACellData.OnCreateItem := (OwnerData as THCCustomRichData).OnCreateItem;
+  ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
+  ACellData.OnDrawItemPaintAfter := (OwnerData as THCViewData).OnDrawItemPaintAfter;
+  ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
+  ACellData.OnCanEdit := (OwnerData as THCViewData).OnCanEdit;
+  ACellData.OnCreateItem := (OwnerData as THCRichData).OnCreateItem;
   ACellData.OnGetUndoList := Self.GetSelfUndoList;
   ACellData.OnGetRootData := DoCellDataGetRootData;
 end;

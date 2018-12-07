@@ -14,9 +14,9 @@ unit HCSectionData;
 interface
 
 uses
-  Windows, Classes, Graphics, SysUtils, Controls, Generics.Collections, HCCustomRichData,
+  Windows, Classes, Graphics, SysUtils, Controls, Generics.Collections, HCRichData,
   HCCustomData, HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle, HCTextStyle,
-  HCRichData, HCCustomFloatItem, HCRectItem;
+  HCViewData, HCCustomFloatItem, HCRectItem;
 
 type
   TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
@@ -24,7 +24,7 @@ type
   // 用于文档页眉、页脚、页面Data基类，主要用于处理文档级Data变化时特有的属性或事件
   // 如只读状态切换，页眉、页脚、页面切换时需要通知外部控件以做界面控件状态变化，
   // 而单元格只读切换时不需要
-  THCSectionData = class(THCRichData)
+  THCSectionData = class(THCViewData)
   private
     FOnReadOnlySwitch: TNotifyEvent;
     FOnGetScreenCoord: TGetScreenCoordEvent;
@@ -178,11 +178,11 @@ begin
   {$ENDIF}
   begin
     {$IFDEF SHOWITEMNO}
-    DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr(DrawItems[ADrawItemNo].ItemNo));
+    DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 6, IntToStr(DrawItems[ADrawItemNo].ItemNo));
     {$ENDIF}
 
     {$IFDEF SHOWDRAWITEMNO}
-    DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr(ADrawItemNo));
+    DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 6, IntToStr(ADrawItemNo));
     {$ENDIF}
   end;
 end;

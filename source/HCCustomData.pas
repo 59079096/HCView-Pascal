@@ -60,12 +60,35 @@ type
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
   protected
-    /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
-    procedure MatchItemSelectState;
+    function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
+
+    /// <summary> 准备格式化参数 </summary>
+    /// <param name="AStartItemNo">开始格式化的Item</param>
+    /// <param name="APrioDItemNo">上一个Item的最后一个DrawItemNo</param>
+    /// <param name="APos">开始格式化位置</param>
+    procedure _FormatReadyParam(const AStartItemNo: Integer;
+      var APrioDrawItemNo: Integer; var APos: TPoint); virtual;
+
+    // Format仅负责格式化Item，ReFormat负责格式化后对后面Item和DrawItem的关联处理
+    procedure _ReFormatData(const AStartItemNo: Integer; const ALastItemNo: Integer = -1;
+      const AExtraItemCount: Integer = 0); virtual;
+
+    /// <summary> 当前Item对应的格式化起始Item和结束Item(段最后一个Item) </summary>
+    /// <param name="AFirstItemNo">起始ItemNo</param>
+    /// <param name="ALastItemNo">结束ItemNo</param>
+    procedure GetReformatItemRange(var AFirstItemNo, ALastItemNo: Integer); overload;
+
+    /// <summary> 指定Item对应的格式化起始Item和结束Item(段最后一个Item) </summary>
+    /// <param name="AFirstItemNo">起始ItemNo</param>
+    /// <param name="ALastItemNo">结束ItemNo</param>
+    procedure GetReformatItemRange(var AFirstItemNo, ALastItemNo: Integer; const AItemNo, AItemOffset: Integer); overload;
 
     /// <summary> 式化时，记录起始DrawItem和段最后的DrawItem </summary>
     /// <param name="AStartItemNo"></param>
     procedure _FormatItemPrepare(const AStartItemNo: Integer; const AEndItemNo: Integer = -1);
+
+    /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
+    procedure MatchItemSelectState;
 
     /// <summary>
     /// 转换指定Item指定Offs格式化为DItem
@@ -250,7 +273,7 @@ type
     /// <param name="ADrawItemNo">指定的DItem</param>
     /// <param name="X">在Data中的横坐标</param>
     /// <returns>第几个字符</returns>
-    function GetDrawItemOffset(const ADrawItemNo, X: Integer): Integer;
+    function GetDrawItemOffsetAt(const ADrawItemNo, X: Integer): Integer;
 
     { 获取选中相关信息 }
     /// <summary> 当前选中起始DItemNo </summary>
@@ -645,6 +668,11 @@ begin
   Result.ParaNo := FStyle.CurParaNo;
 end;
 
+function THCCustomData.CreateItemByStyle(const AStyleNo: Integer): THCCustomItem;
+begin
+  Result := nil;
+end;
+
 function THCCustomData.GetCurDrawItem: THCCustomDrawItem;
 var
   vCurDItemNo: Integer;
@@ -928,7 +956,7 @@ begin
   end;
 end;
 
-function THCCustomData.GetDrawItemOffset(const ADrawItemNo, X: Integer): Integer;
+function THCCustomData.GetDrawItemOffsetAt(const ADrawItemNo, X: Integer): Integer;
 var
   vX, vCharWidth: Integer;
   vDrawItem: THCCustomDrawItem;
@@ -1055,7 +1083,7 @@ function THCCustomData.GetDrawItemOffsetWidth(const ADrawItemNo, ADrawOffs: Inte
 var
   vStyleNo: Integer;
   vAlignHorz: TParaAlignHorz;
-  vDItem: THCCustomDrawItem;
+  vDrawItem: THCCustomDrawItem;
 
   vSplitList: THCIntegerList;
   vLineLast: Boolean;
@@ -1067,8 +1095,8 @@ begin
   Result := 0;
   if ADrawOffs = 0 then Exit;
 
-  vDItem := FDrawItems[ADrawItemNo];
-  vStyleNo := FItems[vDItem.ItemNo].StyleNo;
+  vDrawItem := FDrawItems[ADrawItemNo];
+  vStyleNo := FItems[vDrawItem.ItemNo].StyleNo;
   if vStyleNo < THCStyle.Null then  // 非文本
   begin
     if ADrawOffs > OffsetBefor then
@@ -1088,8 +1116,8 @@ begin
     case vAlignHorz of
       pahLeft, pahRight, pahCenter:
         begin
-          Result := vCanvas.TextWidth(Copy(FItems[vDItem.ItemNo].Text,
-            vDItem.CharOffs, ADrawOffs));
+          Result := vCanvas.TextWidth(Copy(FItems[vDrawItem.ItemNo].Text,
+            vDrawItem.CharOffs, ADrawOffs));
         end;
       pahJustify, pahScatter:  // 20170220001 两端、分散对齐相关处理
         begin
@@ -1097,14 +1125,14 @@ begin
           begin
             if IsParaLastDrawItem(ADrawItemNo) then  // 两端对齐、段最后一行不处理
             begin
-              Result := vCanvas.TextWidth(Copy(FItems[vDItem.ItemNo].Text,
-                vDItem.CharOffs, ADrawOffs));
+              Result := vCanvas.TextWidth(Copy(FItems[vDrawItem.ItemNo].Text,
+                vDrawItem.CharOffs, ADrawOffs));
               Exit;
             end;
           end;
 
           vText := GetDrawItemText(ADrawItemNo);
-          viSplitW := vDItem.Width - vCanvas.TextWidth(vText);  // 当前DItem的Rect中用于分散的空间
+          viSplitW := vDrawItem.Width - vCanvas.TextWidth(vText);  // 当前DItem的Rect中用于分散的空间
           vMod := 0;
           // 计算当前Ditem内容分成几份，每一份在内容中的起始位置
           vSplitList := THCIntegerList.Create;
@@ -1157,7 +1185,7 @@ begin
                   vCharWidth := vCanvas.TextWidth(vS[j]);
 
                   vDOffset := vSplitList[i] - 1 + j;
-                  if vDOffset = vDItem.CharLen then  // 是当前DItem最后一个分隔串
+                  if vDOffset = vDrawItem.CharLen then  // 是当前DItem最后一个分隔串
                   begin
                     if not vLineLast then  // 当前DItem不是行最后一个DItem
                       vCharWidth := vCharWidth + viSplitW + vSplitCount;  // 当前DItem最后一个字符享受分隔间距和多分的余数
@@ -1336,10 +1364,10 @@ begin
               AOffset := OffsetAfter;
           end
           else
-            AOffset := GetDrawItemOffset(i, X);
+            AOffset := GetDrawItemOffsetAt(i, X);
         end
         else  // TextItem
-          AOffset := FDrawItems[i].CharOffs + GetDrawItemOffset(i, X) - 1;
+          AOffset := FDrawItems[i].CharOffs + GetDrawItemOffsetAt(i, X) - 1;
 
         Break;
       end;
@@ -1560,6 +1588,45 @@ begin
   Dec(Result);
 end;
 
+procedure THCCustomData.GetReformatItemRange(var AFirstItemNo,
+  ALastItemNo: Integer; const AItemNo, AItemOffset: Integer);
+//var
+//  vDrawItemNo, vParaFirstDItemNo: Integer;
+begin
+  // 行起始为TextItem，同一行后面有RectItem时，编辑TextItem后格式化可能会将RectItem分到下一行，
+  // 所以不能直接 FormatItemPrepare(SelectInfo.StartItemNo)否则会因为格式化范围太小，
+  // 没有进行FiniLine调整行高，所以从段最后或行最后开始
+
+  // 如果Item分多行，在非起始位置行修改，从起始位置格式化时，起始位置和前面的原来
+  // 因分散附加了宽度，所以应该从起始位置所在行首ItemNo开始格式化，否则起始位置格式化时
+  // 其前面Item有上一次分散附加的宽度，会造起始位置格式化宽度不正确，造成分行不准确
+  // 这样的设计，是支持数据格式化时指定ItemNo和Offset了
+  //
+  // 如果格式化位置在行首且是ItemB起始，上一行结束是另一ItemA，当插入文本时可和ItemA合并，
+  // 需要从ItemA开始格式化
+  if (AItemNo > 0)
+    and FDrawItems[FItems[AItemNo].FirstDItemNo].LineFirst
+    and (AItemOffset = 0)
+    //and ((Items[AItemNo].StyleNo < THCStyle.RsNull) or (AItemOffset = 0))
+  then  // 在开头
+  begin
+    if not FItems[AItemNo].ParaFirst then  // 不是段首
+      AFirstItemNo := GetLineFirstItemNo(AItemNo - 1, FItems[AItemNo - 1].Length)
+    else  // 是段首
+      AFirstItemNo := AItemNo;
+  end
+  else
+    AFirstItemNo := GetLineFirstItemNo(AItemNo, 0);  // 取行第一个DrawItem对应的ItemNo
+
+  ALastItemNo := GetParaLastItemNo(AItemNo);
+end;
+
+procedure THCCustomData.GetReformatItemRange(var AFirstItemNo,
+  ALastItemNo: Integer);
+begin
+  GetReformatItemRange(AFirstItemNo, ALastItemNo, FSelectInfo.StartItemNo, FSelectInfo.StartItemOffset);
+end;
+
 function THCCustomData.GetRootData: THCCustomData;
 begin
   Result := Self;
@@ -1588,7 +1655,7 @@ begin
     Result := GetDrawItemNoByOffset(FSelectInfo.StartItemNo,
       FSelectInfo.StartItemOffset);
 
-    if (FSelectInfo.EndItemNo >= 0)
+    if (FSelectInfo.EndItemNo >= 0) and (Result < FItems.Count - 1)
       and (FDrawItems[Result].CharOffsetEnd = FSelectInfo.StartItemOffset)
     then  // 有选中时，SelectInfo.StartItemOffset在本行最后时，要转为下一行行首
       Inc(Result);
@@ -2247,6 +2314,16 @@ begin
     else  // 下一个不是段起始
       APos.X := vRect.Right;  // 下一个的起始坐标
   end;
+end;
+
+procedure THCCustomData._FormatReadyParam(const AStartItemNo: Integer;
+  var APrioDrawItemNo: Integer; var APos: TPoint);
+begin
+end;
+
+procedure THCCustomData._ReFormatData(const AStartItemNo, ALastItemNo,
+  AExtraItemCount: Integer);
+begin
 end;
 
 function THCCustomData.IsLineLastDrawItem(const ADrawItemNo: Integer): Boolean;

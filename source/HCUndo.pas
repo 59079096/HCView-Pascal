@@ -70,8 +70,16 @@ type
 
   { UndoAction部分 }
 
-  TUndoActionTag = (uatDeleteText, uatInsertText, uatDeleteItem, uatInsertItem,
-    uatItemProperty, uatItemSelf, uatItemMirror);
+  TUndoActionTag = (
+    uatDeleteBackText,  // 向前删除文本
+    uatDeleteText,  // 向后删除文本
+    uatInsertText,  // 插入文本
+    uatDeleteItem,  // 删除Item
+    uatInsertItem,  // 插入Item
+    uatItemProperty,  // Item属性变化
+    uatItemSelf,  // Item自己管理
+    uatItemMirror  // Item镜像
+    );
 
   THCCustomUndoAction = class(TObject)
   private
@@ -102,6 +110,24 @@ type
   public
     constructor Create; override;
     property ItemProperty: TItemProperty read FItemProperty write FItemProperty;
+  end;
+
+  THCItemStyleUndoAction = class(THCItemPropertyUndoAction)
+  private
+    FOldStyleNo, FNewStyleNo: Integer;
+  public
+    constructor Create; override;
+    property OldStyleNo: Integer read FOldStyleNo write FOldStyleNo;
+    property NewStyleNo: Integer read FNewStyleNo write FNewStyleNo;
+  end;
+
+  THCItemParaUndoAction = class(THCItemPropertyUndoAction)
+  private
+    FOldParaNo, FNewParaNo: Integer;
+  public
+    constructor Create; override;
+    property OldParaNo: Integer read FOldParaNo write FOldParaNo;
+    property NewParaNo: Integer read FNewParaNo write FNewParaNo;
   end;
 
   THCItemParaFirstUndoAction = class(THCItemPropertyUndoAction)
@@ -264,6 +290,7 @@ type
     function UndoNew: THCUndo;
     procedure Undo;
     procedure Redo;
+    procedure Clear;
 
     property Enable: Boolean read FEnable write FEnable;
     property MaxUndoCount: Cardinal read FMaxUndoCount write FMaxUndoCount;
@@ -313,6 +340,14 @@ begin
   vUndoGroupBegin.Offset := AOffset;
 
   DoNewUndo(vUndoGroupBegin);
+end;
+
+procedure THCUndoList.Clear;
+begin
+  inherited Clear;
+  FSeek := -1;
+  FGroupBeginIndex := -1;
+  FGroupEndIndex := -1;
 end;
 
 constructor THCUndoList.Create;
@@ -541,7 +576,7 @@ function THCUndo.ActionAppend(const ATag: TUndoActionTag;
   const AItemNo, AOffset: Integer): THCCustomUndoAction;
 begin
   case ATag of
-    uatDeleteText, uatInsertText:
+    uatDeleteBackText, uatDeleteText, uatInsertText:
       Result := THCTextUndoAction.Create;
 
     uatDeleteItem, uatInsertItem, uatItemMirror:
@@ -687,6 +722,22 @@ constructor THCSectionUndoGroupEnd.Create;
 begin
   inherited Create;
   FSectionIndex := -1;
+end;
+
+{ THCItemStyleUndoAction }
+
+constructor THCItemStyleUndoAction.Create;
+begin
+  inherited Create;
+  FItemProperty := TItemProperty.uipStyleNo;
+end;
+
+{ THCItemParaUndoAction }
+
+constructor THCItemParaUndoAction.Create;
+begin
+  inherited Create;
+  FItemProperty := TItemProperty.uipParaNo;
 end;
 
 end.

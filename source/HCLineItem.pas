@@ -14,7 +14,7 @@ unit HCLineItem;
 interface
 
 uses
-  Windows, Classes, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData, HCCustomRichData;
+  Windows, Classes, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData, HCRichData;
 
 type
   THCLineItem = class(THCCustomRectItem)
@@ -75,7 +75,7 @@ end;
 procedure THCLineItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
 begin
-  Width := THCCustomRichData(ARichData).Width;
+  Width := THCRichData(ARichData).Width;
   Height := FLineHeight;
 end;
 

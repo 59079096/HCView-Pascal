@@ -347,7 +347,7 @@ begin
 
   if not APaintInfo.Print then
   begin
-    if AData.Style.ShowLineLastMark then  // 显示段尾的换行符
+    if AData.Style.ShowParaLastMark then  // 显示段尾的换行符
     begin
       if (ADrawItemNo < DrawItems.Count - 1) and DrawItems[ADrawItemNo + 1].ParaFirst then
         DrawLineLastMrak(ADrawRect)  // 段尾的换行符

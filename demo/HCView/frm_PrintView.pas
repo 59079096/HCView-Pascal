@@ -471,7 +471,8 @@ begin
 
     FBitmap.SetSize(FDrawWidth, FDrawHeight);
     FBitmap.Canvas.Brush.Color := FHCView.Style.BackgroudColor;
-    FBitmap.Canvas.FillRect(Bounds(0, 0, FBitmap.Width, FBitmap.Height));
+    FBitmap.Canvas.Pen.Color := clBlack;
+    FBitmap.Canvas.Rectangle(0, 0, FBitmap.Width, FBitmap.Height);
 
     vScaleInfo := vPaintInfo.ScaleCanvas(FBitmap.Canvas);
     try
@@ -484,10 +485,6 @@ begin
     finally
       vPaintInfo.RestoreCanvasScale(FBitmap.Canvas, vScaleInfo);
     end;
-
-    FBitmap.Canvas.Pen.Color := clBlack;
-    FBitmap.Canvas.Brush.Style := bsClear;
-    FBitmap.Canvas.Rectangle(0, 0, FDrawWidth, FDrawHeight);
   finally
     vPaintInfo.Free;
   end;

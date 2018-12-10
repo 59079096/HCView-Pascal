@@ -21,10 +21,12 @@ type
 
   THCTextItem = class(THCCustomItem)
   private
-    FText: string;
+    FText, FHyperLink: string;
   protected
     function GetText: string; override;
     procedure SetText(const Value: string); override;
+    function GetHyperLink: string; override;
+    procedure SetHyperLink(const Value: string); override;
     function GetLength: Integer; override;
   public
     constructor CreateByText(const AText: string); virtual;
@@ -65,6 +67,7 @@ constructor THCTextItem.CreateByText(const AText: string);
 begin
   Create;  // 这里如果 inherited Create; 则调用THCCustomItem的Create，子类TEmrTextItem调用CreateByText时不能执行自己的Create
   FText := AText;
+  FHyperLink := '';
 end;
 
 procedure THCTextItem.Assign(Source: THCCustomItem);
@@ -83,6 +86,11 @@ begin
     Result.Text := Self.GetTextPart(AOffset + 1, Length - AOffset);
     Delete(FText, AOffset + 1, Length - AOffset);  // 当前Item减去光标后的字符串
   end;
+end;
+
+function THCTextItem.GetHyperLink: string;
+begin
+  Result := FHyperLink;
 end;
 
 function THCTextItem.GetLength: Integer;
@@ -141,6 +149,11 @@ begin
   AStream.WriteBuffer(vDSize, SizeOf(vDSize));
   if vDSize > 0 then
     AStream.WriteBuffer(vBuffer[0], vDSize);
+end;
+
+procedure THCTextItem.SetHyperLink(const Value: string);
+begin
+  FHyperLink := Value;
 end;
 
 procedure THCTextItem.SetText(const Value: string);

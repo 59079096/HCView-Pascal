@@ -170,6 +170,8 @@ type
       const AItem: THCCustomItem);
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData;
       const AItem: THCCustomItem);
+    procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
+      const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -659,7 +661,7 @@ type
 implementation
 
 uses
-  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, Xml.XMLDoc, Xml.XMLIntf;
+  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, Xml.XMLDoc, Xml.XMLIntf, ShellAPI;
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
@@ -1195,10 +1197,10 @@ procedure THCView.DoLoadFromStream(const AStream: TStream;
 var
   vFileExt: string;
   vVersion: Word;
-  vLan: Byte;
+  vLang: Byte;
 begin
   AStream.Position := 0;
-  _LoadFileFormatAndVersion(AStream, vFileExt, vVersion, vLan);  // 文件格式和版本
+  _LoadFileFormatAndVersion(AStream, vFileExt, vVersion, vLang);  // 文件格式和版本
   if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
 
@@ -1219,6 +1221,14 @@ procedure THCView.DoSectionInsertItem(const Sender: TObject;
 begin
   if Assigned(FOnSectionInsertItem) then
     FOnSectionInsertItem(Sender, AData, AItem);
+end;
+
+procedure THCView.DoSectionItemMouseUp(const Sender: TObject;
+  const AData: THCCustomData; const AItemNo: Integer; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if (ssCtrl in Shift) and (AData.Items[AItemNo].HyperLink <> '')then
+    ShellExecute(Application.Handle, nil, PChar(AData.Items[AItemNo].HyperLink), nil, nil, SW_SHOWNORMAL);
 end;
 
 procedure THCView.DoSectionDrawItemAnnotate(const Sender: TObject; const AData: THCCustomData;
@@ -1917,6 +1927,7 @@ begin
   Result.OnCanEdit := DoSectionCanEdit;
   Result.OnInsertItem := DoSectionInsertItem;
   Result.OnRemoveItem := DoSectionRemoveItem;
+  Result.OnItemMouseUp := DoSectionItemMouseUp;
   Result.OnReadOnlySwitch := DoSectionReadOnlySwitch;
   Result.OnGetScreenCoord := DoSectionGetScreenCoord;
   Result.OnDrawItemPaintAfter := DoSectionDrawItemPaintAfter;
@@ -2010,7 +2021,7 @@ var
   vSize: Integer;
   vFileFormat: string;
   vFileVersion: Word;
-  vLan: Byte;
+  vLang: Byte;
   vStyle: THCStyle;
 begin
   if Clipboard.HasFormat(HC_FILEFORMAT) then
@@ -2030,7 +2041,7 @@ begin
       end;
       //
       vStream.Position := 0;
-      _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion, vLan);  // 文件格式和版本
+      _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
       DoPasteDataBefor(vStream, vFileVersion);
       vStyle := THCStyle.Create;
       try

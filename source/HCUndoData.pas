@@ -513,13 +513,13 @@ procedure THCUndoData.LoadItemFromStreamAlone(const AStream: TStream;
 var
   vFileExt: string;
   viVersion: Word;
-  vLan: Byte;
+  vLang: Byte;
   vStyleNo, vParaNo: Integer;
   vTextStyle: THCTextStyle;
   vParaStyle: THCParaStyle;
 begin
   AStream.Position := 0;
-  _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLan);  // 文件格式和版本
+  _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLang);  // 文件格式和版本
   if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
 

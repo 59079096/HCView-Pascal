@@ -988,7 +988,7 @@ begin
 
     case vParaStyle.AlignHorz of
       pahLeft, pahRight, pahCenter:
-        Result := GetCharOffsetByX(FStyle.DefCanvas, vText, X - vX);
+        Result := GetCharOffsetAt(FStyle.DefCanvas, vText, X - vX);
 
       pahJustify, pahScatter:  // 20170220001 两端、分散对齐相关处理
         begin
@@ -996,7 +996,7 @@ begin
           begin
             if IsParaLastDrawItem(ADrawItemNo) then  // 两端对齐、段最后一行不处理
             begin
-              Result := GetCharOffsetByX(FStyle.DefCanvas, vText, X - vX);
+              Result := GetCharOffsetAt(FStyle.DefCanvas, vText, X - vX);
               Exit;
             end;
           end;
@@ -1329,7 +1329,7 @@ begin
     ADrawItemNo := vStartDItemNo;
     AItemNo := FDrawItems[vStartDItemNo].ItemNo;
     if FItems[AItemNo].StyleNo < THCStyle.Null then
-      AOffset := OffsetBefor  // GetDrawItemOffset(vStartDItemNo, X)
+      AOffset := OffsetBefor  // GetDrawItemOffsetAt(vStartDItemNo, X)
     else
       AOffset := FDrawItems[vStartDItemNo].CharOffs - 1;  // DrawItem起始
   end
@@ -1339,7 +1339,7 @@ begin
     ADrawItemNo := vEndDItemNo;
     AItemNo := FDrawItems[vEndDItemNo].ItemNo;
     if FItems[AItemNo].StyleNo < THCStyle.Null then
-      AOffset := OffsetAfter  // GetDrawItemOffset(vEndDItemNo, X)
+      AOffset := OffsetAfter  // GetDrawItemOffsetAt(vEndDItemNo, X)
     else
       AOffset := FDrawItems[vEndDItemNo].CharOffs + FDrawItems[vEndDItemNo].CharLen - 1;  // DrawItem最后
   end
@@ -1473,10 +1473,11 @@ end;
 
 function THCCustomData.GetLineSpace(const ADrawNo: Integer): Integer;
 var
-  i, vFirst, vLast, vHi, vMaxHi, vMaxDrawItemNo: Integer;
+  i, vFirst, vLast, vHi, vMaxHi, vMaxDrawItemNo, vStyleNo: Integer;
   vCanvas: TCanvas;
 begin
   Result := 0;
+  vStyleNo := THCStyle.Null;
 
   vFirst := ADrawNo;
   GetLineDrawItemRang(vFirst, vLast);
@@ -1512,7 +1513,11 @@ begin
         vHi := (FItems[FDrawItems[i].ItemNo] as THCCustomRectItem).Height
       else
       begin
-        FStyle.TextStyles[FItems[FDrawItems[i].ItemNo].StyleNo].ApplyStyle(vCanvas);  // APaintInfo.ScaleY / APaintInfo.Zoom);
+        if FItems[FDrawItems[i].ItemNo].StyleNo <> vStyleNo then
+        begin
+          vStyleNo := FItems[FDrawItems[i].ItemNo].StyleNo;
+          FStyle.TextStyles[vStyleNo].ApplyStyle(vCanvas);  // APaintInfo.ScaleY / APaintInfo.Zoom);
+        end;
         vHi := THCStyle.GetFontHeight(vCanvas);
       end;
 
@@ -2609,8 +2614,8 @@ begin
     vDrawsSelectAll := DrawItemSelectAll;
   end;
 
-  vPrioStyleNo := -1;
-  vPrioParaNo := -1;
+  vPrioStyleNo := THCStyle.Null;
+  vPrioParaNo := THCStyle.Null;
   vVOffset := ADataDrawTop - AVOffset;  // 将数据起始位置映射到绘制位置
 
   vDCState := SaveDC(ACanvas.Handle);
@@ -2692,6 +2697,12 @@ begin
             or (tsSubscript in FStyle.TextStyles[vPrioStyleNo].FontStyles)
           then
             vTextHeight := vTextHeight + vTextHeight;
+
+          if vItem.HyperLink <> '' then
+          begin
+            ACanvas.Font.Color := $00C16305;
+            ACanvas.Font.Style := ACanvas.Font.Style + [fsUnderline];
+          end;
         end;
 
         case FStyle.ParaStyles[vItem.ParaNo].AlignVert of  // 垂直对齐方式

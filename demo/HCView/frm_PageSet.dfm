@@ -205,4 +205,12 @@ object frmPageSet: TfrmPageSet
     Caption = #23545#31216#26174#31034
     TabOrder = 13
   end
+  object chkParaLastMark: TCheckBox
+    Left = 136
+    Top = 180
+    Width = 89
+    Height = 17
+    Caption = #26174#31034#25442#34892#31526
+    TabOrder = 14
+  end
 end

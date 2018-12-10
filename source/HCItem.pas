@@ -85,6 +85,8 @@ type
     function GetSelectPart: Boolean;
     function GetText: string; virtual;
     procedure SetText(const Value: string); virtual;
+    function GetHyperLink: string; virtual;
+    procedure SetHyperLink(const Value: string); virtual;
     procedure SetActive(const Value: Boolean); virtual;
     function GetLength: Integer; virtual;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -143,6 +145,7 @@ type
     property Text: string read GetText write SetText;
     property Length: Integer read GetLength;
     property ParaFirst: Boolean read GetParaFirst write SetParaFirst;
+    property HyperLink: string read GetHyperLink write SetHyperLink;
 
     property IsSelectComplate: Boolean read GetSelectComplate;
     property IsSelectPart: Boolean read GetSelectPart;
@@ -227,6 +230,11 @@ begin
   Result := '';
 end;
 
+function THCCustomItem.GetHyperLink: string;
+begin
+  Result := '';
+end;
+
 function THCCustomItem.GetLength: Integer;
 begin
   Result := 0;
@@ -300,7 +308,7 @@ begin
       APageDataScreenTop, APageDataScreenBottom, ACanvas, APaintInfo);
   finally
     Windows.RestoreDC(ACanvas.Handle, vDCState);
-    ACanvas.Refresh;  // 恢复Pen的修改
+    //ACanvas.Refresh;  // 恢复Pen的修改
   end;
 end;
 
@@ -352,6 +360,10 @@ end;
 procedure THCCustomItem.SetActive(const Value: Boolean);
 begin
   FActive := Value;
+end;
+
+procedure THCCustomItem.SetHyperLink(const Value: string);
+begin
 end;
 
 procedure THCCustomItem.SetParaFirst(const Value: Boolean);

@@ -411,7 +411,7 @@ begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
     ApplySupSubStyle(OwnerData.Style.TextStyles[TextStyleNo], OwnerData.Style.DefCanvas);
-    vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, vS, vX);
+    vOffset := GetCharOffsetAt(OwnerData.Style.DefCanvas, vS, vX);
   end
   else
     vOffset := -1;

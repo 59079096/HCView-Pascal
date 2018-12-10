@@ -27,7 +27,7 @@ const
   HCS_EXCEPTION_VOIDSOURCECELL = HC_EXCEPTION + '源单元格无法再获取源单元格！';
 
   HC_EXT = '.hcf';
-  HC_FILELAN = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++
+  HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++
 
   {1.3 支持浮动对象保存和读取(未处理向下兼容)
    1.4 支持表格单元格边框显示属性的保存和读取
@@ -153,7 +153,7 @@ type
   /// <param name="AText"></param>
   /// <param name="X"></param>
   /// <returns></returns>
-  function GetCharOffsetByX(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
+  function GetCharOffsetAt(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
 
   // 根据汉字大小获取字体数字大小
   function GetFontSize(const AFontSize: string): Single;
@@ -173,7 +173,7 @@ type
   procedure _SaveFileFormatAndVersion(const AStream: TStream);
   /// <summary> 读取文件格式、版本 </summary>
   procedure _LoadFileFormatAndVersion(const AStream: TStream;
-    var AFileFormat: string; var AVersion: Word; var ALan: Byte);
+    var AFileFormat: string; var AVersion: Word; var ALang: Byte);
 
   {$IFDEF DEBUG}
   procedure DrawDebugInfo(const ACanvas: TCanvas; const ALeft, ATop: Integer; const AInfo: string);
@@ -392,7 +392,7 @@ end;
 procedure _SaveFileFormatAndVersion(const AStream: TStream);
 var
   vS: string;
-  vLan: Byte;
+  vLang: Byte;
 begin
   vS := HC_EXT;
   AStream.WriteBuffer(vS[1], Length(vS) * SizeOf(Char));
@@ -400,13 +400,13 @@ begin
   vS := HC_FileVersion;
   AStream.WriteBuffer(vS[1], Length(vS) * SizeOf(Char));
   // 使用的编程语言
-  vLan := HC_FILELAN;
-  AStream.WriteBuffer(vLan, 1);
+  vLang := HC_PROGRAMLANGUAGE;
+  AStream.WriteBuffer(vLang, 1);
 end;
 
 /// <summary> 读取文件格式、版本 </summary>
 procedure _LoadFileFormatAndVersion(const AStream: TStream;
-  var AFileFormat: string; var AVersion: Word; var ALan: Byte);
+  var AFileFormat: string; var AVersion: Word; var ALang: Byte);
 var
   vFileVersion: string;
 begin
@@ -420,7 +420,7 @@ begin
   AVersion := GetVersionAsInteger(vFileVersion);
 
   if AVersion > 19 then // 使用的编程语言
-    AStream.ReadBuffer(ALan, 1);
+    AStream.ReadBuffer(ALang, 1);
 end;
 
 procedure SaveColorToStream(const AColor: TColor; const AStream: TStream);
@@ -467,7 +467,7 @@ begin
     AColor := vB shl 16 + vG shl 8 + vR;
 end;
 
-function GetCharOffsetByX(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
+function GetCharOffsetAt(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
 var
   i, vX, vCharWidth: Integer;
 begin

@@ -603,12 +603,12 @@ procedure THCEdit.LoadFromStream(const AStream: TStream);
 var
   vFileExt: string;
   viVersion: Word;
-  vLan: Byte;
+  vLang: Byte;
 begin
   FData.Clear;
   FStyle.Initialize;
   AStream.Position := 0;
-  _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLan);  // 文件格式和版本
+  _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLang);  // 文件格式和版本
   if vFileExt <> HC_EXT then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
 
@@ -694,7 +694,7 @@ var
   vSize: Integer;
   viVersion: Word;
   vFileFormat: string;
-  vLan: Byte;
+  vLang: Byte;
   vStyle: THCStyle;
 begin
   if Clipboard.HasFormat(HC_FILEFORMAT) then
@@ -714,7 +714,7 @@ begin
       end;
       //
       vStream.Position := 0;
-      _LoadFileFormatAndVersion(vStream, vFileFormat, viVersion, vLan);  // 文件格式和版本
+      _LoadFileFormatAndVersion(vStream, vFileFormat, viVersion, vLang);  // 文件格式和版本
       //DoPasteDataBefor(vStream, viVersion);
       vStyle := THCStyle.Create;
       try

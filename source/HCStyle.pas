@@ -47,11 +47,11 @@ type
     FParaStyles: TObjectList<THCParaStyle>;
     FPixelsPerMMX, FPixelsPerMMY: Single;  // 1毫米dpi数
     FUpdateInfo: TUpdateInfo;
-    FShowLineLastMark: Boolean;  // 是否显示换行符
+    FShowParaLastMark: Boolean;  // 是否显示换行符
 
     FOnInvalidateRect: TInvalidateRectEvent;
   protected
-    procedure SetShowLineLastMark(Value: Boolean);
+    procedure SetShowParaLastMark(Value: Boolean);
   public const
     Null = -1;  // TextItem和RectItem分界线
     Image = -2;
@@ -114,7 +114,7 @@ type
     property PixelsPerMMX: single read FPixelsPerMMX;
     property PixelsPerMMY: single read FPixelsPerMMY;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
-    property ShowLineLastMark: Boolean read FShowLineLastMark write SetShowLineLastMark;
+    property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
   end;
 
@@ -164,7 +164,7 @@ begin
 
   FBackgroudColor := $00FFFFFE;
   FSelColor := clSkyBlue;
-  FShowLineLastMark := True;
+  FShowParaLastMark := True;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;
   FParaStyles := TObjectList<THCParaStyle>.Create;
@@ -344,11 +344,11 @@ begin
   AStream.Position := vEndPos;
 end;
 
-procedure THCStyle.SetShowLineLastMark(Value: Boolean);
+procedure THCStyle.SetShowParaLastMark(Value: Boolean);
 begin
-  if FShowLineLastMark <> Value then
+  if FShowParaLastMark <> Value then
   begin
-    FShowLineLastMark := Value;
+    FShowParaLastMark := Value;
     UpdateInfoRePaint;
   end;
 end;

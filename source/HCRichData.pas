@@ -1070,7 +1070,10 @@ begin
     DrawItems.Clear;
     InitializeField;
     FormatData(0, Items.Count - 1);
-    ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);  // 防止清空后格式化完成后没有选中起始访问出错
+    if SelectInfo.StartItemNo < 0 then
+      ReSetSelectAndCaret(0, 0)
+    else
+      ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);  // 防止清空后格式化完成后没有选中起始访问出错
   end;
 end;
 
@@ -4823,13 +4826,18 @@ begin
     FMouseMoveRestrain := vRestrain;
 
     if not vRestrain then
+    begin
       DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
+      if (ssCtrl in Shift) and (Items[FMouseMoveItemNo].HyperLink <> '') then
+        GCursor := crHandPoint;
+    end;
   end;
 end;
 
 procedure THCRichData.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   vUpItemNo, vUpItemOffset, vDrawItemNo: Integer;
+  vRestrain: Boolean;
 
   {$REGION ' DoItemMouseUp '}
   procedure DoItemMouseUp(const AItemNo, AOffset: Integer);
@@ -4840,7 +4848,7 @@ var
     CoordToItemOffset(X, Y, AItemNo, AOffset, vX, vY);
     Items[AItemNo].MouseUp(Button, Shift, vX, vY);
 
-    if Assigned(FOnItemMouseUp) then
+    if (not vRestrain) and Assigned(FOnItemMouseUp) then
       FOnItemMouseUp(Self, AItemNo, Button, Shift, vX, vY);
   end;
   {$ENDREGION}
@@ -4865,17 +4873,16 @@ var
     if not FMouseDownReCaret then  // 避免重复获取光标位置
       Style.UpdateInfoReCaret;
 
-    if Items[vUpItemNo].StyleNo < THCStyle.Null then  // RectItem
+    //if Items[vUpItemNo].StyleNo < THCStyle.Null then  // RectItem
       DoItemMouseUp(vUpItemNo, vUpItemOffset);  // 弹起，因为可能是移出Item后弹起，所以这里不受vRestrain约束
   end;
   {$ENDREGION}
 
 var
   i, vFormatFirstItemNo, vFormatLastItemNo: Integer;
-  vRestrain: Boolean;
   vMouseUpInSelect: Boolean;
 begin
-  if not FMouseLBDowning then Exit;  // 屏蔽OpenDialog对话框双击引起的弹起
+  //if not FMouseLBDowning then Exit;  // 屏蔽OpenDialog对话框双击引起的弹起
   FMouseLBDowning := False;
 
   if FMouseLBDouble then Exit;

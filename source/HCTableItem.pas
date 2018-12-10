@@ -2479,6 +2479,7 @@ procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
 begin
   ACellData.OnInsertItem := (OwnerData as THCViewData).OnInsertItem;
   ACellData.OnRemoveItem := (OwnerData as THCViewData).OnRemoveItem;
+  ACellData.OnItemMouseUp := (OwnerData as THCViewData).OnItemMouseUp;
   ACellData.OnItemResized := (OwnerData as THCRichData).OnItemResized;
   ACellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;

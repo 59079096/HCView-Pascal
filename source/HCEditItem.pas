@@ -282,7 +282,7 @@ begin
   inherited MouseDown(Button, Shift, X, Y);
   OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
   vX := X - FMargin;// - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
-  vOffset := GetCharOffsetByX(OwnerData.Style.DefCanvas, FText, vX);
+  vOffset := GetCharOffsetAt(OwnerData.Style.DefCanvas, FText, vX);
   if vOffset <> FCaretOffset then
   begin
     FCaretOffset := vOffset;

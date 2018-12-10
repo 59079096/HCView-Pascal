@@ -43,6 +43,8 @@ type
     const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate) of object;
   TSectionAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const ADataAnnotate: THCDataAnnotate) of object;
+  TSectionDataItemMouseEvent = procedure(const Sender: TObject; const AData: THCCustomData;
+    const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
   THCCustomSection = class(TObject)
   private
@@ -85,6 +87,7 @@ type
 
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemNotifyEvent;
+    FOnItemMouseUp: TSectionDataItemMouseEvent;
     FOnItemResized: TDataItemEvent;
     FOnCreateItem: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
@@ -121,6 +124,8 @@ type
 
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
+    procedure DoDataItemMouseUp(const AData: THCCustomData; const AItemNo: Integer;
+       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataChanged(Sender: TObject);
 
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
@@ -385,6 +390,7 @@ type
     property OnInsertItem: TSectionDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TSectionDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
     property OnItemResized: TDataItemEvent read FOnItemResized write FOnItemResized;
+    property OnItemMouseUp: TSectionDataItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
     property OnPaintHeader: TSectionPagePaintEvent read FOnPaintHeader write FOnPaintHeader;
     property OnPaintFooter: TSectionPagePaintEvent read FOnPaintFooter write FOnPaintFooter;
     property OnPaintPage: TSectionPagePaintEvent read FOnPaintPage write FOnPaintPage;
@@ -577,6 +583,7 @@ var
     AData.OnInsertItem := DoDataInsertItem;
     AData.OnRemoveItem := DoDataRemoveItem;
     AData.OnItemResized := DoDataItemResized;
+    AData.OnItemMouseUp := DoDataItemMouseUp;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
     AData.OnCanEdit := DoDataCanEdit;
     AData.OnCreateItem := DoDataCreateItem;
@@ -748,6 +755,14 @@ begin
   if Assigned(FOnDrawItemPaintContent) then
     FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
       ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
+procedure THCCustomSection.DoDataItemMouseUp(const AData: THCCustomData;
+  const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer);
+begin
+  if Assigned(FOnItemMouseUp) then
+    FOnItemMouseUp(Self, AData, AItemNo, Button, Shift, X, Y);
 end;
 
 procedure THCCustomSection.DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);

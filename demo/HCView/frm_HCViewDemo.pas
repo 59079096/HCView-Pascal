@@ -123,6 +123,7 @@ type
     mniN46: TMenuItem;
     mniN2: TMenuItem;
     mniN17: TMenuItem;
+    mniHyperLink: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -191,6 +192,7 @@ type
     procedure pmLineSpacePopup(Sender: TObject);
     procedure mniN2Click(Sender: TObject);
     procedure mniN17Click(Sender: TObject);
+    procedure mniHyperLinkClick(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -649,6 +651,18 @@ begin
   finally
     FreeAndNil(vOpenDlg);
   end;
+end;
+
+procedure TfrmHCViewDemo.mniHyperLinkClick(Sender: TObject);
+var
+  vTopData: THCRichData;
+  vTextItem: THCTextItem;
+begin
+  vTopData := FHCView.ActiveSectionTopLevelData;
+  vTextItem := vTopData.CreateDefaultTextItem as THCTextItem;
+  vTextItem.Text := '打开百度';
+  vTextItem.HyperLink := 'www.baidu.com';
+  FHCView.InsertItem(vTextItem);
 end;
 
 procedure TfrmHCViewDemo.mniInsertRowTopClick(Sender: TObject);

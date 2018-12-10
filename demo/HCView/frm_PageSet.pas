@@ -31,6 +31,7 @@ type
     chkPageNoVisible: TCheckBox;
     lbl9: TLabel;
     chkSymmetryMargin: TCheckBox;
+    chkParaLastMark: TCheckBox;
     procedure btnOkClick(Sender: TObject);
     procedure cbbPaperChange(Sender: TObject);
   private
@@ -82,6 +83,7 @@ begin
     cbbPageOrientation.ItemIndex := 1;
 
   chkPageNoVisible.Checked := AHCView.ActiveSection.PageNoVisible;
+  chkParaLastMark.Checked := AHCView.Style.ShowParaLastMark;
   chkShowLineNo.Checked := AHCView.ShowLineNo;
   chkShowLineActiveMark.Checked := AHCView.ShowLineActiveMark;
   chkShowUnderLine.Checked := AHCView.ShowUnderLine;
@@ -108,6 +110,7 @@ begin
         AHCView.ActiveSection.PageOrientation := TPageOrientation.cpoLandscape;
 
       AHCView.ActiveSection.PageNoVisible := chkPageNoVisible.Checked;
+      AHCView.Style.ShowParaLastMark := chkParaLastMark.Checked;
       AHCView.ShowLineNo := chkShowLineNo.Checked;
       AHCView.ShowLineActiveMark := chkShowLineActiveMark.Checked;
       AHCView.ShowUnderLine := chkShowUnderLine.Checked;

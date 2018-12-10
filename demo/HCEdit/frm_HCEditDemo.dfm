@@ -292,7 +292,7 @@ object frmHCEdit: TfrmHCEdit
     Left = 72
     Top = 56
     Bitmap = {
-      494C01011B001D00100010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00140010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1316,8 +1316,8 @@ object frmHCEdit: TfrmHCEdit
     Top = 56
   end
   object pmRichEdit: TPopupMenu
-    Left = 264
-    Top = 64
+    Left = 176
+    Top = 56
     object mniN7: TMenuItem
       Caption = #21098#20999
     end
@@ -1359,7 +1359,7 @@ object frmHCEdit: TfrmHCEdit
     end
   end
   object pmLineSpace: TPopupMenu
-    Left = 424
+    Left = 248
     Top = 56
     object mniLineSpace: TMenuItem
       Caption = '1.0'

@@ -41,6 +41,9 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
+    function ToHtml(const APath: string): string; override;
+    function ToXml: string; override;
+
     /// <summaryy 复制一部分文本 </summary>
     /// <param name="AStartOffs">复制的起始位置(大于0)</param>
     /// <param name="ALength">众起始位置起复制的长度</param>
@@ -159,6 +162,19 @@ end;
 procedure THCTextItem.SetText(const Value: string);
 begin
   FText := Value;
+end;
+
+function THCTextItem.ToHtml(const APath: string): string;
+begin
+  Result := '<a class="fs' + IntToStr(StyleNo) + '">' + Text + '</a>';
+end;
+
+function THCTextItem.ToXml: string;
+begin
+  Result := '<text ts="' + IntToStr(StyleNo) + '"'
+    + ' ps="' + IntToStr(ParaNo) + '"'
+    + ' parafirst="' + HCBoolStrs[Self.ParaFirst] + '"'
+    + ' link="' + FHyperLink + '">' + Text + '</text>';
 end;
 
 end.

@@ -136,6 +136,8 @@ type
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); overload; virtual;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
+    function ToHtml(const APath: string): string; virtual;
+    function ToXml: string; virtual;
 
     // 撤销重做相关方法
     procedure Undo(const AUndoAction: THCCustomUndoAction); virtual;
@@ -334,6 +336,16 @@ end;
 
 procedure THCCustomItem.SetText(const Value: string);
 begin
+end;
+
+function THCCustomItem.ToHtml(const APath: string): string;
+begin
+  Result := '';
+end;
+
+function THCCustomItem.ToXml: string;
+begin
+  Result := '';
 end;
 
 procedure THCCustomItem.Undo(const AUndoAction: THCCustomUndoAction);

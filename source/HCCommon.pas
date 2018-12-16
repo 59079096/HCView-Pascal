@@ -52,6 +52,7 @@ const
   // 不能在行首的字符             |                    |                   |
   DontLineFirstChar = '`-=[]\;'',./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；‘，。、～！＠＃￥％……＆×（）——＋｛｝｜：“《》？°';
   DontLineLastChar = '/\＼';
+  HCBoolStrs: array [boolean] of Char = ('0', '1');
 
 type
   THCProcedure = reference to procedure();
@@ -144,7 +145,7 @@ type
   function PosCharHC(const AChar: Char; const AStr: string{; const Offset: Integer = 1}): Integer;
 
   /// <summary> 返回字符类型 </summary>
-  function GetCharType(const AChar: Word): TCharType;
+  function GetUnicodeCharType(const AChar: Char): TCharType;
 
   /// <summary>
   /// 返回指定位置在字符串哪个字符后面(0：第一个前面)
@@ -159,6 +160,7 @@ type
   function GetFontSize(const AFontSize: string): Single;
   function GetFontSizeStr(AFontSize: Single): string;
   function GetPaperSizeStr(APaperSize: Integer): string;
+  function GetColorHtmlRGB(const AColor: TColor): string;
 
   function GetVersionAsInteger(const AVersion: string): Integer;
 
@@ -181,7 +183,7 @@ type
 
 var
   GCursor: TCursor;
-  HC_FILEFORMAT: Word;
+  HC_FILEFORMAT, CF_HTML: Word;
 
 implementation
 
@@ -240,15 +242,40 @@ begin
     S := '';
 end;
 
-function GetCharType(const AChar: Word): TCharType;
+function GetUnicodeCharType(const AChar: Char): TCharType;
 begin
-  case AChar of
-    $4E00..$9FA5: Result := jctHZ;  // 汉字
+  case Cardinal(AChar) of
+    $2E80..$2EF3,  // 部首扩展 115
+    $2F00..$2FD5,  // 康熙部首 214
+    $2FF0..$2FFB,  // 汉字结构 12
+    $3007,  // 〇 1
+    $3105..$312F,  // 汉字注音 43
+    $31A0..$31BA,  // 注音扩展 22
+    $31C0..$31E3,  // 汉字笔划 36
+    $3400..$4DB5,  // 扩展A 6582个
+    $4E00..$9FA5,  // 基本汉字 20902个
+    $9FA6..$9FEF,  // 基本汉字补充 74个
+    $E400..$E5E8,  // 部件扩展 452
+    $E600..$E6CF,  // PUA增补 207
+    $E815..$E86F,  // PUA(GBK)部件 81
+    $F900..$FAD9,  // 兼容汉字 477
+    $20000..$2A6D6, // 扩展B 42711个
+    $2A700..$2B734,  // 扩展C 4149
+    $2B740..$2B81D,  // 扩展D 222
+    $2B820..$2CEA1,  // 扩展E 5762
+    $2CEB0..$2EBE0,  // 扩展F 7473
+    $2F800..$2FA1D  // 兼容扩展 542
+      : Result := jctHZ;  // 汉字
+
+    $F00..$FFF: Result := jctHZ;  // 藏语
+
+    $1800..$18AF: Result := jctHZ;  // 蒙古字符
 
     $21..$2F,  // !"#$%&'()*+,-./
     $3A..$40,  // :;<=>?@
     $5B..$60,  // [\]^_`
-    $7B..$7E   // {|}~
+    $7B..$7E,   // {|}~
+    $FFE0  // ￠
       : Result := jctFH;
 
     //$FF01..$FF0F,  // ！“＃￥％＆‘（）×＋，－。、
@@ -372,6 +399,12 @@ begin
   else
     Result := '自定义';
   end;
+end;
+
+function GetColorHtmlRGB(const AColor: TColor): string;
+begin
+  Result := 'rgb(' + GetRValue(AColor).ToString + ','
+    + GetGValue(AColor).ToString + ',' + GetBValue(AColor).ToString + ')';
 end;
 
 function GetVersionAsInteger(const AVersion: string): Integer;
@@ -548,5 +581,8 @@ end;
 initialization
   if HC_FILEFORMAT = 0 then
     HC_FILEFORMAT := RegisterClipboardFormat(HC_EXT);
+
+  if CF_HTML = 0 then
+    CF_HTML := RegisterClipboardFormat('HTML Format');
 
 end.

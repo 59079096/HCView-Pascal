@@ -48,6 +48,7 @@ type
     FPixelsPerMMX, FPixelsPerMMY: Single;  // 1毫米dpi数
     FUpdateInfo: TUpdateInfo;
     FShowParaLastMark: Boolean;  // 是否显示换行符
+    FHtmlFileTempName: Integer;
 
     FOnInvalidateRect: TInvalidateRectEvent;
   protected
@@ -102,6 +103,10 @@ type
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 
+    function GetHtmlFileTempName(const AReset: Boolean = False): string;
+    function ToCSS: string;
+    function ToXml: string;
+
     procedure InvalidateRect(const ARect: TRect);
 
     property TextStyles: TObjectList<THCTextStyle> read FTextStyles write FTextStyles;
@@ -126,7 +131,7 @@ type
 implementation
 
 uses
-  HCCommon;
+  SysUtils, HCCommon;
 
 { THCStyle }
 
@@ -261,6 +266,17 @@ begin
   Result := ACanvas.TextHeight('H');
 end;
 
+function THCStyle.GetHtmlFileTempName(const AReset: Boolean = False): string;
+begin
+  if AReset then
+    FHtmlFileTempName := 0
+  else
+  begin
+    Inc(FHtmlFileTempName);
+    Result := IntToStr(FHtmlFileTempName);
+  end;
+end;
+
 procedure THCStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 
   {$REGION '段落样式'}
@@ -351,6 +367,45 @@ begin
     FShowParaLastMark := Value;
     UpdateInfoRePaint;
   end;
+end;
+
+function THCStyle.ToCSS: string;
+var
+  i: Integer;
+begin
+  Result := '<style type="text/css">';
+  for i := 0 to FTextStyles.Count - 1 do
+  begin
+    Result := Result + sLineBreak + 'a.fs' + IntToStr(i) + ' {';
+    Result := Result + FTextStyles[i].ToCSS + ' }';
+  end;
+
+  for i := 0 to FParaStyles.Count - 1 do
+  begin
+    Result := Result + sLineBreak + 'p.ps' + IntToStr(i) + ' {';
+    Result := Result + FParaStyles[i].ToCSS + ' }';
+  end;
+  Result := Result + sLineBreak + '</style>';
+end;
+
+function THCStyle.ToXml: string;
+var
+  i: Integer;
+begin
+  Result := '<style fscount="' + IntToStr(FTextStyles.Count)
+    + '" pscount="' + IntToStr(FParaStyles.Count) + '">';
+
+  Result := Result + sLineBreak + '<textstyles>';
+  for i := 0 to FTextStyles.Count - 1 do
+    Result := Result + sLineBreak + FTextStyles[i].ToXml;
+  Result := Result + sLineBreak + '</textstyles>';
+
+  Result := Result + sLineBreak + '<parastyles>';
+  for i := 0 to FParaStyles.Count - 1 do
+    Result := Result + sLineBreak + FParaStyles[i].ToXml;
+  Result := Result + sLineBreak + '</parastyles>';
+
+  Result := Result + sLineBreak + '</style>';
 end;
 
 procedure THCStyle.UpdateInfoReCaret(const ACaretStyle: Boolean = True);

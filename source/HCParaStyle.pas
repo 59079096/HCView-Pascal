@@ -43,6 +43,8 @@ type
     procedure AssignEx(const ASource: THCParaStyle);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
+    function ToCSS: string;
+    function ToXml: string;
   published
     property LineSpaceMode: TParaLineSpaceMode read FLineSpaceMode write FLineSpaceMode;
     //property LineSpace: Integer read FLineSpace write SetLineSpace;
@@ -57,7 +59,7 @@ type
 implementation
 
 uses
-  HCCommon;
+  SysUtils, HCCommon;
 
 { THCParaStyle }
 
@@ -134,6 +136,67 @@ begin
   SaveColorToStream(FBackColor, AStream);
   AStream.WriteBuffer(FAlignHorz, SizeOf(FAlignHorz));
   AStream.WriteBuffer(FAlignVert, SizeOf(FAlignVert));
+end;
+
+function THCParaStyle.ToCSS: string;
+begin
+  Result := ' text-align: ';
+  case FAlignHorz of
+    pahLeft: Result := Result + 'left';
+    pahRight: Result := Result + 'right';
+    pahCenter: Result := Result + 'center';
+    pahJustify, pahScatter: Result := Result + 'justify';
+  end;
+
+  case FLineSpaceMode of
+    pls100: Result := Result + '; line-height: 100%';
+    pls115: Result := Result + '; line-height: 115%';
+    pls150: Result := Result + '; line-height: 150%';
+    pls200: Result := Result + '; line-height: 200%';
+    plsFix: Result := Result + '; line-height: 10px';
+  end;
+end;
+
+function THCParaStyle.ToXml: string;
+
+  function GetLineSpaceModeXML: string;
+  begin
+    case FLineSpaceMode of
+      pls100: Result := '100';
+      pls115: Result := '115';
+      pls150: Result := '150';
+      pls200: Result := '200';
+      plsFix: Result := 'fix';
+    end;
+  end;
+
+  function GetHorzXML: string;
+  begin
+    case FAlignHorz of
+      pahLeft: Result := 'left';
+      pahRight: Result := 'right';
+      pahCenter: Result := 'center';
+      pahJustify: Result := 'justify';
+      pahScatter: Result := 'scatter';
+    end;
+  end;
+
+  function GetVertXML: string;
+  begin
+    case FAlignVert of
+      pavTop: Result := 'top';
+      pavCenter: Result := 'center';
+      pavBottom: Result := 'bottom';
+    end;
+  end;
+
+begin
+  Result := '<ps fristindent="' + IntToStr(FFristIndent) + '"'
+    + ' leftindent="' + IntToStr(FLeftIndent) + '"'
+    + ' bkcolor="' + GetColorHtmlRGB(FBackColor) + '"'
+    + ' spacemode="' + GetLineSpaceModeXML + '"'
+    + ' horz="' + GetHorzXML + '"'
+    + ' vert="' + GetVertXML + '"></ps>';
 end;
 
 end.

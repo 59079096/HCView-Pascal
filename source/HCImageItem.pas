@@ -14,7 +14,7 @@ unit HCImageItem;
 interface
 
 uses
-  Windows, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData;
+  Windows, SysUtils, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData;
 
 type
   THCImageItem = class(THCResizeRectItem)
@@ -40,6 +40,9 @@ type
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
     procedure LoadFromBmpFile(const AFileName: string);
+
+    function ToHtml(const APath: string): string; override;
+    function ToXml: string; override;
 
     /// <summary> 恢复到原始尺寸 </summary>
     procedure RecoverOrigianlSize;
@@ -258,6 +261,23 @@ begin
   finally
     vStream.Free;
   end;
+end;
+
+function THCImageItem.ToHtml(const APath: string): string;
+var
+  vFileName: string;
+begin
+  if not FileExists(APath + 'images') then
+    CreateDir(APath + 'images');
+  vFileName := OwnerData.Style.GetHtmlFileTempName + '.bmp';
+  FImage.SaveToFile(APath + 'images\' + vFileName);
+  Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
+    + '" src="images/' + vFileName + '" alt="THCImageItem" />';
+end;
+
+function THCImageItem.ToXml: string;
+begin
+
 end;
 
 end.

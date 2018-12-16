@@ -29,7 +29,7 @@ type
     FOnReadOnlySwitch: TNotifyEvent;
     FOnGetScreenCoord: TGetScreenCoordEvent;
 
-    FFloatItems: TObjectList<THCCustomFloatItem>;  // THCItems支持Add时控制暂时不用
+    FFloatItems: TObjectList<THCCustomFloatItem>;
     FFloatItemIndex, FMouseDownIndex, FMouseMoveIndex,
     FMouseX, FMouseY
       : Integer;
@@ -59,6 +59,8 @@ type
       AEndItemNo, AEndOffset: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
+
+    function ToXml: string; override;
 
     procedure PaintFloatItems(const APageIndex, ADataDrawLeft, ADataDrawTop,
       AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
@@ -708,6 +710,20 @@ begin
     if Assigned(FOnReadOnlySwitch) then
       FOnReadOnlySwitch(Self);
   end;
+end;
+
+function THCSectionData.ToXml: string;
+var
+  i: Integer;
+begin
+  Result := '<items count="' + IntToStr(Self.Items.Count) + '">';
+  Result := Result + sLineBreak + inherited ToXml;
+  Result := Result + sLineBreak + '</items>';
+
+  Result := Result + sLineBreak + '<floatitems count="' + IntToStr(FFloatItems.Count) + '">';
+  for i := 0 to FFloatItems.Count - 1 do
+     Result := Result + sLineBreak + FFloatItems[i].ToXml;
+  Result := Result + sLineBreak + '</floatitems>';
 end;
 
 end.

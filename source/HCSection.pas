@@ -417,14 +417,17 @@ type
     /// <returns>True£∫’“µΩ</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean;
     function Replace(const AText: string): Boolean;
-
+    function ParseHtml(const AHtmlText: string): Boolean;
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
+
+    function ToHtml(const APath: string): string;
+    function ToXml: string;
   end;
 
 implementation
 
 uses
-  Math;
+  Math, HCHtml;
 
 { THCCustomSection }
 
@@ -2600,6 +2603,21 @@ begin
   DoDataChanged(Self);
 end;
 
+function THCSection.ParseHtml(const AHtmlText: string): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    var
+      vHtmlFmt: THCHtmlFormat;
+    begin
+      vHtmlFmt := THCHtmlFormat.Create(FActiveData.GetTopLevelData);
+      try
+        Result := vHtmlFmt.Parse(AHtmlText);
+      finally
+        FreeAndNil(vHtmlFmt);
+      end;
+    end);
+end;
+
 function THCSection.Replace(const AText: string): Boolean;
 begin
   Result := ActiveDataChangeByAction(function(): Boolean
@@ -2612,6 +2630,47 @@ function THCSection.Search(const AKeyword: string; const AForward, AMatchCase: B
 begin
   Result := FActiveData.Search(AKeyword, AForward, AMatchCase);
   DoActiveDataCheckUpdateInfo;
+end;
+
+function THCSection.ToHtml(const APath: string): string;
+begin
+  Result := FPageData.ToHtml(APath);
+end;
+
+function THCSection.ToXml: string;
+begin
+  Result := '<sc symmargin="' + HCBoolStrs[FSymmetryMargin] + '"'; //  «∑Ò∂‘≥∆“≥±ﬂæ‡
+  if FPageOrientation = cpoPortrait then  // ÷Ω’≈∑ΩœÚ
+    Result := Result + ' ori="portrait"'
+  else
+    Result := Result + ' ori="landscape"';
+
+  Result := Result + ' pagenovisible="' + HCBoolStrs[FPageNoVisible] + '"';  //  «∑Òœ‘ æ“≥¬Î
+  Result := Result + ' size="' + IntToStr(FPageSize.PaperSize)  // ÷Ω’≈¥Û–°
+    + ',' + FormatFloat('#.#', FPageSize.PaperWidth) + ',' + FormatFloat('#.#', FPageSize.PaperHeight) + '"';
+
+  Result := Result + ' margin="'  // ±ﬂæ‡
+    + FormatFloat('#.#', FPageSize.PaperMarginLeft) + ','
+    + FormatFloat('#.#', FPageSize.PaperMarginTop) + ','
+    + FormatFloat('#.#', FPageSize.PaperMarginRight) + ','
+    + FormatFloat('#.#', FPageSize.PaperMarginBottom) + '"';
+
+  Result := Result + '>';
+
+  // ¥Ê“≥√º
+  Result := Result + sLineBreak + '<header offset="' + IntToStr(FHeaderOffset) + '">';
+  Result := Result + sLineBreak + FHeader.ToXml;
+  Result := Result + sLineBreak + '</header>';
+  // ¥Ê“≥Ω≈
+  Result := Result + sLineBreak + '<footer>';
+  Result := Result + sLineBreak + FFooter.ToXml;
+  Result := Result + sLineBreak + '</footer>';
+  // ¥Ê“≥√Ê
+  Result := Result + sLineBreak + '<page>';
+  Result := Result + sLineBreak + FPageData.ToXml;
+  Result := Result + sLineBreak + '</page>';
+
+  Result := Result + sLineBreak + '</sc>'
 end;
 
 { TSectionPaintInfo }

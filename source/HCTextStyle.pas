@@ -49,6 +49,8 @@ type
     procedure AssignEx(const ASource: THCTextStyle);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
+    function ToCSS: string;
+    function ToXml: string;
   published
     property Family: TFontName read FFamily write SetFamily stored IsFamilyStored;
     property Size: Single read FSize write SetSize stored IsSizeStored nodefault;
@@ -217,8 +219,6 @@ begin
   AStream.WriteBuffer(FFontStyles, SizeOf(FFontStyles));
   SaveColorToStream(FColor, AStream);
   SaveColorToStream(FBackColor, AStream);
-  //AStream.WriteBuffer(FColor, SizeOf(FColor));
-  //AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
 end;
 
 procedure THCTextStyle.SetFamily(const Value: TFontName);
@@ -231,6 +231,106 @@ procedure THCTextStyle.SetSize(const Value: Single);
 begin
   if FSize <> Value then
     FSize := Value;
+end;
+
+function THCTextStyle.ToCSS: string;
+
+  function GetTextDecoration: string;
+  begin
+    Result := '';
+    if tsUnderline in FFontStyles then
+      Result := ' underline';
+    if tsStrikeOut in FFontStyles then
+    begin
+      if Result <> '' then
+        Result := Result + ', line-through'
+      else
+        Result := ' line-through';
+    end;
+    //if rvfsOverline in TextStyle.StyleEx then
+    //  Result := Result + ', overline';
+
+    Result := 'text-decoration:' + Result + ';';
+  end;
+
+begin
+  Result := Format(' font-size: %fpt;', [FSize])
+    + Format(' font-family: %s;', [FFamily])
+    + Format(' color:rgb(%d, %d, %d);', [GetRValue(FColor), GetGValue(FColor), GetBValue(FColor)])
+    + Format(' background-color:rgb(%d, %d, %d);', [GetRValue(FBackColor), GetGValue(FBackColor), GetBValue(FBackColor)]);
+  if tsItalic in FFontStyles then
+    Result := Result + Format(' font-style: %s;', ['italic'])
+  else
+    Result := Result + Format(' font-style: %s;', ['normal']);
+
+  if (tsBold in FFontStyles) or (tsStrikeOut in FFontStyles) then
+    Result := Result + Format(' font-weight: %s;', ['bold'])
+  else
+    Result := Result + Format(' font-weight: %s;', ['normal']);
+
+  if (tsUnderline in FFontStyles) or (tsStrikeOut in FFontStyles) then
+    Result := Result + ' ' + GetTextDecoration;
+
+  if tsSuperscript in FFontStyles then
+    Result := Result + ' vertical-align:super;';
+
+  if tsSubscript in FFontStyles then
+    Result := Result + ' vertical-align:sub;';
+end;
+
+function THCTextStyle.ToXml: string;
+
+  function GetFontStyleXML: string;
+  begin
+    if tsBold in FFontStyles then
+      Result := 'bold';
+    if tsItalic in FFontStyles then
+    begin
+      if Result <> '' then
+        Result := Result + ',italic'
+      else
+        Result := 'italic';
+    end;
+
+    if tsUnderline in FFontStyles then
+    begin
+      if Result <> '' then
+        Result := Result + ',underline'
+      else
+        Result := 'underline';
+    end;
+
+    if tsStrikeOut in FFontStyles then
+    begin
+      if Result <> '' then
+        Result := Result + ',strike'
+      else
+        Result := 'strike';
+    end;
+
+    if tsSuperscript in FFontStyles then
+    begin
+      if Result <> '' then
+        Result := Result + ',sup'
+      else
+        Result := 'sup';
+    end;
+
+    if tsSubscript in FFontStyles then
+    begin
+      if Result <> '' then
+        Result := Result + ',sub'
+      else
+        Result := 'sub';
+    end;
+  end;
+
+begin
+  Result := '<ts size="' + FormatFloat('#.#', FSize) + '"'
+    + ' color="' + GetColorHtmlRGB(FColor) + '"'
+    + ' bkcolor="' + GetColorHtmlRGB(FBackColor) + '"'
+    + ' style="' + GetFontStyleXML + '">'
+    + Family + '</ts>';
 end;
 
 procedure THCTextStyle.SetFontStyles(const Value: THCFontStyles);

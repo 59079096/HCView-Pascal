@@ -436,31 +436,36 @@ type
     function GetSectionTopFilm(const ASectionIndex: Integer): Integer;
 
     // 保存文档
-    /// <summary> 文档保存为xml格式 </summary>
-    procedure SaveAsXML(const AFileName: string);
-
     /// <summary> 文档保存为hcf格式 </summary>
-    procedure SaveToFile(const AFileName: string);
+    procedure SaveToFile(const AFileName: string; const AQuick: Boolean = False);
+
+    /// <summary> 读取hcf文件 </summary>
+    procedure LoadFromFile(const AFileName: string);
 
     /// <summary> 文档保存为PDF格式 </summary>
-    procedure SaveAsPDF(const AFileName: string);
+    procedure SaveToPDF(const AFileName: string);
 
     /// <summary> 文档保存为Text格式 </summary>
-    procedure SaveAsText(const AFileName: string; const AEncoding: TEncoding);
-
-    /// <summary> 文档保存到流 </summary>
-    procedure SaveToStream(const AStream: TStream;
-      const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]); virtual;
+    procedure SaveToText(const AFileName: string; const AEncoding: TEncoding);
 
     // 读取文档
     /// <summary> 读取Txt文件 </summary>
     procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
 
-    /// <summary> 读取hcf文件 </summary>
-    procedure LoadFromFile(const AFileName: string);
+    /// <summary> 文档保存到流 </summary>
+    procedure SaveToStream(const AStream: TStream; const AQuick: Boolean = False;
+      const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]); virtual;
 
     /// <summary> 读取文件流 </summary>
     procedure LoadFromStream(const AStream: TStream); virtual;
+
+    /// <summary> 文档保存为xml格式 </summary>
+    procedure SaveToXml(const AFileName: string; const AEncoding: TEncoding);
+
+    /// <summary> 读取xml格式 </summary>
+    procedure LoadFromXml(const AFileName: string);
+
+    procedure SaveToHtml(const AFileName: string);
 
     /// <summary> 获取指定页所在的节和相对此节的页序号 </summary>
     /// <param name="APageIndex">页序号</param>
@@ -661,7 +666,7 @@ type
 implementation
 
 uses
-  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, Xml.XMLDoc, Xml.XMLIntf, ShellAPI;
+  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml;
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
@@ -681,17 +686,6 @@ begin
   else
     Result := TPDFPaperSize.psUserDefined;
   end;
-end;
-
-procedure StyleSaveToXML(const AStyle: THCStyle; const ANode: IXMLNode);
-begin
-
-end;
-
-procedure SectionSaveToXML(const ASections: TObjectList<THCSection>;
-  const ANode: IXMLNode);
-begin
-
 end;
 
 { THCView }
@@ -1798,6 +1792,113 @@ begin
   ActiveSection.LoadFromText(AFileName, AEncoding);
 end;
 
+procedure THCView.LoadFromXml(const AFileName: string);
+
+  function GetEncodingName(const ARaw: string): TEncoding;
+  var
+    vPs, vPd: Integer;
+    vEncd: string;
+  begin
+    vPs := Pos('<?xml', ARaw) + 5;
+    vPd := Pos('?>', ARaw) - 1;
+
+    vEncd := System.Copy(ARaw, vPs, vPd - vPs + 1);
+    if vEncd = 'UTF-8' then
+      Result := TEncoding.UTF8
+    else
+      Result := TEncoding.Unicode;
+  end;
+
+var
+  vStrings: TStringList;
+  vEncoding: TEncoding;
+
+  vXml: IHCXMLDocument;
+  vNode: IHCXMLNode;
+  vSaveUndoEnable: Boolean;
+  vsXml, vRaw, vVersion: string;
+  vLang: Byte;
+  i: Integer;
+begin
+  Self.BeginUpdate;
+  try
+    // 清除撤销恢复数据
+    FUndoList.Clear;
+    vSaveUndoEnable := FUndoList.Enable;
+    try
+      FUndoList.Enable := False;
+      Self.Clear;
+
+      vStrings := TStringList.Create;
+      try
+        vStrings.LoadFromFile(AFileName);
+        vRaw := vStrings.Text;
+        vEncoding := GetEncodingName(vRaw);
+
+      finally
+        FreeAndNil(vStrings);
+      end;
+
+
+
+
+      vXml := THCXMLDocument.Create(nil);
+      vXml.LoadFromFile(AFileName);
+      if vXml.DocumentElement.LocalName = 'HCView' then
+      begin
+        if vXml.DocumentElement.Attributes['EXT'] <> HC_EXT then Exit;
+
+        vVersion := vXml.DocumentElement.Attributes['ver'];
+        vLang := vXml.DocumentElement.Attributes['Lang'];
+
+        for i := 0 to vXml.DocumentElement.ChildNodes.Count - 1 do
+        begin
+          vNode := vXml.DocumentElement.ChildNodes[i];
+          if vNode.NodeName = 'style' then
+
+        end;
+      end;
+    finally
+      if vSaveUndoEnable then
+        FUndoList.Enable := True;
+    end;
+  finally
+    Self.EndUpdate;
+  end;
+  {
+  // 文件格式和版本
+  vXml := '<?xml version="1.0" encoding="' + GetEncodingName + '" ?>';
+  vXml := vXml + sLineBreak + '<HCView EXT="' + HC_EXT + '" ver="' + HC_FileVersion + '" Lang="'
+    + IntToStr(HC_PROGRAMLANGUAGE) + '">';
+
+  vXml := vXml + sLineBreak + FStyle.ToXml;  // 样式表
+
+  vXml := vXml + sLineBreak + '<sections count="' + IntToStr(FSections.Count) + '">';  // 节数量
+
+  for i := 0 to FSections.Count - 1 do  // 各节数据
+    vXml := vXml + sLineBreak + FSections[i].ToXml;
+
+  vXml := vXml + sLineBreak + '</sections>';
+  vXml := vXml + sLineBreak + '</HCView>';
+
+  if AEncoding <> TEncoding.Unicode then
+  begin
+    //vUniBytes := TEncoding.Unicode.GetBytes(vXml);
+    vUniBytes := WideBytesOf(vXml);
+    vDestBytes := TEncoding.Convert(TEncoding.Unicode, AEncoding, vUniBytes);
+  end
+  else
+    vDestBytes := BytesOf(vXml);
+
+  vMs := TMemoryStream.Create;
+  try
+    vMs.Write(vDestBytes, Length(vDestBytes));
+    vMs.SaveToFile(AFileName);
+  finally
+    FreeAndNil(vMs);
+  end; }
+end;
+
 function THCView.MergeTableSelectCells: Boolean;
 begin
   Result := ActiveSection.MergeTableSelectCells;
@@ -2014,6 +2115,38 @@ procedure THCView.Paste;
     Self.InsertItem(vImageItem);
   end;
 
+  procedure PasteHtml;
+  var
+    vMem: Cardinal;
+    vHtmlText: string;
+    vPHtml: PUTF8Char;
+    vList: TStringList;
+  begin
+    Clipboard.Open;
+    try
+      vMem := Clipboard.GetAsHandle(CF_HTML);
+      vPHtml := GlobalLock(vMem);
+      vHtmlText := UTF8Decode(vPHtml);
+      GlobalUnlock(vMem);
+    finally
+      Clipboard.Close;
+    end;
+
+    vList := TStringList.Create;
+    try
+      vList.Text := vHtmlText;
+      vList.SaveToFile('C:\html.txt');
+    finally
+      vList.Free;
+    end;
+
+    if not ActiveSection.ParseHtml(vHtmlText) then
+    begin
+      if Clipboard.HasFormat(CF_TEXT) then
+        InsertText(Clipboard.AsText);
+    end;
+  end;
+
 var
   vStream: TMemoryStream;
   vMem: Cardinal;
@@ -2059,6 +2192,9 @@ begin
       vStream.Free;
     end;
   end
+  else
+  if Clipboard.HasFormat(CF_HTML) then
+    PasteHtml
   else
   if Clipboard.HasFormat(CF_TEXT) then
     InsertText(Clipboard.AsText)
@@ -2602,19 +2738,54 @@ begin
   end;
 end;
 
-procedure THCView.SaveToFile(const AFileName: string);
+procedure THCView.SaveToFile(const AFileName: string; const AQuick: Boolean = False);
 var
   vStream: TStream;
 begin
   vStream := TFileStream.Create(AFileName, fmCreate);
   try
-    SaveToStream(vStream);
+    SaveToStream(vStream, AQuick);
   finally
     FreeAndNil(vStream);
   end;
 end;
 
-procedure THCView.SaveAsPDF(const AFileName: string);
+procedure THCView.SaveToHtml(const AFileName: string);
+var
+  vHtmlTexts: TStrings;
+  i: Integer;
+  vPath: string;
+begin
+  _DeleteUnUsedStyle([saHeader, saPage, saFooter]);
+  FStyle.GetHtmlFileTempName(True);
+  vPath := ExtractFilePath(AFileName);
+
+  vHtmlTexts := TStringList.Create;
+  try
+    vHtmlTexts.Add('<!DOCTYPE HTML>');
+    vHtmlTexts.Add('<html>');
+    vHtmlTexts.Add('<head>');
+    vHtmlTexts.Add('<title>');
+    vHtmlTexts.Add('</title>');
+
+    vHtmlTexts.Add(FStyle.ToCSS);
+
+    vHtmlTexts.Add('</head>');
+
+    vHtmlTexts.Add('<body>');
+    for i := 0 to FSections.Count - 1 do
+      vHtmlTexts.Add(FSections[i].ToHtml(vPath));
+
+    vHtmlTexts.Add('</body>');
+    vHtmlTexts.Add('</html>');
+
+    vHtmlTexts.SaveToFile(AFileName);
+  finally
+    FreeAndNil(vHtmlTexts);
+  end;
+end;
+
+procedure THCView.SaveToPDF(const AFileName: string);
 var
   i, j, vDPI: Integer;
   vPDF: TPdfDocumentGDI;
@@ -2686,7 +2857,7 @@ begin
   end;
 end;
 
-procedure THCView.SaveAsText(const AFileName: string; const AEncoding: TEncoding);
+procedure THCView.SaveToText(const AFileName: string; const AEncoding: TEncoding);
 var
   i: Integer;
 begin
@@ -2695,15 +2866,18 @@ begin
     FSections[i].SaveToText(AFileName, AEncoding);
 end;
 
-procedure THCView.SaveToStream(const AStream: TStream;
+procedure THCView.SaveToStream(const AStream: TStream; const AQuick: Boolean = False;
   const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]);
 var
   vByte: Byte;
   i: Integer;
 begin
   _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
-  DoSaveBefor(AStream);
-  _DeleteUnUsedStyle(ASaveParts);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
+  if not AQuick then
+  begin
+    DoSaveBefor(AStream);
+    _DeleteUnUsedStyle(ASaveParts);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
+  end;
   FStyle.SaveToStream(AStream);
   // 节数量
   vByte := FSections.Count;
@@ -2711,26 +2885,60 @@ begin
   // 各节数据
   for i := 0 to FSections.Count - 1 do
     FSections[i].SaveToStream(AStream, ASaveParts);
-  DoSaveAfter(AStream);
+
+  if not AQuick then
+    DoSaveAfter(AStream);
 end;
 
-procedure THCView.SaveAsXML(const AFileName: string);
+procedure THCView.SaveToXml(const AFileName: string; const AEncoding: TEncoding);
+
+  function GetEncodingName: string;
+  begin
+    if AEncoding = TEncoding.UTF8 then
+      Result := 'UTF-8'
+    else
+      Result := 'Unicode';
+  end;
+
 var
-  vXml: IXMLDocument;
+  vXml: string;
+  i: Integer;
+  vUniBytes, vDestBytes: TBytes;
+  vMs: TMemoryStream;
 begin
   _DeleteUnUsedStyle([saHeader, saPage, saFooter]);
 
-  vXml := TXMLDocument.Create(nil);
-  vXml.Active := True;
-  vXml.Version := '1.0';
-  vXml.DocumentElement := vXml.CreateNode('HCView', ntElement, '');
-  vXml.DocumentElement.Attributes['Version'] := HC_FileVersion;
+  // 文件格式和版本
+  vXml := '<?xml version="1.0" encoding="' + GetEncodingName + '" ?>';
+  vXml := vXml + sLineBreak + '<HCView EXT="' + HC_EXT + '" ver="' + HC_FileVersion + '" Lang="'
+    + IntToStr(HC_PROGRAMLANGUAGE) + '">';
 
-  StyleSaveToXML(FStyle, vXml.DocumentElement);  // 样式表
+  vXml := vXml + sLineBreak + FStyle.ToXml;  // 样式表
 
-  SectionSaveToXML(FSections, vXml.DocumentElement);  // 节数据
+  vXml := vXml + sLineBreak + '<sections count="' + IntToStr(FSections.Count) + '">';  // 节数量
 
-  vXml.SaveToFile(AFileName);
+  for i := 0 to FSections.Count - 1 do  // 各节数据
+    vXml := vXml + sLineBreak + FSections[i].ToXml;
+
+  vXml := vXml + sLineBreak + '</sections>';
+  vXml := vXml + sLineBreak + '</HCView>';
+
+  if AEncoding <> TEncoding.Unicode then
+  begin
+    //vUniBytes := TEncoding.Unicode.GetBytes(vXml);
+    vUniBytes := WideBytesOf(vXml);
+    vDestBytes := TEncoding.Convert(TEncoding.Unicode, AEncoding, vUniBytes);
+  end
+  else
+    vDestBytes := WideBytesOf(vXml);
+
+  vMs := TMemoryStream.Create;
+  try
+    vMs.Write(vDestBytes, Length(vDestBytes));
+    vMs.SaveToFile(AFileName);
+  finally
+    FreeAndNil(vMs);
+  end;
 end;
 
 function THCView.ZoomIn(const Value: Integer): Integer;

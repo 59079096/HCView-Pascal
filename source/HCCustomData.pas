@@ -383,6 +383,9 @@ type
       const AFileVersion: Word): Boolean; virtual;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
+
+    function ToHtml(const APath: string): string;
+    function ToXml: string; virtual;
     //
     property Style: THCStyle read FStyle;
     property Items: THCItems read FItems;
@@ -2010,7 +2013,7 @@ type
     end;
     {$ENDREGION}
 
-    function MatchBreak(const APrevType, APosType: TCharType): TBreakPosition;
+    function MatchBreak(const APrevType, APosType: TCharType; const AIndex: Integer): TBreakPosition;
     begin
       Result := jbpNone;
       case APosType of
@@ -2028,14 +2031,37 @@ type
 
         jctSZ:
           begin
-            if not (APrevType in [jctZM, jctSZ]) then  // 当前是数字，前一个不是字母、数字
+            case APrevType of
+              jctZM, jctSZ: ;  // 当前是数字，前一个是字母、数字
+              jctFH:
+                begin
+                  if AText[AIndex - 1] = '￠' then
+                  else
+                  if not CharInSet(AText[AIndex - 1], ['.', ':', '-', '^', '*', '/']) then  // 数字前面是小数点、冒号等数学符号时不截断
+                    Result := jbpPrev;
+                end;
+            else
               Result := jbpPrev;
+            end;
           end;
 
         jctFH:
           begin
-            if APrevType <> jctFH then  // 当前是符号，前一个不是符号
+            case APrevType of
+              jctFH: ;  // 当前是符号，前一个是符号
+              jctSZ:  // 当前是符号，前一个是数字
+                begin
+                  if not CharInSet(AText[AIndex], ['.', ':', '-', '^', '*', '/']) then  // 前面是数字，我不是小数点，时间:
+                    Result := jbpPrev;
+                end;
+              jctZM:  // 当前是符号，前一个是字母
+                begin
+                  if not CharInSet(AText[AIndex], [':']) then  // 前一个是字母，当前不是冒号
+                    Result := jbpPrev;
+                end
+            else
               Result := jbpPrev;
+            end;
           end;
       end;
     end;
@@ -2046,17 +2072,17 @@ type
   begin
     GetHeadTailBreak(AText, APos);  // 根据行首、尾的约束条件找APos不符合时应该在哪一个位置并重新赋值给APos
 
-    vPosType := GetCharType(Word(AText[APos]));  // 当前类型
-    vNextType := GetCharType(Word(AText[APos + 1]));  // 下一个字符类型
+    vPosType := GetUnicodeCharType(AText[APos]);  // 当前类型
+    vNextType := GetUnicodeCharType(AText[APos + 1]);  // 下一个字符类型
 
-    if MatchBreak(vPosType, vNextType) <> jbpPrev then  // 不能在当前截断，当前往前找截断
+    if MatchBreak(vPosType, vNextType, APos + 1) <> jbpPrev then  // 不能在当前截断，当前往前找截断
     begin
       if vPosType <> jctBreak then
       begin
         for i := APos - 1 downto AStartPos + 1 do
         begin
-          vPrevType := GetCharType(Word(AText[i]));
-          if MatchBreak(vPrevType, vPosType) = jbpPrev then
+          vPrevType := GetUnicodeCharType(AText[i]);
+          if MatchBreak(vPrevType, vPosType, i + 1) = jbpPrev then
           begin
             APos := i;
             Break;
@@ -3092,6 +3118,34 @@ begin
         FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;
     end;
   end;
+end;
+
+function THCCustomData.ToHtml(const APath: string): string;
+var
+  i: Integer;
+begin
+  Result := '';
+  for i := 0 to Items.Count - 1 do
+  begin
+    if Items[i].ParaFirst then
+    begin
+      if i <> 0 then
+        Result := Result + sLineBreak + '</p>';
+      Result := Result + sLineBreak + '<p class="ps' + IntToStr(Items[i].ParaNo) + '">';
+    end;
+    Result := Result + sLineBreak + Items[i].ToHtml(APath);
+  end;
+
+  Result := Result + sLineBreak + '</p>';
+end;
+
+function THCCustomData.ToXml: string;
+var
+  i: Integer;
+begin
+  Result := '';
+  for i := 0 to FItems.Count - 1 do
+    Result := Result + sLineBreak + FItems[i].ToXml;
 end;
 
 procedure THCCustomData.GetCaretInfo(const AItemNo, AOffset: Integer;

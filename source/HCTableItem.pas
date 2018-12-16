@@ -285,6 +285,9 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
+    function ToHtml(const APath: string): string; override;
+    function ToXml: string; override;
+
     /// <summary> 获取指定位置处的行、列(如果是被合并单元格则返回目标单元格行、列) </summary>
     /// <param name="X">横坐标</param>
     /// <param name="Y">纵坐标</param>
@@ -3952,6 +3955,68 @@ begin
     AdjustCellRange(FSelectCellRang.StartRow, FSelectCellRang.StartCol, vEndRow, vEndCol);
     Result := CellsCanMerge(FSelectCellRang.StartRow, FSelectCellRang.StartCol, vEndRow, vEndCol);
   end;
+end;
+
+function THCTableItem.ToHtml(const APath: string): string;
+var
+  vR, vC: Integer;
+  vCell: THCTableCell;
+begin
+  Result := '<table border="' + IntToStr(FBorderWidth) + '" cellpadding="0"; cellspacing="0">';
+  for vR := 0 to FRows.Count - 1 do
+  begin
+    Result := Result + sLineBreak + '<tr>';
+    for vC := 0 to FColWidths.Count - 1 do
+    begin
+      vCell := Cells[vR, vC];
+      if (vCell.RowSpan < 0) or (vCell.ColSpan < 0) then
+        Continue;
+
+      Result := Result + sLineBreak + Format('<td rowspan="%d"; colspan="%d"; width="%d"; height="%d">',
+        [vCell.RowSpan + 1, vCell.ColSpan + 1, vCell.Width, vCell.Height]);
+
+      if Assigned(vCell.CellData) then
+        Result := Result + vCell.CellData.ToHtml(APath);
+
+      Result := Result + sLineBreak + '</td>';
+    end;
+    Result := Result + sLineBreak + '</tr>';
+  end;
+  Result := Result + sLineBreak + '</table>';
+end;
+
+function THCTableItem.ToXml: string;
+var
+  vR, vC: Integer;
+  vS: string;
+begin
+  vS := IntToStr(FColWidths[0]);
+  for vC := 1 to FColWidths.Count - 1 do  // 各列标准宽度
+    vS := vS + ',' + IntToStr(FColWidths[vC]);
+
+  Result := '<table ts="' + IntToStr(StyleNo) + '"'
+    + ' ps="' + IntToStr(ParaNo) + '"'
+    + ' parafirst="' + HCBoolStrs[Self.ParaFirst] + '"'
+    + ' bordervisible="' + HCBoolStrs[FBorderVisible] + '"'
+    + ' borderwidth="' + IntToStr(FBorderWidth) + '"'
+    + ' row="' + IntToStr(FRows.Count) + '"'  // 行数
+    + ' col="' + IntToStr(FColWidths.Count) + '"'  // 列数
+    + ' colwidth="' + vS + '"'
+    + ' link="">';
+
+  for vR := 0 to FRows.Count - 1 do  // 各行数据
+  begin
+    Result := Result + sLineBreak + '<row autoheight="' + HCBoolStrs[FRows[vR].AutoHeight] + '"'
+      + ' height="' + IntToStr(FRows[vR].Height) + '">';
+
+    for vC := 0 to FRows[vR].ColCount - 1 do  // 各列数据
+      Result := Result + sLineBreak + FRows[vR].Cols[vC].ToXml;
+
+    Result := Result + sLineBreak + '</row>';
+  end;
+
+
+   Result := Result + sLineBreak + '</table>';
 end;
 
 procedure THCTableItem.TraverseItem(const ATraverse: TItemTraverse);

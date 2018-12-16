@@ -344,14 +344,14 @@ begin
     vItemOffset := vItemOffset - DrawItems[vDrawItemNo].CharOffs + 1;  // 映射到DrawItem上
 
     if vItemOffset > 0 then  // 光标处的Char类型
-      vPosType := GetCharType(Word(vText[vItemOffset]))
+      vPosType := GetUnicodeCharType(vText[vItemOffset])
     else
-      vPosType := GetCharType(Word(vText[1]));
+      vPosType := GetUnicodeCharType(vText[1]);
 
     vStartOffset := 0;
     for i := vItemOffset - 1 downto 1 do  // 往前找Char类型不一样的位置
     begin
-      if GetCharType(Word(vText[i])) <> vPosType then
+      if GetUnicodeCharType(vText[i]) <> vPosType then
       begin
         vStartOffset := i;
         Break;
@@ -361,7 +361,7 @@ begin
     vEndOffset := Length(vText);
     for i := vItemOffset + 1 to Length(vText) do  // 往后找Char类型不一样的位置
     begin
-      if GetCharType(Word(vText[i])) <> vPosType then
+      if GetUnicodeCharType(vText[i]) <> vPosType then
       begin
         vEndOffset := i - 1;
         Break;
@@ -1089,6 +1089,9 @@ begin
 
     Style.UpdateInfoRePaint;
     Style.UpdateInfoReCaret;
+
+    if SelectInfo.StartItemOffset > Items[SelectInfo.StartItemNo].Length then
+      ReSetSelectAndCaret(SelectInfo.StartItemNo);
   end;
 end;
 
@@ -1828,6 +1831,7 @@ begin
       end;
     end;
 
+    ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
     Exit;
   end;
 
@@ -2139,7 +2143,7 @@ begin
     if not AItem.ParaFirst then  // 新插入的不另起一段，判断和当前位置的关系
     begin
       // 在2个Item中间插入一个Item，需要同时判断和前后能否合并
-      if AOffsetBefor then  // 在Item前面插入
+      if AOffsetBefor then  // 在Item前面插入，未指定另起一段
       begin
         if (AIndex < Items.Count) and (Items[AIndex].CanConcatItems(AItem)) then  // 先判断和当前位置处能否合并
         begin
@@ -2163,10 +2167,32 @@ begin
           vMerged := True;
         end;
       end
-      else  // 在Item后面插入
+      else  // 在Item后面插入，未指定另起一段，在Item后面插入AIndex肯定是大于0
       begin
-        if (AIndex > 0) and Items[AIndex - 1].CanConcatItems(AItem) then   // 先判断和前一个能否合并
+        if (Items[AIndex - 1].StyleNo > THCStyle.Null) and (Items[AIndex - 1].Text = '') then  // 在空行后插入不换行，替换空行
         begin
+          GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo, AIndex - 1, 0);
+          _FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+
+          AItem.ParaFirst := True;
+          Items.Insert(AIndex, AItem);
+          UndoAction_InsertItem(AIndex, 0);
+
+          UndoAction_DeleteItem(AIndex - 1, 0);
+          Items.Delete(AIndex - 1);
+
+          _ReFormatData(vFormatFirstItemNo, vFormatLastItemNo, 0);
+          ReSetSelectAndCaret(AIndex - 1);
+
+          vMerged := True;
+        end
+        else
+        if Items[AIndex - 1].CanConcatItems(AItem) then   // 先判断和前一个能否合并
+        begin
+          // 能合并，重新获取前一个的格式化信息
+          GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo, AIndex - 1, 0);
+          _FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+
           UndoAction_InsertText(AIndex - 1, Items[AIndex - 1].Length + 1, AItem.Text);  // 201806261650
           Items[AIndex - 1].Text := Items[AIndex - 1].Text + AItem.Text;
 
@@ -5049,16 +5075,27 @@ end;
 procedure THCRichData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
   const ANextWhenMid: Boolean = False);
 var
-  vDrawItemNo: Integer;
+  vDrawItemNo, vOffset: Integer;
 begin
   SelectInfo.StartItemNo := AItemNo;
-  SelectInfo.StartItemOffset := AOffset;
 
-  vDrawItemNo := GetDrawItemNoByOffset(AItemNo, AOffset);
+  if Items[AItemNo].StyleNo > THCStyle.Null then
+  begin
+    if SelectInfo.StartItemOffset > Items[AItemNo].Length then
+      vOffset := Items[AItemNo].Length
+    else
+      vOffset := AOffset;
+  end
+  else
+    vOffset := AOffset;
+
+  SelectInfo.StartItemOffset := vOffset;
+
+  vDrawItemNo := GetDrawItemNoByOffset(AItemNo, vOffset);
   if ANextWhenMid
     and (vDrawItemNo < DrawItems.Count - 1)
     and (DrawItems[vDrawItemNo + 1].ItemNo = AItemNo)
-    and (DrawItems[vDrawItemNo + 1].CharOffs = AOffset + 1)
+    and (DrawItems[vDrawItemNo + 1].CharOffs = vOffset + 1)
   then
     Inc(vDrawItemNo);
 

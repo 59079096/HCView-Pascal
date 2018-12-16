@@ -60,12 +60,14 @@ type
     constructor Create(const AOwnsObjects: Boolean = True); virtual;
     destructor Destroy; override;
     function Add(Item: Pointer): Integer;
+    procedure Insert(Index: Integer; Item: Pointer);
+    function IndexOf(Item: Pointer): Integer;
     procedure Clear;
     procedure Delete(Index: Integer);
     property Capacity: Integer read FCapacity write SetCapacity;
     property Count: Integer read FCount write SetCount;
     property List: PPointerList read FList;
-    //property Items[Index: Integer]: Pointer read GetItems write SetItems; default;
+    property Items[Index: Integer]: Pointer read GetItem write SetItem; default;
   end;
 
 implementation
@@ -210,6 +212,28 @@ begin
   if (Index < 0) or (Index >= FCount) then
     raise Exception.CreateFmt('“Ï≥£:%d', [Index]);
   Result := FList^[Index];
+end;
+
+function THCObjectList.IndexOf(Item: Pointer): Integer;
+begin
+  Result := 0;
+  while (Result < FCount) and (FList^[Result] <> Item) do
+    Inc(Result);
+  if Result = FCount then
+    Result := -1;
+end;
+
+procedure THCObjectList.Insert(Index: Integer; Item: Pointer);
+begin
+  if (Index < 0) or (Index > FCount) then
+    Exit;
+  if FCount = FCapacity then
+    SetCapacity(FCapacity + 4);
+  if Index < FCount then
+    System.Move(FList^[Index], FList^[Index + 1],
+      (FCount - Index) * SizeOf(Pointer));
+  FList^[Index] := Item;
+  Inc(FCount);
 end;
 
 procedure THCObjectList.SetCapacity(const Value: Integer);

@@ -47,6 +47,7 @@ type
     procedure SaveToStream(const AStream: TStream); virtual;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word);
+    function ToXml: string;
 
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo);
 
@@ -213,7 +214,7 @@ begin
   AStream.WriteBuffer(FBorderSides, SizeOf(FBorderSides));
 
   { 存数据 }
-  vNullData := FCellData = nil;
+  vNullData := not Assigned(FCellData);
   AStream.WriteBuffer(vNullData, SizeOf(vNullData));
   if not vNullData then
     FCellData.SaveToStream(AStream);
@@ -233,6 +234,75 @@ begin
     if FCellData <> nil then
       FCellData.CellHeight := Value;
   end;
+end;
+
+function THCTableCell.ToXml: string;
+var
+  vsVert, vsBorder: string;
+begin
+  case FAlignVert of
+    cavTop: vsVert := 'top';
+    cavCenter: vsVert := 'center';
+    cavBottom: vsVert := 'bottom';
+  end;
+
+  if cbsLeft in FBorderSides then
+    vsBorder := 'left';
+
+  if cbsTop in FBorderSides then
+  begin
+    if vsBorder <> '' then
+      vsBorder := vsBorder + ',top'
+    else
+      vsBorder := 'top';
+  end;
+
+  if cbsRight in FBorderSides then
+  begin
+    if vsBorder <> '' then
+      vsBorder := vsBorder + ',right'
+    else
+      vsBorder := 'right';
+  end;
+
+  if cbsBottom in FBorderSides then
+  begin
+    if vsBorder <> '' then
+      vsBorder := vsBorder + ',bottom'
+    else
+      vsBorder := 'bottom';
+  end;
+
+  if cbsLTRB in FBorderSides then
+  begin
+    if vsBorder <> '' then
+      vsBorder := vsBorder + ',ltrb'
+    else
+      vsBorder := 'ltrb';
+  end;
+
+  if cbsRTLB in FBorderSides then
+  begin
+    if vsBorder <> '' then
+      vsBorder := vsBorder + ',rtlb'
+    else
+      vsBorder := 'rtlb';
+  end;
+
+  { 因为可能是合并后的单元格，所以单独存宽、高 }
+  Result := '<cell width="' + IntToStr(FWidth) + '"'
+   + ' height="' + IntToStr(FHeight) + '"'
+   + ' rowspan="' + IntToStr(FRowSpan) + '"'
+   + ' colspan="' + IntToStr(FColSpan) + '"'
+   + ' vert="' + vsVert + '"'
+   + ' backcolor="' + GetColorHtmlRGB(FBackgroundColor) + '"'  // 背景色
+   + ' border="' + vsBorder + '">';
+
+
+  if Assigned(FCellData) then  // 存数据
+    Result := Result + sLineBreak + FCellData.ToXml;
+
+  Result := Result + sLineBreak + '</cell>';
 end;
 
 end.

@@ -38,10 +38,15 @@ type
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
     procedure LoadFromFile(const AFileName: string);
+    function ToHtml(const APath: string): string; override;
+    function ToXml: string; override;
     property Image: TGIFImage read FImage;
   end;
 
 implementation
+
+uses
+  SysUtils;
 
 { THCGifItem }
 
@@ -117,6 +122,23 @@ procedure THCGifItem.SaveToStream(const AStream: TStream; const AStart,
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   FImage.SaveToStream(AStream);
+end;
+
+function THCGifItem.ToHtml(const APath: string): string;
+var
+  vFileName: string;
+begin
+  if not FileExists(APath + 'images') then
+    CreateDir(APath + 'images');
+  vFileName := OwnerData.Style.GetHtmlFileTempName + '.gif';
+  FImage.SaveToFile(APath + 'images\' + vFileName);
+  Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
+    + '" src="images/' + vFileName + '" alt="THCGifItem" />';
+end;
+
+function THCGifItem.ToXml: string;
+begin
+
 end;
 
 end.

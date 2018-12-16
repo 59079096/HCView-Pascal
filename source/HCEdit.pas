@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCViewData,
-  HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCUndo;
+  HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCUndo, HCRichData;
 
 const
   HC_EDIT_EXT = '.hef';
@@ -114,6 +114,11 @@ type
     procedure ApplyTextBackColor(const AColor: TColor);
     function InsertItem(const AItem: THCCustomItem): Boolean; overload;
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
+    /// <summary> 插入指定行列的表格 </summary>
+    function InsertTable(const ARowCount, AColCount: Integer): Boolean;
+    /// <summary> 获取顶层Data </summary>
+    function TopLevelData: THCRichData;
+
     property Style: THCStyle read FStyle;
     property Changed: Boolean read FChanged write FChanged;
     /// <summary> 全选 </summary>
@@ -495,6 +500,17 @@ begin
     end);
 end;
 
+function THCEdit.InsertTable(const ARowCount, AColCount: Integer): Boolean;
+begin
+  Result := DataChangeByAction(function(): Boolean
+    var
+      vTopData: THCRichData;
+    begin
+      vTopData := FData.GetTopLevelData;
+      vTopData.InsertTable(ARowCount, AColCount);
+    end);
+end;
+
 function THCEdit.InsertItem(const AItem: THCCustomItem): Boolean;
 begin
   Result := DataChangeByAction(function(): Boolean
@@ -868,6 +884,11 @@ begin
   FHScrollBar.Top := Height - FHScrollBar.Height;
   FHScrollBar.Width := Width - FVScrollBar.Width;
   FHScrollBar.PageSize := FHScrollBar.Width;
+end;
+
+function THCEdit.TopLevelData: THCRichData;
+begin
+  Result := FData.GetTopLevelData;
 end;
 
 procedure THCEdit.Undo;

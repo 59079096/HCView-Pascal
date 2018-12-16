@@ -150,7 +150,10 @@ type
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
+    function ToHtml(const APath: string): string; override;
+    function ToXml: string; override;
     function GetLength: Integer; override;
+    procedure SaveToBitmap(var ABitmap: TBitmap);
     property Width: Integer read GetWidth write SetWidth;
     property Height: Integer read GetHeight write SetHeight;
     property TextWrapping: Boolean read FTextWrapping write FTextWrapping;  // ÎÄ±¾»·ÈÆ
@@ -282,6 +285,9 @@ var
   HCDefaultDomainItemClass: THCDomainItemClass = THCDomainItem;
 
 implementation
+
+uses
+  SysUtils;
 
 { THCCustomRectItem }
 
@@ -575,6 +581,27 @@ begin
   Result := '';
 end;
 
+procedure THCCustomRectItem.SaveToBitmap(var ABitmap: TBitmap);
+var
+  vPaintInfo: TPaintInfo;
+begin
+  ABitmap.SetSize(Width, Height);
+
+  vPaintInfo := TPaintInfo.Create;
+  try
+    vPaintInfo.Print := True;
+    vPaintInfo.WindowWidth := ABitmap.Width;
+    vPaintInfo.WindowHeight := ABitmap.Height;
+    vPaintInfo.ScaleX := 1;
+    vPaintInfo.ScaleY := 1;
+    vPaintInfo.Zoom := 1;
+    Self.DoPaint(OwnerData.Style, Rect(0, 0, ABitmap.Width, ABitmap.Height),
+      0, ABitmap.Height, 0, ABitmap.Height, ABitmap.Canvas, vPaintInfo);
+  finally
+    vPaintInfo.Free;
+  end;
+end;
+
 procedure THCCustomRectItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
@@ -600,6 +627,32 @@ end;
 procedure THCCustomRectItem.SetWidth(const Value: Integer);
 begin
   FWidth := Value;
+end;
+
+function THCCustomRectItem.ToHtml(const APath: string): string;
+var
+  vFileName: string;
+  vBitmap: TBitmap;
+begin
+  if not FileExists(APath + 'images') then
+    CreateDir(APath + 'images');
+  vFileName := OwnerData.Style.GetHtmlFileTempName + '.bmp';
+
+  vBitmap := TBitmap.Create;
+  try
+    SaveToBitmap(vBitmap);
+    vBitmap.SaveToFile(APath + 'images\' + vFileName);
+  finally
+    FreeAndNil(vBitmap);
+  end;
+
+  Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
+    + '" src="images/' + vFileName + '" alt="' + Self.ClassName + '" />';
+end;
+
+function THCCustomRectItem.ToXml: string;
+begin
+
 end;
 
 procedure THCCustomRectItem.TraverseItem(const ATraverse: TItemTraverse);

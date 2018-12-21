@@ -292,7 +292,7 @@ object frmHCEdit: TfrmHCEdit
     Left = 72
     Top = 56
     Bitmap = {
-      494C01011B001D00140010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D001C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1272,6 +1272,7 @@ object frmHCEdit: TfrmHCEdit
       Caption = #34920#26684
       object mniInsertTable: TMenuItem
         Caption = #25554#20837
+        OnClick = mniInsertTableClick
       end
       object mniN16: TMenuItem
         Caption = #21512#24182
@@ -1287,6 +1288,7 @@ object frmHCEdit: TfrmHCEdit
       end
       object mniN9: TMenuItem
         Caption = #22270#29255
+        OnClick = mniN9Click
       end
       object mniN13: TMenuItem
         Caption = #20844#24335

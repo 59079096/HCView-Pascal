@@ -51,6 +51,9 @@ type
 
 implementation
 
+uses
+  HCXml;
+
 { THCImageItem }
 
 procedure THCImageItem.Assign(Source: THCCustomItem);
@@ -265,19 +268,27 @@ end;
 
 function THCImageItem.ToHtml(const APath: string): string;
 var
-  vFileName: string;
+  vFile: string;
 begin
-  if not FileExists(APath + 'images') then
-    CreateDir(APath + 'images');
-  vFileName := OwnerData.Style.GetHtmlFileTempName + '.bmp';
-  FImage.SaveToFile(APath + 'images\' + vFileName);
-  Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
-    + '" src="images/' + vFileName + '" alt="THCImageItem" />';
+  if APath <> '' then  // 保存到指定的文件夹中
+  begin
+    if not FileExists(APath + 'images') then
+      CreateDir(APath + 'images');
+    vFile := OwnerData.Style.GetHtmlFileTempName + '.bmp';
+    FImage.SaveToFile(APath + 'images\' + vFile);
+    Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
+      + '" src="images/' + vFile + '" alt="THCImageItem" />';
+  end
+  else  // 保存为Base64
+  begin
+    Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
+      + '" src="data:img/jpg;base64,' + BitmapToBase64(FImage) + '" alt="THCImageItem" />';
+  end;
 end;
 
 function THCImageItem.ToXml: string;
 begin
-
+  Result := '<image ' + inherited ToXml + '">' + BitmapToBase64(FImage) + '</image>';
 end;
 
 end.

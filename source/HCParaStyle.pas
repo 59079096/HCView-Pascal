@@ -14,7 +14,7 @@ unit HCParaStyle;
 interface
 
 uses
-  Classes, Graphics;
+  Classes, Graphics, HCXml;
 
 type
   /// <summary> 段水平对齐方式：左、右、居中、两端、分散) </summary>
@@ -38,13 +38,13 @@ type
     CheckSaveUsed: Boolean;
     TempNo: Integer;
     constructor Create;
-    destructor Destroy; override;
     function EqualsEx(const ASource: THCParaStyle): Boolean;
     procedure AssignEx(const ASource: THCParaStyle);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
     function ToCSS: string;
     function ToXml: string;
+    procedure FromXml(const ANode: IHCXmlNode);
   published
     property LineSpaceMode: TParaLineSpaceMode read FLineSpaceMode write FLineSpaceMode;
     //property LineSpace: Integer read FLineSpace write SetLineSpace;
@@ -85,12 +85,6 @@ begin
   FAlignVert := TParaAlignVert.pavCenter;
 end;
 
-destructor THCParaStyle.Destroy;
-begin
-
-  inherited;
-end;
-
 function THCParaStyle.EqualsEx(const ASource: THCParaStyle): Boolean;
 begin
   Result :=
@@ -101,6 +95,65 @@ begin
   and (Self.FBackColor = ASource.BackColor)
   and (Self.FAlignHorz = ASource.AlignHorz)
   and (Self.FAlignVert = ASource.AlignVert);
+end;
+
+procedure THCParaStyle.FromXml(const ANode: IHCXmlNode);
+
+  procedure GetXMLLineSpaceMode_;
+  begin
+    if ANode.Attributes['spacemode'] = '100' then
+      FLineSpaceMode := pls100
+    else
+    if ANode.Attributes['spacemode'] = '115' then
+      FLineSpaceMode := pls115
+    else
+    if ANode.Attributes['spacemode'] = '150' then
+      FLineSpaceMode := pls150
+    else
+    if ANode.Attributes['spacemode'] = '200' then
+      FLineSpaceMode := pls200
+    else
+    if ANode.Attributes['spacemode'] = 'fix' then
+      FLineSpaceMode := plsfix;
+  end;
+
+  procedure GetXMLHorz_;
+  begin
+    if ANode.Attributes['horz'] = 'left' then
+      FAlignHorz := pahLeft
+    else
+    if ANode.Attributes['horz'] = 'right' then
+      FAlignHorz := pahRight
+    else
+    if ANode.Attributes['horz'] = 'center' then
+      FAlignHorz := pahCenter
+    else
+    if ANode.Attributes['horz'] = 'justify' then
+      FAlignHorz := pahJustify
+    else
+    if ANode.Attributes['horz'] = 'scatter' then
+      FAlignHorz := pahScatter;
+  end;
+
+  procedure GetXMLVert_;
+  begin
+    if ANode.Attributes['vert'] = 'top' then
+      FAlignVert := pavTop
+    else
+    if ANode.Attributes['vert'] = 'center' then
+      FAlignVert := pavCenter
+    else
+    if ANode.Attributes['vert'] = 'bottom' then
+      FAlignVert := pavBottom;
+  end;
+
+begin
+  FFristIndent := ANode.Attributes['fristindent'];
+  FLeftIndent := ANode.Attributes['leftindent'];
+  FBackColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);
+  GetXMLLineSpaceMode_;
+  GetXMLHorz_;
+  GetXMLVert_;
 end;
 
 procedure THCParaStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
@@ -159,7 +212,7 @@ end;
 
 function THCParaStyle.ToXml: string;
 
-  function GetLineSpaceModeXML: string;
+  function GetLineSpaceModeXML_: string;
   begin
     case FLineSpaceMode of
       pls100: Result := '100';
@@ -170,7 +223,7 @@ function THCParaStyle.ToXml: string;
     end;
   end;
 
-  function GetHorzXML: string;
+  function GetHorzXML_: string;
   begin
     case FAlignHorz of
       pahLeft: Result := 'left';
@@ -181,7 +234,7 @@ function THCParaStyle.ToXml: string;
     end;
   end;
 
-  function GetVertXML: string;
+  function GetVertXML_: string;
   begin
     case FAlignVert of
       pavTop: Result := 'top';
@@ -193,10 +246,10 @@ function THCParaStyle.ToXml: string;
 begin
   Result := '<ps fristindent="' + IntToStr(FFristIndent) + '"'
     + ' leftindent="' + IntToStr(FLeftIndent) + '"'
-    + ' bkcolor="' + GetColorHtmlRGB(FBackColor) + '"'
-    + ' spacemode="' + GetLineSpaceModeXML + '"'
-    + ' horz="' + GetHorzXML + '"'
-    + ' vert="' + GetVertXML + '"></ps>';
+    + ' bkcolor="' + GetColorXMLRGB(FBackColor) + '"'
+    + ' spacemode="' + GetLineSpaceModeXML_ + '"'
+    + ' horz="' + GetHorzXML_ + '"'
+    + ' vert="' + GetVertXML_ + '"></ps>';
 end;
 
 end.

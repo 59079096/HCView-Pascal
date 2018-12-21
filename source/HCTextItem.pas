@@ -30,10 +30,6 @@ type
     function GetLength: Integer; override;
   public
     constructor CreateByText(const AText: string); virtual;
-
-    /// <summaryy 可接受输入 </summary>
-    function CanAccept(const AOffset: Integer): Boolean; virtual;
-
     procedure Assign(Source: THCCustomItem); override;
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     // 保存和读取
@@ -60,11 +56,6 @@ uses
   HCCommon, HCTextStyle;
 
 { THCTextItem }
-
-function THCTextItem.CanAccept(const AOffset: Integer): Boolean;
-begin
-  Result := True;
-end;
 
 constructor THCTextItem.CreateByText(const AText: string);
 begin
@@ -171,10 +162,7 @@ end;
 
 function THCTextItem.ToXml: string;
 begin
-  Result := '<text ts="' + IntToStr(StyleNo) + '"'
-    + ' ps="' + IntToStr(ParaNo) + '"'
-    + ' parafirst="' + HCBoolStrs[Self.ParaFirst] + '"'
-    + ' link="' + FHyperLink + '">' + Text + '</text>';
+  Result := '<text ' + inherited ToXml + ' link="' + FHyperLink + '">' + Text + '</text>';
 end;
 
 end.

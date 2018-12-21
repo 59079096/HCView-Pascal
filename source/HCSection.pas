@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, HCViewData, HCSectionData,
   HCRichData, HCTextStyle, HCParaStyle, HCItem, HCCustomFloatItem, HCDrawItem,
-  HCPage, HCRectItem, HCCommon, HCStyle, HCAnnotateData, HCCustomData, HCUndo;
+  HCPage, HCRectItem, HCCommon, HCStyle, HCAnnotateData, HCCustomData, HCUndo, HCXml;
 
 type
   TPrintResult = (prOk, prNoPrinter, prNoSupport, prError);
@@ -330,9 +330,9 @@ type
     /// <summary> 标记样式是否在用或删除不使用的样式后修正样式序号 </summary>
     /// <param name="AMark">True:标记样式是否在用，Fasle:修正原样式因删除不使用样式后的新序号</param>
     procedure MarkStyleUsed(const AMark: Boolean;
-      const AParts: TSaveParts = [saHeader, saPage, saFooter]);
+      const AParts: TSectionAreas = [saHeader, saPage, saFooter]);
     procedure SaveToStream(const AStream: TStream;
-      const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]);
+      const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
     procedure SaveToText(const AFileName: string; const AEncoding: TEncoding);
     procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -422,6 +422,7 @@ type
 
     function ToHtml(const APath: string): string;
     function ToXml: string;
+    procedure FromXml(const ANode: IHCXMLNode);
   end;
 
 implementation
@@ -1448,7 +1449,7 @@ procedure THCCustomSection.LoadFromStream(const AStream: TStream; const AStyle: 
 var
   vDataSize: Int64;
   vArea: Boolean;
-  vLoadParts: TSaveParts;
+  vLoadParts: TSectionAreas;
 begin
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
 
@@ -1502,7 +1503,7 @@ begin
 end;
 
 procedure THCCustomSection.MarkStyleUsed(const AMark: Boolean;
-  const AParts: TSaveParts = [saHeader, saPage, saFooter]);
+  const AParts: TSectionAreas = [saHeader, saPage, saFooter]);
 begin
   if saHeader in AParts then
     FHeader.MarkStyleUsed(AMark);
@@ -2395,7 +2396,7 @@ begin
 end;
 
 procedure THCCustomSection.SaveToStream(const AStream: TStream;
-  const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]);
+  const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
 var
   vBegPos, vEndPos: Int64;
   vArea: Boolean;
@@ -2594,6 +2595,70 @@ begin
 end;
 
 { THCSection }
+
+procedure THCSection.FromXml(const ANode: IHCXMLNode);
+
+  procedure GetXmlPaper_;
+  var
+    vsPaper: TStringList;
+  begin
+    vsPaper := TStringList.Create;
+    try
+      vsPaper.Delimiter := ',';
+      vsPaper.DelimitedText := ANode.Attributes['size'];
+      FPageSize.PaperSize := StrToInt(vsPaper[0]);  // 纸张大小
+      FPageSize.PaperWidth := StrToFloat(vsPaper[1]);  // 纸张宽度
+      FPageSize.PaperHeight := StrToFloat(vsPaper[2]);  // 纸张高度
+    finally
+      FreeAndNil(vsPaper);
+    end;
+  end;
+
+  procedure GetXmlPaperMargin_;
+  var
+    vsMargin: TStringList;
+  begin
+    vsMargin := TStringList.Create;
+    try
+      vsMargin.Delimiter := ',';
+      vsMargin.DelimitedText := ANode.Attributes['margin'];  // 边距
+      FPageSize.PaperMarginLeft := StrToInt(vsMargin[0]);
+      FPageSize.PaperMarginTop := StrToFloat(vsMargin[1]);
+      FPageSize.PaperMarginRight := StrToFloat(vsMargin[2]);
+      FPageSize.PaperMarginBottom := StrToFloat(vsMargin[3]);
+    finally
+      FreeAndNil(vsMargin);
+    end;
+  end;
+
+var
+  i: Integer;
+begin
+  FSymmetryMargin := ANode.Attributes['symmargin'];  // 是否对称页边距
+  if ANode.Attributes['ori'] = 'portrait' then
+    FPageOrientation := cpoPortrait  // 纸张方向
+  else
+    FPageOrientation := cpoLandscape;
+
+  FPageNoVisible := ANode.Attributes['pagenovisible'];  // 是否对称页边距
+  GetXmlPaper_;
+  GetXmlPaperMargin_;
+
+  for i := 0 to ANode.ChildNodes.Count - 1 do
+  begin
+    if ANode.ChildNodes[i].NodeName = 'header' then
+    begin
+      FHeaderOffset := ANode.ChildNodes[i].Attributes['offset'];
+      FHeader.FromXml(ANode.ChildNodes[i]);
+    end
+    else
+    if ANode.ChildNodes[i].NodeName = 'footer' then
+      FFooter.FromXml(ANode.ChildNodes[i])
+    else
+    if ANode.ChildNodes[i].NodeName = 'page' then
+      FPageData.FromXml(ANode.ChildNodes[i]);
+  end;
+end;
 
 function THCSection.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 begin

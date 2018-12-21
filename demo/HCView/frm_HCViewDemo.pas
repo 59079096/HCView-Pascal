@@ -124,6 +124,7 @@ type
     mniN2: TMenuItem;
     mniN17: TMenuItem;
     mniHyperLink: TMenuItem;
+    mniExplore: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -193,6 +194,7 @@ type
     procedure mniN2Click(Sender: TObject);
     procedure mniN17Click(Sender: TObject);
     procedure mniHyperLinkClick(Sender: TObject);
+    procedure mniExploreClick(Sender: TObject);
   private
     { Private declarations }
     FHCView: THCView;
@@ -630,6 +632,38 @@ begin
   end;
 end;
 
+procedure TfrmHCViewDemo.mniExploreClick(Sender: TObject);
+var
+  vDlg: TSaveDialog;
+  vExt: string;
+begin
+  vDlg := TSaveDialog.Create(Self);
+  try
+    vDlg.Filter := '|pdf|*.pdf' + '|html|*.html';
+    vDlg.Execute;
+    if vDlg.FileName <> '' then
+    begin
+      vExt := '';
+      case vDlg.FilterIndex of
+        1: vExt := '.pdf';
+        2: vExt := '.html';
+      else
+        Exit;
+      end;
+
+      if ExtractFileExt(vDlg.FileName) <> vExt then  // 避免重复后缀
+        vDlg.FileName := vDlg.FileName + vExt;
+
+      case vDlg.FilterIndex of
+        1: FHCView.SaveToPDF(vDlg.FileName);  // .pdf
+        2: FHCView.SaveToXML(vDlg.FileName, TEncoding.UTF8);  // xml
+      end;
+    end;
+  finally
+    vDlg.Free;
+  end;
+end;
+
 procedure TfrmHCViewDemo.mnigif1Click(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
@@ -940,16 +974,21 @@ end;
 procedure TfrmHCViewDemo.mniOpenClick(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
+  vExt: string;
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
-    vOpenDlg.Filter := '文件|*' + HC_EXT;
+    vOpenDlg.Filter := '文件|*' + HC_EXT + '|HCXml|*xml';
     if vOpenDlg.Execute then
     begin
       if vOpenDlg.FileName <> '' then
       begin
         Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
-        FHCView.LoadFromFile(vOpenDlg.FileName);
+        vExt := ExtractFileExt(vOpenDlg.FileName); // 后缀
+        if LowerCase(vExt) = HC_EXT then
+          FHCView.LoadFromFile(vOpenDlg.FileName)
+        else
+          FHCView.LoadFromXml(vOpenDlg.FileName)
       end;
     end;
   finally
@@ -987,14 +1026,14 @@ var
 begin
   vDlg := TSaveDialog.Create(Self);
   try
-    vDlg.Filter := HC_EXT + '|*' + HC_EXT + '|pdf|*.pdf';
+    vDlg.Filter := HC_EXT + '|*' + HC_EXT + '|xml|*.xml';
     vDlg.Execute;
     if vDlg.FileName <> '' then
     begin
       vExt := '';
       case vDlg.FilterIndex of
         1: vExt := HC_EXT;
-        2: vExt := '.pdf';
+        2: vExt := '.xml';
       else
         Exit;
       end;
@@ -1009,7 +1048,7 @@ begin
             SetFileName(vDlg.FileName);
           end;
 
-        2: FHCView.SaveAsPDF(vDlg.FileName);  // .pdf
+        2: FHCView.SaveToXML(vDlg.FileName, TEncoding.UTF8);  // xml
       end;
     end;
   finally

@@ -3994,9 +3994,7 @@ begin
   for vC := 1 to FColWidths.Count - 1 do  // 各列标准宽度
     vS := vS + ',' + IntToStr(FColWidths[vC]);
 
-  Result := '<table ts="' + IntToStr(StyleNo) + '"'
-    + ' ps="' + IntToStr(ParaNo) + '"'
-    + ' parafirst="' + HCBoolStrs[Self.ParaFirst] + '"'
+  Result := '<table ' + inherited ToXml
     + ' bordervisible="' + HCBoolStrs[FBorderVisible] + '"'
     + ' borderwidth="' + IntToStr(FBorderWidth) + '"'
     + ' row="' + IntToStr(FRows.Count) + '"'  // 行数

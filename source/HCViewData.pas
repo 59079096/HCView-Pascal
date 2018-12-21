@@ -5,7 +5,7 @@
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
 {                                                       }
-{             文档内各类对象高级管理单元                }
+{            支持域管理的文档对象管理单元               }
 {                                                       }
 {*******************************************************}
 
@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, Generics.Collections, HCCustomData,
   HCRichData, HCItem, HCStyle, HCParaStyle, HCTextStyle, HCTextItem, HCRectItem,
-  HCCommon, HCAnnotateData, HCList;
+  HCCommon, HCViewDevData, HCList;
 
 type
   THCDomainInfo = class(TObject)
@@ -39,7 +39,7 @@ type
     const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
-  THCViewData = class(THCAnnotateData)  // 富文本数据类，可做为其他显示富文本类的基类
+  THCViewData = class(THCViewDevData)  // 富文本数据类，可做为其他显示富文本类的基类
   private
     FDomainStartDeletes: THCIntegerList;  // 仅用于选中删除时，当域起始结束都选中时，删除了结束后标明起始的可删除
     FHotDomain,  // 当前高亮域

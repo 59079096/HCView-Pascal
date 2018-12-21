@@ -14,7 +14,7 @@ unit HCStyle;
 interface
 
 uses
-  Windows, Classes, Graphics, Generics.Collections, HCTextStyle, HCParaStyle;
+  Windows, Classes, Graphics, Generics.Collections, HCTextStyle, HCParaStyle, HCXml;
 
 type
   /// <summary> 全局状态更新控制 </summary>
@@ -106,6 +106,7 @@ type
     function GetHtmlFileTempName(const AReset: Boolean = False): string;
     function ToCSS: string;
     function ToXml: string;
+    procedure FromXml(const ANode: IHCXMLNode);
 
     procedure InvalidateRect(const ARect: TRect);
 
@@ -212,6 +213,28 @@ begin
   ACanvas.Handle := 0;
   ACanvas.Free;
   DeleteDC(vDC);
+end;
+
+procedure THCStyle.FromXml(const ANode: IHCXMLNode);
+var
+  i, j: Integer;
+begin
+  for i := 0 to ANode.ChildNodes.Count - 1 do
+  begin
+    if ANode.ChildNodes[i].NodeName = 'textstyles' then
+    begin
+      FTextStyles.Clear;
+      for j := 0 to ANode.ChildNodes[i].ChildNodes.Count - 1 do
+        FTextStyles[NewDefaultTextStyle].FromXml(ANode.ChildNodes[i].ChildNodes[j]);
+    end
+    else
+    if ANode.ChildNodes[i].NodeName = 'parastyles' then
+    begin
+      FParaStyles.Clear;
+      for j := 0 to ANode.ChildNodes[i].ChildNodes.Count - 1 do
+        FParaStyles[NewDefaultTextStyle].FromXml(ANode.ChildNodes[i].ChildNodes[j]);
+    end;
+  end;
 end;
 
 function THCStyle.GetParaNo(const AParaStyle: THCParaStyle; const ACreateIfNull: Boolean): Integer;

@@ -14,7 +14,7 @@ unit HCTextStyle;
 interface
 
 uses
-  Windows, Classes, Graphics, SysUtils;
+  Windows, Classes, Graphics, SysUtils, HCXml;
 
 type
   THCFontStyle = (tsBold, tsItalic, tsUnderline, tsStrikeOut, tsSuperscript,
@@ -41,7 +41,6 @@ type
     CheckSaveUsed: Boolean;
     TempNo: Integer;
     constructor Create;
-    destructor Destroy; override;
     function IsSizeStored: Boolean;
     function IsFamilyStored: Boolean;
     procedure ApplyStyle(const ACanvas: TCanvas; const AScale: Single = 1);
@@ -51,6 +50,7 @@ type
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
     function ToCSS: string;
     function ToXml: string;
+    procedure FromXml(const ANode: IHCXmlNode);
   published
     property Family: TFontName read FFamily write SetFamily stored IsFamilyStored;
     property Size: Single read FSize write SetSize stored IsSizeStored nodefault;
@@ -140,12 +140,6 @@ begin
   FBackColor := clNone;
 end;
 
-destructor THCTextStyle.Destroy;
-begin
-
-  inherited;
-end;
-
 function THCTextStyle.EqualsEx(const ASource: THCTextStyle): Boolean;
 begin
   Result :=
@@ -154,6 +148,50 @@ begin
     and (Self.FFamily = ASource.Family)
     and (Self.FColor = ASource.Color)
     and (Self.FBackColor = ASource.BackColor);
+end;
+
+procedure THCTextStyle.FromXml(const ANode: IHCXmlNode);
+
+  procedure GetFontStyles_;
+  var
+    vsStyles: TStringList;
+    i: Integer;
+  begin
+    vsStyles := TStringList.Create;
+    try
+      vsStyles.Delimiter := ',';
+      vsStyles.DelimitedText := ANode.Attributes['style'];
+      for i := 0 to vsStyles.Count - 1 do
+      begin
+        if vsStyles[i] = 'bold' then
+          FFontStyles := FFontStyles + [tsBold]
+        else
+        if vsStyles[i] = 'italic' then
+          FFontStyles := FFontStyles + [tsItalic]
+        else
+        if vsStyles[i] = 'underline' then
+          FFontStyles := FFontStyles + [tsUnderline]
+        else
+        if vsStyles[i] = 'strike' then
+          FFontStyles := FFontStyles + [tsStrikeOut]
+        else
+        if vsStyles[i] = 'sup' then
+          FFontStyles := FFontStyles + [tsSuperscript]
+        else
+        if vsStyles[i] = 'sub' then
+          FFontStyles := FFontStyles + [tsSubscript];
+      end;
+    finally
+      FreeAndNil(vsStyles);
+    end;
+  end;
+
+begin
+  FFamily := ANode.Text;
+  FSize := ANode.Attributes['size'];
+  FColor := GetXmlRGBColor(ANode.Attributes['color']);
+  FBackColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);
+  GetFontStyles_;
 end;
 
 function THCTextStyle.IsFamilyStored: Boolean;
@@ -284,6 +322,7 @@ function THCTextStyle.ToXml: string;
   begin
     if tsBold in FFontStyles then
       Result := 'bold';
+
     if tsItalic in FFontStyles then
     begin
       if Result <> '' then
@@ -327,8 +366,8 @@ function THCTextStyle.ToXml: string;
 
 begin
   Result := '<ts size="' + FormatFloat('#.#', FSize) + '"'
-    + ' color="' + GetColorHtmlRGB(FColor) + '"'
-    + ' bkcolor="' + GetColorHtmlRGB(FBackColor) + '"'
+    + ' color="' + GetColorXmlRGB(FColor) + '"'
+    + ' bkcolor="' + GetColorXmlRGB(FBackColor) + '"'
     + ' style="' + GetFontStyleXML + '">'
     + Family + '</ts>';
 end;

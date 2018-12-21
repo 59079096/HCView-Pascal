@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Graphics, SysUtils, Controls, Generics.Collections, HCRichData,
   HCCustomData, HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle, HCTextStyle,
-  HCViewData, HCCustomFloatItem, HCRectItem;
+  HCViewData, HCCustomFloatItem, HCRectItem, HCXml;
 
 type
   TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
@@ -61,6 +61,7 @@ type
       const AFileVersion: Word); override;
 
     function ToXml: string; override;
+    procedure FromXml(const ANode: IHCXMLNode); override;
 
     procedure PaintFloatItems(const APageIndex, ADataDrawLeft, ADataDrawTop,
       AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
@@ -446,6 +447,12 @@ begin
   inherited Destroy;
 end;
 
+procedure THCSectionData.FromXml(const ANode: IHCXMLNode);
+begin
+  inherited;
+
+end;
+
 function THCSectionData.GetActiveFloatItem: THCCustomFloatItem;
 begin
   if FFloatItemIndex < 0 then
@@ -716,10 +723,7 @@ function THCSectionData.ToXml: string;
 var
   i: Integer;
 begin
-  Result := '<items count="' + IntToStr(Self.Items.Count) + '">';
-  Result := Result + sLineBreak + inherited ToXml;
-  Result := Result + sLineBreak + '</items>';
-
+  Result := inherited ToXml;
   Result := Result + sLineBreak + '<floatitems count="' + IntToStr(FFloatItems.Count) + '">';
   for i := 0 to FFloatItems.Count - 1 do
      Result := Result + sLineBreak + FFloatItems[i].ToXml;

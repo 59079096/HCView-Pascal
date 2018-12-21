@@ -112,10 +112,6 @@ type
     function Parse(const AHtmlText: string): Boolean;
   end;
 
-  THCXml = class(TObject)
-
-  end;
-
 function ParserHTML(const Source: WideString): IHtmlElement; stdcall;
 
 implementation

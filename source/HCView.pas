@@ -122,7 +122,7 @@ type
     procedure SetZoom(const Value: Single);
 
     /// <summary> 删除不使用的文本样式 </summary>
-    procedure _DeleteUnUsedStyle(const AParts: TSaveParts = [saHeader, saPage, saFooter]);
+    procedure _DeleteUnUsedStyle(const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
 
     function GetHScrollValue: Integer;
     function GetVScrollValue: Integer;
@@ -454,7 +454,7 @@ type
 
     /// <summary> 文档保存到流 </summary>
     procedure SaveToStream(const AStream: TStream; const AQuick: Boolean = False;
-      const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]); virtual;
+      const AAreas: TSectionAreas = [saHeader, saPage, saFooter]); virtual;
 
     /// <summary> 读取文件流 </summary>
     procedure LoadFromStream(const AStream: TStream); virtual;
@@ -465,7 +465,7 @@ type
     /// <summary> 读取xml格式 </summary>
     procedure LoadFromXml(const AFileName: string);
 
-    procedure SaveToHtml(const AFileName: string);
+    procedure SaveToHtml(const AFileName: string; const ASeparateSrc: Boolean = False);
 
     /// <summary> 获取指定页所在的节和相对此节的页序号 </summary>
     /// <param name="APageIndex">页序号</param>
@@ -1794,7 +1794,7 @@ end;
 
 procedure THCView.LoadFromXml(const AFileName: string);
 
-  function GetEncodingName(const ARaw: string): TEncoding;
+  {function GetEncodingName(const ARaw: string): TEncoding;
   var
     vPs, vPd: Integer;
     vEncd: string;
@@ -1807,18 +1807,16 @@ procedure THCView.LoadFromXml(const AFileName: string);
       Result := TEncoding.UTF8
     else
       Result := TEncoding.Unicode;
-  end;
+  end; }
 
 var
-  vStrings: TStringList;
-  vEncoding: TEncoding;
-
+  vSection: THCSection;
   vXml: IHCXMLDocument;
   vNode: IHCXMLNode;
   vSaveUndoEnable: Boolean;
-  vsXml, vRaw, vVersion: string;
+  vVersion: string;
   vLang: Byte;
-  i: Integer;
+  i, j: Integer;
 begin
   Self.BeginUpdate;
   try
@@ -1828,19 +1826,6 @@ begin
     try
       FUndoList.Enable := False;
       Self.Clear;
-
-      vStrings := TStringList.Create;
-      try
-        vStrings.LoadFromFile(AFileName);
-        vRaw := vStrings.Text;
-        vEncoding := GetEncodingName(vRaw);
-
-      finally
-        FreeAndNil(vStrings);
-      end;
-
-
-
 
       vXml := THCXMLDocument.Create(nil);
       vXml.LoadFromFile(AFileName);
@@ -1855,8 +1840,21 @@ begin
         begin
           vNode := vXml.DocumentElement.ChildNodes[i];
           if vNode.NodeName = 'style' then
-
+            FStyle.FromXml(vNode)
+          else
+          if vNode.NodeName = 'sections' then
+          begin
+            FSections[0].FromXml(vNode.ChildNodes[0]);
+            for j := 1 to vNode.ChildNodes.Count - 1 do
+            begin
+              vSection := NewDefaultSection;
+              vSection.FromXml(vNode.ChildNodes[j]);
+              FSections.Add(vSection);
+            end;
+          end;
         end;
+
+        DoMapChanged;
       end;
     finally
       if vSaveUndoEnable then
@@ -2686,7 +2684,7 @@ begin
   CheckUpdateInfo;
 end;
 
-procedure THCView._DeleteUnUsedStyle(const AParts: TSaveParts = [saHeader, saPage, saFooter]);
+procedure THCView._DeleteUnUsedStyle(const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
 var
   i, vUnCount: Integer;
 begin
@@ -2702,7 +2700,7 @@ begin
   end;
 
   for i := 0 to FSections.Count - 1 do
-    FSections[i].MarkStyleUsed(True, AParts);
+    FSections[i].MarkStyleUsed(True, AAreas);
 
   vUnCount := 0;
   for i := 0 to FStyle.TextStyles.Count - 1 do
@@ -2750,7 +2748,7 @@ begin
   end;
 end;
 
-procedure THCView.SaveToHtml(const AFileName: string);
+procedure THCView.SaveToHtml(const AFileName: string; const ASeparateSrc: Boolean = False);
 var
   vHtmlTexts: TStrings;
   i: Integer;
@@ -2758,7 +2756,10 @@ var
 begin
   _DeleteUnUsedStyle([saHeader, saPage, saFooter]);
   FStyle.GetHtmlFileTempName(True);
-  vPath := ExtractFilePath(AFileName);
+  if ASeparateSrc then
+    vPath := ExtractFilePath(AFileName)
+  else
+    vPath := '';
 
   vHtmlTexts := TStringList.Create;
   try
@@ -2867,7 +2868,7 @@ begin
 end;
 
 procedure THCView.SaveToStream(const AStream: TStream; const AQuick: Boolean = False;
-  const ASaveParts: TSaveParts = [saHeader, saPage, saFooter]);
+  const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
 var
   vByte: Byte;
   i: Integer;
@@ -2876,7 +2877,7 @@ begin
   if not AQuick then
   begin
     DoSaveBefor(AStream);
-    _DeleteUnUsedStyle(ASaveParts);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
+    _DeleteUnUsedStyle(AAreas);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
   end;
   FStyle.SaveToStream(AStream);
   // 节数量
@@ -2884,7 +2885,7 @@ begin
   AStream.WriteBuffer(vByte, 1);
   // 各节数据
   for i := 0 to FSections.Count - 1 do
-    FSections[i].SaveToStream(AStream, ASaveParts);
+    FSections[i].SaveToStream(AStream, AAreas);
 
   if not AQuick then
     DoSaveAfter(AStream);

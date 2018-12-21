@@ -52,7 +52,6 @@ const
   // 不能在行首的字符             |                    |                   |
   DontLineFirstChar = '`-=[]\;'',./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；‘，。、～！＠＃￥％……＆×（）——＋｛｝｜：“《》？°';
   DontLineLastChar = '/\＼';
-  HCBoolStrs: array [boolean] of Char = ('0', '1');
 
 type
   THCProcedure = reference to procedure();
@@ -71,7 +70,7 @@ type
   );
 
   TSectionArea = (saHeader, saPage, saFooter);  // 当前激活的是文档哪一部分
-  TSaveParts = set of TSectionArea;  // 保存时存哪几部分内容
+  TSectionAreas = set of TSectionArea;  // 保存时存哪几部分内容
 
   TCharType = (
     jctBreak,  //  截断点
@@ -160,7 +159,6 @@ type
   function GetFontSize(const AFontSize: string): Single;
   function GetFontSizeStr(AFontSize: Single): string;
   function GetPaperSizeStr(APaperSize: Integer): string;
-  function GetColorHtmlRGB(const AColor: TColor): string;
 
   function GetVersionAsInteger(const AVersion: string): Integer;
 
@@ -399,12 +397,6 @@ begin
   else
     Result := '自定义';
   end;
-end;
-
-function GetColorHtmlRGB(const AColor: TColor): string;
-begin
-  Result := 'rgb(' + GetRValue(AColor).ToString + ','
-    + GetGValue(AColor).ToString + ',' + GetBValue(AColor).ToString + ')';
 end;
 
 function GetVersionAsInteger(const AVersion: string): Integer;

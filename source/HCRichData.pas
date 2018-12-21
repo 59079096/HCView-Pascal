@@ -5,7 +5,7 @@
 {      本代码遵循BSD协议，你可以加入QQ群 649023932      }
 {            来获取更多的技术交流 2018-5-4              }
 {                                                       }
-{             文档内各类对象基本管理单元                }
+{             支持格式化文档对象管理单元                }
 {                                                       }
 {*******************************************************}
 
@@ -115,14 +115,13 @@ type
     procedure _ReFormatData(const AStartItemNo: Integer; const ALastItemNo: Integer = -1;
       const AExtraItemCount: Integer = 0); override;
 
-    /// <summary>
-    /// 合并2个文本Item
-    /// </summary>
+    /// <summary> 合并2个文本Item </summary>
     /// <param name="ADestItem">合并后的Item</param>
     /// <param name="ASrcItem">源Item</param>
     /// <returns>True:合并成功，False不能合并</returns>
     function MergeItemText(const ADestItem, ASrcItem: THCCustomItem): Boolean; virtual;
 
+    /// <summary> 是否能删除指定的Item(常用于Items.Delete(i)前判断是否可删除) </summary>
     function CanDeleteItem(const AItemNo: Integer): Boolean; virtual;
 
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
@@ -198,6 +197,7 @@ type
     // Key返回0表示此键按下Data没有做任何事情
     procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
 
+    /// <summary> 在Data层面是否可编辑 </summary>
     function CanEdit: Boolean; virtual;
     //
     procedure DblClick(X, Y: Integer);
@@ -886,7 +886,7 @@ var
 
     if vTextItem.StyleNo = Self.Style.CurStyleNo then  // 当前样式和插入位置TextItem样式相同
     begin
-      if vTextItem.CanAccept(SelectInfo.StartItemOffset) then  // TextItem此偏移位置可接受输入
+      if vTextItem.CanAccept(SelectInfo.StartItemOffset, hopInsert) then  // TextItem此偏移位置可接受输入
       begin
         Undo_New;
         UndoAction_InsertText(vCarteItemNo, SelectInfo.StartItemOffset + 1, AText);
@@ -4060,6 +4060,9 @@ var
     begin
       if not CanDeleteItem(vCurItemNo) then  // 不可删除
         SelectInfo.StartItemOffset := SelectInfo.StartItemOffset + 1
+      else
+      if not vCurItem.CanAccept(SelectInfo.StartItemOffset, hopDelete) then
+        SelectInfo.StartItemOffset := SelectInfo.StartItemOffset + 1
       else  // 可删除
       begin
         vText := Items[vCurItemNo].Text;
@@ -4290,6 +4293,11 @@ var
     end
     else  // 光标不在Item最开始  文本TextItem
     begin
+      if not vCurItem.CanAccept(SelectInfo.StartItemOffset, hopBackDelete) then  // 不允许删除
+      begin
+        LeftKeyDown;  // 往前走
+      end
+      else
       if vCurItem.Length = 1 then  // 删除后没有内容了
       begin
         vCurItemNo := SelectInfo.StartItemNo;  // 记录原位置

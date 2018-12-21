@@ -16,6 +16,9 @@ interface
 uses
   Windows, Classes, Controls, Graphics, Generics.Collections, HCStyle, HCUndo;
 
+const
+  HCBoolStrs: array [boolean] of Char = ('0', '1');
+
 type
   TScaleInfo = record
     MapMode: Integer;
@@ -26,6 +29,8 @@ type
   end;
 
   TItemOptions = set of (ioParaFirst, ioSelectPart, ioSelectComplate);
+
+  THCOperation = (hopInsert, hopBackDelete, hopDelete);
 
   THCCustomItemClass = class of THCCustomItem;
 
@@ -127,6 +132,8 @@ type
     procedure MouseLeave; virtual;
     function GetHint: string; virtual;
     procedure SelectComplate; virtual;
+    /// <summaryy 在指定的位置是否可接受插入、删除等操作 </summary>
+    function CanAccept(const AOffset: Integer; const AOperation: THCOperation): Boolean; virtual;
     procedure SelectPart;
     /// <summary> 从指定位置将当前item分成前后两部分 </summary>
     /// <param name="AOffset">分裂位置</param>
@@ -173,6 +180,9 @@ type
 
 implementation
 
+uses
+  SysUtils;
+
 { THCCustomItem }
 
 function THCCustomItem.CanDrag: Boolean;
@@ -193,6 +203,12 @@ begin
   Result := THCCustomItemClass(Self.ClassType).Create;
   Result.Assign(Self);
   Result.ParaFirst := False;  // 打断后，后面的肯定不是断首
+end;
+
+function THCCustomItem.CanAccept(const AOffset: Integer;
+  const AOperation: THCOperation): Boolean;
+begin
+  Result := True;
 end;
 
 function THCCustomItem.CanConcatItems(const AItem: THCCustomItem): Boolean;
@@ -345,7 +361,9 @@ end;
 
 function THCCustomItem.ToXml: string;
 begin
-  Result := '';
+  Result := 'ts="' + IntToStr(StyleNo) + '"'
+    + ' ps="' + IntToStr(ParaNo) + '"'
+    + ' parafirst="' + HCBoolStrs[Self.ParaFirst] + '"';
 end;
 
 procedure THCCustomItem.Undo(const AUndoAction: THCCustomUndoAction);

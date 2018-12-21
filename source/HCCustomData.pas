@@ -14,8 +14,8 @@ unit HCCustomData;
 interface
 
 uses
-  Windows, Classes, Types, Controls, Graphics, HCItem, HCDrawItem,
-  HCStyle, HCParaStyle, HCTextStyle, HCStyleMatch, HCCommon, HCUndo;
+  Windows, Classes, Types, Controls, Graphics, HCItem, HCDrawItem, HCStyle,
+  HCParaStyle, HCTextStyle, HCStyleMatch, HCCommon, HCUndo, HCXml;
 
 type
   TSelectInfo = class(TObject)
@@ -386,6 +386,7 @@ type
 
     function ToHtml(const APath: string): string;
     function ToXml: string; virtual;
+    procedure FromXml(const ANode: IHCXMLNode); virtual;
     //
     property Style: THCStyle read FStyle;
     property Items: THCItems read FItems;
@@ -402,7 +403,7 @@ type
 
   TItemTraverse = class(TObject)
   public
-    Area: TSectionArea;
+    Areas: TSectionAreas;
     Tag: Integer;
     Stop: Boolean;
     Process: TTraverseItemEvent;
@@ -861,6 +862,12 @@ begin
   finally
     RestoreDC(ACanvas.Handle, vDCState);
   end;
+end;
+
+procedure THCCustomData.FromXml(const ANode: IHCXMLNode);
+begin
+  Clear;
+
 end;
 
 function THCCustomData.IsEmptyData: Boolean;
@@ -3143,9 +3150,10 @@ function THCCustomData.ToXml: string;
 var
   i: Integer;
 begin
-  Result := '';
+  Result := '<items count="' + IntToStr(FItems.Count) + '">';
   for i := 0 to FItems.Count - 1 do
     Result := Result + sLineBreak + FItems[i].ToXml;
+  Result := Result + sLineBreak + '</items>';
 end;
 
 procedure THCCustomData.GetCaretInfo(const AItemNo, AOffset: Integer;

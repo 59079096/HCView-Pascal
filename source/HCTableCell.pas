@@ -14,7 +14,7 @@ unit HCTableCell;
 interface
 
 uses
-  Classes, Graphics, HCStyle, HCCustomData, HCTableCellData, HCItem, HCCommon;
+  Classes, Graphics, HCStyle, HCCustomData, HCTableCellData, HCItem, HCCommon, HCXml;
 
 type
   /// <summary> 垂直对齐方式：上、居中、下) </summary>
@@ -295,7 +295,7 @@ begin
    + ' rowspan="' + IntToStr(FRowSpan) + '"'
    + ' colspan="' + IntToStr(FColSpan) + '"'
    + ' vert="' + vsVert + '"'
-   + ' backcolor="' + GetColorHtmlRGB(FBackgroundColor) + '"'  // 背景色
+   + ' backcolor="' + GetColorXmlRGB(FBackgroundColor) + '"'  // 背景色
    + ' border="' + vsBorder + '">';
 
 

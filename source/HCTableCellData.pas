@@ -74,7 +74,7 @@ type
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer;
 
-    /// <summary> 单元格全先状态 </summary>
+    /// <summary> 单元格全选状态(如果是EmptyData时，跨单元格划选时为True) </summary>
     property CellSelectedAll: Boolean read FCellSelectedAll write FCellSelectedAll;
 
     /// <summary> 所属单元格高度 </summary>

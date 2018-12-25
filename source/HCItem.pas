@@ -326,7 +326,6 @@ begin
       APageDataScreenTop, APageDataScreenBottom, ACanvas, APaintInfo);
   finally
     Windows.RestoreDC(ACanvas.Handle, vDCState);
-    //ACanvas.Refresh;  // »Ö¸´PenµÄÐÞ¸Ä
   end;
 end;
 

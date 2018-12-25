@@ -1558,9 +1558,9 @@ var
     if vItem.StyleNo < THCStyle.Null then  // 非文本
     begin
       if (vItem as THCCustomRectItem).MangerUndo then
-        UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+        UndoAction_ItemSelf(AItemNo, OffsetInner)
       else
-        UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+        UndoAction_ItemMirror(AItemNo, OffsetInner);
 
       (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
       {Rect的暂时先不处理
@@ -1697,7 +1697,14 @@ var
   begin
     vItem := Items[AItemNo];
     if vItem.StyleNo < THCStyle.Null then  // 非文本
-      (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle)
+    begin
+      if (vItem as THCCustomRectItem).MangerUndo then
+        UndoAction_ItemSelf(AItemNo, SelectInfo.StartItemOffset)
+      else
+        UndoAction_ItemMirror(AItemNo, SelectInfo.StartItemOffset);
+
+      (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
+    end
     else  // 文本
     begin
       vStyleNo := AMatchStyle.GetMatchStyleNo(Style, vItem.StyleNo);
@@ -1738,7 +1745,14 @@ var
   begin
     vItem := Items[AItemNo];
     if vItem.StyleNo < THCStyle.Null then  // 非文本
-      (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle)
+    begin
+      if (vItem as THCCustomRectItem).MangerUndo then
+        UndoAction_ItemSelf(AItemNo, SelectInfo.EndItemOffset)
+      else
+        UndoAction_ItemMirror(AItemNo, SelectInfo.EndItemOffset);
+
+      (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
+    end
     else  // 文本
     begin
       vStyleNo := AMatchStyle.GetMatchStyleNo(Style, vItem.StyleNo);
@@ -1781,7 +1795,14 @@ var
   begin
     vItem := Items[AItemNo];
     if vItem.StyleNo < THCStyle.Null then  // 非文本
-      (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle)
+    begin
+      if (vItem as THCCustomRectItem).MangerUndo then
+        UndoAction_ItemSelf(AItemNo, OffsetInner)
+      else
+        UndoAction_ItemMirror(AItemNo, OffsetInner);
+
+      (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
+    end
     else  // 文本
     begin
       vNewStyleNo := AMatchStyle.GetMatchStyleNo(Style, vItem.StyleNo);
@@ -2573,8 +2594,8 @@ begin
     Result := EmptyDataInsertItem(AItem);
     Exit;
   end;
-  vCurItemNo := GetCurItemNo;
 
+  vCurItemNo := GetCurItemNo;
   if Items[vCurItemNo].StyleNo < THCStyle.Null then  // 当前位置是 RectItem
   begin
     if SelectInfo.StartItemOffset = OffsetInner then  // 正在其上
@@ -4069,6 +4090,7 @@ var
 
         Delete(vText, SelectInfo.StartItemOffset + 1, 1);
         vCurItem.Text := vText;
+        DoItemOpertion(vCurItemNo, SelectInfo.StartItemOffset + 1, hopDelete);
         if vText = '' then  // 删除后没有内容了
         begin
           if not DrawItems[Items[vCurItemNo].FirstDItemNo].LineFirst then  // 该Item不是行首(是行中间或行末尾)
@@ -4294,9 +4316,7 @@ var
     else  // 光标不在Item最开始  文本TextItem
     begin
       if not vCurItem.CanAccept(SelectInfo.StartItemOffset, hopBackDelete) then  // 不允许删除
-      begin
-        LeftKeyDown;  // 往前走
-      end
+        LeftKeyDown  // 往前走
       else
       if vCurItem.Length = 1 then  // 删除后没有内容了
       begin
@@ -4631,7 +4651,7 @@ begin
       GetReformatItemRange(vFormatFirstItemNo, vFormatLastItemNo);
       _FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
       _ReFormatData(vFormatFirstItemNo, vFormatLastItemNo);
-      DisSelect;  // 合并后清空选中，会导致当前ItemNo没有了
+      // DisSelect;  // 合并后清空选中，会导致当前ItemNo没有了，通过方法往表格里插入时会出错
       InitializeMouseField;  // 201807311101
       Style.UpdateInfoRePaint;
     end;

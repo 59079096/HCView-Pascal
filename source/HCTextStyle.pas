@@ -73,10 +73,9 @@ var
 begin
   with ACanvas do
   begin
+    Brush.Color := FBackColor;
     if FBackColor = clNone then
-      Brush.Style := bsClear
-    else
-      Brush.Color := FBackColor;
+      Brush.Style := bsClear;
 
     Font.Color := FColor;
     Font.Name := FFamily;

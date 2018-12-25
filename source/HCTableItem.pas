@@ -2898,6 +2898,8 @@ begin
 end;
 
 function THCTableItem.MergeSelectCells: Boolean;
+var
+  vSelRow, vSelCol: Integer;
 begin
   if (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.EndRow >= 0) then
   begin
@@ -2908,11 +2910,15 @@ begin
     if Result then
     begin
       { 防止合并后有空行或空列被删除后，DisSelect访问越界，所以合并后直接赋值结束信息 }
-      //Self.InitializeMouseInfo;  // 合并后不保留选中单元格
+      vSelRow := FSelectCellRang.StartRow;
+      vSelCol := FSelectCellRang.StartCol;
       FSelectCellRang.EndRow := -1;
       FSelectCellRang.EndCol := -1;
-      Self.Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData.InitializeField;
       DisSelect;
+
+      FSelectCellRang.StartRow := vSelRow;
+      FSelectCellRang.StartCol := vSelCol;
+      Self.Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData.InitializeField;
     end;
   end
   else

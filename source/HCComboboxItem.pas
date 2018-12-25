@@ -69,6 +69,7 @@ type
     procedure Assign(Source: THCCustomItem); override;
     property Items: TStrings read FItems write SetItems;
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
+    /// <summary> 是否保存选项 </summary>
     property SaveItem: Boolean read FSaveItem write FSaveItem;
     property OnPopupItem: TNotifyEvent read FOnPopupItem write FOnPopupItem;
   end;

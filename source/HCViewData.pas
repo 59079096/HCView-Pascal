@@ -33,7 +33,6 @@ type
 
   TStyleItemEvent = function (const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem of object;
   TOnCanEditEvent = function(const Sender: TObject): Boolean of object;
-  TDataItemNotifyEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
   TDrawItemPaintContentEvent = procedure(const AData: THCCustomData;
     const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
     const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -50,14 +49,10 @@ type
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  //  «∑ÒªÊ÷∆”Ú±ﬂøÚ
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
-    FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
 
     procedure GetDomainFrom(const AItemNo, AOffset: Integer;
       const ADomainInfo: THCDomainInfo);
-
-    procedure DoInsertItem(const AItem: THCCustomItem);
-    procedure DoRemoveItem(const AItem: THCCustomItem);
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
     function CanDeleteItem(const AItemNo: Integer): Boolean; override;
@@ -75,9 +70,6 @@ type
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-
-    procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
-    procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
   public
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
@@ -129,8 +121,6 @@ type
     property ActiveDomain: THCDomainInfo read FActiveDomain;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
-    property OnInsertItem: TDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
-    property OnRemoveItem: TDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
     property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
   end;
 
@@ -250,8 +240,6 @@ begin
   FHotDomain := THCDomainInfo.Create;
   FActiveDomain := THCDomainInfo.Create;
   inherited Create(AStyle);
-  Self.Items.OnInsertItem := DoInsertItem;
-  Self.Items.OnRemoveItem := DoRemoveItem;
 end;
 
 function THCViewData.CreateDefaultDomainItem: THCCustomItem;
@@ -291,18 +279,6 @@ begin
   FActiveDomain.Free;
   FDomainStartDeletes.Free;
   inherited Destroy;
-end;
-
-procedure THCViewData.DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
-begin
-  if Assigned(FOnInsertItem) then
-    FOnInsertItem(AData, AItem);
-end;
-
-procedure THCViewData.DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
-begin
-  if Assigned(FOnRemoveItem) then
-    FOnRemoveItem(AData, AItem);
 end;
 
 procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
@@ -412,16 +388,6 @@ begin
     FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
       ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
-end;
-
-procedure THCViewData.DoInsertItem(const AItem: THCCustomItem);
-begin
-  DoDataInsertItem(Self, AItem);
-end;
-
-procedure THCViewData.DoRemoveItem(const AItem: THCCustomItem);
-begin
-  DoDataRemoveItem(Self, AItem);
 end;
 
 function THCViewData.GetDomainAnother(const AItemNo: Integer): Integer;

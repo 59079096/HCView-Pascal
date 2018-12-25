@@ -132,7 +132,7 @@ type
     procedure SetCaretDrawItemNo(const Value: Integer);
 
     function GetUndoList: THCUndoList;
-
+    procedure DoItemOpertion(const AItemNo, AOffset: Integer; const AOperation: THCOperation); virtual;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
@@ -813,6 +813,11 @@ procedure THCCustomData.DoDrawItemPaintContent(const AData: THCCustomData;
   const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
+begin
+end;
+
+procedure THCCustomData.DoItemOpertion(const AItemNo, AOffset: Integer;
+  const AOperation: THCOperation);
 begin
 end;
 

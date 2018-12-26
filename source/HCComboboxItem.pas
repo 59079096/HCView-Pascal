@@ -144,6 +144,10 @@ begin
 
   FButtonDrawRect := FButtonRect;
   FButtonDrawRect.Offset(ADrawRect.Location);
+
+  if IsSelectComplate then
+    ACanvas.Brush.Color := AStyle.SelColor
+  else
   if FMouseInButton then
     ACanvas.Brush.Color := clMenu
   else
@@ -169,7 +173,7 @@ var
   vPt: TPoint;
 begin
   if Assigned(FOnPopupItem) then
-    FOnPopupItem(Self.Items);
+    FOnPopupItem(Self);
 
   vPt := OwnerData.GetScreenCoord(FButtonDrawRect.Left - (Self.Width - FButtonDrawRect.Width),
     FButtonDrawRect.Bottom + 1);

@@ -49,8 +49,8 @@ type
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
     function ToCSS: string;
-    function ToXml: string;
-    procedure FromXml(const ANode: IHCXmlNode);
+    procedure ToXml(const ANode: IHCXMLNode);
+    procedure ParseXml(const ANode: IHCXmlNode);
   published
     property Family: TFontName read FFamily write SetFamily stored IsFamilyStored;
     property Size: Single read FSize write SetSize stored IsSizeStored nodefault;
@@ -149,50 +149,6 @@ begin
     and (Self.FBackColor = ASource.BackColor);
 end;
 
-procedure THCTextStyle.FromXml(const ANode: IHCXmlNode);
-
-  procedure GetFontStyles_;
-  var
-    vsStyles: TStringList;
-    i: Integer;
-  begin
-    vsStyles := TStringList.Create;
-    try
-      vsStyles.Delimiter := ',';
-      vsStyles.DelimitedText := ANode.Attributes['style'];
-      for i := 0 to vsStyles.Count - 1 do
-      begin
-        if vsStyles[i] = 'bold' then
-          FFontStyles := FFontStyles + [tsBold]
-        else
-        if vsStyles[i] = 'italic' then
-          FFontStyles := FFontStyles + [tsItalic]
-        else
-        if vsStyles[i] = 'underline' then
-          FFontStyles := FFontStyles + [tsUnderline]
-        else
-        if vsStyles[i] = 'strike' then
-          FFontStyles := FFontStyles + [tsStrikeOut]
-        else
-        if vsStyles[i] = 'sup' then
-          FFontStyles := FFontStyles + [tsSuperscript]
-        else
-        if vsStyles[i] = 'sub' then
-          FFontStyles := FFontStyles + [tsSubscript];
-      end;
-    finally
-      FreeAndNil(vsStyles);
-    end;
-  end;
-
-begin
-  FFamily := ANode.Text;
-  FSize := ANode.Attributes['size'];
-  FColor := GetXmlRGBColor(ANode.Attributes['color']);
-  FBackColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);
-  GetFontStyles_;
-end;
-
 function THCTextStyle.IsFamilyStored: Boolean;
 begin
   Result := FFamily <> DefaultFontFamily;
@@ -240,19 +196,54 @@ begin
   end;
 end;
 
+procedure THCTextStyle.ParseXml(const ANode: IHCXmlNode);
+
+  procedure GetFontStyles_;
+  var
+    vsStyles: TStringList;
+    i: Integer;
+  begin
+    vsStyles := TStringList.Create;
+    try
+      vsStyles.Delimiter := ',';
+      vsStyles.DelimitedText := ANode.Attributes['style'];
+      for i := 0 to vsStyles.Count - 1 do
+      begin
+        if vsStyles[i] = 'bold' then
+          FFontStyles := FFontStyles + [tsBold]
+        else
+        if vsStyles[i] = 'italic' then
+          FFontStyles := FFontStyles + [tsItalic]
+        else
+        if vsStyles[i] = 'underline' then
+          FFontStyles := FFontStyles + [tsUnderline]
+        else
+        if vsStyles[i] = 'strike' then
+          FFontStyles := FFontStyles + [tsStrikeOut]
+        else
+        if vsStyles[i] = 'sup' then
+          FFontStyles := FFontStyles + [tsSuperscript]
+        else
+        if vsStyles[i] = 'sub' then
+          FFontStyles := FFontStyles + [tsSubscript];
+      end;
+    finally
+      FreeAndNil(vsStyles);
+    end;
+  end;
+
+begin
+  FFamily := ANode.Text;
+  FSize := ANode.Attributes['size'];
+  FColor := GetXmlRGBColor(ANode.Attributes['color']);
+  FBackColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);
+  GetFontStyles_;
+end;
+
 procedure THCTextStyle.SaveToStream(const AStream: TStream);
-var
-  vBuffer: TBytes;
-  vSize: Word;
 begin
   AStream.WriteBuffer(FSize, SizeOf(FSize));
-
-  vBuffer := BytesOf(FFamily);
-  vSize := System.Length(vBuffer);
-  AStream.WriteBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-    AStream.WriteBuffer(vBuffer[0], vSize);
-
+  HCSaveTextToStream(AStream, FFamily);
   AStream.WriteBuffer(FFontStyles, SizeOf(FFontStyles));
   SaveColorToStream(FColor, AStream);
   SaveColorToStream(FBackColor, AStream);
@@ -315,7 +306,7 @@ begin
     Result := Result + ' vertical-align:sub;';
 end;
 
-function THCTextStyle.ToXml: string;
+procedure THCTextStyle.ToXml(const ANode: IHCXMLNode);
 
   function GetFontStyleXML: string;
   begin
@@ -364,11 +355,11 @@ function THCTextStyle.ToXml: string;
   end;
 
 begin
-  Result := '<ts size="' + FormatFloat('#.#', FSize) + '"'
-    + ' color="' + GetColorXmlRGB(FColor) + '"'
-    + ' bkcolor="' + GetColorXmlRGB(FBackColor) + '"'
-    + ' style="' + GetFontStyleXML + '">'
-    + Family + '</ts>';
+  ANode.Attributes['size'] := FormatFloat('#.#', FSize);
+  ANode.Attributes['color'] := GetColorXmlRGB(FColor);
+  ANode.Attributes['bkcolor'] := GetColorXmlRGB(FBackColor);
+  ANode.Attributes['style'] := GetFontStyleXML;
+  ANode.Text := FFamily;
 end;
 
 procedure THCTextStyle.SetFontStyles(const Value: THCFontStyles);

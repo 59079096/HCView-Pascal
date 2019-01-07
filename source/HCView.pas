@@ -1840,15 +1840,15 @@ begin
         begin
           vNode := vXml.DocumentElement.ChildNodes[i];
           if vNode.NodeName = 'style' then
-            FStyle.FromXml(vNode)
+            FStyle.ParseXml(vNode)
           else
           if vNode.NodeName = 'sections' then
           begin
-            FSections[0].FromXml(vNode.ChildNodes[0]);
+            FSections[0].ParseXml(vNode.ChildNodes[0]);
             for j := 1 to vNode.ChildNodes.Count - 1 do
             begin
               vSection := NewDefaultSection;
-              vSection.FromXml(vNode.ChildNodes[j]);
+              vSection.ParseXml(vNode.ChildNodes[j]);
               FSections.Add(vSection);
             end;
           end;
@@ -1863,38 +1863,6 @@ begin
   finally
     Self.EndUpdate;
   end;
-  {
-  // 文件格式和版本
-  vXml := '<?xml version="1.0" encoding="' + GetEncodingName + '" ?>';
-  vXml := vXml + sLineBreak + '<HCView EXT="' + HC_EXT + '" ver="' + HC_FileVersion + '" Lang="'
-    + IntToStr(HC_PROGRAMLANGUAGE) + '">';
-
-  vXml := vXml + sLineBreak + FStyle.ToXml;  // 样式表
-
-  vXml := vXml + sLineBreak + '<sections count="' + IntToStr(FSections.Count) + '">';  // 节数量
-
-  for i := 0 to FSections.Count - 1 do  // 各节数据
-    vXml := vXml + sLineBreak + FSections[i].ToXml;
-
-  vXml := vXml + sLineBreak + '</sections>';
-  vXml := vXml + sLineBreak + '</HCView>';
-
-  if AEncoding <> TEncoding.Unicode then
-  begin
-    //vUniBytes := TEncoding.Unicode.GetBytes(vXml);
-    vUniBytes := WideBytesOf(vXml);
-    vDestBytes := TEncoding.Convert(TEncoding.Unicode, AEncoding, vUniBytes);
-  end
-  else
-    vDestBytes := BytesOf(vXml);
-
-  vMs := TMemoryStream.Create;
-  try
-    vMs.Write(vDestBytes, Length(vDestBytes));
-    vMs.SaveToFile(AFileName);
-  finally
-    FreeAndNil(vMs);
-  end; }
 end;
 
 function THCView.MergeTableSelectCells: Boolean;
@@ -2902,44 +2870,32 @@ procedure THCView.SaveToXml(const AFileName: string; const AEncoding: TEncoding)
   end;
 
 var
-  vXml: string;
+  vXml: IHCXMLDocument;
+  vNode: IHCXMLNode;
   i: Integer;
-  vUniBytes, vDestBytes: TBytes;
-  vMs: TMemoryStream;
 begin
   _DeleteUnUsedStyle([saHeader, saPage, saFooter]);
 
-  // 文件格式和版本
-  vXml := '<?xml version="1.0" encoding="' + GetEncodingName + '" ?>';
-  vXml := vXml + sLineBreak + '<HCView EXT="' + HC_EXT + '" ver="' + HC_FileVersion + '" Lang="'
-    + IntToStr(HC_PROGRAMLANGUAGE) + '">';
+  vXml := THCXMLDocument.Create(nil);
+  vXml.Active := True;
+  vXml.Version := '1.0';
+  vXml.Encoding := GetEncodingName;
 
-  vXml := vXml + sLineBreak + FStyle.ToXml;  // 样式表
+  vXml.DocumentElement := vXml.CreateNode('HCView');
+  vXml.DocumentElement.Attributes['EXT'] := HC_EXT;
+  vXml.DocumentElement.Attributes['ver'] := HC_FileVersion;
+  vXml.DocumentElement.Attributes['Lang'] := HC_PROGRAMLANGUAGE;
 
-  vXml := vXml + sLineBreak + '<sections count="' + IntToStr(FSections.Count) + '">';  // 节数量
+  vNode := vXml.DocumentElement.AddChild('style');
+  FStyle.ToXml(vNode);  // 样式表
+
+  vNode := vXml.DocumentElement.AddChild('sections');
+  vNode.Attributes['count'] := FSections.Count;  // 节数量
 
   for i := 0 to FSections.Count - 1 do  // 各节数据
-    vXml := vXml + sLineBreak + FSections[i].ToXml;
+    FSections[i].ToXml(vNode.AddChild('sc'));
 
-  vXml := vXml + sLineBreak + '</sections>';
-  vXml := vXml + sLineBreak + '</HCView>';
-
-  if AEncoding <> TEncoding.Unicode then
-  begin
-    //vUniBytes := TEncoding.Unicode.GetBytes(vXml);
-    vUniBytes := WideBytesOf(vXml);
-    vDestBytes := TEncoding.Convert(TEncoding.Unicode, AEncoding, vUniBytes);
-  end
-  else
-    vDestBytes := WideBytesOf(vXml);
-
-  vMs := TMemoryStream.Create;
-  try
-    vMs.Write(vDestBytes, Length(vDestBytes));
-    vMs.SaveToFile(AFileName);
-  finally
-    FreeAndNil(vMs);
-  end;
+  vXml.SaveToFile(AFileName);
 end;
 
 function THCView.ZoomIn(const Value: Integer): Integer;

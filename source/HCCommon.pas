@@ -53,6 +53,8 @@ const
   DontLineFirstChar = '`-=[]\;'',./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；‘，。、～！＠＃￥％……＆×（）——＋｛｝｜：“《》？°';
   DontLineLastChar = '/\＼';
 
+  HCBoolText: array [Boolean] of Char = ('0', '1');
+
 type
   THCProcedure = reference to procedure();
   THCFunction = reference to function(): Boolean;
@@ -161,6 +163,8 @@ type
   function GetPaperSizeStr(APaperSize: Integer): string;
 
   function GetVersionAsInteger(const AVersion: string): Integer;
+  function GetBorderSidePro(const ABorderSides: TBorderSides): string;
+  procedure SetBorderSideByPro(const AValue: string; var ABorderSides: TBorderSides);
 
   /// <summary> 保存长度小于65536个字节的字符串到流 </summary>
   procedure HCSaveTextToStream(const AStream: TStream; const S: string);
@@ -411,6 +415,87 @@ begin
       vsVer := vsVer + AVersion[i];
   end;
   Result := StrToInt(vsVer);
+end;
+
+function GetBorderSidePro(const ABorderSides: TBorderSides): string;
+begin
+  if cbsLeft in ABorderSides then
+    Result := 'left';
+
+  if cbsTop in ABorderSides then
+  begin
+    if Result <> '' then
+      Result := Result + ',top'
+    else
+      Result := 'top';
+  end;
+
+  if cbsRight in ABorderSides then
+  begin
+    if Result <> '' then
+      Result := Result + ',right'
+    else
+      Result := 'right';
+  end;
+
+  if cbsBottom in ABorderSides then
+  begin
+    if Result <> '' then
+      Result := Result + ',bottom'
+    else
+      Result := 'bottom';
+  end;
+
+  if cbsLTRB in ABorderSides then
+  begin
+    if Result <> '' then
+      Result := Result + ',ltrb'
+    else
+      Result := 'ltrb';
+  end;
+
+  if cbsRTLB in ABorderSides then
+  begin
+    if Result <> '' then
+      Result := Result + ',rtlb'
+    else
+      Result := 'rtlb';
+  end;
+end;
+
+procedure SetBorderSideByPro(const AValue: string; var ABorderSides: TBorderSides);
+var
+  vList: TStringList;
+  i: Integer;
+begin
+  ABorderSides := [];
+  vList := TStringList.Create;
+  try
+    vList.Delimiter := ',';
+    vList.DelimitedText := AValue;
+    for i := 0 to vList.Count - 1 do
+    begin
+      if vList[i] = 'left' then
+        Include(ABorderSides, cbsLeft)
+      else
+      if vList[i] = 'top' then
+        Include(ABorderSides, cbsTop)
+      else
+      if vList[i] = 'right' then
+        Include(ABorderSides, cbsRight)
+      else
+      if vList[i] = 'bottom' then
+        Include(ABorderSides, cbsBottom)
+      else
+      if vList[i] = 'ltrb' then
+        Include(ABorderSides, cbsLTRB)
+      else
+      if vList[i] = 'rtlb' then
+        Include(ABorderSides, cbsRTLB)
+    end;
+  finally
+    FreeAndNil(vList);
+  end;
 end;
 
 /// <summary> 保存文件格式、版本 </summary>

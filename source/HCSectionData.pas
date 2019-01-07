@@ -60,8 +60,8 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
-    function ToXml: string; override;
-    procedure FromXml(const ANode: IHCXMLNode); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
 
     procedure PaintFloatItems(const APageIndex, ADataDrawLeft, ADataDrawTop,
       AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
@@ -447,12 +447,6 @@ begin
   inherited Destroy;
 end;
 
-procedure THCSectionData.FromXml(const ANode: IHCXMLNode);
-begin
-  inherited;
-
-end;
-
 function THCSectionData.GetActiveFloatItem: THCCustomFloatItem;
 begin
   if FFloatItemIndex < 0 then
@@ -695,6 +689,24 @@ begin
   end;
 end;
 
+procedure THCSectionData.ParseXml(const ANode: IHCXMLNode);
+var
+  vItemsNode, vNode: IHCXMLNode;
+  vFloatItem: THCCustomFloatItem;
+  i: Integer;
+begin
+  vItemsNode := ANode.ChildNodes.FindNode('items');
+  inherited ParseXml(vItemsNode);
+  vItemsNode := ANode.ChildNodes.FindNode('floatitems');
+  for i := 0 to vItemsNode.ChildNodes.Count - 1 do
+  begin
+    vNode := vItemsNode.ChildNodes[i];
+    vFloatItem := CreateFloatItemByStyle(vNode.Attributes['sno']);
+    vFloatItem.ParseXml(vNode);
+    FFloatItems.Add(vFloatItem);
+  end;
+end;
+
 procedure THCSectionData.SaveToStream(const AStream: TStream;
   const AStartItemNo, AStartOffset, AEndItemNo, AEndOffset: Integer);
 var
@@ -719,15 +731,18 @@ begin
   end;
 end;
 
-function THCSectionData.ToXml: string;
+procedure THCSectionData.ToXml(const ANode: IHCXMLNode);
 var
   i: Integer;
+  vNode: IHCXMLNode;
 begin
-  Result := inherited ToXml;
-  Result := Result + sLineBreak + '<floatitems count="' + IntToStr(FFloatItems.Count) + '">';
+  vNode := ANode.AddChild('items');
+  inherited ToXml(vNode);
+  vNode := ANode.AddChild('floatitems');
+  vNode.Attributes['count'] := FFloatItems.Count;
+
   for i := 0 to FFloatItems.Count - 1 do
-     Result := Result + sLineBreak + FFloatItems[i].ToXml;
-  Result := Result + sLineBreak + '</floatitems>';
+    FFloatItems[i].ToXml(vNode.AddChild('floatitem'));
 end;
 
 end.

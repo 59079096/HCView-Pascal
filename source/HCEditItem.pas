@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem, HCStyle,
-  HCCustomData, HCCommon;
+  HCCustomData, HCCommon, HCXml;
 
 const
   BTNWIDTH = 16;
@@ -48,14 +48,17 @@ type
 
     function InsertText(const AText: string): Boolean; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
-
     procedure SetText(const Value: string); virtual;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property Text: string read FText write SetText;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
     property BorderSides: TBorderSides read FBorderSides write FBorderSides;
@@ -314,6 +317,15 @@ begin
   inherited MouseUp(Button, Shift, X, Y);
 end;
 
+procedure THCEditItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FReadOnly := ANode.Attributes['readonly'];
+  SetBorderSideByPro(ANode.Attributes['border'], FBorderSides);
+  FBorderWidth := ANode.Attributes['borderwidth'];
+  FText := ANode.Text;
+end;
+
 procedure THCEditItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
@@ -341,22 +353,10 @@ end;
 
 procedure THCEditItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
-var
-  vBuffer: TBytes;
-  vSize: Word;  // 最多65536个字节，如果超过65536，可使用写入文本后再写一个结束标识(如#9)，解析时遍历直到此标识
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-  // 存Text
-  vBuffer := BytesOf(FText);
-  if System.Length(vBuffer) > MAXWORD then
-    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-  vSize := System.Length(vBuffer);
-  AStream.WriteBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-    AStream.WriteBuffer(vBuffer[0], vSize);
-
+  HCSaveTextToStream(AStream, FText); // 存Text
   AStream.WriteBuffer(FReadOnly, SizeOf(FReadOnly));
-
   AStream.WriteBuffer(FBorderSides, SizeOf(FBorderSides));
   AStream.WriteBuffer(FBorderWidth, SizeOf(FBorderWidth));
 end;
@@ -371,6 +371,15 @@ begin
 
     OwnerData.Style.UpdateInfoRePaint;
   end;
+end;
+
+procedure THCEditItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['readonly'] := FReadOnly;
+  ANode.Attributes['border'] := GetBorderSidePro(FBorderSides);
+  ANode.Attributes['borderwidth'] := FBorderWidth;
+  ANode.Text := FText;
 end;
 
 function THCEditItem.WantKeyDown(const Key: Word;

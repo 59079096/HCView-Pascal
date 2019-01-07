@@ -14,7 +14,8 @@ unit HCImageItem;
 interface
 
 uses
-  Windows, SysUtils, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData;
+  Windows, SysUtils, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData,
+  HCXml;
 
 type
   THCImageItem = class(THCResizeRectItem)
@@ -24,9 +25,6 @@ type
   protected
     function GetWidth: Integer; override;
     function GetHeight: Integer; override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
     //
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -41,8 +39,12 @@ type
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
     procedure LoadFromBmpFile(const AFileName: string);
 
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
     function ToHtml(const APath: string): string; override;
-    function ToXml: string; override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
 
     /// <summary> 恢复到原始尺寸 </summary>
     procedure RecoverOrigianlSize;
@@ -50,9 +52,6 @@ type
   end;
 
 implementation
-
-uses
-  HCXml;
 
 { THCImageItem }
 
@@ -222,6 +221,12 @@ begin
   inherited PaintTop(ACanvas);
 end;
 
+procedure THCImageItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  Base64ToGraphic(ANode.Text, FImage);
+end;
+
 procedure THCImageItem.RecoverOrigianlSize;
 begin
   Width := FImage.Width;
@@ -282,13 +287,14 @@ begin
   else  // 保存为Base64
   begin
     Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
-      + '" src="data:img/jpg;base64,' + BitmapToBase64(FImage) + '" alt="THCImageItem" />';
+      + '" src="data:img/jpg;base64,' + GraphicToBase64(FImage) + '" alt="THCImageItem" />';
   end;
 end;
 
-function THCImageItem.ToXml: string;
+procedure THCImageItem.ToXml(const ANode: IHCXMLNode);
 begin
-  Result := '<image ' + inherited ToXml + '">' + BitmapToBase64(FImage) + '</image>';
+  inherited ToXml(ANode);
+  ANode.Text := GraphicToBase64(FImage);
 end;
 
 end.

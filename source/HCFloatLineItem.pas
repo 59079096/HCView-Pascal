@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Controls, Graphics, Messages, HCCustomFloatItem, HCStyle,
-  HCItem, HCCustomData, HCCommon;
+  HCItem, HCCustomData, HCCommon, HCXml;
 
 type
   TLineObj = (cloNone, cloLine, cloLeftOrTop, cloRightOrBottom);
@@ -37,6 +37,8 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
   end;
 
 implementation
@@ -249,6 +251,15 @@ begin
   end;
 end;
 
+procedure THCFloatLineItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FStartPt.X := ANode.Attributes['sx'];
+  FStartPt.Y := ANode.Attributes['sy'];
+  FEndPt.Y := ANode.Attributes['ex'];
+  FEndPt.Y := ANode.Attributes['ey'];
+end;
+
 function THCFloatLineItem.PtInClient(const APoint: TPoint): Boolean;
 begin
   Result := GetLineObjAt(APoint.X, APoint.Y) <> cloNone;
@@ -262,6 +273,15 @@ begin
   AStream.WriteBuffer(FStartPt.Y, SizeOf(Integer));
   AStream.WriteBuffer(FEndPt.X, SizeOf(Integer));
   AStream.WriteBuffer(FEndPt.Y, SizeOf(Integer));
+end;
+
+procedure THCFloatLineItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['sx'] := FStartPt.X;
+  ANode.Attributes['sy'] := FStartPt.Y;
+  ANode.Attributes['ex'] := FEndPt.Y;
+  ANode.Attributes['ey'] := FEndPt.Y;
 end;
 
 end.

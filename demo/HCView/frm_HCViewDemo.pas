@@ -357,11 +357,16 @@ begin
 end;
 
 procedure TfrmHCViewDemo.DoComboboxPopupItem(Sender: TObject);
+var
+  vCombobox: THCComboboxItem;
 begin
-  if (Sender as TStrings).Count > 20 then
-    (Sender as TStrings).Clear;
+  if Sender is THCComboboxItem then
+  begin
+    if (Sender as THCComboboxItem).Items.Count > 20 then
+      (Sender as THCComboboxItem).Items.Clear;
 
-  (Sender as TStrings).Add('选项' + IntToStr((Sender as TStrings).Count - 1));
+    (Sender as THCComboboxItem).Items.Add('选项' + IntToStr((Sender as THCComboboxItem).Items.Count - 1));
+  end;
 end;
 
 procedure TfrmHCViewDemo.DoItemLoaded(const AItem: THCCustomItem);

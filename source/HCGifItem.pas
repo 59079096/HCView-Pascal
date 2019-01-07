@@ -14,7 +14,8 @@ unit HCGifItem;
 interface
 
 uses
-  Windows, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData, Vcl.Imaging.GIFImg;
+  Windows, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData, HCXml,
+  Vcl.Imaging.GIFImg;
 
 type
   THCGifItem = class(THCAnimateRectItem)
@@ -26,9 +27,6 @@ type
   protected
     function GetWidth: Integer; override;
     function GetHeight: Integer; override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
     //
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -37,9 +35,15 @@ type
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
+
     procedure LoadFromFile(const AFileName: string);
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
     function ToHtml(const APath: string): string; override;
-    function ToXml: string; override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property Image: TGIFImage read FImage;
   end;
 
@@ -117,6 +121,13 @@ begin
   FImage.Animate := True;
 end;
 
+procedure THCGifItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  Base64ToGraphic(ANode.Text, FImage);
+  FImage.Animate := True;
+end;
+
 procedure THCGifItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 begin
@@ -136,9 +147,10 @@ begin
     + '" src="images/' + vFileName + '" alt="THCGifItem" />';
 end;
 
-function THCGifItem.ToXml: string;
+procedure THCGifItem.ToXml(const ANode: IHCXMLNode);
 begin
-
+  inherited ToXml(ANode);
+  ANode.Text := GraphicToBase64(FImage);
 end;
 
 end.

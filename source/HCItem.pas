@@ -14,10 +14,7 @@ unit HCItem;
 interface
 
 uses
-  Windows, Classes, Controls, Graphics, Generics.Collections, HCStyle, HCUndo;
-
-const
-  HCBoolStrs: array [boolean] of Char = ('0', '1');
+  Windows, Classes, Controls, Graphics, Generics.Collections, HCStyle, HCUndo, HCXml;
 
 type
   TScaleInfo = record
@@ -30,7 +27,7 @@ type
 
   TItemOptions = set of (ioParaFirst, ioSelectPart, ioSelectComplate);
 
-  THCOperation = (hopInsert, hopBackDelete, hopDelete);
+  THCItemAction = (hiaRemove, hiaInsertChar, hiaBackDeleteChar, hiaDeleteChar);
 
   THCCustomItemClass = class of THCCustomItem;
 
@@ -133,7 +130,7 @@ type
     function GetHint: string; virtual;
     procedure SelectComplate; virtual;
     /// <summaryy 在指定的位置是否可接受插入、删除等操作 </summary>
-    function CanAccept(const AOffset: Integer; const AOperation: THCOperation): Boolean; virtual;
+    function CanAccept(const AOffset: Integer; const AAction: THCItemAction): Boolean; virtual;
     procedure SelectPart;
     /// <summary> 从指定位置将当前item分成前后两部分 </summary>
     /// <param name="AOffset">分裂位置</param>
@@ -144,7 +141,8 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
     function ToHtml(const APath: string): string; virtual;
-    function ToXml: string; virtual;
+    procedure ToXml(const ANode: IHCXMLNode); virtual;
+    procedure ParseXml(const ANode: IHCXMLNode); virtual;
 
     // 撤销重做相关方法
     procedure Undo(const AUndoAction: THCCustomUndoAction); virtual;
@@ -205,8 +203,7 @@ begin
   Result.ParaFirst := False;  // 打断后，后面的肯定不是断首
 end;
 
-function THCCustomItem.CanAccept(const AOffset: Integer;
-  const AOperation: THCOperation): Boolean;
+function THCCustomItem.CanAccept(const AOffset: Integer; const AAction: THCItemAction): Boolean;
 begin
   Result := True;
 end;
@@ -333,6 +330,13 @@ procedure THCCustomItem.PaintTop(const ACanvas: TCanvas);
 begin
 end;
 
+procedure THCCustomItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  FStyleNo := ANode.Attributes['sno'];
+  FParaNo := ANode.Attributes['pno'];
+  Self.ParaFirst := ANode.Attributes['parafirst'];
+end;
+
 procedure THCCustomItem.Redo(const ARedoAction: THCCustomUndoAction);
 begin
 end;
@@ -358,11 +362,11 @@ begin
   Result := '';
 end;
 
-function THCCustomItem.ToXml: string;
+procedure THCCustomItem.ToXml(const ANode: IHCXMLNode);
 begin
-  Result := 'ts="' + IntToStr(StyleNo) + '"'
-    + ' ps="' + IntToStr(ParaNo) + '"'
-    + ' parafirst="' + HCBoolStrs[Self.ParaFirst] + '"';
+  ANode.Attributes['sno'] := FStyleNo;
+  ANode.Attributes['pno'] := FParaNo;
+  ANode.Attributes['parafirst'] := Self.ParaFirst;
 end;
 
 procedure THCCustomItem.Undo(const AUndoAction: THCCustomUndoAction);

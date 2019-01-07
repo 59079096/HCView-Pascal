@@ -28,7 +28,8 @@ type
   //function GetColorHtmlRGB(const AColor: TColor): string;
 
   /// <summary> Bitmap转为Base64字符 </summary>
-  function BitmapToBase64(const ABitmap: TBitmap): string;
+  function GraphicToBase64(const AGraphic: TGraphic): string;
+  procedure Base64ToGraphic(const ABase64: string; const AGraphic: TGraphic);
 
 implementation
 
@@ -61,20 +62,20 @@ begin
   end;
 end;
 
-function BitmapToBase64(const ABitmap: TBitmap): string;
+function GraphicToBase64(const AGraphic: TGraphic): string;
 var
   vMs:TMemoryStream;
 begin
   vMs := TMemoryStream.Create;
   try
-    ABitmap.SaveToStream(vMs);
+    AGraphic.SaveToStream(vMs);
     Result := StreamToBase64(vMs);  // 将base64字符流还原为内存流
   finally
     FreeAndNil(vMs);
   end;
 end;
 
-function Base64ToBitmap(const ABase64: string): TBitmap;
+procedure Base64ToGraphic(const ABase64: string; const AGraphic: TGraphic);
 var
   vMs: TStream;
 begin
@@ -82,7 +83,7 @@ begin
   try
     Base64ToStream(ABase64, vMs);
     vMs.Position := 0;
-    Result.LoadFromStream(vMs);
+    AGraphic.LoadFromStream(vMs);
   finally
     FreeAndNil(vMs);
   end;

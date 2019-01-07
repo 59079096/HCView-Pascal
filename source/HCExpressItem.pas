@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData,
-  HCCommon, HCFractionItem;
+  HCCommon, HCFractionItem, HCXml;
 
 type
   THCExpressItem = class(THCFractionItem)  // 公式(上、下、左、右文本，带分数线)
@@ -32,13 +32,17 @@ type
     function GetExpressArea(const X, Y: Integer): TExpressArea; override;
     function InsertText(const AText: string): Boolean; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData;
       const ALeftText, ATopText, ARightText, ABottomText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property LeftRect: TRect read FLeftRect;
     property RightRect: TRect read FRightRect;
     property LeftText: string read FLeftText write FLeftText;
@@ -86,12 +90,6 @@ begin
     ACanvas.FillRect(ADrawRect);
   end;
 
-  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
-  ACanvas.TextOut(ADrawRect.Left + FLeftRect.Left, ADrawRect.Top + FLeftRect.Top, FLeftText);
-  ACanvas.TextOut(ADrawRect.Left + TopRect.Left, ADrawRect.Top + TopRect.Top, TopText);
-  ACanvas.TextOut(ADrawRect.Left + FRightRect.Left, ADrawRect.Top + FRightRect.Top, FRightText);
-  ACanvas.TextOut(ADrawRect.Left + BottomRect.Left, ADrawRect.Top + BottomRect.Top, BottomText);
-
   ACanvas.Pen.Color := clBlack;
   ACanvas.MoveTo(ADrawRect.Left + FLeftRect.Right + Padding, ADrawRect.Top + TopRect.Bottom + Padding);
   ACanvas.LineTo(ADrawRect.Left + FRightRect.Left - Padding, ADrawRect.Top + TopRect.Bottom + Padding);
@@ -128,6 +126,12 @@ begin
       ACanvas.Rectangle(vFocusRect);
     end;
   end;
+
+  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
+  ACanvas.TextOut(ADrawRect.Left + FLeftRect.Left, ADrawRect.Top + FLeftRect.Top, FLeftText);
+  ACanvas.TextOut(ADrawRect.Left + TopRect.Left, ADrawRect.Top + TopRect.Top, TopText);
+  ACanvas.TextOut(ADrawRect.Left + FRightRect.Left, ADrawRect.Top + FRightRect.Top, FRightText);
+  ACanvas.TextOut(ADrawRect.Left + BottomRect.Left, ADrawRect.Top + BottomRect.Top, BottomText);
 end;
 
 procedure THCExpressItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -402,26 +406,25 @@ begin
   end;
 end;
 
+procedure THCExpressItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FLeftText := ANode.Attributes['lefttext'];
+  FRightText := ANode.Attributes['righttext'];
+end;
+
 procedure THCExpressItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
-
-  procedure SavePartText(const S: string);
-  var
-    vBuffer: TBytes;
-    vSize: Word;
-  begin
-    vBuffer := BytesOf(S);
-    if System.Length(vBuffer) > MAXWORD then
-      raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-    vSize := System.Length(vBuffer);
-    AStream.WriteBuffer(vSize, SizeOf(vSize));
-    if vSize > 0 then
-      AStream.WriteBuffer(vBuffer[0], vSize);
-  end;
-
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-  SavePartText(FLeftText);
-  SavePartText(FRightText);
+  HCSaveTextToStream(AStream, FLeftText);
+  HCSaveTextToStream(AStream, FRightText);
+end;
+
+procedure THCExpressItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['lefttext'] := FLeftText;
+  ANode.Attributes['righttext'] := FRightText
 end;
 
 end.

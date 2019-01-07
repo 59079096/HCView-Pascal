@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Controls, Graphics, Generics.Collections, HCItem,
-  HCRectItem, HCStyle, HCCustomData, HCCommon;
+  HCRectItem, HCStyle, HCCustomData, HCCommon, HCXml;
 
 type
   THCRadioButton = class(TObject)
@@ -41,14 +41,17 @@ type
     procedure MouseLeave; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     function GetOffsetAt(const X: Integer): Integer; override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
     procedure AddItem(const AText: string; const AChecked: Boolean = False);
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
 
     property MultSelect: Boolean read FMultSelect write FMultSelect;
     property Items: TObjectList<THCRadioButton> read FItems;
@@ -299,11 +302,33 @@ begin
   GCursor := crDefault;
 end;
 
+procedure THCRadioGroup.ParseXml(const ANode: IHCXMLNode);
+var
+  vList: TStringList;
+  i: Integer;
+begin
+  inherited ParseXml(ANode);
+  vList := TStringList.Create;
+  try
+    // Items文本内容
+    vList.DelimitedText := ANode.Attributes['item'];
+    for i := 0 to vList.Count - 1 do
+      AddItem(vList[i]);
+
+    // Items选中状态
+    vList.Delimiter := ',';
+    vList.DelimitedText := ANode.Attributes['check'];
+    for i := 0 to vList.Count - 1 do
+      Fitems[i].Checked := StrToBool(vList[i]);
+  finally
+    FreeAndNil(vList);
+  end;
+end;
+
 procedure THCRadioGroup.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 var
-  vBuffer: TBytes;
-  i, vSize: Word;
+  i: Integer;
   vS: string;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
@@ -312,16 +337,36 @@ begin
   for i := 0 to FItems.Count - 1 do
     vS := vS + FItems[i].Text + #13#10;
 
-  vBuffer := BytesOf(vS);
-  if System.Length(vBuffer) > MAXWORD then
-    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-  vSize := System.Length(vBuffer);
-  AStream.WriteBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-    AStream.WriteBuffer(vBuffer[0], vSize);
+  HCSaveTextToStream(AStream, vS);
 
   for i := 0 to FItems.Count - 1 do
     AStream.WriteBuffer(FItems[i].Checked, SizeOf(Boolean));
+end;
+
+procedure THCRadioGroup.ToXml(const ANode: IHCXMLNode);
+var
+  vS: string;
+  i: Integer;
+begin
+  inherited ToXml(ANode);
+
+  // 存Items文本内容
+  vS := '';
+  for i := 0 to FItems.Count - 1 do
+    vS := vS + FItems[i].Text + #13#10;
+
+  ANode.Attributes['item'] := vS;
+
+  // 存Items选中状态
+  vS := '';
+  if FItems.Count > 0 then
+  begin
+    vS := HCBoolText[FItems[0].Checked];
+    for i := 1 to FItems.Count - 1 do
+      vS := vS + ',' + HCBoolText[FItems[i].Checked];
+  end;
+
+  ANode.Attributes['check'] := vS;
 end;
 
 end.

@@ -421,8 +421,8 @@ type
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 
     function ToHtml(const APath: string): string;
-    function ToXml: string;
-    procedure FromXml(const ANode: IHCXMLNode);
+    procedure ToXml(const ANode: IHCXMLNode);
+    procedure ParseXml(const ANode: IHCXMLNode);
   end;
 
 implementation
@@ -2596,7 +2596,30 @@ end;
 
 { THCSection }
 
-procedure THCSection.FromXml(const ANode: IHCXMLNode);
+function THCSection.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
+begin
+  if not FActiveData.CanEdit then Exit(False);
+  AFloatItem.PageIndex := FActivePageIndex;
+  Result := FActiveData.InsertFloatItem(AFloatItem);
+  DoDataChanged(Self);
+end;
+
+function THCSection.ParseHtml(const AHtmlText: string): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    var
+      vHtmlFmt: THCHtmlFormat;
+    begin
+      vHtmlFmt := THCHtmlFormat.Create(FActiveData.GetTopLevelData);
+      try
+        Result := vHtmlFmt.Parse(AHtmlText);
+      finally
+        FreeAndNil(vHtmlFmt);
+      end;
+    end);
+end;
+
+procedure THCSection.ParseXml(const ANode: IHCXMLNode);
 
   procedure GetXmlPaper_;
   var
@@ -2605,7 +2628,7 @@ procedure THCSection.FromXml(const ANode: IHCXMLNode);
     vsPaper := TStringList.Create;
     try
       vsPaper.Delimiter := ',';
-      vsPaper.DelimitedText := ANode.Attributes['size'];
+      vsPaper.DelimitedText := ANode.Attributes['pagesize'];
       FPageSize.PaperSize := StrToInt(vsPaper[0]);  // 纸张大小
       FPageSize.PaperWidth := StrToFloat(vsPaper[1]);  // 纸张宽度
       FPageSize.PaperHeight := StrToFloat(vsPaper[2]);  // 纸张高度
@@ -2635,10 +2658,7 @@ var
   i: Integer;
 begin
   FSymmetryMargin := ANode.Attributes['symmargin'];  // 是否对称页边距
-  if ANode.Attributes['ori'] = 'portrait' then
-    FPageOrientation := cpoPortrait  // 纸张方向
-  else
-    FPageOrientation := cpoLandscape;
+  FPageOrientation := TPageOrientation(ANode.Attributes['ori']);  // 纸张方向
 
   FPageNoVisible := ANode.Attributes['pagenovisible'];  // 是否对称页边距
   GetXmlPaper_;
@@ -2649,38 +2669,17 @@ begin
     if ANode.ChildNodes[i].NodeName = 'header' then
     begin
       FHeaderOffset := ANode.ChildNodes[i].Attributes['offset'];
-      FHeader.FromXml(ANode.ChildNodes[i]);
+      FHeader.ParseXml(ANode.ChildNodes[i]);
     end
     else
     if ANode.ChildNodes[i].NodeName = 'footer' then
-      FFooter.FromXml(ANode.ChildNodes[i])
+      FFooter.ParseXml(ANode.ChildNodes[i])
     else
     if ANode.ChildNodes[i].NodeName = 'page' then
-      FPageData.FromXml(ANode.ChildNodes[i]);
+      FPageData.ParseXml(ANode.ChildNodes[i]);
   end;
-end;
 
-function THCSection.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
-begin
-  if not FActiveData.CanEdit then Exit(False);
-  AFloatItem.PageIndex := FActivePageIndex;
-  Result := FActiveData.InsertFloatItem(AFloatItem);
-  DoDataChanged(Self);
-end;
-
-function THCSection.ParseHtml(const AHtmlText: string): Boolean;
-begin
-  Result := ActiveDataChangeByAction(function(): Boolean
-    var
-      vHtmlFmt: THCHtmlFormat;
-    begin
-      vHtmlFmt := THCHtmlFormat.Create(FActiveData.GetTopLevelData);
-      try
-        Result := vHtmlFmt.Parse(AHtmlText);
-      finally
-        FreeAndNil(vHtmlFmt);
-      end;
-    end);
+  BuildSectionPages(0);
 end;
 
 function THCSection.Replace(const AText: string): Boolean;
@@ -2702,40 +2701,37 @@ begin
   Result := FPageData.ToHtml(APath);
 end;
 
-function THCSection.ToXml: string;
+procedure THCSection.ToXml(const ANode: IHCXMLNode);
+var
+  vNode: IHCXMLNode;
 begin
-  Result := '<sc symmargin="' + HCBoolStrs[FSymmetryMargin] + '"'; // 是否对称页边距
-  if FPageOrientation = cpoPortrait then  // 纸张方向
-    Result := Result + ' ori="portrait"'
-  else
-    Result := Result + ' ori="landscape"';
+  ANode.Attributes['symmargin'] := FSymmetryMargin; // 是否对称页边距
+  ANode.Attributes['ori'] := Ord(FPageOrientation);  // 纸张方向
+  ANode.Attributes['pagenovisible'] := FPageNoVisible;  // 是否显示页码
 
-  Result := Result + ' pagenovisible="' + HCBoolStrs[FPageNoVisible] + '"';  // 是否显示页码
-  Result := Result + ' size="' + IntToStr(FPageSize.PaperSize)  // 纸张大小
-    + ',' + FormatFloat('#.#', FPageSize.PaperWidth) + ',' + FormatFloat('#.#', FPageSize.PaperHeight) + '"';
+  ANode.Attributes['pagesize'] :=  // 纸张大小
+    IntToStr(FPageSize.PaperSize)
+    + ',' + FormatFloat('#.#', FPageSize.PaperWidth)
+    + ',' + FormatFloat('#.#', FPageSize.PaperHeight) ;
 
-  Result := Result + ' margin="'  // 边距
-    + FormatFloat('#.#', FPageSize.PaperMarginLeft) + ','
+  ANode.Attributes['margin'] :=  // 边距
+    FormatFloat('#.#', FPageSize.PaperMarginLeft) + ','
     + FormatFloat('#.#', FPageSize.PaperMarginTop) + ','
     + FormatFloat('#.#', FPageSize.PaperMarginRight) + ','
-    + FormatFloat('#.#', FPageSize.PaperMarginBottom) + '"';
-
-  Result := Result + '>';
+    + FormatFloat('#.#', FPageSize.PaperMarginBottom);
 
   // 存页眉
-  Result := Result + sLineBreak + '<header offset="' + IntToStr(FHeaderOffset) + '">';
-  Result := Result + sLineBreak + FHeader.ToXml;
-  Result := Result + sLineBreak + '</header>';
-  // 存页脚
-  Result := Result + sLineBreak + '<footer>';
-  Result := Result + sLineBreak + FFooter.ToXml;
-  Result := Result + sLineBreak + '</footer>';
-  // 存页面
-  Result := Result + sLineBreak + '<page>';
-  Result := Result + sLineBreak + FPageData.ToXml;
-  Result := Result + sLineBreak + '</page>';
+  vNode := ANode.AddChild('header');
+  vNode.Attributes['offset'] := FHeaderOffset;
+  FHeader.ToXml(vNode);
 
-  Result := Result + sLineBreak + '</sc>'
+  // 存页脚
+  vNode := ANode.AddChild('footer');
+  FFooter.ToXml(vNode);
+
+  // 存页面
+  vNode := ANode.AddChild('page');
+  FPageData.ToXml(vNode);
 end;
 
 { TSectionPaintInfo }

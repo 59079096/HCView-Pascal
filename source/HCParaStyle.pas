@@ -43,8 +43,8 @@ type
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
     function ToCSS: string;
-    function ToXml: string;
-    procedure FromXml(const ANode: IHCXmlNode);
+    procedure ToXml(const ANode: IHCXmlNode);
+    procedure ParseXml(const ANode: IHCXmlNode);
   published
     property LineSpaceMode: TParaLineSpaceMode read FLineSpaceMode write FLineSpaceMode;
     //property LineSpace: Integer read FLineSpace write SetLineSpace;
@@ -97,7 +97,31 @@ begin
   and (Self.FAlignVert = ASource.AlignVert);
 end;
 
-procedure THCParaStyle.FromXml(const ANode: IHCXmlNode);
+procedure THCParaStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
+var
+  vLineSpace: Integer;
+begin
+  if AFileVersion < 15 then
+    AStream.ReadBuffer(vLineSpace, SizeOf(vLineSpace));
+
+  if AFileVersion > 16 then
+    AStream.ReadBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
+  //FLineSpaceHalf := FLineSpace div 2;
+  AStream.ReadBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
+  AStream.ReadBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
+
+  if AFileVersion > 18 then
+    LoadColorFromStream(FBackColor, AStream)
+  else
+    AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
+
+  AStream.ReadBuffer(FAlignHorz, SizeOf(FAlignHorz));
+
+  if AFileVersion > 17 then
+    AStream.ReadBuffer(FAlignVert, SizeOf(FAlignVert));
+end;
+
+procedure THCParaStyle.ParseXml(const ANode: IHCXmlNode);
 
   procedure GetXMLLineSpaceMode_;
   begin
@@ -156,30 +180,6 @@ begin
   GetXMLVert_;
 end;
 
-procedure THCParaStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
-var
-  vLineSpace: Integer;
-begin
-  if AFileVersion < 15 then
-    AStream.ReadBuffer(vLineSpace, SizeOf(vLineSpace));
-
-  if AFileVersion > 16 then
-    AStream.ReadBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
-  //FLineSpaceHalf := FLineSpace div 2;
-  AStream.ReadBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
-  AStream.ReadBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
-
-  if AFileVersion > 18 then
-    LoadColorFromStream(FBackColor, AStream)
-  else
-    AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
-
-  AStream.ReadBuffer(FAlignHorz, SizeOf(FAlignHorz));
-
-  if AFileVersion > 17 then
-    AStream.ReadBuffer(FAlignVert, SizeOf(FAlignVert));
-end;
-
 procedure THCParaStyle.SaveToStream(const AStream: TStream);
 begin
   AStream.WriteBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
@@ -210,7 +210,7 @@ begin
   end;
 end;
 
-function THCParaStyle.ToXml: string;
+procedure THCParaStyle.ToXml(const ANode: IHCXmlNode);
 
   function GetLineSpaceModeXML_: string;
   begin
@@ -244,12 +244,12 @@ function THCParaStyle.ToXml: string;
   end;
 
 begin
-  Result := '<ps fristindent="' + IntToStr(FFristIndent) + '"'
-    + ' leftindent="' + IntToStr(FLeftIndent) + '"'
-    + ' bkcolor="' + GetColorXMLRGB(FBackColor) + '"'
-    + ' spacemode="' + GetLineSpaceModeXML_ + '"'
-    + ' horz="' + GetHorzXML_ + '"'
-    + ' vert="' + GetVertXML_ + '"></ps>';
+  ANode.Attributes['fristindent'] := FFristIndent;
+  ANode.Attributes['leftindent'] := FLeftIndent;
+  ANode.Attributes['bkcolor'] := GetColorXMLRGB(FBackColor);
+  ANode.Attributes['spacemode'] := GetLineSpaceModeXML_;
+  ANode.Attributes['horz'] := GetHorzXML_;
+  ANode.Attributes['vert'] := GetVertXML_;
 end;
 
 end.

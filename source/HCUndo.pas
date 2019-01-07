@@ -418,7 +418,7 @@ procedure THCUndoList.UndoGroupEnd(const AItemNo, AOffset: Integer);
 var
   vUndoGroupEnd: THCUndoGroupEnd;
 begin
-  if Assigned(FOnUndoGroupStart) then
+  if Assigned(FOnUndoGroupEnd) then
     vUndoGroupEnd := FOnUndoGroupEnd(AItemNo, AOffset)
   else
     vUndoGroupEnd := THCUndoGroupEnd.Create;

@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Controls, Graphics, Messages, HCItem, HCRectItem,
-  HCStyle, HCCustomData;
+  HCStyle, HCCustomData, HCXml;
 
 const
   PointSize = 5;
@@ -35,6 +35,8 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
 
     property DrawRect: TRect read FDrawRect write FDrawRect;
     property Left: Integer read FLeft write FLeft;
@@ -91,6 +93,15 @@ begin
   Height := vValue;
 end;
 
+procedure THCCustomFloatItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  StyleNo := ANode.Attributes['sno'];
+  FLeft := ANode.Attributes['left'];
+  FTop := ANode.Attributes['top'];
+  Width := ANode.Attributes['width'];
+  Height := ANode.Attributes['height'];
+end;
+
 function THCCustomFloatItem.PtInClient(const X, Y: Integer): Boolean;
 begin
   Result := PtInClient(Point(X, Y));
@@ -109,6 +120,15 @@ begin
   AStream.WriteBuffer(vValue, SizeOf(vValue));
   vValue := Height;
   AStream.WriteBuffer(vValue, SizeOf(vValue));
+end;
+
+procedure THCCustomFloatItem.ToXml(const ANode: IHCXMLNode);
+begin
+  ANode.Attributes['sno'] := StyleNo;
+  ANode.Attributes['left'] := FLeft;
+  ANode.Attributes['top'] := FTop;
+  ANode.Attributes['width'] := Width;
+  ANode.Attributes['height'] := Height;
 end;
 
 end.

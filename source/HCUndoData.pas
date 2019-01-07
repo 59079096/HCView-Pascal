@@ -83,7 +83,7 @@ begin
     if Assigned(vUndoList) and vUndoList.Enable then
     begin
       Undo_New;
-      for i := Items.Count - 1 to 0 do
+      for i := Items.Count - 1 downto 0 do
         UndoAction_DeleteItem(i, 0);
     end;
   end;
@@ -293,7 +293,7 @@ var
       vAction := AAction as THCItemSelfUndoAction;
       vCaretItemNo := vAction.ItemNo;
       vCaretOffset := vAction.Offset;
-      if AUndo.IsUndo then
+      if AIsUndo then
         Items[vCaretItemNo].Undo(vAction)
       else
         Items[vCaretItemNo].Redo(vAction);
@@ -308,7 +308,7 @@ var
       vCaretItemNo := vAction.ItemNo;
       vCaretOffset := vAction.Offset;
       vItem := Items[vCaretItemNo];
-      if AUndo.IsUndo then
+      if AIsUndo then
         LoadItemFromStreamAlone(vAction.ItemStream, vItem)
       else
         LoadItemFromStreamAlone(vAction.ItemStream, vItem);

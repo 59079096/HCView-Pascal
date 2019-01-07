@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, HCStyle, HCTextStyle, HCItem, HCRectItem,
-  HCCustomData, HCCommon;
+  HCCustomData, HCCommon, HCXml;
 
 type
   THCSupSubScriptItem = class(THCTextRectItem)  // 分数(上、下文本，分数线)
@@ -42,17 +42,19 @@ type
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
-
     function GetExpressArea(const X, Y: Integer): TExpressArea; virtual;
-
     property SupRect: TRect read FSupRect write FSupRect;
     property SubRect: TRect read FSubRect write FSubRect;
   public
     constructor Create(const AOwnerData: THCCustomData; const ASupText, ASubText: string);
     procedure Assign(Source: THCCustomItem); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property SupText: string read FSupText write FSupText;
     property SubText: string read FSubText write FSubText;
   end;
@@ -147,10 +149,6 @@ begin
     ACanvas.FillRect(ADrawRect);
   end;
 
-  ApplySupSubStyle(AStyle.TextStyles[TextStyleNo], ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
-  ACanvas.TextOut(ADrawRect.Left + FSupRect.Left, ADrawRect.Top + FSupRect.Top, FSupText);
-  ACanvas.TextOut(ADrawRect.Left + FSubRect.Left, ADrawRect.Top + FSubRect.Top, FSubText);
-
   if not APaintInfo.Print then
   begin
     if FActiveArea <> ceaNone then
@@ -179,6 +177,10 @@ begin
       ACanvas.Rectangle(vFocusRect);
     end;
   end;
+
+  ApplySupSubStyle(AStyle.TextStyles[TextStyleNo], ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
+  ACanvas.TextOut(ADrawRect.Left + FSupRect.Left, ADrawRect.Top + FSupRect.Top, FSupText);
+  ACanvas.TextOut(ADrawRect.Left + FSubRect.Left, ADrawRect.Top + FSubRect.Top, FSubText);
 end;
 
 procedure THCSupSubScriptItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -459,26 +461,18 @@ begin
   inherited MouseUp(Button, Shift, X, Y);
 end;
 
+procedure THCSupSubScriptItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FSupText := ANode.Attributes['sup'];
+  FSubText := ANode.Attributes['sub'];
+end;
+
 procedure THCSupSubScriptItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
-
-  procedure SavePartText(const S: string);
-  var
-    vBuffer: TBytes;
-    vSize: Word;
-  begin
-    vBuffer := BytesOf(S);
-    if System.Length(vBuffer) > MAXWORD then
-      raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-    vSize := System.Length(vBuffer);
-    AStream.WriteBuffer(vSize, SizeOf(vSize));
-    if vSize > 0 then
-      AStream.WriteBuffer(vBuffer[0], vSize);
-  end;
-
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-  SavePartText(FSupText);
-  SavePartText(FSubText);
+  HCSaveTextToStream(AStream, FSupText);
+  HCSaveTextToStream(AStream, FSubText);
 end;
 
 procedure THCSupSubScriptItem.SetActive(const Value: Boolean);
@@ -486,6 +480,13 @@ begin
   inherited SetActive(Value);
   if not Value then
     FActiveArea := ceaNone;
+end;
+
+procedure THCSupSubScriptItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['sup'] := FSupText;
+  ANode.Attributes['sub'] := FSubText;
 end;
 
 function THCSupSubScriptItem.WantKeyDown(const Key: Word;

@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, HCItem, HCDrawItem, HCTextStyle, HCParaStyle,
-  HCStyleMatch, HCStyle, HCCommon, HCCustomData, HCUndo;
+  HCStyleMatch, HCStyle, HCCommon, HCCustomData, HCUndo, HCXml;
 
 const
   /// <summary> 光标在RectItem前面 </summary>
@@ -142,18 +142,21 @@ type
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
 
     procedure TraverseItem(const ATraverse: TItemTraverse); virtual;
+    procedure SaveToBitmap(var ABitmap: TBitmap); virtual;
     //
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
     procedure Assign(Source: THCCustomItem); override;
+
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     function ToHtml(const APath: string): string; override;
-    function ToXml: string; override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     function GetLength: Integer; override;
-    procedure SaveToBitmap(var ABitmap: TBitmap);
     property Width: Integer read GetWidth write SetWidth;
     property Height: Integer read GetHeight write SetHeight;
     property TextWrapping: Boolean read FTextWrapping write FTextWrapping;  // 文本环绕
@@ -175,9 +178,6 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     class function IsBeginMark(const AItem: THCCustomItem): Boolean;
@@ -186,6 +186,13 @@ type
     function JustifySplit: Boolean; override;
     // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property MarkType: TMarkType read FMarkType write FMarkType;
     property Level: Byte read FLevel write FLevel;
   end;
@@ -194,9 +201,6 @@ type
   private
     FTextStyleNo: Integer;
   protected
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
     procedure SetTextStyleNo(const Value: Integer); virtual;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
@@ -206,6 +210,11 @@ type
     function ApplySelectTextStyle(const AStyle: THCStyle;
       const AMatchStyle: THCStyleMatch): Integer; override;
     function SelectExists: Boolean; override;
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
     property TextStyleNo: Integer read FTextStyleNo write SetTextStyleNo;
   end;
 
@@ -221,6 +230,8 @@ type
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
     property AutoSize: Boolean read FAutoSize write FAutoSize;
   end;
 
@@ -405,6 +416,13 @@ procedure THCCustomRectItem.FormatToDrawItem(const ARichData: THCCustomData;
 begin
 end;
 
+procedure THCCustomRectItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FWidth := ANode.Attributes['width'];
+  FHeight := ANode.Attributes['height'];
+end;
+
 function THCCustomRectItem.GetActiveData: THCCustomData;
 begin
   Result := nil;
@@ -585,7 +603,7 @@ procedure THCCustomRectItem.SaveToBitmap(var ABitmap: TBitmap);
 var
   vPaintInfo: TPaintInfo;
 begin
-  ABitmap.SetSize(Width, Height);
+  ABitmap.SetSize(FWidth, FHeight);
 
   vPaintInfo := TPaintInfo.Create;
   try
@@ -634,25 +652,35 @@ var
   vFileName: string;
   vBitmap: TBitmap;
 begin
-  if not FileExists(APath + 'images') then
-    CreateDir(APath + 'images');
-  vFileName := OwnerData.Style.GetHtmlFileTempName + '.bmp';
-
   vBitmap := TBitmap.Create;
   try
     SaveToBitmap(vBitmap);
-    vBitmap.SaveToFile(APath + 'images\' + vFileName);
+
+    if APath <> '' then  // 保存到指定的文件夹中
+    begin
+      if not DirectoryExists(APath + 'images') then
+        CreateDir(APath + 'images');
+      vFileName := OwnerData.Style.GetHtmlFileTempName + '.bmp';
+      vBitmap.SaveToFile(APath + 'images\' + vFileName);
+
+      Result := '<img width="' + IntToStr(FWidth) + '" height="' + IntToStr(FHeight)
+        + '" src="images/' + vFileName + '" alt="' + Self.ClassName + '" />';
+    end
+    else  // 保存为Base64
+    begin
+      Result := '<img width="' + IntToStr(FWidth) + '" height="' + IntToStr(FHeight)
+        + '" src="data:img/jpg;base64,' + GraphicToBase64(vBitmap) + '" alt="THCImageItem" />';
+    end;
   finally
     FreeAndNil(vBitmap);
   end;
-
-  Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
-    + '" src="images/' + vFileName + '" alt="' + Self.ClassName + '" />';
 end;
 
-function THCCustomRectItem.ToXml: string;
+procedure THCCustomRectItem.ToXml(const ANode: IHCXMLNode);
 begin
-
+  inherited ToXml(ANode);
+  ANode.Attributes['width'] := FWidth;
+  ANode.Attributes['height'] := FHeight;
 end;
 
 procedure THCCustomRectItem.TraverseItem(const ATraverse: TItemTraverse);
@@ -1041,6 +1069,12 @@ begin
     FTextStyleNo := 0;
 end;
 
+procedure THCTextRectItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FTextStyleNo := ANode.Attributes['textsno'];
+end;
+
 function THCTextRectItem.GetOffsetAt(const X: Integer): Integer;
 begin
   if X < Width div 2 then
@@ -1079,6 +1113,12 @@ begin
     FTextStyleNo := Value;
 end;
 
+procedure THCTextRectItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['textsno'] := FTextStyleNo;
+end;
+
 { THCAnimateRectItem }
 
 function THCAnimateRectItem.GetOffsetAt(const X: Integer): Integer;
@@ -1106,6 +1146,12 @@ begin
   FMinHeight := 10;
 end;
 
+procedure THCControlItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FAutoSize := ANode.Attributes['autosize'];
+end;
+
 procedure THCControlItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
@@ -1118,6 +1164,12 @@ procedure THCControlItem.SaveToStream(const AStream: TStream; const AStart,
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   AStream.WriteBuffer(FAutoSize, SizeOf(FAutoSize));
+end;
+
+procedure THCControlItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['autosize'] := FAutoSize;
 end;
 
 { THCDomainItem }
@@ -1238,11 +1290,23 @@ begin
   AStream.ReadBuffer(FMarkType, SizeOf(FMarkType));
 end;
 
+procedure THCDomainItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FMarkType := TMarkType(ANode.Attributes['mark']);
+end;
+
 procedure THCDomainItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   AStream.WriteBuffer(FMarkType, SizeOf(FMarkType));
+end;
+
+procedure THCDomainItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['mark'] := Ord(FMarkType);
 end;
 
 end.

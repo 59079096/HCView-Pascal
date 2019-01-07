@@ -14,7 +14,7 @@ unit HCTableRow;
 interface
 
 uses
-  HCCustomData, HCTableCell, HCTableCellData, HCStyle;
+  HCCustomData, HCTableCell, HCTableCellData, HCStyle, HCXml;
 
 const
   MinRowHeight = 20;
@@ -54,6 +54,9 @@ type
     //function CalcFormatHeight: Integer;
     procedure SetRowWidth(const AWidth: Integer);
     procedure SetHeight(const Value: Integer);  // 外部拖动改变行高
+
+    procedure ToXml(const ANode: IHCXMLNode);
+    procedure ParseXml(const ANode: IHCXMLNode);
 
     //property Capacity: Integer read FCapacity write SetCapacity;
     property ColCount: Integer read FColCount write SetColCount;
@@ -99,6 +102,16 @@ begin
   Result := True;
 end;
 
+procedure THCTableRow.ParseXml(const ANode: IHCXMLNode);
+var
+  i: Integer;
+begin
+  FAutoHeight := ANode.Attributes['autoheight'];
+  FHeight := ANode.Attributes['height'];
+  for i := 0 to ANode.ChildNodes.Count - 1 do
+    Cols[i].ParseXml(ANode.ChildNodes[i]);
+end;
+
 procedure THCTableRow.SetRowWidth(const AWidth: Integer);
 var
   i, vWidth: Integer;
@@ -116,6 +129,17 @@ begin
     Cols[i].Width := vWidth;
   end;
   Cols[FColCount - 1].Width := AWidth - (FColCount - 1) * vWidth;  // 结余的全部给最后一个单元格
+end;
+
+procedure THCTableRow.ToXml(const ANode: IHCXMLNode);
+var
+  i: Integer;
+begin
+  ANode.Attributes['autoheight'] := FAutoHeight;
+  ANode.Attributes['height'] := FHeight;
+
+  for i := 0 to FColCount - 1 do  // 各列数据
+    Cols[i].ToXml(ANode.AddChild('cell'));
 end;
 
 {function THCTableRow.CalcFormatHeight: Integer;

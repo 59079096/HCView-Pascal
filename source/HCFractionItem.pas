@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData,
-  HCCommon;
+  HCCommon, HCXml;
 
 type
   THCFractionItem = class(THCTextRectItem)  // 分数(上、下文本，分数线)
@@ -45,9 +45,6 @@ type
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
 
     function GetExpressArea(const X, Y: Integer): TExpressArea; virtual;
 
@@ -56,6 +53,13 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData; const ATopText, ABottomText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property Padding: Byte read FPadding;
     property LineHide: Boolean read FLineHide write FLineHide;
 
@@ -103,10 +107,6 @@ begin
     ACanvas.FillRect(ADrawRect);
   end;
 
-  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
-  ACanvas.TextOut(ADrawRect.Left + FTopRect.Left, ADrawRect.Top + FTopRect.Top, FTopText);
-  ACanvas.TextOut(ADrawRect.Left + FBottomRect.Left, ADrawRect.Top + FBottomRect.Top, FBottomText);
-
   if not FLineHide then  // 分数线
   begin
     ACanvas.Pen.Color := clBlack;
@@ -142,6 +142,10 @@ begin
       ACanvas.Rectangle(vFocusRect);
     end;
   end;
+
+  AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
+  ACanvas.TextOut(ADrawRect.Left + FTopRect.Left, ADrawRect.Top + FTopRect.Top, FTopText);
+  ACanvas.TextOut(ADrawRect.Left + FBottomRect.Left, ADrawRect.Top + FBottomRect.Top, FBottomText);
 end;
 
 procedure THCFractionItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -424,26 +428,18 @@ begin
   inherited MouseUp(Button, Shift, X, Y);
 end;
 
+procedure THCFractionItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FTopText := ANode.Attributes['toptext'];
+  FBottomText := ANode.Attributes['bottomtext'];
+end;
+
 procedure THCFractionItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
-
-  procedure SavePartText(const S: string);
-  var
-    vBuffer: TBytes;
-    vSize: Word;
-  begin
-    vBuffer := BytesOf(S);
-    if System.Length(vBuffer) > MAXWORD then
-      raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-    vSize := System.Length(vBuffer);
-    AStream.WriteBuffer(vSize, SizeOf(vSize));
-    if vSize > 0 then
-      AStream.WriteBuffer(vBuffer[0], vSize);
-  end;
-
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-  SavePartText(FTopText);
-  SavePartText(FBottomText);
+  HCSaveTextToStream(AStream, FTopText);
+  HCSaveTextToStream(AStream, FBottomText);
 end;
 
 procedure THCFractionItem.SetActive(const Value: Boolean);
@@ -451,6 +447,13 @@ begin
   inherited SetActive(Value);
   if not Value then
     FActiveArea := ceaNone;
+end;
+
+procedure THCFractionItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['toptext'] := FTopText;
+  ANode.Attributes['bottomtext'] := FBottomText;
 end;
 
 function THCFractionItem.WantKeyDown(const Key: Word;

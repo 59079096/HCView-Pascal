@@ -14,7 +14,8 @@ unit HCLineItem;
 interface
 
 uses
-  Windows, Classes, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData, HCRichData;
+  Windows, Classes, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData, HCXml,
+  HCRichData;
 
 type
   THCLineItem = class(THCCustomRectItem)
@@ -27,12 +28,16 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const AWidth, ALineHeight: Integer); override;
     procedure Assign(Source: THCCustomItem); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property LineStyle: TPenStyle read FLineStyle write FLineStyle;
     property LineHeight: byte read FLineHeight write FLineHeight;
   end;
@@ -95,11 +100,25 @@ begin
   AStream.ReadBuffer(FLineStyle, SizeOf(FLineStyle));
 end;
 
+procedure THCLineItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FLineHeight := ANode.Attributes['height'];
+  FLineStyle := TPenStyle(ANode.Attributes['style']);
+end;
+
 procedure THCLineItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   AStream.WriteBuffer(FLineHeight, SizeOf(FLineHeight));
   AStream.WriteBuffer(FLineStyle, SizeOf(FLineStyle));
+end;
+
+procedure THCLineItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['height'] := FLineHeight;
+  ANode.Attributes['style'] := Ord(FLineStyle);
 end;
 
 end.

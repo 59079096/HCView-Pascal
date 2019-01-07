@@ -17,7 +17,7 @@ uses
   Classes, SysUtils, Types, Graphics, Controls, Generics.Collections, HCDrawItem,
   HCRectItem, HCTableRow, HCCustomData, HCRichData, HCTableCell, HCTableCellData,
   HCViewData, HCTextStyle, HCCommon, HCParaStyle, HCStyleMatch, HCItem, HCStyle,
-  HCList, HCUndo;
+  HCList, HCUndo, HCXml;
 
 type
   TSelectCellRang = class
@@ -286,7 +286,8 @@ type
       const AFileVersion: Word); override;
 
     function ToHtml(const APath: string): string; override;
-    function ToXml: string; override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
 
     /// <summary> 获取指定位置处的行、列(如果是被合并单元格则返回目标单元格行、列) </summary>
     /// <param name="X">横坐标</param>
@@ -2115,6 +2116,43 @@ begin
     Cells[FMouseDownRow, FMouseDownCol].CellData.MouseUp(Button, Shift,
       X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
   end;
+end;
+
+procedure THCTableItem.ParseXml(const ANode: IHCXMLNode);
+var
+  i, vR, vC, vWidth: Integer;
+  vRow: THCTableRow;
+  vSplit: TStringList;
+begin
+  FRows.Clear;
+
+  inherited ParseXml(ANode);
+  FBorderVisible := ANode.Attributes['bordervisible'];
+  FBorderWidth := ANode.Attributes['borderwidth'];
+  vR := ANode.Attributes['row'];
+  vC := ANode.Attributes['col'];
+  { 创建行、列 }
+  for i := 0 to vR - 1 do
+  begin
+    vRow := THCTableRow.Create(OwnerData.Style, vC);  // 注意行创建时是table拥有者的Style，加载时是传入的AStyle
+    FRows.Add(vRow);
+  end;
+
+  { 加载各列标准宽度 }
+  FColWidths.Clear;
+  vSplit := TStringList.Create;
+  try
+    vSplit.Delimiter := ',';
+    vSplit.DelimitedText := ANode.Attributes['colwidth'];
+    for i := 0 to vC - 1 do
+      FColWidths.Add(StrToInt(vSplit[i]));
+  finally
+    FreeAndNil(vSplit);
+  end;
+
+  { 加载各列数据 }
+  for i := 0 to ANode.ChildNodes.Count - 1 do
+    FRows[i].ParseXml(ANode.ChildNodes[i]);
 end;
 
 function THCTableItem.RowCanDelete(const ARow: Integer): Boolean;
@@ -3991,36 +4029,27 @@ begin
   Result := Result + sLineBreak + '</table>';
 end;
 
-function THCTableItem.ToXml: string;
+procedure THCTableItem.ToXml(const ANode: IHCXMLNode);
 var
   vR, vC: Integer;
   vS: string;
+  vNode: IHCXMLNode;
 begin
+  inherited ToXml(ANode);
+
   vS := IntToStr(FColWidths[0]);
   for vC := 1 to FColWidths.Count - 1 do  // 各列标准宽度
     vS := vS + ',' + IntToStr(FColWidths[vC]);
 
-  Result := '<table ' + inherited ToXml
-    + ' bordervisible="' + HCBoolStrs[FBorderVisible] + '"'
-    + ' borderwidth="' + IntToStr(FBorderWidth) + '"'
-    + ' row="' + IntToStr(FRows.Count) + '"'  // 行数
-    + ' col="' + IntToStr(FColWidths.Count) + '"'  // 列数
-    + ' colwidth="' + vS + '"'
-    + ' link="">';
+  ANode.Attributes['bordervisible'] := FBorderVisible;
+  ANode.Attributes['borderwidth'] := FBorderWidth;
+  ANode.Attributes['row'] := FRows.Count;
+  ANode.Attributes['col'] := FColWidths.Count;
+  ANode.Attributes['colwidth'] := vS;
+  ANode.Attributes['link'] := '';
 
   for vR := 0 to FRows.Count - 1 do  // 各行数据
-  begin
-    Result := Result + sLineBreak + '<row autoheight="' + HCBoolStrs[FRows[vR].AutoHeight] + '"'
-      + ' height="' + IntToStr(FRows[vR].Height) + '">';
-
-    for vC := 0 to FRows[vR].ColCount - 1 do  // 各列数据
-      Result := Result + sLineBreak + FRows[vR].Cols[vC].ToXml;
-
-    Result := Result + sLineBreak + '</row>';
-  end;
-
-
-   Result := Result + sLineBreak + '</table>';
+    FRows[vR].ToXml(ANode.AddChild('row'));
 end;
 
 procedure THCTableItem.TraverseItem(const ATraverse: TItemTraverse);

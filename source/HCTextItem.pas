@@ -14,7 +14,7 @@ unit HCTextItem;
 interface
 
 uses
-  Windows, Classes, SysUtils, Graphics, HCStyle, HCItem;
+  Windows, Classes, SysUtils, Graphics, HCStyle, HCItem, HCXml;
 
 type
   THCTextItemClass = class of THCTextItem;
@@ -38,7 +38,8 @@ type
       const AFileVersion: Word); override;
 
     function ToHtml(const APath: string): string; override;
-    function ToXml: string; override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
 
     /// <summaryy 复制一部分文本 </summary>
     /// <param name="AStartOffs">复制的起始位置(大于0)</param>
@@ -126,23 +127,20 @@ begin
   end;
 end;
 
+procedure THCTextItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FHyperLink := ANode.Attributes['link'];
+  FText := ANode.Text;
+end;
+
 procedure THCTextItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 var
-  vBuffer: TBytes;
-  vDSize: DWORD;  // 最多HC_TEXTMAXSIZE = 4294967295个字节，如果超过，可使用写入文本后再写一个结束标识(如#9)，解析时遍历直到此标识
   vS: string;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   vS := GetTextPart(AStart + 1, AEnd - AStart);
-  vBuffer := BytesOf(vS);
-  vDSize := System.Length(vBuffer);
-
-  if vDSize > HC_TEXTMAXSIZE then
-    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-
-  AStream.WriteBuffer(vDSize, SizeOf(vDSize));
-  if vDSize > 0 then
-    AStream.WriteBuffer(vBuffer[0], vDSize);
+  HCSaveTextToStream(AStream, vS);
 end;
 
 procedure THCTextItem.SetHyperLink(const Value: string);
@@ -160,9 +158,11 @@ begin
   Result := '<a class="fs' + IntToStr(StyleNo) + '">' + Text + '</a>';
 end;
 
-function THCTextItem.ToXml: string;
+procedure THCTextItem.ToXml(const ANode: IHCXMLNode);
 begin
-  Result := '<text ' + inherited ToXml + ' link="' + FHyperLink + '">' + Text + '</text>';
+  inherited ToXml(ANode);
+  ANode.Attributes['link'] := FHyperLink;
+  ANode.Text := Text;
 end;
 
 end.

@@ -94,7 +94,7 @@ type
   protected
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
-    procedure DoItemOpertion(const AItemNo, AOffset: Integer; const AOperation: THCOperation); override;
+    procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); override;
     procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string;
       const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -111,6 +111,7 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure InitializeField; override;
+    procedure Clear; override;
 
     function InsertAnnotate(const ATitle, AText: string): Boolean;
 
@@ -201,6 +202,12 @@ begin
       end;
     end;
   end; }
+end;
+
+procedure THCAnnotateData.Clear;
+begin
+  FDataAnnotates.Clear;
+  inherited Clear;
 end;
 
 constructor THCAnnotateData.Create(const AStyle: THCStyle);
@@ -305,37 +312,112 @@ begin
   DoDataInsertItem(Self, AItem);
 end;
 
-procedure THCAnnotateData.DoItemOpertion(const AItemNo, AOffset: Integer;
-  const AOperation: THCOperation);
-var
-  i: Integer;
-begin
-  for i := 0 to FDataAnnotates.Count - 1 do
+procedure THCAnnotateData.DoItemAction(const AItemNo, AOffset: Integer;
+  const AAction: THCItemAction);
+
+  procedure _AnnotateRemove;
   begin
-    if FDataAnnotates[i].StartItemNo > AItemNo then
-      Break;
 
-    if FDataAnnotates[i].StartItemNo = AItemNo then
+  end;
+
+  procedure _AnnotateInsertChar;
+  var
+    i: Integer;
+    vDataAnn: THCDataAnnotate;
+  begin
+    for i := FDataAnnotates.Count - 1 downto 0 do
     begin
-      if FDataAnnotates[i].EndItemNo = AItemNo then
-      begin
+      if FDataAnnotates[i].StartItemNo > AItemNo then  // 变动在此批注之前
+        Continue;
+      if FDataAnnotates[i].EndItemNo < AItemNo then  // 变动在此批注之后
+        Break;
 
+      vDataAnn := FDataAnnotates[i];
+
+      if vDataAnn.StartItemNo = AItemNo then  // 是批注起始Item
+      begin
+        if vDataAnn.EndItemNo = AItemNo then  // 同时也是批注结束Item(批注在同一个Item里)
+        begin
+          if AOffset <= vDataAnn.StartItemOffset then  // 在批注起始前面
+          begin
+            vDataAnn.StartItemOffset := vDataAnn.StartItemOffset + 1;
+            vDataAnn.EndItemOffset := vDataAnn.EndItemOffset + 1;
+          end
+          else  // AOffset > vDataAnn.StartItemOffset
+          if AOffset <= vDataAnn.EndItemOffset then  // 在批注中间
+            vDataAnn.EndItemOffset := vDataAnn.EndItemOffset + 1;
+
+          if vDataAnn.StartItemOffset = vDataAnn.EndItemOffset then  // 删除没了
+            FDataAnnotates.Delete(i);
+        end
+        else  // 批注起始和结束不是同一个Item
+        begin
+          if AOffset <= vDataAnn.StartItemOffset then  // 在批注起始前面
+            vDataAnn.StartItemOffset := vDataAnn.StartItemOffset + 1;
+        end;
       end
       else
+      if vDataAnn.EndItemNo = AItemNo then  // 是批注结束Item
       begin
-
+        if AOffset <= vDataAnn.EndItemOffset then  // 在批注中间
+          vDataAnn.EndItemOffset := vDataAnn.EndItemOffset + 1;
       end;
-    end
-    else
-    if FDataAnnotates[i].EndItemNo = AItemNo then
-    begin
-
-    end
-    else
-    if (AItemNo > FDataAnnotates[i].StartItemNo) and (AItemNo < FDataAnnotates[i].EndItemNo) then
-    begin
-
     end;
+  end;
+
+  {$REGION 'Delete键删除了字符'}
+  procedure _AnnotateDeleteChar;
+  var
+    i: Integer;
+    vDataAnn: THCDataAnnotate;
+  begin
+    for i := FDataAnnotates.Count - 1 downto 0 do
+    begin
+      if FDataAnnotates[i].StartItemNo > AItemNo then  // 变动在此批注之前
+        Continue;
+      if FDataAnnotates[i].EndItemNo < AItemNo then  // 变动在此批注之后
+        Break;
+
+      vDataAnn := FDataAnnotates[i];
+
+      if vDataAnn.StartItemNo = AItemNo then  // 是批注起始Item
+      begin
+        if vDataAnn.EndItemNo = AItemNo then  // 同时也是批注结束Item(批注在同一个Item里)
+        begin
+          if AOffset <= vDataAnn.StartItemOffset then  // 在批注起始前面
+          begin
+            vDataAnn.StartItemOffset := vDataAnn.StartItemOffset - 1;
+            vDataAnn.EndItemOffset := vDataAnn.EndItemOffset - 1;
+          end
+          else  // AOffset > vDataAnn.StartItemOffset
+          if AOffset <= vDataAnn.EndItemOffset then  // 在批注中间
+            vDataAnn.EndItemOffset := vDataAnn.EndItemOffset - 1;
+
+          if vDataAnn.StartItemOffset = vDataAnn.EndItemOffset then  // 删除没了
+            FDataAnnotates.Delete(i);
+        end
+        else  // 批注起始和结束不是同一个Item
+        begin
+          if AOffset <= vDataAnn.StartItemOffset then  // 在批注起始前面
+            vDataAnn.StartItemOffset := vDataAnn.StartItemOffset - 1;
+        end;
+      end
+      else
+      if vDataAnn.EndItemNo = AItemNo then  // 是批注结束Item
+      begin
+        if AOffset <= vDataAnn.EndItemOffset then  // 在批注中间
+          vDataAnn.EndItemOffset := vDataAnn.EndItemOffset - 1;
+      end;
+    end;
+  end;
+  {$ENDREGION}
+
+begin
+  case AAction of
+    hiaRemove: _AnnotateRemove;
+    hiaInsertChar: _AnnotateInsertChar;
+    hiaBackDeleteChar: ;
+    hiaDeleteChar: _AnnotateDeleteChar;
   end;
 end;
 
@@ -465,7 +547,6 @@ end;
 procedure THCAnnotateData.InitializeField;
 begin
   inherited InitializeField;
-  FDataAnnotates.Clear;
   FHotAnnotate := nil;
   FActiveAnnotate := nil;
 end;

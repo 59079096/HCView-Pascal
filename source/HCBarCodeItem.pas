@@ -15,17 +15,13 @@ interface
 
 uses
   Windows, Graphics, Classes, SysUtils, HCStyle, HCItem, HCRectItem, HCCustomData,
-  HCCommon, HCCode128B;
+  HCCommon, HCCode128B, HCXml;
 
 type
   THCBarCodeItem = class(THCResizeRectItem)
   private
     FText: string;
   protected
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
-    //
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -35,6 +31,12 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string);
     destructor Destroy; override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
@@ -109,6 +111,12 @@ begin
   end;
 end;
 
+procedure THCBarCodeItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FText := ANode.Text;
+end;
+
 procedure THCBarCodeItem.RestrainSize(const AWidth, AHeight: Integer);
 var
   vBL: Single;
@@ -130,19 +138,9 @@ end;
 
 procedure THCBarCodeItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
-var
-  vBuffer: TBytes;
-  vSize: Word;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-
-  vBuffer := BytesOf(FText);
-  if System.Length(vBuffer) > MAXWORD then
-    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-  vSize := System.Length(vBuffer);
-  AStream.WriteBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-    AStream.WriteBuffer(vBuffer[0], vSize);
+  HCSaveTextToStream(AStream, FText);
 end;
 
 procedure THCBarCodeItem.SetText(const Value: string);
@@ -161,6 +159,12 @@ begin
       vBarCode.Free;
     end;
   end;
+end;
+
+procedure THCBarCodeItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Text := FText;
 end;
 
 end.

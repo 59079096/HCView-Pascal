@@ -14,7 +14,7 @@ unit HCDateTimePicker;
 interface
 
 uses
-  Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem,
+  Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem, HCXml,
   HCStyle, HCCustomData, HCEditItem, HCCommon;
 
 type
@@ -47,16 +47,18 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
-
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
-
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const ADateTime: TDateTime); virtual;
     //destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property Format: string read FFormat write SetFormat;
     property DateTime: TDateTime read FDateTime write SetDateTime;
   end;
@@ -989,20 +991,18 @@ begin
   end;
 end;
 
+procedure THCDateTimePicker.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FFormat := ANode.Attributes['format'];
+  FDateTime := StrToDateTime(ANode.Attributes['datetime']);
+end;
+
 procedure THCDateTimePicker.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
-var
-  vBuffer: TBytes;
-  vSize: Word;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-
-  // ¥ÊFormat
-  vBuffer := BytesOf(FFormat);
-  vSize := System.Length(vBuffer);
-  AStream.WriteBuffer(vSize, SizeOf(vSize));
-  AStream.WriteBuffer(vBuffer[0], vSize);
-
+  HCSaveTextToStream(AStream, FFormat);  // ¥ÊFormat
   AStream.WriteBuffer(FDateTime, SizeOf(FDateTime));
 end;
 
@@ -1024,6 +1024,13 @@ begin
     Self.Text := FormatDateTime(FFormat, FDateTime);
     FAreaRect := GetAreaRect(FActiveArea);
   end;
+end;
+
+procedure THCDateTimePicker.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['format'] := FFormat;
+  ANode.Attributes['datetime'] := DateTimeToStr(FDateTime);
 end;
 
 function THCDateTimePicker.WantKeyDown(const Key: Word;

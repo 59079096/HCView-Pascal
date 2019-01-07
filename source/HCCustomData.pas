@@ -132,7 +132,7 @@ type
     procedure SetCaretDrawItemNo(const Value: Integer);
 
     function GetUndoList: THCUndoList;
-    procedure DoItemOpertion(const AItemNo, AOffset: Integer; const AOperation: THCOperation); virtual;
+    procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); virtual;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
@@ -385,8 +385,8 @@ type
       const AFileVersion: Word); virtual;
 
     function ToHtml(const APath: string): string;
-    function ToXml: string; virtual;
-    procedure FromXml(const ANode: IHCXMLNode); virtual;
+    procedure ToXml(const ANode: IHCXMLNode); virtual;
+    procedure ParseXml(const ANode: IHCXMLNode); virtual;
     //
     property Style: THCStyle read FStyle;
     property Items: THCItems read FItems;
@@ -816,8 +816,8 @@ procedure THCCustomData.DoDrawItemPaintContent(const AData: THCCustomData;
 begin
 end;
 
-procedure THCCustomData.DoItemOpertion(const AItemNo, AOffset: Integer;
-  const AOperation: THCOperation);
+procedure THCCustomData.DoItemAction(const AItemNo, AOffset: Integer;
+  const AAction: THCItemAction);
 begin
 end;
 
@@ -867,12 +867,6 @@ begin
   finally
     RestoreDC(ACanvas.Handle, vDCState);
   end;
-end;
-
-procedure THCCustomData.FromXml(const ANode: IHCXMLNode);
-begin
-  Clear;
-
 end;
 
 function THCCustomData.IsEmptyData: Boolean;
@@ -2865,6 +2859,26 @@ begin
     ADataScreenBottom, AVOffset, vFirstDItemNo, vLastDItemNo, ACanvas, APaintInfo);
 end;
 
+procedure THCCustomData.ParseXml(const ANode: IHCXMLNode);
+var
+  i: Integer;
+  vItemNode: IHCXMLNode;
+  vItem: THCCustomItem;
+begin
+  Clear;
+
+  for i := 0 to ANode.ChildNodes.Count - 1 do
+  begin
+    vItemNode := ANode.ChildNodes[i];
+    vItem := CreateItemByStyle(vItemNode.Attributes['sno']);
+    vItem.ParseXml(vItemNode);
+    FItems.Add(vItem);
+  end;
+
+  if Items[0].Length = 0 then  // 删除Clear后默认的第一个空行Item
+    FItems.Delete(0);
+end;
+
 procedure THCCustomData._FormatItemPrepare(const AStartItemNo: Integer;
   const AEndItemNo: Integer = -1);
 var
@@ -3151,14 +3165,17 @@ begin
   Result := Result + sLineBreak + '</p>';
 end;
 
-function THCCustomData.ToXml: string;
+procedure THCCustomData.ToXml(const ANode: IHCXMLNode);
 var
   i: Integer;
+  vNode: IHCXMLNode;
 begin
-  Result := '<items count="' + IntToStr(FItems.Count) + '">';
+  ANode.Attributes['itemcount'] := FItems.Count;
   for i := 0 to FItems.Count - 1 do
-    Result := Result + sLineBreak + FItems[i].ToXml;
-  Result := Result + sLineBreak + '</items>';
+  begin
+    vNode := ANode.AddChild('item');
+    FItems[i].ToXml(vNode);
+  end;
 end;
 
 procedure THCCustomData.GetCaretInfo(const AItemNo, AOffset: Integer;

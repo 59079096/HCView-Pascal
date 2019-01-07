@@ -14,7 +14,7 @@ unit HCComboboxItem;
 interface
 
 uses
-  Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem,
+  Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem, HCXml,
   HCStyle, HCCustomData, HCCommon, HCEditItem, HCScrollBar, HCPopupForm;
 
 type
@@ -55,18 +55,20 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseLeave; override;
-
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
-
     procedure SetItems(const Value: TStrings);
     procedure SetItemIndex(const Value: Integer);
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); override;
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
+
+    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     property Items: TStrings read FItems write SetItems;
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
     /// <summary> 是否保存选项 </summary>
@@ -424,6 +426,12 @@ begin
   end;
 end;
 
+procedure THCComboboxItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  FItems.Text := ANode.Attributes['item'];
+end;
+
 procedure THCComboboxItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
@@ -444,21 +452,12 @@ end;
 procedure THCComboboxItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 var
-  vBuffer: TBytes;
   vSize: Word;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
 
   if FSaveItem then  // 存Items
-  begin
-    vBuffer := BytesOf(FItems.Text);
-    if System.Length(vBuffer) > MAXWORD then
-      raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
-    vSize := System.Length(vBuffer);
-    AStream.WriteBuffer(vSize, SizeOf(vSize));
-    if vSize > 0 then
-      AStream.WriteBuffer(vBuffer[0], vSize);
-  end
+    HCSaveTextToStream(AStream, FItems.Text)
   else
   begin
     vSize := 0;
@@ -492,6 +491,14 @@ procedure THCComboboxItem.SetItems(const Value: TStrings);
 begin
   if not ReadOnly then
     FItems.Assign(Value);
+end;
+
+procedure THCComboboxItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+
+  if FSaveItem then  // 存Items
+    ANode.Attributes['item'] := FItems.Text;
 end;
 
 end.

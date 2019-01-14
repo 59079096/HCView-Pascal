@@ -111,7 +111,7 @@ var
   vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  if (AFileVersion < 11) or (AFileVersion = 20) then  // 兼容65536级别的字符数量
+  if AFileVersion < 11 then  // 兼容65536级别的字符数量
   begin
     AStream.ReadBuffer(vSize, SizeOf(Word));
     vDSize := vSize;

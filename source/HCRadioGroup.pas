@@ -227,6 +227,7 @@ var
   vBool: Boolean;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  FItems.Clear;
   // 读Items
   AStream.ReadBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
@@ -308,6 +309,7 @@ var
   i: Integer;
 begin
   inherited ParseXml(ANode);
+  FItems.Clear;
   vList := TStringList.Create;
   try
     // Items文本内容
@@ -316,7 +318,6 @@ begin
       AddItem(vList[i]);
 
     // Items选中状态
-    vList.Delimiter := ',';
     vList.DelimitedText := ANode.Attributes['check'];
     for i := 0 to vList.Count - 1 do
       Fitems[i].Checked := StrToBool(vList[i]);
@@ -333,9 +334,14 @@ var
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   // 存Items
-  vS := '';
-  for i := 0 to FItems.Count - 1 do
-    vS := vS + FItems[i].Text + #13#10;
+  if FItems.Count > 0 then
+  begin
+    vS := FItems[0].Text;
+    for i := 1 to FItems.Count - 1 do
+      vS := vS + sLineBreak + FItems[i].Text;
+  end
+  else
+    vS := '';
 
   HCSaveTextToStream(AStream, vS);
 
@@ -351,20 +357,26 @@ begin
   inherited ToXml(ANode);
 
   // 存Items文本内容
-  vS := '';
-  for i := 0 to FItems.Count - 1 do
-    vS := vS + FItems[i].Text + #13#10;
+  if FItems.Count > 0 then
+  begin
+    vS := FItems[0].Text;
+    for i := 1 to FItems.Count - 1 do
+      vS := vS + sLineBreak + FItems[i].Text;
+  end
+  else
+    vS := '';
 
   ANode.Attributes['item'] := vS;
 
   // 存Items选中状态
-  vS := '';
   if FItems.Count > 0 then
   begin
     vS := HCBoolText[FItems[0].Checked];
     for i := 1 to FItems.Count - 1 do
-      vS := vS + ',' + HCBoolText[FItems[i].Checked];
-  end;
+      vS := vS + sLineBreak + HCBoolText[FItems[i].Checked];
+  end
+  else
+    vS := '';
 
   ANode.Attributes['check'] := vS;
 end;

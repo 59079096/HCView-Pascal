@@ -2041,7 +2041,7 @@ begin
     else
     if FResizeInfo.TableSite = tsBorderBottom then  // 拖高/拖矮
     begin
-      vPt.Y := Y - FMouseDownY;  // // 不使用FResizeInfo.DestY(会造成按下处弹出也有偏移)
+      vPt.Y := Y - FMouseDownY;  // 不使用FResizeInfo.DestY(会造成按下处弹出也有偏移)
       if vPt.Y <> 0 then
       begin
         Undo_RowResize(FMouseDownRow, FRows[FMouseDownRow].Height, FRows[FMouseDownRow].Height + vPt.Y);

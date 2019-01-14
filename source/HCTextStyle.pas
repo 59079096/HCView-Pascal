@@ -186,8 +186,8 @@ begin
 
   if AFileVersion > 18 then
   begin
-    LoadColorFromStream(FColor, AStream);
-    LoadColorFromStream(FBackColor, AStream);
+    HCLoadColorFromStream(AStream, FColor);
+    HCLoadColorFromStream(AStream, FBackColor);
   end
   else
   begin
@@ -218,7 +218,7 @@ procedure THCTextStyle.ParseXml(const ANode: IHCXmlNode);
         if vsStyles[i] = 'underline' then
           FFontStyles := FFontStyles + [tsUnderline]
         else
-        if vsStyles[i] = 'strike' then
+        if vsStyles[i] = 'strikeout' then
           FFontStyles := FFontStyles + [tsStrikeOut]
         else
         if vsStyles[i] = 'sup' then
@@ -245,8 +245,8 @@ begin
   AStream.WriteBuffer(FSize, SizeOf(FSize));
   HCSaveTextToStream(AStream, FFamily);
   AStream.WriteBuffer(FFontStyles, SizeOf(FFontStyles));
-  SaveColorToStream(FColor, AStream);
-  SaveColorToStream(FBackColor, AStream);
+  HCSaveColorToStream(AStream, FColor);
+  HCSaveColorToStream(AStream, FBackColor);
 end;
 
 procedure THCTextStyle.SetFamily(const Value: TFontName);
@@ -332,9 +332,9 @@ procedure THCTextStyle.ToXml(const ANode: IHCXMLNode);
     if tsStrikeOut in FFontStyles then
     begin
       if Result <> '' then
-        Result := Result + ',strike'
+        Result := Result + ',strikeout'
       else
-        Result := 'strike';
+        Result := 'strikeout';
     end;
 
     if tsSuperscript in FFontStyles then

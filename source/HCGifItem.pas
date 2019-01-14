@@ -20,10 +20,11 @@ uses
 type
   THCGifItem = class(THCAnimateRectItem)
   private
-    FStyle: THCStyle;
     FDrawRect: TRect;
-    FImage: TGIFImage;
-    procedure DoImageChange(Sender: TObject);
+    FGifImage: TGIFImage;
+    procedure DoImageAnimate(Sender: TObject);
+    function GetAnimate: Boolean;
+    procedure SetAnimate(const Value: Boolean);
   protected
     function GetWidth: Integer; override;
     function GetHeight: Integer; override;
@@ -44,7 +45,8 @@ type
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
-    property Image: TGIFImage read FImage;
+    property Image: TGIFImage read FGifImage;
+    property Animate: Boolean read GetAnimate write SetAnimate;
   end;
 
 implementation
@@ -57,29 +59,26 @@ uses
 procedure THCGifItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
-  FImage.Assign((Source as THCGifItem).Image);
+  FGifImage.Assign((Source as THCGifItem).Image);
 end;
 
 constructor THCGifItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  FStyle := AOwnerData.Style;
-  FImage := TGIFImage.Create;
-  FImage.OnChange := DoImageChange;
+  FGifImage := TGIFImage.Create;
+  FGifImage.OnChange := DoImageAnimate;
   StyleNo := THCStyle.Gif;
 end;
 
 destructor THCGifItem.Destroy;
 begin
-  FImage.Free;
+  FGifImage.Free;
   inherited;
 end;
 
-procedure THCGifItem.DoImageChange(Sender: TObject);
+procedure THCGifItem.DoImageAnimate(Sender: TObject);
 begin
-  Self.Width := FImage.Width;
-  Self.Height := FImage.Height;
-  FStyle.InvalidateRect(FDrawRect);
+  OwnerData.Style.InvalidateRect(FDrawRect);
 end;
 
 procedure THCGifItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -88,69 +87,118 @@ procedure THCGifItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
 begin
   FDrawRect := ADrawRect;
   //ACanvas.StretchDraw(ADrawRect, FImage);
-  ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FImage);
+  ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FGifImage);
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
+function THCGifItem.GetAnimate: Boolean;
+begin
+  Result := FGifImage.Animate;
 end;
 
 function THCGifItem.GetHeight: Integer;
 begin
   Result := inherited GetHeight;
   if Result = 0 then
-    Result := FImage.Height;
+    Result := FGifImage.Height;
 end;
 
 function THCGifItem.GetWidth: Integer;
 begin
   Result := inherited GetWidth;
   if Result = 0 then
-    Result := FImage.Width;
+    Result := FGifImage.Width;
 end;
 
 procedure THCGifItem.LoadFromFile(const AFileName: string);
 begin
-  FImage.LoadFromFile(AFileName);
-  FImage.Animate := True;
+  FGifImage.LoadFromFile(AFileName);
+  Self.Width := FGifImage.Width;
+  Self.Height := FGifImage.Height;
+  FGifImage.Animate := True;
 end;
 
 procedure THCGifItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vImgSize: Cardinal;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  FImage.LoadFromStream(AStream);
-  FImage.Animate := True;
+
+  if AFileVersion < 21 then
+    FGifImage.LoadFromStream(AStream)
+  else
+  begin
+    AStream.ReadBuffer(vImgSize, SizeOf(vImgSize));
+    if vImgSize > 0 then
+      FGifImage.LoadFromStream(AStream);  // 会触发OnChange
+  end;
+
+  Self.Width := FGifImage.Width;
+  Self.Height := FGifImage.Height;
+  FGifImage.Animate := True;
 end;
 
 procedure THCGifItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
-  Base64ToGraphic(ANode.Text, FImage);
-  FImage.Animate := True;
+  Base64ToGraphic(ANode.Text, FGifImage);
+  Self.Width := FGifImage.Width;
+  Self.Height := FGifImage.Height;
+  FGifImage.Animate := True;
 end;
 
 procedure THCGifItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
+var
+  vStream: TMemoryStream;
+  vSize: Cardinal;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-  FImage.SaveToStream(AStream);
+  //FGifImage.SaveToStream(AStream);
+
+  vStream := TMemoryStream.Create;  // 兼容其他语言
+  try
+    FGifImage.SaveToStream(vStream);
+    vSize := vStream.Size;
+    AStream.WriteBuffer(vSize, SizeOf(vSize));
+    AStream.WriteBuffer(vStream.Memory^, vStream.Size);
+  finally
+    vStream.Free;
+  end;
+end;
+
+procedure THCGifItem.SetAnimate(const Value: Boolean);
+begin
+  if FGifImage.Animate <> Value then
+    FGifImage.Animate := Value;
 end;
 
 function THCGifItem.ToHtml(const APath: string): string;
 var
   vFileName: string;
 begin
-  if not FileExists(APath + 'images') then
-    CreateDir(APath + 'images');
-  vFileName := OwnerData.Style.GetHtmlFileTempName + '.gif';
-  FImage.SaveToFile(APath + 'images\' + vFileName);
-  Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
-    + '" src="images/' + vFileName + '" alt="THCGifItem" />';
+  if APath <> '' then  // 保存到指定的文件夹中
+  begin
+    if not FileExists(APath + 'images') then
+      CreateDir(APath + 'images');
+    vFileName := OwnerData.Style.GetHtmlFileTempName + '.gif';
+    FGifImage.SaveToFile(APath + 'images\' + vFileName);
+    Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
+      + '" src="images/' + vFileName + '" alt="THCGifItem" />';
+  end
+  else
+  begin
+    Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
+      + '" src="data:img/jpg;base64,' + GraphicToBase64(FGifImage) + '" alt="THCGifItem" />';
+  end;
 end;
 
 procedure THCGifItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
-  ANode.Text := GraphicToBase64(FImage);
+  ANode.Text := GraphicToBase64(FGifImage);
 end;
 
 end.

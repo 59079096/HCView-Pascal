@@ -35,13 +35,13 @@ type
 
   THCDataAnnotates = class(TObjectList<THCDataAnnotate>)
   private
-    FOnInsert, FOnRemove: TNotifyEvent;
+    FOnInsertAnnotate, FOnRemoveAnnotate: TNotifyEvent;
   protected
     procedure Notify(const Value: THCDataAnnotate; Action: TCollectionNotification); override;
   public
     procedure NewDataAnnotate(const ASelectInfo: TSelectInfo; const ATitle, AText: string);
-    property OnInsert: TNotifyEvent read FOnInsert write FOnInsert;
-    property OnRemove: TNotifyEvent read FOnRemove write FOnRemove;
+    property OnInsertAnnotate: TNotifyEvent read FOnInsertAnnotate write FOnInsertAnnotate;
+    property OnRemoveAnnotate: TNotifyEvent read FOnRemoveAnnotate write FOnRemoveAnnotate;
   end;
 
   THCAnnotateMark = (amFirst, amNormal, amLast, amBoth);
@@ -107,7 +107,7 @@ type
 
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
     procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
-      ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo: Integer;
+      ADataScreenTop, ADataScreenBottom, AVOffset, AFirstDItemNo, ALastDItemNo: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure InitializeField; override;
@@ -213,8 +213,8 @@ end;
 constructor THCAnnotateData.Create(const AStyle: THCStyle);
 begin
   FDataAnnotates := THCDataAnnotates.Create;
-  FDataAnnotates.OnInsert := DoInsertAnnotate;
-  FDataAnnotates.OnRemove := DoRemoveAnnotate;
+  FDataAnnotates.OnInsertAnnotate := DoInsertAnnotate;
+  FDataAnnotates.OnRemoveAnnotate := DoRemoveAnnotate;
   FDrawItemAnnotates := THCDrawItemAnnotates.Create;
   inherited Create(AStyle);
   FHotAnnotate := nil;
@@ -576,12 +576,12 @@ begin
 end;
 
 procedure THCAnnotateData.PaintData(const ADataDrawLeft, ADataDrawTop,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo,
+  ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset, AFirstDItemNo,
   ALastDItemNo: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  CheckAnnotateRange(AFristDItemNo, ALastDItemNo);  // 指定DrawItem范围内的批注获取各自的DrawItem范围
+  CheckAnnotateRange(AFirstDItemNo, ALastDItemNo);  // 指定DrawItem范围内的批注获取各自的DrawItem范围
   inherited PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
-    ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo, ACanvas, APaintInfo);
+    ADataScreenBottom, AVOffset, AFirstDItemNo, ALastDItemNo, ACanvas, APaintInfo);
   FDrawItemAnnotates.Clear;
 end;
 
@@ -620,14 +620,14 @@ procedure THCDataAnnotates.Notify(const Value: THCDataAnnotate;
 begin
   if Action = cnAdded then
   begin
-    if Assigned(FOnInsert) then
-      FOnInsert(Value);
+    if Assigned(FOnInsertAnnotate) then
+      FOnInsertAnnotate(Value);
   end
   else
   if Action = cnRemoved then
   begin
-    if Assigned(FOnRemove) then
-      FOnRemove(Value);
+    if Assigned(FOnRemoveAnnotate) then
+      FOnRemoveAnnotate(Value);
   end;
 
   inherited Notify(Value, Action);

@@ -781,8 +781,15 @@ procedure THCView.Clear;
 begin
   FStyle.Initialize;  // 先清样式，防止Data初始化为EmptyData时空Item样式赋值为CurStyleNo
   FSections.DeleteRange(1, FSections.Count - 1);
-  FSections[0].Clear;
-  FUndoList.Clear;
+
+  FUndoList.SaveState;
+  try
+    FUndoList.Enable := False;
+    FSections[0].Clear;
+    FUndoList.Clear;
+  finally
+    FUndoList.RestoreState;
+  end;
   FHScrollBar.Position := 0;
   FVScrollBar.Position := 0;
   FActiveSectionIndex := 0;
@@ -1263,7 +1270,7 @@ procedure THCView.DoSectionDrawItemPaintContent(const AData: THCCustomData;
   const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
   ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  // 北京处理完，绘制文本前触发，可处理高亮关键字
+  // 背景处理完，绘制文本前触发，可处理高亮关键字
 end;
 
 procedure THCView.DoStyleInvalidateRect(const ARect: TRect);
@@ -1750,13 +1757,12 @@ procedure THCView.LoadFromStream(const AStream: TStream);
 var
   vByte: Byte;
   vSection: THCSection;
-  vSaveUndoEnable: Boolean;
 begin
   Self.BeginUpdate;
   try
     // 清除撤销恢复数据
     FUndoList.Clear;
-    vSaveUndoEnable := FUndoList.Enable;
+    FUndoList.SaveState;
     try
       FUndoList.Enable := False;
 
@@ -1777,8 +1783,7 @@ begin
           end;
         end);
     finally
-      if vSaveUndoEnable then
-        FUndoList.Enable := True;
+      FUndoList.RestoreState;
     end;
   finally
     Self.EndUpdate;
@@ -1813,7 +1818,6 @@ var
   vSection: THCSection;
   vXml: IHCXMLDocument;
   vNode: IHCXMLNode;
-  vSaveUndoEnable: Boolean;
   vVersion: string;
   vLang: Byte;
   i, j: Integer;
@@ -1822,7 +1826,7 @@ begin
   try
     // 清除撤销恢复数据
     FUndoList.Clear;
-    vSaveUndoEnable := FUndoList.Enable;
+    FUndoList.SaveState;
     try
       FUndoList.Enable := False;
       Self.Clear;
@@ -1834,7 +1838,7 @@ begin
         if vXml.DocumentElement.Attributes['EXT'] <> HC_EXT then Exit;
 
         vVersion := vXml.DocumentElement.Attributes['ver'];
-        vLang := vXml.DocumentElement.Attributes['Lang'];
+        vLang := vXml.DocumentElement.Attributes['lang'];
 
         for i := 0 to vXml.DocumentElement.ChildNodes.Count - 1 do
         begin
@@ -1857,8 +1861,7 @@ begin
         DoMapChanged;
       end;
     finally
-      if vSaveUndoEnable then
-        FUndoList.Enable := True;
+      FUndoList.RestoreState;
     end;
   finally
     Self.EndUpdate;
@@ -1961,7 +1964,7 @@ end;
 procedure THCView.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
-  inherited;
+  inherited MouseUp(Button, Shift, X, Y);
   if Button = mbRight then Exit;  // 右键弹出菜单
   //GetSectionByCrood(FHScrollBar.Value + X, FVScrollBar.Value + Y, vSectionIndex);
   if FActiveSectionIndex >= 0 then  // 按下时在节中
@@ -2584,22 +2587,25 @@ begin
     FCaret.Height := vDisplayHeight - FCaret.Y;
 
   FCaret.Show;
+  DoCaretChange();
 end;
 
 procedure THCView.Redo;
 begin
   if FUndoList.Enable then  // 恢复过程不要产生新的Redo
-  try
-    FUndoList.Enable := False;
-
-    BeginUpdate;
+  begin
     try
-      FUndoList.Redo;
+      FUndoList.Enable := False;
+
+      BeginUpdate;
+      try
+        FUndoList.Redo;
+      finally
+        EndUpdate;
+      end;
     finally
-      EndUpdate;
+      FUndoList.Enable := True;
     end;
-  finally
-    FUndoList.Enable := True;
   end;
 end;
 
@@ -2884,7 +2890,7 @@ begin
   vXml.DocumentElement := vXml.CreateNode('HCView');
   vXml.DocumentElement.Attributes['EXT'] := HC_EXT;
   vXml.DocumentElement.Attributes['ver'] := HC_FileVersion;
-  vXml.DocumentElement.Attributes['Lang'] := HC_PROGRAMLANGUAGE;
+  vXml.DocumentElement.Attributes['lang'] := HC_PROGRAMLANGUAGE;
 
   vNode := vXml.DocumentElement.AddChild('style');
   FStyle.ToXml(vNode);  // 样式表
@@ -3147,17 +3153,19 @@ end;
 procedure THCView.Undo;
 begin
   if FUndoList.Enable then  // 撤销过程不要产生新的Undo
-  try
-    FUndoList.Enable := False;
-
-    BeginUpdate;
+  begin
     try
-      FUndoList.Undo;
+      FUndoList.Enable := False;
+
+      BeginUpdate;
+      try
+        FUndoList.Undo;
+      finally
+        EndUpdate;
+      end;
     finally
-      EndUpdate;
+      FUndoList.Enable := True;
     end;
-  finally
-    FUndoList.Enable := True;
   end;
 end;
 
@@ -3477,7 +3485,7 @@ end;
 
 procedure THCAnnotate.AddDrawAnnotate(const ADrawAnnotate: THCDrawAnnotate);
 begin
-  FDrawAnnotates.Add(ADrawAnnotate)
+  FDrawAnnotates.Add(ADrawAnnotate);
 end;
 
 procedure THCAnnotate.ClearDrawAnnotate;

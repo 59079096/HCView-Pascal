@@ -45,10 +45,6 @@ type
     procedure SetWidth(const Value: Integer); virtual;
     function GetHeight: Integer; virtual;
     procedure SetHeight(const Value: Integer); virtual;
-
-    // 撤销重做相关方法
-    procedure Undo(const AUndoAction: THCCustomUndoAction); override;
-    procedure Redo(const ARedoAction: THCCustomUndoAction); override;
     //
     procedure SelfUndoListInitializate(const AUndoList: THCUndoList);
     procedure SelfUndo_New;
@@ -148,6 +144,10 @@ type
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
     procedure Assign(Source: THCCustomItem); override;
+
+    // 撤销重做相关方法
+    procedure Undo(const AUndoAction: THCCustomUndoAction); override;
+    procedure Redo(const ARedoAction: THCCustomUndoAction); override;
 
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;

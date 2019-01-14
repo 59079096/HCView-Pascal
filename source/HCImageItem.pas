@@ -260,7 +260,7 @@ var
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
 
-  vStream := TMemoryStream.Create;
+  vStream := TMemoryStream.Create;  // 兼容其他语言
   try
     FImage.SaveToStream(vStream);
     vSize := vStream.Size;
@@ -277,7 +277,7 @@ var
 begin
   if APath <> '' then  // 保存到指定的文件夹中
   begin
-    if not FileExists(APath + 'images') then
+    if not DirectoryExists(APath + 'images') then
       CreateDir(APath + 'images');
     vFile := OwnerData.Style.GetHtmlFileTempName + '.bmp';
     FImage.SaveToFile(APath + 'images\' + vFile);

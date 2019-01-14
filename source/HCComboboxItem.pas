@@ -435,18 +435,11 @@ end;
 procedure THCComboboxItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
-  vSize: Word;
-  vBuffer: TBytes;
+  vText: string;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  // ¶ÁItems
-  AStream.ReadBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-  begin
-    SetLength(vBuffer, vSize);
-    AStream.ReadBuffer(vBuffer[0], vSize);
-    FItems.Text := StringOf(vBuffer);
-  end;
+  HCLoadTextFromStream(AStream, vText); // ¶ÁItems
+  FItems.Text := vText;
 end;
 
 procedure THCComboboxItem.SaveToStream(const AStream: TStream; const AStart,

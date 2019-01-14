@@ -266,6 +266,7 @@ type
   private
     FSeek: Integer;
     FEnable: Boolean;  // 是否可以执行撤销恢复
+    FEnableStateStack: TStack<Boolean>;
     FGroupWorking: Boolean;  // 组操作锁
     FMaxUndoCount: Cardinal;  // 撤销恢复链的最大长度
 
@@ -291,6 +292,8 @@ type
     procedure Undo;
     procedure Redo;
     procedure Clear;
+    procedure SaveState;
+    procedure RestoreState;
 
     property Enable: Boolean read FEnable write FEnable;
     property MaxUndoCount: Cardinal read FMaxUndoCount write FMaxUndoCount;
@@ -353,6 +356,7 @@ end;
 constructor THCUndoList.Create;
 begin
   inherited Create;
+  FEnableStateStack := TStack<Boolean>.Create;
   FSeek := -1;
   FMaxUndoCount := 99;
   FEnable := True;
@@ -362,6 +366,7 @@ end;
 
 destructor THCUndoList.Destroy;
 begin
+  FEnableStateStack.Free;
   inherited Destroy;
 end;
 
@@ -507,6 +512,17 @@ begin
     else
       DoSeekRedoEx;
   end;
+end;
+
+procedure THCUndoList.RestoreState;
+begin
+  if FEnableStateStack.Count > 0 then
+    FEnable := FEnableStateStack.Pop;
+end;
+
+procedure THCUndoList.SaveState;
+begin
+  FEnableStateStack.Push(FEnable);
 end;
 
 procedure THCUndoList.Undo;

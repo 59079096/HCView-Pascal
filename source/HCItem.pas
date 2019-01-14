@@ -129,9 +129,9 @@ type
     procedure MouseLeave; virtual;
     function GetHint: string; virtual;
     procedure SelectComplate; virtual;
+    procedure SelectPart;
     /// <summaryy 在指定的位置是否可接受插入、删除等操作 </summary>
     function CanAccept(const AOffset: Integer; const AAction: THCItemAction): Boolean; virtual;
-    procedure SelectPart;
     /// <summary> 从指定位置将当前item分成前后两部分 </summary>
     /// <param name="AOffset">分裂位置</param>
     /// <returns>后半部分对应的Item</returns>
@@ -323,6 +323,7 @@ begin
       APageDataScreenTop, APageDataScreenBottom, ACanvas, APaintInfo);
   finally
     Windows.RestoreDC(ACanvas.Handle, vDCState);
+    ACanvas.Refresh;  // 处理下一个使用Pen时修改Pen的属性值和当前属性值一样时，不会触发Canvas重新SelectPen导致Pen的绘制失效的问题
   end;
 end;
 

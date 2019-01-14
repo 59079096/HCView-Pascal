@@ -96,19 +96,9 @@ end;
 
 procedure THCBarCodeItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
-var
-  vSize: Word;
-  vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-
-  AStream.ReadBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-  begin
-    SetLength(vBuffer, vSize);
-    AStream.ReadBuffer(vBuffer[0], vSize);
-    FText := StringOf(vBuffer);
-  end;
+  HCLoadTextFromStream(AStream, FText);
 end;
 
 procedure THCBarCodeItem.ParseXml(const ANode: IHCXMLNode);

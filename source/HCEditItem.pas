@@ -115,6 +115,7 @@ begin
     ACanvas.TextOut(ADrawRect.Left + FMargin,// + (ADrawRect.Width - FMargin - ACanvas.TextWidth(FText) - FMargin) div 2,
       ADrawRect.Top + FMargin, FText);
 
+  //ACanvas.Pen.Width := 0;  // 保证Pen重新变动
   if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
     ACanvas.Pen.Color := clBlue
   else  // 鼠标不在其中或打印
@@ -328,20 +329,9 @@ end;
 
 procedure THCEditItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
-var
-  vSize: Word;
-  vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  // 读取Text
-  AStream.ReadBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-  begin
-    SetLength(vBuffer, vSize);
-    AStream.ReadBuffer(vBuffer[0], vSize);
-    FText := StringOf(vBuffer);
-  end;
-
+  HCLoadTextFromStream(AStream, FText);  // 读取Text
   AStream.ReadBuffer(FReadOnly, SizeOf(FReadOnly));
 
   if AFileVersion > 15 then

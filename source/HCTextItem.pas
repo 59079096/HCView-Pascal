@@ -111,7 +111,7 @@ var
   vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  if AFileVersion < 11 then  // 兼容65536级别的字符数量
+  if (AFileVersion < 11) or (AFileVersion = 20) then  // 兼容65536级别的字符数量
   begin
     AStream.ReadBuffer(vSize, SizeOf(Word));
     vDSize := vSize;
@@ -137,10 +137,19 @@ end;
 procedure THCTextItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vS: string;
+  vBuffer: TBytes;
+  vSize: DWORD;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   vS := GetTextPart(AStart + 1, AEnd - AStart);
-  HCSaveTextToStream(AStream, vS);
+  //  DWORD大小不能用HCSaveTextToStream(AStream, vS);
+  vBuffer := BytesOf(vS);
+  if System.Length(vBuffer) > HC_TEXTMAXSIZE then
+    raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
+  vSize := System.Length(vBuffer);
+  AStream.WriteBuffer(vSize, SizeOf(vSize));
+  if vSize > 0 then
+    AStream.WriteBuffer(vBuffer[0], vSize);
 end;
 
 procedure THCTextItem.SetHyperLink(const Value: string);

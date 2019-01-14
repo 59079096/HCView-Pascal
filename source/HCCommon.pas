@@ -27,7 +27,7 @@ const
   HCS_EXCEPTION_VOIDSOURCECELL = HC_EXCEPTION + '源单元格无法再获取源单元格！';
 
   HC_EXT = '.hcf';
-  HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++
+  HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++, 4:HTML5
 
   {1.3 支持浮动对象保存和读取(未处理向下兼容)
    1.4 支持表格单元格边框显示属性的保存和读取
@@ -38,10 +38,11 @@ const
    1.9 重构了颜色的存储方式以便于兼容其他语言生成的文件
    2.0 ImageItem存图像时增加图像数据大小的存储以兼容不同语言图像数据的存储方式
        文件保存时增加由哪种编程语言生成的标识
+   2.1 GifImage保存读取改用兼容其他语言的方式
   }
 
-  HC_FileVersion = '2.0';
-  HC_FileVersionInt = 20;
+  HC_FileVersion = '2.1';
+  HC_FileVersionInt = 21;
 
   LineSpaceMin = 8;  // 行间距最小值
   PagePadding = 20;  // 节页面显示时之间的间距
@@ -49,6 +50,7 @@ const
   AnnotationWidth = 200;  // 批注显示区域宽度
   AnnotateBKColor = $00D5D5FF;
   AnnotateBKActiveColor = $00A8A8FF;
+  HyperTextColor = $00C16305;
   // 不能在行首的字符             |                    |                   |
   DontLineFirstChar = '`-=[]\;'',./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；‘，。、～！＠＃￥％……＆×（）——＋｛｝｜：“《》？°';
   DontLineLastChar = '/\＼';
@@ -170,8 +172,8 @@ type
   procedure HCSaveTextToStream(const AStream: TStream; const S: string);
   procedure HCLoadTextFromStream(const AStream: TStream; var S: string);
 
-  procedure SaveColorToStream(const AColor: TColor; const AStream: TStream);
-  procedure LoadColorFromStream(var AColor: TColor; const AStream: TStream);
+  procedure HCSaveColorToStream(const AStream: TStream; const AColor: TColor);
+  procedure HCLoadColorFromStream(const AStream: TStream; var AColor: TColor);
 
   /// <summary> 保存文件格式、版本 </summary>
   procedure _SaveFileFormatAndVersion(const AStream: TStream);
@@ -533,7 +535,7 @@ begin
     AStream.ReadBuffer(ALang, 1);
 end;
 
-procedure SaveColorToStream(const AColor: TColor; const AStream: TStream);
+procedure HCSaveColorToStream(const AStream: TStream; const AColor: TColor);
 var
   vByte: Byte;
 begin
@@ -561,7 +563,7 @@ begin
   end;
 end;
 
-procedure LoadColorFromStream(var AColor: TColor; const AStream: TStream);
+procedure HCLoadColorFromStream(const AStream: TStream; var AColor: TColor);
 var
   vA, vR, vG, vB: Byte;
 begin

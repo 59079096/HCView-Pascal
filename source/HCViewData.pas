@@ -503,8 +503,8 @@ begin
               Break;
             end;
           end
-          else
-            Inc(vCount);
+          else  // 结束标记
+            Inc(vCount);  // 有嵌套
         end;
       end;
 
@@ -641,26 +641,31 @@ begin
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
-    // 插入头
-    vDomainItem := CreateDefaultDomainItem as THCDomainItem;
-    if Assigned(AMouldDomain) then
-      vDomainItem.Assign(AMouldDomain);
-    vDomainItem.MarkType := cmtBeg;
-    if FActiveDomain.BeginNo >= 0 then
-      vDomainItem.Level := (Items[FActiveDomain.BeginNo] as THCDomainItem).Level + 1;
-
-    Result := InsertItem(vDomainItem);
-
-    if Result then // 插入尾
-    begin
+    Self.BeginBatchInsert;
+    try
+      // 插入头
       vDomainItem := CreateDefaultDomainItem as THCDomainItem;
       if Assigned(AMouldDomain) then
         vDomainItem.Assign(AMouldDomain);
-      vDomainItem.MarkType := cmtEnd;
+      vDomainItem.MarkType := cmtBeg;
       if FActiveDomain.BeginNo >= 0 then
         vDomainItem.Level := (Items[FActiveDomain.BeginNo] as THCDomainItem).Level + 1;
 
       Result := InsertItem(vDomainItem);
+
+      if Result then  // 插入尾
+      begin
+        vDomainItem := CreateDefaultDomainItem as THCDomainItem;
+        if Assigned(AMouldDomain) then
+          vDomainItem.Assign(AMouldDomain);
+        vDomainItem.MarkType := cmtEnd;
+        if FActiveDomain.BeginNo >= 0 then
+          vDomainItem.Level := (Items[FActiveDomain.BeginNo] as THCDomainItem).Level + 1;
+
+        Result := InsertItem(vDomainItem);
+      end;
+    finally
+      Self.EndBatchInsert;
     end;
   finally
     Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);

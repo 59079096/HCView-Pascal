@@ -29,7 +29,7 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
   public
-    constructor Create(const AOwnerData: THCCustomData; const AWidth, ALineHeight: Integer); override;
+    constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); override;
     procedure Assign(Source: THCCustomItem); override;
 
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
@@ -53,12 +53,12 @@ begin
   FLineStyle := (Source as THCLineItem).LineStyle;
 end;
 
-constructor THCLineItem.Create(const AOwnerData: THCCustomData; const AWidth, ALineHeight: Integer);
+constructor THCLineItem.Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer);
 begin
   inherited Create(AOwnerData);
   FLineHeight := 1;
   Width := AWidth;
-  Height := ALineHeight;
+  Height := AHeight;
   FLineStyle := TPenStyle.psSolid;
   StyleNo := THCStyle.Line;
 end;

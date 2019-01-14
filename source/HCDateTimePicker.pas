@@ -149,13 +149,13 @@ var
   vCanvas: TCanvas;
   vSize: TSize;
   vS: string;
-  vCharOffset, AppendLevel: Integer;
+  vCharOffset, vAppendLevel: Integer;
 
   {$REGION '内部函数'}
-  procedure AppendChars(P: PChar; Count: Integer);
+  {procedure AppendChars(P: PChar; Count: Integer);
   begin
     Inc(vCharOffset, Count);
-  end;
+  end;}
 
   function NumberText(Number, Digits: Integer): string;
   const
@@ -274,9 +274,9 @@ var
     end;
 
   begin
-    if (Format <> nil) and (AppendLevel < 2) then
+    if (Format <> nil) and (vAppendLevel < 2) then
     begin
-      Inc(AppendLevel);
+      Inc(vAppendLevel);
       LastToken := ' ';
       DateDecoded := False;
       TimeDecoded := False;
@@ -678,7 +678,7 @@ var
           end;
         end;
       end;
-      Dec(AppendLevel);
+      Dec(vAppendLevel);
     end;
   end;
   {$ENDREGION}
@@ -689,7 +689,7 @@ begin
   if AArea = dtaNone then Exit;
 
   vCharOffset := 0;
-  AppendLevel := 0;
+  vAppendLevel := 0;
   vCanvas := THCStyle.CreateStyleCanvas;
   try
     Self.OwnerData.Style.TextStyles[Self.TextStyleNo].ApplyStyle(vCanvas);
@@ -913,21 +913,9 @@ end;
 
 procedure THCDateTimePicker.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
-var
-  vSize: Word;
-  vBuffer: TBytes;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-
-  // 读取Format
-  AStream.ReadBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-  begin
-    SetLength(vBuffer, vSize);
-    AStream.ReadBuffer(vBuffer[0], vSize);
-    FFormat := StringOf(vBuffer);
-  end;
-
+  HCLoadTextFromStream(AStream, FFormat);  // 读取Format
   AStream.ReadBuffer(FDateTime, SizeOf(FDateTime));
 end;
 

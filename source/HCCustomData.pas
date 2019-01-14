@@ -2732,7 +2732,7 @@ begin
 
           if vItem.HyperLink <> '' then
           begin
-            ACanvas.Font.Color := $00C16305;
+            ACanvas.Font.Color := HyperTextColor;
             ACanvas.Font.Style := ACanvas.Font.Style + [fsUnderline];
           end;
         end;

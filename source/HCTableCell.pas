@@ -149,7 +149,7 @@ begin
   begin
     AStream.ReadBuffer(FAlignVert, SizeOf(FAlignVert));  // 垂直对齐方式
     if AFileVersion > 18 then
-      LoadColorFromStream(FBackgroundColor, AStream)
+      HCLoadColorFromStream(AStream, FBackgroundColor)
     else
       AStream.ReadBuffer(FBackgroundColor, SizeOf(FBackgroundColor));  // 背景色
   end;
@@ -229,7 +229,7 @@ begin
   AStream.WriteBuffer(FColSpan, SizeOf(FColSpan));
 
   AStream.WriteBuffer(FAlignVert, SizeOf(FAlignVert));  // 垂直对齐方式
-  AStream.WriteBuffer(FBackgroundColor, SizeOf(FBackgroundColor));  // 背景色
+  HCSaveColorToStream(AStream, FBackgroundColor);  // 背景色
 
   AStream.WriteBuffer(FBorderSides, SizeOf(FBorderSides));
 

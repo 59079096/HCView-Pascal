@@ -57,6 +57,8 @@ type
     FSelectSeekNo,
     FSelectSeekOffset  // 选中操作时的游标
       : Integer;
+    /// <summary> 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确 </summary>
+    FBatchInsertCount: Integer;
 
     FReadOnly,
     FSelecting, FDraging: Boolean;
@@ -198,6 +200,10 @@ type
     // Key返回0表示此键按下Data没有做任何事情
     procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
 
+    procedure BeginBatchInsert;
+    procedure EndBatchInsert;
+    function BatchInsert: Boolean;
+
     /// <summary> 在Data层面是否可编辑 </summary>
     function CanEdit: Boolean; virtual;
     //
@@ -281,6 +287,7 @@ uses
 constructor THCRichData.Create(const AStyle: THCStyle);
 begin
   inherited Create(AStyle);
+  FBatchInsertCount := 0;
   FReadOnly := False;
   InitializeField;
   SetEmptyData;
@@ -1060,6 +1067,11 @@ begin
   FormatData(0, 0);
   ReSetSelectAndCaret(0);  // 防止清空后格式化完成后没有选中起始访问出错
   Result := True;
+end;
+
+procedure THCRichData.EndBatchInsert;
+begin
+  Dec(FBatchInsertCount);
 end;
 
 procedure THCRichData.ReFormat(const AStartItemNo: Integer);
@@ -1966,6 +1978,16 @@ begin
 
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
+end;
+
+function THCRichData.BatchInsert: Boolean;
+begin
+  Result := FBatchInsertCount > 0;
+end;
+
+procedure THCRichData.BeginBatchInsert;
+begin
+  Inc(FBatchInsertCount);
 end;
 
 function THCRichData.CalcContentHeight: Integer;

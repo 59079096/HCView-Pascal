@@ -272,10 +272,8 @@ begin
   if AReset then
     FHtmlFileTempName := 0
   else
-  begin
     Inc(FHtmlFileTempName);
-    Result := IntToStr(FHtmlFileTempName);
-  end;
+  Result := IntToStr(FHtmlFileTempName);
 end;
 
 procedure THCStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);

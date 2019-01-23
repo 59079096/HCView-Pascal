@@ -66,7 +66,7 @@ type
   THCView = class(TCustomControl)
   private
     { Private declarations }
-    FFileName: string;
+    FFileName, FPageNoFormat: string;
     FStyle: THCStyle;
     FSections: TObjectList<THCSection>;
     FUndoList: THCUndoList;
@@ -138,6 +138,9 @@ type
 
     function GetReadOnly: Boolean;
     procedure SetReadOnly(const Value: Boolean);
+    procedure SetPageNoFormat(const Value: string);
+
+    procedure AutoScrollTimer(const AStart: Boolean);
     // Imm
     procedure UpdateImmPosition;
   protected
@@ -630,6 +633,9 @@ type
     /// <summary> 所有Section是否只读 </summary>
     property ReadOnly: Boolean read GetReadOnly write SetReadOnly;
 
+    /// <summary> 页码的格式 </summary>
+    property PageNoFormat: string read FPageNoFormat write SetPageNoFormat;
+
     /// <summary> 鼠标按下时触发 </summary>
     property OnMouseDown: TMouseEvent read FOnMouseDown write FOnMouseDown;
 
@@ -693,6 +699,15 @@ end;
 procedure THCView.ApplyTextStyle(const AFontStyle: THCFontStyle);
 begin
   ActiveSection.ApplyTextStyle(AFontStyle);
+end;
+
+procedure THCView.AutoScrollTimer(const AStart: Boolean);
+begin
+  if not AStart then
+    KillTimer(Handle, 2)
+  else
+  if SetTimer(Handle, 2, 100, nil) = 0 then
+    raise EOutOfResources.Create(HCS_EXCEPTION_TIMERRESOURCEOUTOF);
 end;
 
 procedure THCView.ApplyTextBackColor(const AColor: TColor);
@@ -859,6 +874,7 @@ begin
   FAnnotate := THCAnnotate.Create;
 
   FFileName := '';
+  FPageNoFormat := '%d/%d';
   FIsChanged := False;
   FZoom := 1;
   FAutoZoom := False;
@@ -985,9 +1001,9 @@ function THCView.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
   MousePos: TPoint): Boolean;
 begin
   if FPageScrollModel = psmVertical then
-    FVScrollBar.Position := FVScrollBar.Position - WheelDelta div 1
+    FVScrollBar.Position := FVScrollBar.Position - WheelDelta
   else
-    FHScrollBar.Position := FHScrollBar.Position - WheelDelta div 1;
+    FHScrollBar.Position := FHScrollBar.Position - WheelDelta;
   Result := True;
 end;
 
@@ -1021,7 +1037,7 @@ begin
 
       vAllPageCount := vAllPageCount + FSections[i].PageCount;
     end;
-    vS := Format('%d/%d', [vSectionStartPageIndex + vSection.PageNoFrom + APageIndex, vAllPageCount]);
+    vS := Format(FPageNoFormat, [vSectionStartPageIndex + vSection.PageNoFrom + APageIndex, vAllPageCount]);
     ACanvas.Brush.Style := bsClear;
     ACanvas.Font.Size := 10;
     ACanvas.Font.Name := '宋体';
@@ -1703,7 +1719,7 @@ procedure THCView.KeyDown(var Key: Word; Shift: TShiftState);
   {$ENDREGION}
 
 begin
-  inherited;
+  inherited KeyDown(Key, Shift);
   if IsCopyTextShortKey then
     Self.CopyAsText
   else
@@ -1951,6 +1967,9 @@ begin
       ZoomOut(FVScrollBar.Position + Y) - GetSectionTopFilm(FActiveSectionIndex));
     if ShowHint then
       ProcessHint;
+
+    if FStyle.UpdateInfo.Selecting then
+      AutoScrollTimer(True);
   end;
 
   CheckUpdateInfo;  // 可能需要高亮鼠标处Item
@@ -1965,6 +1984,10 @@ procedure THCView.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited MouseUp(Button, Shift, X, Y);
+
+  if FStyle.UpdateInfo.Selecting then
+    AutoScrollTimer(False);
+
   if Button = mbRight then Exit;  // 右键弹出菜单
   //GetSectionByCrood(FHScrollBar.Value + X, FVScrollBar.Value + Y, vSectionIndex);
   if FActiveSectionIndex >= 0 then  // 按下时在节中
@@ -2088,8 +2111,8 @@ procedure THCView.Paste;
   var
     vMem: Cardinal;
     vHtmlText: string;
-    vPHtml: PUTF8Char;
-    vList: TStringList;
+    vPHtml: PAnsiChar;  // PUTF8Char
+    //vList: TStringList;
   begin
     Clipboard.Open;
     try
@@ -2101,13 +2124,13 @@ procedure THCView.Paste;
       Clipboard.Close;
     end;
 
-    vList := TStringList.Create;
+    {vList := TStringList.Create;
     try
       vList.Text := vHtmlText;
       vList.SaveToFile('C:\html.txt');
     finally
       vList.Free;
-    end;
+    end;}
 
     if not ActiveSection.ParseHtml(vHtmlText) then
     begin
@@ -3016,6 +3039,15 @@ begin
   end;
 end;
 
+procedure THCView.SetPageNoFormat(const Value: string);
+begin
+  if FPageNoFormat <> Value then
+  begin
+    FPageNoFormat := Value;
+    UpdateView;
+  end;
+end;
+
 procedure THCView.SetPageScrollModel(const Value: THCPageScrollModel);
 begin
   if FViewModel = vmWeb then Exit;
@@ -3448,8 +3480,9 @@ begin
 end;
 
 procedure THCView.WndProc(var Message: TMessage);
-{var
-  DC: HDC;
+var
+  vPt: TPoint;
+{  DC: HDC;
   PS: TPaintStruct;}
 begin
   case Message.Msg of
@@ -3460,6 +3493,26 @@ begin
           Windows.SetFocus(Handle);
           if not Focused then
             Exit;
+        end;
+      end;
+
+    WM_TIMER:
+      begin
+        if Message.WParam = 2 then  // 划选时自动滚动
+        begin
+          GetCursorPos(vPt);
+          vPt := ScreenToClient(vPt);
+          if vPt.Y > Self.Height - FHScrollBar.Height then
+            FVScrollBar.Position := FVScrollBar.Position + 60
+          else
+          if vPt.Y < 0 then
+            FVScrollBar.Position := FVScrollBar.Position - 60;
+
+          if vPt.X > Self.Width - FVScrollBar.Width then
+            FHScrollBar.Position := FHScrollBar.Position + 60
+          else
+          if vPt.X < 0 then
+            FHScrollBar.Position := FHScrollBar.Position - 60;
         end;
       end;
     {WM_PAINT:

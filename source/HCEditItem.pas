@@ -115,7 +115,6 @@ begin
     ACanvas.TextOut(ADrawRect.Left + FMargin,// + (ADrawRect.Width - FMargin - ACanvas.TextWidth(FText) - FMargin) div 2,
       ADrawRect.Top + FMargin, FText);
 
-  //ACanvas.Pen.Width := 0;  // 保证Pen重新变动
   if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
     ACanvas.Pen.Color := clBlue
   else  // 鼠标不在其中或打印

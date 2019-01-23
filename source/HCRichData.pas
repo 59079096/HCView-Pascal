@@ -589,7 +589,14 @@ begin
         else  // Item部分选中
         begin
           if vEndItem.StyleNo < THCStyle.Null then  // 同一个RectItem  表格从前选中到一部分？
-            (vEndItem as THCCustomRectItem).DeleteSelected
+          begin
+            if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).MangerUndo then
+              UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+            else
+              UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
+            (vEndItem as THCCustomRectItem).DeleteSelected;
+          end
           else  // 同一个TextItem
           begin
             vText := vEndItem.Text;
@@ -803,7 +810,7 @@ begin
         _ReFormatData(vFormatFirstItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
       end;
 
-      for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo - vDelCount do  // 不允许删除的取消选中状态
+      for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo - vDelCount do
         Items[i].DisSelect;
 
       SelectInfo.EndItemNo := -1;
@@ -4879,9 +4886,24 @@ begin
   else
   if FSelecting then  // 划选
   begin
-    FMouseMoveItemNo := vMouseMoveItemNo;
-    FMouseMoveItemOffset := vMouseMoveItemOffset;
-    FMouseMoveRestrain := vRestrain;
+    if (Items[FMouseDownItemNo].StyleNo < THCStyle.Null)
+      and (FMouseDownItemOffset = OffsetInner)
+    then  // 按下时在RectItem上，划选限制在此RectItem里，否则要处理表格是第一个Item，
+    begin // 第一个单元格从后往前划选全部后移出表格后输入内容的替换到表格前面的问题。
+      FMouseMoveItemNo := FMouseDownItemNo;
+      FMouseMoveItemOffset := FMouseDownItemOffset;
+
+      if vMouseMoveItemNo = FMouseDownItemNo then  // 在按下的RectItem上移动
+        FMouseMoveRestrain := vRestrain
+      else  // 都视为约束
+        FMouseMoveRestrain := True;
+    end
+    else
+    begin
+      FMouseMoveItemNo := vMouseMoveItemNo;
+      FMouseMoveItemOffset := vMouseMoveItemOffset;
+      FMouseMoveRestrain := vRestrain;
+    end;
 
     AdjustSelectRange(FMouseDownItemNo, FMouseDownItemOffset,
       FMouseMoveItemNo, FMouseMoveItemOffset);  // 确定SelectRang

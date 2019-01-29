@@ -59,8 +59,9 @@ type
     constructor Create(const AOwnerData: THCCustomData); overload; virtual;
     /// <summary> 适用于加载时创建 </summary>
     constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); overload; virtual;
-    // 抽象方法，供继承
-    function ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch): Integer; virtual;
+
+    procedure ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch); virtual;
+    /// <summary> RectItem内部Data是否响应了修改样式 </summary>
     procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: THCParaMatch); virtual;
 
     // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
@@ -106,9 +107,6 @@ type
     procedure CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
       ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer;
       var ABreakSeat, AFmtOffset, AFmtHeightInc: Integer); virtual;
-
-    // 变动是否在分页处
-    function ChangeNearPageBreak: Boolean; virtual;
 
     function InsertItem(const AItem: THCCustomItem): Boolean; virtual;
     function InsertText(const AText: string): Boolean; virtual;
@@ -207,8 +205,8 @@ type
     procedure Assign(Source: THCCustomItem); override;
     function GetOffsetAt(const X: Integer): Integer; override;
     function JustifySplit: Boolean; override;
-    function ApplySelectTextStyle(const AStyle: THCStyle;
-      const AMatchStyle: THCStyleMatch): Integer; override;
+    procedure ApplySelectTextStyle(const AStyle: THCStyle;
+      const AMatchStyle: THCStyleMatch); override;
     procedure MarkStyleUsed(const AMark: Boolean); override;
     function SelectExists: Boolean; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
@@ -308,8 +306,8 @@ procedure THCCustomRectItem.ApplySelectParaStyle(const AStyle: THCStyle;
 begin
 end;
 
-function THCCustomRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
-  const AMatchStyle: THCStyleMatch): Integer;
+procedure THCCustomRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
+  const AMatchStyle: THCStyleMatch);
 begin
 end;
 
@@ -328,11 +326,6 @@ end;
 function THCCustomRectItem.CanConcatItems(const AItem: THCCustomItem): Boolean;
 begin
   Result := False;
-end;
-
-function THCCustomRectItem.ChangeNearPageBreak: Boolean;
-begin
-  Result := False;  // 需求见 201810172235
 end;
 
 procedure THCCustomRectItem.CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
@@ -370,7 +363,7 @@ constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create;
   FOwnerData := AOwnerData;
-  Self.ParaNo := AOwnerData.Style.CurParaNo;
+  Self.ParaNo := AOwnerData.CurParaNo;
   FOnGetMainUndoList := (AOwnerData as THCCustomData).OnGetUndoList;
   FWidth := 100;   // 默认尺寸
   FHeight := 50;
@@ -1048,11 +1041,10 @@ end;
 
 { THCTextRectItem }
 
-function THCTextRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
-  const AMatchStyle: THCStyleMatch): Integer;
+procedure THCTextRectItem.ApplySelectTextStyle(const AStyle: THCStyle;
+  const AMatchStyle: THCStyleMatch);
 begin
   FTextStyleNo := AMatchStyle.GetMatchStyleNo(AStyle, FTextStyleNo);
-  Result := FTextStyleNo;
 end;
 
 procedure THCTextRectItem.Assign(Source: THCCustomItem);
@@ -1064,8 +1056,8 @@ end;
 constructor THCTextRectItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  if AOwnerData.Style.CurStyleNo > THCStyle.Null then
-    FTextStyleNo := AOwnerData.Style.CurStyleNo
+  if AOwnerData.CurStyleNo > THCStyle.Null then
+    FTextStyleNo := AOwnerData.CurStyleNo
   else
     FTextStyleNo := 0;
 end;
@@ -1240,10 +1232,7 @@ begin
         Self.Width := 10  // 增加宽度以便输入时光标可方便点击
       else
       if vItem.StyleNo > THCStyle.Null then  // 后面是文本，跟随后面的高度
-      begin
-        ARichData.Style.TextStyles[vItem.StyleNo].ApplyStyle(ARichData.Style.DefCanvas);
-        Self.Height := ARichData.Style.DefCanvas.TextExtent('H').cy;
-      end;
+        Self.Height := ARichData.Style.TextStyles[vItem.StyleNo].FontHeight;
     end
     else
       Self.Width := 10;
@@ -1257,10 +1246,7 @@ begin
       Self.Width := 10
     else
     if vItem.StyleNo > THCStyle.Null then  // 前面是文本，距离前面的高度
-    begin
-      ARichData.Style.TextStyles[vItem.StyleNo].ApplyStyle(ARichData.Style.DefCanvas);
-      Self.Height := ARichData.Style.DefCanvas.TextExtent('H').cy;
-    end;
+      Self.Height := ARichData.Style.TextStyles[vItem.StyleNo].FontHeight;
   end;
 end;
 

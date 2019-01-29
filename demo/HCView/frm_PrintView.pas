@@ -24,6 +24,7 @@ type
     lbl3: TLabel;
     ud1: TUpDown;
     edtPrintPageNos: TEdit;
+    cbbZoom: TComboBox;
     procedure btnPrintClick(Sender: TObject);
     procedure pbPagePaint(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -43,6 +44,7 @@ type
       MousePos: TPoint; var Handled: Boolean);
     procedure FormMouseWheelUp(Sender: TObject; Shift: TShiftState;
       MousePos: TPoint; var Handled: Boolean);
+    procedure cbbZoomChange(Sender: TObject);
   private
     { Private declarations }
     FPageIndex, FDrawLeft, FDrawTop, FDrawWidth, FDrawHeight: Integer;
@@ -57,7 +59,7 @@ type
 implementation
 
 uses
-  CommCtrl;
+  CommCtrl, Math, HCCommon, HCUnitConversion;
 
 {$R *.dfm}
 
@@ -263,6 +265,12 @@ begin
   end;
 end;
 
+procedure TfrmPrintView.cbbZoomChange(Sender: TObject);
+begin
+  UpdateView;
+  pbPage.Invalidate;
+end;
+
 procedure TfrmPrintView.edtCopiesExit(Sender: TObject);
 begin
   if StrToIntDef(edtCopies.Text, 0) = 0 then
@@ -349,6 +357,7 @@ end;
 procedure TfrmPrintView.FormResize(Sender: TObject);
 begin
   UpdateView;
+  pbPage.Invalidate;
 end;
 
 procedure TfrmPrintView.FormShow(Sender: TObject);
@@ -437,8 +446,9 @@ var
   vSection, vSectionPageIndex: Integer;
   vPaintInfo: TSectionPaintInfo;
   vScaleInfo: TScaleInfo;
-  vBL: Single;
+  vZoom: Single;
 begin
+  vZoom := StrToIntDef(cbbZoom.Text, 100) / 100;
   // 根据页码获取起始节和结束节
   vSection := FHCView.GetSectionPageIndexByPageIndex(FPageIndex, vSectionPageIndex);
 
@@ -447,26 +457,29 @@ begin
     vPaintInfo.Print := True;
     vPaintInfo.SectionIndex := vSection;
 
-    vBL := FHCView.Sections[vSection].PageHeightPix / FHCView.Sections[vSection].PageWidthPix;  // 纵横比
+    FDrawWidth := Round(FHCView.Sections[vSection].PageWidthPix * vZoom);
+    FDrawHeight := Round(FHCView.Sections[vSection].PageHeightPix * vZoom);
 
-    FDrawTop := 20;
-    FDrawHeight := pbPage.Height - 40;
-    FDrawWidth := Round(FDrawHeight / vBL);
-    FDrawLeft := (pbPage.Width - FDrawWidth) div 2;
+    FDrawTop := Max((pbPage.Height - FDrawHeight) div 2, 0);
+    FDrawLeft := Max((pbPage.Width - FDrawWidth) div 2, 0);
 
-    if FDrawWidth + 40 > pbPage.Width then
+    //vBL := FHCView.Sections[vSection].PageHeightPix / FHCView.Sections[vSection].PageWidthPix;  // 纵横比
+
+    vPaintInfo.WindowWidth := FDrawWidth;
+    vPaintInfo.WindowHeight := FDrawHeight;
+
+    if FHCView.Sections[vSection].PageData.DataAnnotates.Count > 0 then
     begin
-      FDrawLeft := 20;
-      FDrawWidth := pbPage.Width - 40;
-      FDrawHeight := Round(FDrawWidth * vBL);
-      FDrawTop := (pbPage.Height - FDrawHeight) div 2;
+      vPaintInfo.Zoom := vZoom * FHCView.Sections[vSection].PageWidthPix / (FHCView.Sections[vSection].PageWidthPix + AnnotationWidth);
+      vPaintInfo.ScaleX := vPaintInfo.Zoom;
+      vPaintInfo.ScaleY := vPaintInfo.Zoom;
+    end
+    else
+    begin
+      vPaintInfo.ScaleX := vZoom;
+      vPaintInfo.ScaleY := vZoom;
+      vPaintInfo.Zoom := vZoom;
     end;
-
-    vPaintInfo.WindowWidth := FHCView.Sections[vSection].PageWidthPix;
-    vPaintInfo.WindowHeight := FHCView.Sections[vSection].PageHeightPix;
-    vPaintInfo.Zoom := FDrawHeight / FHCView.Sections[vSection].PageHeightPix;
-    vPaintInfo.ScaleX := FDrawHeight / FHCView.Sections[vSection].PageHeightPix;
-    vPaintInfo.ScaleY := FDrawHeight / FHCView.Sections[vSection].PageHeightPix;
 
     FBitmap.SetSize(FDrawWidth, FDrawHeight);
     FBitmap.Canvas.Brush.Color := FHCView.Style.BackgroudColor;

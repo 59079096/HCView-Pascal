@@ -170,6 +170,24 @@ object frmPrintView: TfrmPrintView
         OnExit = edtPageNoExit
         OnKeyPress = edtPageNoKeyPress
       end
+      object cbbZoom: TComboBox
+        Left = 160
+        Top = 10
+        Width = 76
+        Height = 21
+        Style = csDropDownList
+        ItemIndex = 2
+        TabOrder = 1
+        Text = '75'
+        OnChange = cbbZoomChange
+        Items.Strings = (
+          '25'
+          '50'
+          '75'
+          '100'
+          '150'
+          '200')
+      end
     end
   end
 end

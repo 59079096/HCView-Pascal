@@ -1056,7 +1056,6 @@ end;
 function _aoBeginWord(const Item: TAttrSelectorItem; E: THtmlElement): Boolean;
 var
   S: TStringDynArray;
-  I: Integer;
 begin
   Result := false;
   if not E.FAttributes.ContainsKey(Item.Key) then
@@ -1333,7 +1332,7 @@ var
 
 var
   ElementType: (EtUnknow, EtTag, EtDocType, EtText, EtComment);
-  ScrObj, Tag: THtmlElement;
+  Tag: THtmlElement;
   oldP, P: PChar;
   Tmp: string;
 begin
@@ -1676,7 +1675,7 @@ end;
 constructor THtmlElement.CreateAsTag(AOwner: THtmlElement; AText: string;
   ALine, ACol: Integer);
 var
-  Strs: TStringDynArray;
+  //Strs: TStringDynArray;
   I: Integer;
   Attrs: TAttributeDynArray;
 begin
@@ -1766,7 +1765,7 @@ procedure THtmlElement._FindElements(AList: TIHtmlElementList;
   const ATagName: WideString; const AAttributes: TAttributeDynArray;
   AOnlyInTopElement: Boolean);
 var
-  I, J: Integer;
+  I: Integer;
   C: IHtmlElement;
   E: THtmlElement;
 begin
@@ -1794,7 +1793,6 @@ function THtmlElement.FindElements(ATagName: WideString;
   AAttributes: WideString; AOnlyInTopElement: Boolean): IHtmlElementList;
 var
   LAttributes: TAttributeDynArray;
-  I: Integer;
   List: TIHtmlElementList;
   P: PChar;
   Attrs: string;
@@ -2168,7 +2166,6 @@ var
 
   procedure ParserItem(var P: PChar; var Item: TCSSSelectorItem);
   var
-    Tmp: string;
     pAttr: PAttrSelectorItem;
   begin
     SkipBlank(P);
@@ -2244,8 +2241,7 @@ var
   end;
 
 var
-  oldP, P: PChar;
-  Tag: string;
+  P: PChar;
   pitems: PCSSSelectorItems;
   pItem: PCSSSelectorItem;
 begin
@@ -2473,7 +2469,7 @@ const
 
 function ConvertEntities(S: String): string;
 var
-  I, J: Integer;
+  I: Integer;
   T: String;
   r: String;
 begin

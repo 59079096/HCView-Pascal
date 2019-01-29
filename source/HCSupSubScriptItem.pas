@@ -107,7 +107,11 @@ begin
       try
         vFont.Assign(ACanvas.Font);
         GetObject(vFont.Handle, SizeOf(vLogFont), @vLogFont);
-        vLogFont.lfHeight := -Round(ATextStyle.Size * 2 / 3 * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale);
+        if vLogFont.lfHeight < 0 then
+          vLogFont.lfHeight := -Round(ATextStyle.Size * 2 / 3 * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale)
+        else
+          vLogFont.lfHeight := Round(ATextStyle.Size * 2 / 3 * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale);
+
         vFont.Handle := CreateFontIndirect(vLogFont);
         ACanvas.Font.Assign(vFont);
       finally
@@ -190,10 +194,11 @@ var
   vStyle: THCStyle;
 begin
   vStyle := ARichData.Style;
-  ApplySupSubStyle(vStyle.TextStyles[TextStyleNo], vStyle.DefCanvas);
-  vH := vStyle.DefCanvas.TextHeight('H');
-  vTopW := Max(vStyle.DefCanvas.TextWidth(FSupText), FPadding);
-  vBottomW := Max(vStyle.DefCanvas.TextWidth(FSubText), FPadding);
+  ApplySupSubStyle(vStyle.TextStyles[TextStyleNo], vStyle.TempCanvas);
+  vH := vStyle.TempCanvas.TextHeight('H');
+  vTopW := Max(vStyle.TempCanvas.TextWidth(FSupText), FPadding);
+  vBottomW := Max(vStyle.TempCanvas.TextWidth(FSubText), FPadding);
+  vStyle.ApplyTempStyle(THCStyle.Null);
   // 计算尺寸
   if vTopW > vBottomW then  // 上面比下面宽
     Width := vTopW + 4 * FPadding
@@ -211,18 +216,18 @@ procedure THCSupSubScriptItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
-    ApplySupSubStyle(OwnerData.Style.TextStyles[TextStyleNo], OwnerData.Style.DefCanvas);
+    ApplySupSubStyle(OwnerData.Style.TextStyles[TextStyleNo], OwnerData.Style.TempCanvas);
     case FActiveArea of
       ceaTop:
         begin
           ACaretInfo.Height := FSupRect.Bottom - FSupRect.Top;
-          ACaretInfo.X := FSupRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(FSupText, 1, FCaretOffset));
+          ACaretInfo.X := FSupRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(FSupText, 1, FCaretOffset));
           ACaretInfo.Y := FSupRect.Top;
         end;
       ceaBottom:
         begin
           ACaretInfo.Height := FSubRect.Bottom - FSubRect.Top;
-          ACaretInfo.X := FSubRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(FSubText, 1, FCaretOffset));
+          ACaretInfo.X := FSubRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(FSubText, 1, FCaretOffset));
           ACaretInfo.Y := FSubRect.Top;
         end;
     end;
@@ -412,8 +417,8 @@ begin
 
   if FActiveArea <> TExpressArea.ceaNone then
   begin
-    ApplySupSubStyle(OwnerData.Style.TextStyles[TextStyleNo], OwnerData.Style.DefCanvas);
-    vOffset := GetCharOffsetAt(OwnerData.Style.DefCanvas, vS, vX);
+    ApplySupSubStyle(OwnerData.Style.TextStyles[TextStyleNo], OwnerData.Style.TempCanvas);
+    vOffset := GetCharOffsetAt(OwnerData.Style.TempCanvas, vS, vX);
   end
   else
     vOffset := -1;

@@ -21,15 +21,18 @@ type
 
   THCStyleMatch = class(TObject)  // 文本样式匹配类
   private
-    FAppend: Boolean;  // True添加对应样式
+    FAppend: Boolean;  // 添加还是去掉对应的样式 True添加
+    FLock: Boolean;  // 控制由第一个要应用样式的Item决定添加还是去掉样式，比如表格选中多个单元格应用样式时以第一个选中的第一个Item决定
     FOnTextStyle: TOnTextStyle;
   protected
+    procedure SetAppend(const Value: Boolean);
     function DoMatchCur(const ATextStyle: THCTextStyle): Boolean; virtual; abstract;
     procedure DoMatchNew(const ATextStyle: THCTextStyle); virtual; abstract;
   public
+    constructor Create;
     function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer;
     function StyleHasMatch(const AStyle: THCStyle; const ACurStyleNo: Integer): Boolean; virtual;
-    property Append: Boolean read FAppend write FAppend;
+    property Append: Boolean read FAppend write SetAppend;
     property OnTextStyle: TOnTextStyle read FOnTextStyle write FOnTextStyle;
   end;
 
@@ -199,6 +202,11 @@ end;
 
 { THCStyleMatch }
 
+constructor THCStyleMatch.Create;
+begin
+  FLock := False;
+end;
+
 function THCStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
   const ACurStyleNo: Integer): Integer;
 var
@@ -220,6 +228,15 @@ begin
     Result := AStyle.GetStyleNo(vTextStyle, True);  // 新样式编号
   finally
     vTextStyle.Free;
+  end;
+end;
+
+procedure THCStyleMatch.SetAppend(const Value: Boolean);
+begin
+  if (FAppend <> Value) and (not FLock) then
+  begin
+    FAppend := Value;
+    FLock := True;
   end;
 end;
 

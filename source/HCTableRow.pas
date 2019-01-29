@@ -18,7 +18,7 @@ uses
 
 const
   MinRowHeight = 20;
-  MinColWidth = 20;
+  MinColWidth = 20;  // 如果修改要和左缩进离边距的最小值匹配
   MaxListSize = Maxint div 16;
 
 type
@@ -49,7 +49,6 @@ type
     function Insert(Index: Integer; Item: Pointer): Boolean;
     procedure Clear;
     procedure Delete(Index: Integer);
-    function ClearFormatExtraHeight: Integer;
     //
     //function CalcFormatHeight: Integer;
     procedure SetRowWidth(const AWidth: Integer);
@@ -200,26 +199,6 @@ end;
 function THCTableRow.GetCols(Index: Integer): THCTableCell;
 begin
   Result := THCTableCell(Items[Index]);
-end;
-
-function THCTableRow.ClearFormatExtraHeight: Integer;
-var
-  i, vMaxDiff: Integer;
-begin
-  Result := FFmtOffset;
-  FFmtOffset := 0;
-  vMaxDiff := 0;
-  for i := 0 to ColCount - 1 do
-    vMaxDiff := Max(vMaxDiff, Cols[i].ClearFormatExtraHeight);
-
-  if vMaxDiff > 0 then
-  begin
-    for i := 0 to ColCount - 1 do
-      Self.Cols[i].Height := Self.Cols[i].Height - vMaxDiff;
-    FHeight := FHeight - vMaxDiff;
-  end;
-
-  Result := Result + vMaxDiff;
 end;
 
 function THCTableRow.GetItems(Index: Integer): Pointer;

@@ -14,12 +14,13 @@ unit HCUndoData;
 interface
 
 uses
-  Windows, Classes, HCCommon, HCUndo, HCCustomData, HCItem, HCStyle;
+  Windows, Classes, HCCommon, HCUndo, HCFormatData, HCItem, HCStyle;
 
 type
-  THCUndoData = class(THCCustomData)  // 支持撤销恢复功能的Data
+  THCUndoData = class(THCFormatData)  // 支持撤销恢复功能的Data
   private
-    FFormatFirstItemNo, FFormatLastItemNo, FUndoGroupCount, FItemAddCount: Integer;
+    FFormatFirstItemNo, FFormatFirstDrawItemNo, FFormatLastItemNo,
+      FUndoGroupCount, FItemAddCount: Integer;
     procedure DoUndoRedo(const AUndo: THCCustomUndo);
   protected
     // Item单独保存和读取事件
@@ -349,9 +350,8 @@ var
   end;
 
 var
-  i, j: Integer;
+  i: Integer;
   vUndoList: THCUndoList;
-  vUndo: THCCustomUndo;
 begin
   if AUndo is THCUndoGroupEnd then  // 组结束(无Actions)
   begin
@@ -377,12 +377,13 @@ begin
         if FFormatFirstItemNo <> FFormatLastItemNo then
         begin
           FFormatFirstItemNo := GetParaFirstItemNo(FFormatFirstItemNo);  // 取段第一个为起始
+          FFormatFirstDrawItemNo := Items[FFormatFirstItemNo].FirstDItemNo;
           FFormatLastItemNo := GetParaLastItemNo(FFormatLastItemNo);  // 取段最后一个为结束
         end
         else
-          GetReformatItemRange(FFormatFirstItemNo, FFormatLastItemNo, FFormatFirstItemNo, 0);
+          GetFormatRange(FFormatFirstItemNo, 1, FFormatFirstDrawItemNo, FFormatLastItemNo);
 
-        _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+        FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;
         Self.InitializeField;
@@ -397,7 +398,7 @@ begin
 
       if FUndoGroupCount = 0 then  // 组恢复结束
       begin
-        _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+        ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupEnd).Offset;
@@ -419,7 +420,7 @@ begin
 
       if FUndoGroupCount = 0 then  // 组撤销结束
       begin
-        _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+        ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupBegin).Offset;
@@ -434,8 +435,9 @@ begin
       if FUndoGroupCount = 0 then  // 组恢复开始
       begin
         FFormatFirstItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
+        FFormatFirstDrawItemNo := Items[FFormatFirstItemNo].FirstDItemNo;
         FFormatLastItemNo := FFormatFirstItemNo;
-        _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+        FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;
         Self.InitializeField;
@@ -468,7 +470,8 @@ begin
       FFormatLastItemNo := GetParaLastItemNo(GetActionAffect(AUndo.Actions.Last));
     end;
 
-    _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+    FFormatFirstDrawItemNo := Items[FFormatFirstItemNo].FirstDItemNo;
+    FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
   end;
 
   if AUndo.IsUndo then  // 撤销
@@ -487,7 +490,7 @@ begin
 
   if FUndoGroupCount = 0 then
   begin
-    _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+    ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
     if vCaretDrawItemNo < 0 then
       vCaretDrawItemNo := GetDrawItemNoByOffset(vCaretItemNo, vCaretOffset)

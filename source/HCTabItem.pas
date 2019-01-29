@@ -39,8 +39,8 @@ var
 begin
   inherited Create(AOwnerData);
   StyleNo := THCStyle.Tab;
-  AOwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(AOwnerData.Style.DefCanvas);
-  vSize := AOwnerData.Style.DefCanvas.TextExtent('ºº×Ö');  // Ä¬ÈÏ2¸öºº×Ö
+  AOwnerData.Style.ApplyTempStyle(TextStyleNo);
+  vSize := AOwnerData.Style.TempCanvas.TextExtent('ºº×Ö');  // Ä¬ÈÏ2¸öºº×Ö
   Width := vSize.cx;
   Height := vSize.cy;
 end;

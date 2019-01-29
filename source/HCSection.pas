@@ -90,7 +90,7 @@ type
     FOnInsertItem, FOnRemoveItem: TSectionDataItemNotifyEvent;
     FOnItemMouseUp: TSectionDataItemMouseEvent;
     FOnItemResize: TDataItemEvent;
-    FOnCreateItem: TNotifyEvent;
+    FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
     FOnGetUndoList: TGetUndoListEvent;
@@ -133,6 +133,7 @@ type
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
     function DoDataCanEdit(const Sender: TObject): Boolean;
     procedure DoDataCreateItem(Sender: TObject);
+    procedure DoDataCurParaNoChange(Sender: TObject);
     function DoDataGetUndoList: THCUndoList;
 
     /// <summary> 返回页面Data指定DrawItem所在的页(跨页的按最后位置所在页) </summary>
@@ -152,6 +153,9 @@ type
 
     function GetReadOnly: Boolean;
     procedure SetReadOnly(const Value: Boolean);
+    procedure SetActivePageIndex(const Value: Integer);
+    function GetCurStyleNo: Integer;
+    function GetCurParaNo: Integer;
   protected
     procedure KillFocus;
 
@@ -313,7 +317,7 @@ type
 
     /// <summary> 从正文指定Item开始重新计算页 </summary>
     /// <param name="AStartItemNo"></param>
-    procedure BuildSectionPages(const AStartItemNo: Integer);
+    procedure BuildSectionPages(const AStartDrawItemNo: Integer);
     function DeleteSelected: Boolean;
     procedure DisSelect;
     function MergeTableSelectCells: Boolean;
@@ -365,6 +369,8 @@ type
     property Header: THCHeaderData read FHeader;
     property Footer: THCFooterData read FFooter;
     property PageData: THCPageData read FPageData;
+    property CurStyleNo: Integer read GetCurStyleNo;
+    property CurParaNo: Integer read GetCurParaNo;
 
     /// <summary> 当前文档激活区域(页眉、页脚、页面)的数据对象 </summary>
     property ActiveData: THCSectionData read FActiveData write SetActiveData;
@@ -407,6 +413,8 @@ type
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
+    property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
+    property OnActivePageChange: TNotifyEvent read FOnActivePageChange write FOnActivePageChange;
   end;
 
   THCSection = class(THCCustomSection)
@@ -543,8 +551,19 @@ end;
 procedure THCCustomSection.ApplyParaLeftIndent(const AIndent: Single);
 begin
   ActiveDataChangeByAction(function(): Boolean
+    var
+      vContentWidth: Single;
     begin
-      FActiveData.ApplyParaLeftIndent(AIndent);
+      if AIndent < 0 then
+        FActiveData.ApplyParaLeftIndent(0)
+      else
+      begin
+        vContentWidth := FPageSize.PaperWidth - FPageSize.PaperMarginLeft - FPageSize.PaperMarginRight;
+        if AIndent > vContentWidth - 5 then
+          FActiveData.ApplyParaLeftIndent(vContentWidth - 5)
+        else
+          FActiveData.ApplyParaLeftIndent(AIndent);
+      end;
     end);
 end;
 
@@ -636,6 +655,7 @@ var
     AData.OnRemoveAnnotate := DoDataRemoveAnnotate;
     AData.OnDrawItemAnnotate := DoDataDrawItemAnnotate;
     AData.OnGetUndoList := DoDataGetUndoList;
+    AData.OnCurParaNoChange := DoDataCurParaNoChange;
   end;
 
 begin
@@ -743,6 +763,12 @@ begin
     Result := nil;
 end;
 
+procedure THCCustomSection.DoDataCurParaNoChange(Sender: TObject);
+begin
+  if Assigned(FOnCurParaNoChange) then
+    FOnCurParaNoChange(Sender);
+end;
+
 procedure THCCustomSection.DoDataInsertAnnotate(const AData: THCCustomData;
   const ADataAnnotate: THCDataAnnotate);
 begin
@@ -821,7 +847,7 @@ begin
   if vData = FFooter then
     vHeight := FPageSize.PageMarginBottomPix
   else
-  if vData = FPageData then
+  //if vData = FPageData then
     vHeight := GetContentHeight;// - FStyle.ParaStyles[vResizeItem.ParaNo].LineSpace;
 
   vResizeItem.RestrainSize(vWidth, vHeight);
@@ -878,12 +904,22 @@ begin
   end;
 end;
 
+procedure THCCustomSection.SetActivePageIndex(const Value: Integer);
+begin
+  if FActivePageIndex <> Value then
+  begin
+    FActivePageIndex := Value;
+    if Assigned(FOnActivePageChange) then
+      FOnActivePageChange(Self);
+  end;
+end;
+
 procedure THCCustomSection.FormatData;
 begin
   FActiveData.DisSelect;  // 先清选中，防止格式化后选中位置不存在
-  FHeader.ReFormat(0);
-  Footer.ReFormat(0);
-  FPageData.ReFormat(0);
+  FHeader.ReFormat;
+  Footer.ReFormat;
+  FPageData.ReFormat;
 end;
 
 function THCCustomSection.GetPageIndexByCurrent: Integer;
@@ -972,6 +1008,16 @@ end;
 function THCCustomSection.GetCurItem: THCCustomItem;
 begin
   Result := FActiveData.GetCurItem;
+end;
+
+function THCCustomSection.GetCurParaNo: Integer;
+begin
+  Result := FActiveData.GetTopLevelData.CurParaNo;
+end;
+
+function THCCustomSection.GetCurStyleNo: Integer;
+begin
+  Result := FActiveData.GetTopLevelData.CurStyleNo;
 end;
 
 function THCCustomSection.GetReadOnly: Boolean;
@@ -1155,7 +1201,7 @@ begin
       if vPageIndex <> vMarginLeft then  // 表格第一行一部分跨页时，点击下一页同行无内容的单元格光标回到上一页
       begin
         vPageIndex := vMarginLeft;
-        FActivePageIndex := vPageIndex;
+        SetActivePageIndex(vPageIndex);
       end;
     end;
 
@@ -1347,39 +1393,16 @@ begin
 end;
 
 function THCCustomSection.ActiveDataChangeByAction(const AFunction: THCFunction): Boolean;
-var
-  vOldHeight, vDrawItemCount, vCurItemNo, vNewItemNo: Integer;
-  vItemChangeNearPageBreak: Boolean;
 begin
   if not FActiveData.CanEdit then Exit(False);
   if FActiveData.FloatItemIndex >= 0 then Exit(False);
 
-  // 记录变动前的状态
-  vOldHeight := FActiveData.Height;
-  // 应用选中文本样式等操作，并不引起高度变化，但会引起DrawItem数量变化
-  // 也需要重新计算各页起始结束DrawItem
-  vDrawItemCount := FActiveData.DrawItems.Count;  // 变动前的DrawItem数量
-  vCurItemNo := FActiveData.GetCurItemNo;
-
-  if (vCurItemNo >= 0) and (ActiveData.Items[vCurItemNo].StyleNo < THCStyle.Null) then
-    vItemChangeNearPageBreak := (FActiveData.Items[vCurItemNo] as THCCustomRectItem).ChangeNearPageBreak  // 是否在此页开头或结尾分页
-  else
-    vItemChangeNearPageBreak := False;
-
   Result := AFunction;  // 处理变动
 
-  // 变动后的状态
-  vNewItemNo := FActiveData.GetCurItemNo;  // 变动后的当前ItemNo
-  if vNewItemNo < 0 then  // 如果变动后小于0，修正为第0个
-    vNewItemNo := 0;
-
-  if (vDrawItemCount <> FActiveData.DrawItems.Count)  // DrawItem数量变化了
-    or (vOldHeight <> FActiveData.Height)  // 数据高度变化了
-    or vItemChangeNearPageBreak  // 在分页处变动一定要重绘 原因见 201810172235
-  then
+  if FActiveData.FormatHeightChange or FActiveData.FormatDrawItemChange then  // 数据高度变化了
   begin
     if FActiveData = FPageData then
-      BuildSectionPages(Min(Min(vCurItemNo, vNewItemNo), FPageData.ReFormatStartItemNo))
+      BuildSectionPages(FActiveData.FormatStartDrawItemNo)
     else
       BuildSectionPages(0);
   end;
@@ -1446,7 +1469,7 @@ begin
       VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
         begin
           FActiveData.KeyDown(Key, Shift);
-          FActivePageIndex := GetPageIndexByCurrent;  // 方向键可能移动到了其他页
+          SetActivePageIndex(GetPageIndexByCurrent);  // 方向键可能移动到了其他页
           DoActiveDataCheckUpdateInfo;
         end;
     end;
@@ -1568,7 +1591,7 @@ begin
   vOldTopData := FActiveData.GetTopLevelData;
   vPageIndex := GetPageIndexByFilm(Y);  // 鼠标点击处所在的页(和光标所在页可能并不是同一页，如表格跨页时，空单元格第二页点击时，光标回前一页)
   if FActivePageIndex <> vPageIndex then
-    FActivePageIndex := vPageIndex;
+    SetActivePageIndex(vPageIndex);
 
   {$REGION ' 有FloatItem时短路 '}
   if FActiveData.FloatItems.Count > 0 then  // 有FloatItem时优先
@@ -1798,7 +1821,7 @@ begin
   else
   if AData = FPageData then  // 约束到正文绝对区域中
   begin
-    viTemp := GetHeaderAreaHeight;
+    //viTemp := GetHeaderAreaHeight;
     AY := AY - GetHeaderAreaHeight;
     if ARestrain then  // 为避免上一页脚下一页眉边界不确定是上还是下，约束后都偏移1
     begin
@@ -1865,6 +1888,7 @@ var
           vPageDrawRight - vMarginRight, vHeaderDataDrawBottom), ACanvas, APaintInfo);
       finally
         Windows.RestoreDC(ACanvas.Handle, vDCState);
+        ACanvas.Refresh;
       end;
     end;
   end;
@@ -1894,6 +1918,7 @@ var
           vPageDrawRight - vMarginRight, vPageDrawBottom), ACanvas, APaintInfo);
       finally
         Windows.RestoreDC(ACanvas.Handle, vDCState);
+        ACanvas.Refresh;
       end;
     end;
   end;
@@ -1934,6 +1959,7 @@ var
           vPageDrawBottom - PageMarginBottomPix), ACanvas, APaintInfo);
       finally
         Windows.RestoreDC(ACanvas.Handle, vDCState);
+        ACanvas.Refresh;
       end;
     end;
   end;
@@ -2159,7 +2185,7 @@ begin
   end;
 end;
 
-procedure THCCustomSection.BuildSectionPages(const AStartItemNo: Integer);
+procedure THCCustomSection.BuildSectionPages(const AStartDrawItemNo: Integer);
 var
   vPageIndex, vPageDataFmtTop, vPageDataFmtBottom, vContentHeight: Integer;
 
@@ -2223,7 +2249,7 @@ var
         vDrawRect := FPageData.DrawItems[ADrawItemNo].Rect;
 
         //if vSuplus = 0 then  // 第一次计算分页
-          InflateRect(vDrawRect, 0, -FPageData.GetLineBlankSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去掉行间距能放下不换页的效果
+        InflateRect(vDrawRect, 0, -FPageData.GetLineBlankSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去掉行间距能放下不换页的效果
 
         vRectItem.CheckFormatPageBreak(  // 去除行间距后，判断表格跨页位置
           FPages.Count - 1,
@@ -2311,16 +2337,19 @@ var
   i, vPrioDrawItemNo: Integer;
   vPage: THCPage;
 begin
-  if AStartItemNo > 0 then
-    vPrioDrawItemNo := FPageData.GetItemLastDrawItemNo(AStartItemNo - 1)  // 上一个最后的DItem
-  else
-    vPrioDrawItemNo := -1;
+  // 上一行所在页作为格式化起始页
+  vPrioDrawItemNo := AStartDrawItemNo; // FPageData.GetItemLastDrawItemNo(AStartItemNo - 1)  // 上一个最后的DItem
+  while vPrioDrawItemNo > 0 do
+  begin
+    if FPageData.DrawItems[vPrioDrawItemNo].LineFirst then
+      Break;
 
-  // 上一个DrawItemNo所在页作为格式化起始页
-  vPageIndex := -1;
-  if vPrioDrawItemNo < 0 then  // 没有DrawItem按第0页
-    vPageIndex := 0
-  else  // 指定了DrawItemNo
+    Dec(vPrioDrawItemNo);
+  end;
+  Dec(vPrioDrawItemNo);  // 上一行末尾
+
+  vPageIndex := 0;
+  if vPrioDrawItemNo > 0 then
   begin
     for i := FPages.Count - 1 downto 0 do  // 对于跨页的，按最后位置所在页，所以倒序
     begin
@@ -2335,32 +2364,32 @@ begin
     end;
   end;
 
-  // 因为行首可能是分页，所以需要从行首开始判断跨页
-  for i := FPageData.Items[AStartItemNo].FirstDItemNo downto 0 do
-  begin
-    if FPageData.DrawItems[i].LineFirst then
-    begin
-      vPrioDrawItemNo := i;
-      Break;
-    end;
-  end;
+//  // 因为行首可能是分页，所以需要从行首开始判断跨页
+//  for i := FPageData.Items[AStartItemNo].FirstDItemNo downto 0 do
+//  begin
+//    if FPageData.DrawItems[i].LineFirst then
+//    begin
+//      vPrioDrawItemNo := i;
+//      Break;
+//    end;
+//  end;
 
-  if vPrioDrawItemNo = FPages[vPageIndex].StartDrawItemNo then  // 行首是页的第一个DrawItem
-  begin
-    FPages.DeleteRange(vPageIndex, FPages.Count - vPageIndex);  // 删除当前页一直到最后
-
-    // 从上一页最后开始计算分页
-    Dec(vPageIndex);
-    if vPageIndex >= 0 then
-      FPages[vPageIndex].EndDrawItemNo := -1;
-  end
-  else  // 行首不是页的第一个DrawItem
+//  if vPrioDrawItemNo = FPages[vPageIndex].StartDrawItemNo then  // 行首是页的第一个DrawItem
+//  begin
+//    FPages.DeleteRange(vPageIndex, FPages.Count - vPageIndex);  // 删除当前页一直到最后
+//
+//    // 从上一页最后开始计算分页
+//    Dec(vPageIndex);
+//    if vPageIndex >= 0 then
+//      FPages[vPageIndex].EndDrawItemNo := -1;
+//  end
+//  else  // 行首不是页的第一个DrawItem
     FPages.DeleteRange(vPageIndex + 1, FPages.Count - vPageIndex - 1);  // 删除当前页后面的，准备格式化
 
   if FPages.Count = 0 then  // 删除没了，补充第一个Page
   begin
     vPage := THCPage.Create;
-    vPage.StartDrawItemNo := vPrioDrawItemNo;
+    vPage.StartDrawItemNo := 0;
     FPages.Add(vPage);
     vPageIndex := 0;
   end;
@@ -2369,7 +2398,7 @@ begin
   vContentHeight := GetContentHeight;
   vPageDataFmtBottom := vPageDataFmtTop + vContentHeight;
 
-  for i := vPrioDrawItemNo to FPageData.DrawItems.Count - 1 do
+  for i := vPrioDrawItemNo + 1 to FPageData.DrawItems.Count - 1 do
   begin
     if FPageData.DrawItems[i].LineFirst then
     begin
@@ -2381,7 +2410,7 @@ begin
   end;
 
   FPages[vPageIndex].EndDrawItemNo := FPageData.DrawItems.Count - 1;
-  FActivePageIndex := GetPageIndexByCurrent;
+  SetActivePageIndex(GetPageIndexByCurrent);
 
   for i := FPageData.FloatItems.Count - 1 downto 0 do  // 正文中删除页序号超过页总数的FloatItem
   begin

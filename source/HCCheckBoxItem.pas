@@ -104,11 +104,12 @@ begin
     ACanvas.FillRect(ADrawRect);
   end;
 
+  ACanvas.Brush.Style := bsClear;
+
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
   ACanvas.TextOut(ADrawRect.Left + FMargin + CheckBoxSize + FMargin,
     ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2, FText);
 
-  ACanvas.Brush.Style := bsClear;
   if FChecked then  // ¹´Ñ¡
   begin
     //ACanvas.Font.Size := 10;
@@ -141,8 +142,8 @@ var
 begin
   if Self.AutoSize then
   begin
-    ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
-    vSize := ARichData.Style.DefCanvas.TextExtent(FText);
+    ARichData.Style.ApplyTempStyle(TextStyleNo);
+    vSize := ARichData.Style.TempCanvas.TextExtent(FText);
     Width := FMargin + CheckBoxSize + FMargin + vSize.cx;  // ¼ä¾à
     Height := Max(vSize.cy, CheckBoxSize);
   end;

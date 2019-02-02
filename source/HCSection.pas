@@ -319,6 +319,7 @@ type
     /// <param name="AStartItemNo"></param>
     procedure BuildSectionPages(const AStartDrawItemNo: Integer);
     function DeleteSelected: Boolean;
+    function DeleteActiveDomain: Boolean;
     procedure DisSelect;
     function MergeTableSelectCells: Boolean;
     procedure ReFormatActiveParagraph;
@@ -692,6 +693,14 @@ begin
   NewEmptyPage;           // ´´½¨¿Õ°×Ò³
   FPages[0].StartDrawItemNo := 0;
   FPages[0].EndDrawItemNo := 0;
+end;
+
+function THCCustomSection.DeleteActiveDomain: Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.DeleteActiveDomain;
+    end);
 end;
 
 function THCCustomSection.DeleteSelected: Boolean;

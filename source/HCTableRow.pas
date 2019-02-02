@@ -39,7 +39,7 @@ type
     procedure SetItems(Index: Integer; const Value: Pointer);
     procedure SetColCount(const Value: Integer);
   protected
-    function GetCols(Index: Integer): THCTableCell;
+    function GetCols(const Index: Integer): THCTableCell;
 
     property Items[Index: Integer]: Pointer read GetItems write SetItems; default;
   public
@@ -61,7 +61,7 @@ type
     property ColCount: Integer read FColCount write SetColCount;
     //property List: PCellDataList read FList;
     //
-    property Cols[Index: Integer]: THCTableCell read GetCols;
+    property Cols[const Index: Integer]: THCTableCell read GetCols;
 
     /// <summary> 当前行中所有没有发生合并单元格的高度(含CellVPadding * 2因为会受有合并列的影响，所以>=数据高度) </summary>
     property Height: Integer read FHeight write SetHeight;
@@ -196,7 +196,7 @@ begin
   inherited;
 end;
 
-function THCTableRow.GetCols(Index: Integer): THCTableCell;
+function THCTableRow.GetCols(const Index: Integer): THCTableCell;
 begin
   Result := THCTableCell(Items[Index]);
 end;

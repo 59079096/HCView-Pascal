@@ -215,7 +215,8 @@ type
     function InsertItem(const AItem: THCCustomItem): Boolean; override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
-
+    procedure ReFormatActiveItem; override;
+    function DeleteActiveDomain: Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function IsSelectComplateTheory: Boolean; override;
@@ -243,7 +244,7 @@ type
     procedure AdjustCellRange(const AStartRow, AStartCol: Integer;
       var AEndRow, AEndCol: Integer);
     function MergeCells(const AStartRow, AStartCol, AEndRow, AEndCol: Integer):Boolean;
-    function GetCells(ARow, ACol: Integer): THCTableCell;
+    function GetCells(const ARow, ACol: Integer): THCTableCell;
     function GetColWidth(AIndex: Integer): Integer;
     procedure SetColWidth(AIndex: Integer; const AWidth: Integer);
     function InsertCol(const ACol, ACount: Integer): Boolean;
@@ -343,7 +344,7 @@ type
     function SplitCurRow: Boolean;
     function SplitCurCol: Boolean;
 
-    property Cells[ARow, ACol: Integer]: THCTableCell read GetCells;
+    property Cells[const ARow, ACol: Integer]: THCTableCell read GetCells;
     property ColWidth[AIndex: Integer]: Integer read GetColWidth write SetColWidth;
     property Rows: THCTableRows read FRows;
     property RowCount: Integer read GetRowCount;
@@ -556,6 +557,29 @@ begin
   end
   else
     inherited DblClick(X, Y);
+end;
+
+function THCTableItem.DeleteActiveDomain: Boolean;
+var
+  vResult: Boolean;
+begin
+  inherited DeleteActiveDomain;
+
+  Self.SizeChanged := False;
+
+  if FSelectCellRang.EditCell then  // 在同一单元格中编辑
+  begin
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      var
+        vEditCell: THCTableCell;
+      begin
+        vEditCell := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol];
+        vResult := vEditCell.CellData.DeleteActiveDomain;
+      end);
+
+    Result := vResult;
+  end;
 end;
 
 function THCTableItem.DeleteCol(const ACol: Integer): Boolean;
@@ -2174,6 +2198,23 @@ begin
     FRows[i].ParseXml(ANode.ChildNodes[i]);
 end;
 
+procedure THCTableItem.ReFormatActiveItem;
+begin
+  Self.SizeChanged := False;
+
+  if FSelectCellRang.EditCell then  // 在同一单元格中编辑
+  begin
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      var
+        vEditCell: THCTableCell;
+      begin
+        vEditCell := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol];
+        vEditCell.CellData.ReFormatActiveItem;
+      end);
+  end;
+end;
+
 function THCTableItem.RowCanDelete(const ARow: Integer): Boolean;
 var
   vCol: Integer;
@@ -2253,7 +2294,7 @@ begin
     Result := vCell.CellData.GetHint;
 end;
 
-function THCTableItem.GetCells(ARow, ACol: Integer): THCTableCell;
+function THCTableItem.GetCells(const ARow, ACol: Integer): THCTableCell;
 begin
   Result := FRows[ARow].Cols[ACol];
 end;

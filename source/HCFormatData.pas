@@ -1054,8 +1054,13 @@ procedure THCFormatData.ReFormatActiveItem;
 var
   vFirstDrawItemNo, vLastItemNo: Integer;
 begin
+  if Self.SelectExists then Exit;
+
   if SelectInfo.StartItemNo >= 0 then
   begin
+    if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
+      (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ReFormatActiveItem;
+
     GetFormatRange(vFirstDrawItemNo, vLastItemNo);
     FormatPrepare(vFirstDrawItemNo, vLastItemNo);
     ReFormatData(vFirstDrawItemNo, vLastItemNo);
@@ -1156,7 +1161,7 @@ var
   vDrawItemNo, vOffset: Integer;
 begin
   SelectInfo.StartItemNo := AItemNo;
-  SelectInfo.StartItemOffset := vOffset;
+  SelectInfo.StartItemOffset := AOffset;
 
   if FFormatCount <> 0 then Exit;
 

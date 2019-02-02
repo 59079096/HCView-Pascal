@@ -65,7 +65,6 @@ type
     procedure SetCurParaNo(const Value: Integer);
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
-
     /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
     procedure MatchItemSelectState;
 
@@ -106,6 +105,8 @@ type
     function CalculateLineHeight(const ACanvas: TCanvas;
       const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
     function GetUndoList: THCUndoList;
+    procedure DoInsertItem(const AItem: THCCustomItem); virtual;
+    procedure DoRemoveItem(const AItem: THCCustomItem); virtual;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); virtual;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
@@ -630,6 +631,9 @@ begin
   FStyle := AStyle;
   FDrawItems := THCDrawItems.Create;
   FItems := THCItems.Create;
+  FItems.OnInsertItem := DoInsertItem;
+  FItems.OnRemoveItem := DoRemoveItem;
+
   FCurStyleNo := 0;
   FCurParaNo := 0;
   FCaretDrawItemNo := -1;
@@ -797,8 +801,16 @@ procedure THCCustomData.DoDrawItemPaintContent(const AData: THCCustomData;
 begin
 end;
 
+procedure THCCustomData.DoInsertItem(const AItem: THCCustomItem);
+begin
+end;
+
 procedure THCCustomData.DoItemAction(const AItemNo, AOffset: Integer;
   const AAction: THCItemAction);
+begin
+end;
+
+procedure THCCustomData.DoRemoveItem(const AItem: THCCustomItem);
 begin
 end;
 

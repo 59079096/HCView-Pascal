@@ -78,9 +78,6 @@ type
     FOnInsertAnnotate, FOnRemoveAnnotate: TDataAnnotateEvent;
     FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
 
-    procedure DoInsertItem(const AItem: THCCustomItem);
-    procedure DoRemoveItem(const AItem: THCCustomItem);
-
     /// <summary> 获取指定的DrawItem所属的批注以及在各批注中的区域 </summary>
     /// <param name="ADrawItemNo"></param>
     /// <param name="ACanvas">应用了DrawItem样式的Canvas</param>
@@ -95,8 +92,8 @@ type
 
     function GetDrawItemFirstDataAnnotateAt(const ADrawItemNo, X, Y: Integer): THCDataAnnotate;
   protected
-    procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
-    procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
+    procedure DoInsertItem(const AItem: THCCustomItem); override;
+    procedure DoRemoveItem(const AItem: THCCustomItem); override;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); override;
     procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string;
@@ -226,8 +223,6 @@ begin
   inherited Create(AStyle);
   FHotAnnotate := nil;
   FActiveAnnotate := nil;
-  Self.Items.OnInsertItem := DoInsertItem;
-  Self.Items.OnRemoveItem := DoRemoveItem;
 end;
 
 destructor THCAnnotateData.Destroy;
@@ -235,20 +230,6 @@ begin
   FDataAnnotates.Free;
   FDrawItemAnnotates.Free;
   inherited Destroy;
-end;
-
-procedure THCAnnotateData.DoDataInsertItem(const AData: THCCustomData;
-  const AItem: THCCustomItem);
-begin
-  if Assigned(FOnInsertItem) then
-    FOnInsertItem(AData, AItem);
-end;
-
-procedure THCAnnotateData.DoDataRemoveItem(const AData: THCCustomData;
-  const AItem: THCCustomItem);
-begin
-  if Assigned(FOnRemoveItem) then
-    FOnRemoveItem(AData, AItem);
 end;
 
 procedure THCAnnotateData.DoDrawItemPaintContent(const AData: THCCustomData;
@@ -316,7 +297,10 @@ end;
 
 procedure THCAnnotateData.DoInsertItem(const AItem: THCCustomItem);
 begin
-  DoDataInsertItem(Self, AItem);
+  inherited DoInsertItem(AItem);
+
+  if Assigned(FOnInsertItem) then
+    FOnInsertItem(Self, AItem);
 end;
 
 procedure THCAnnotateData.DoItemAction(const AItemNo, AOffset: Integer;
@@ -487,7 +471,10 @@ end;
 
 procedure THCAnnotateData.DoRemoveItem(const AItem: THCCustomItem);
 begin
-  DoDataRemoveItem(Self, AItem);
+  inherited DoRemoveItem(AItem);
+
+  if Assigned(FOnRemoveItem) then
+    FOnRemoveItem(Self, AItem);
 end;
 
 function THCAnnotateData.DrawItemOfAnnotate(const ADrawItemNo: Integer;

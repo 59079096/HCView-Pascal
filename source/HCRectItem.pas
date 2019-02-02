@@ -69,7 +69,9 @@ type
 
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer; virtual;
+    procedure ReFormatActiveItem; virtual;
     function DeleteSelected: Boolean; virtual;
+    function DeleteActiveDomain: Boolean; virtual;
     procedure MarkStyleUsed(const AMark: Boolean); virtual;
     procedure SaveSelectToStream(const AStream: TStream); virtual;
     function SaveSelectToText: string; virtual;
@@ -134,7 +136,6 @@ type
 
     /// <summary> 返回指定位置处的顶层Data(为松耦合请返回TCustomRichData类型) </summary>
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
-
     procedure TraverseItem(const ATraverse: TItemTraverse); virtual;
     procedure SaveToBitmap(var ABitmap: TBitmap); virtual;
     //
@@ -380,6 +381,11 @@ begin
   Height := AHeight;
 end;
 
+function THCCustomRectItem.DeleteActiveDomain: Boolean;
+begin
+  Result := False;
+end;
+
 function THCCustomRectItem.DeleteSelected: Boolean;
 begin
   Result := False;
@@ -582,6 +588,10 @@ begin
   end
   else
     inherited Redo(ARedoAction);
+end;
+
+procedure THCCustomRectItem.ReFormatActiveItem;
+begin
 end;
 
 procedure THCCustomRectItem.SaveSelectToStream(const AStream: TStream);

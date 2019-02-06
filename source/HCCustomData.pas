@@ -90,6 +90,8 @@ type
     /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
     procedure MatchItemSelectState;
 
+    function _CalculateLineSpacingBy(const ACanvas: TCanvas;
+      const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
     /// <summary>
     /// 转换指定Item指定Offs格式化为DItem
     /// </summary>
@@ -920,7 +922,10 @@ begin
   begin
     vCanvas := THCStyle.CreateStyleCanvas;
     try
-      FStyle.TextStyles[GetDrawItemStyle(ADrawNo)].ApplyStyle(vCanvas);
+      Result := _CalculateLineSpacingBy(vCanvas,
+        FStyle.TextStyles[GetDrawItemStyle(ADrawNo)],
+        FStyle.ParaStyles[GetDrawItemParaStyle(ADrawNo)].LineSpaceMode);
+      {FStyle.TextStyles[GetDrawItemStyle(ADrawNo)].ApplyStyle(vCanvas);
       GetTextMetrics(vCanvas.Handle, vTextMetric);
 
       case FStyle.ParaStyles[GetDrawItemParaStyle(ADrawNo)].LineSpaceMode of
@@ -933,7 +938,7 @@ begin
         pls200: Result := vTextMetric.tmExternalLeading + vTextMetric.tmHeight + vTextMetric.tmExternalLeading;
 
         plsFix: Result := LineSpaceMin;
-      end;
+      end; }
     finally
       THCStyle.DestroyStyleCanvas(vCanvas);
     end;
@@ -2273,8 +2278,12 @@ begin
     DoFormatRectItemToDrawItem;
   end
   else  // 文本
-  begin
-    FStyle.TextStyles[vItem.StyleNo].ApplyStyle(FStyle.DefCanvas);
+  begin  // 可以记录上一个格式化应用的StyleNo，判断不必要的重复Apply
+    vItemHeight := _CalculateLineSpacingBy(FStyle.DefCanvas,
+      FStyle.TextStyles[vItem.StyleNo], FStyle.ParaStyles[vItem.ParaNo].LineSpaceMode);
+
+    {FStyle.TextStyles[vItem.StyleNo].ApplyStyle(FStyle.DefCanvas);
+
     vItemHeight := THCStyle.GetFontHeight(FStyle.DefCanvas);  // + vParaStyle.LineSpace;  // 行高
 
     GetTextMetrics(FStyle.DefCanvas.Handle, vTextMetric);  // 得到字体信息
@@ -2289,7 +2298,8 @@ begin
       pls200: vItemHeight := vItemHeight + vTextMetric.tmExternalLeading + vTextMetric.tmHeight + vTextMetric.tmExternalLeading;
 
       plsFix: vItemHeight := vItemHeight + LineSpaceMin;
-    end;
+    end;}
+
     //Windows.GetTextExtentPoint32(FStyle.DefCanvas.Handle, '字', 1, vSize);
     //GetTextMetrics(FStyle.DefCanvas.Handle, vTextMetric);
     //vItemHeight := vTextMetric.tmHeight;
@@ -2877,6 +2887,127 @@ begin
 
   if Items[0].Length = 0 then  // 删除Clear后默认的第一个空行Item
     FItems.Delete(0);
+end;
+
+function THCCustomData._CalculateLineSpacingBy(const ACanvas: TCanvas;
+  const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
+
+const
+  MS_HHEA_TAG = $61656868;  // MS_MAKE_TAG('h','h','e','a')
+const
+    CJK_CODEPAGE_BITS =
+      (1 shl 17) or
+      (1 shl 18) or
+      (1 shl 19) or
+      (1 shl 20) or
+      (1 shl 21);
+type
+  // https://github.com/wine-mirror/wine/blob/master/dlls/gdiplus/font.c
+  TT_HHEA = packed record
+    Version: Cardinal;
+    Ascender: SmallInt;
+    Descender: SmallInt;
+    LineGap: SmallInt;
+    advanceWidthMax: Word;
+    minLeftSideBearing: SmallInt;
+    minRightSideBearing: SmallInt;
+    xMaxExtent: SmallInt;
+    caretSlopeRise: SmallInt;
+    caretSlopeRun: SmallInt;
+    caretOffset: SmallInt;
+    reserved: array[0..3] of SmallInt;
+    metricDataFormat: SmallInt;
+    numberOfHMetrics: Word;
+  end;
+
+  function SwapBytes(AValue: Word): Word;
+  begin
+    Result := (AValue shr 8) or Word(AValue shl 8);
+  end;
+
+var
+  vDC: HDC;
+  vOutlineTextmetric: TOutlineTextmetric;
+  vFontSignature: TFontSignature;
+  vHorizontalHeader: TT_HHEA;
+  vLineSpacing, vDelta, vLeading, vOtherLeading: Integer;
+  vAscent, vDescent, vLineGap: Word;
+  vTableSize: DWORD;
+  vSizeScale: Single;
+  vTextMetric: TTextMetric;
+begin
+  ATextStyle.ApplyStyle(ACanvas);
+
+  Result := THCStyle.GetFontHeight(ACanvas);  // 行高
+  vDC := ACanvas.Handle;
+
+  vOutlineTextmetric.otmSize := SizeOf(vOutlineTextmetric);
+  if GetOutlineTextMetrics(vDC, vOutlineTextmetric.otmSize, @vOutlineTextmetric) <> 0 then  // 取到TrueType字体的正文度量
+  begin
+    ZeroMemory(@vHorizontalHeader, SizeOf(vHorizontalHeader));
+    if GetFontData(vDC, MS_HHEA_TAG, 0, @vHorizontalHeader, SizeOf(vHorizontalHeader)) = GDI_ERROR then  // 取字体度量信息
+      Exit;
+
+    vAscent  := SwapBytes(vHorizontalHeader.Ascender);
+    vDescent := -SwapBytes(vHorizontalHeader.Descender);
+    vLineGap := SwapBytes(vHorizontalHeader.LineGap);
+    vLineSpacing := vAscent + vDescent + vLineGap;
+
+    vSizeScale := ATextStyle.Size / FStyle.FontSizeScale;
+    vSizeScale := vSizeScale / vOutlineTextMetric.otmEMSquare;
+    vAscent := Ceil(vAscent * vSizeScale);
+    vDescent := Ceil(vDescent * vSizeScale);
+    vLineSpacing := Ceil(vLineSpacing * vSizeScale);
+
+    if (GetTextCharsetInfo(vDC, @vFontSignature, 0) <> DEFAULT_CHARSET)
+      and (vFontSignature.fsCsb[0] and CJK_CODEPAGE_BITS <> 0)
+    then  // CJK Font
+    begin
+      if (vOutlineTextMetric.otmfsSelection and 128) <> 0 then
+      begin
+        vAscent := vOutlineTextMetric.otmAscent;
+        vDescent := -vOutlineTextMetric.otmDescent;
+        vLineSpacing := vAscent + vDescent + vOutlineTextMetric.otmLineGap;
+      end
+      else
+      begin
+        //vUnderlinePosition := Ceil(vAscent * 1.15 + vDescent * 0.85);
+        vLineSpacing := Ceil(1.3 * (vAscent + vDescent));
+        vDelta := vLineSpacing - (vAscent + vDescent);
+        vLeading := vDelta div 2;
+        vOtherLeading := vDelta - vLeading;
+        Inc(vAscent, vLeading);
+        Inc(vDescent, vOtherLeading);
+
+        Result := vAscent + vDescent;
+        case ALineSpaceMode of
+          pls115: Result := Result + Trunc(3 * Result / 20);
+
+          pls150: Result := Trunc(3 * Result / 2);
+
+          pls200: Result := Result * 2;
+
+          plsFix: Result := Result + LineSpaceMin;
+        end;
+      end;
+    end;
+  end
+  else
+  begin
+    GetTextMetrics(vDC, vTextMetric);  // 得到字体度量信息
+
+    case ALineSpaceMode of
+      pls100: Result := Result + vTextMetric.tmExternalLeading; // Round(vTextMetric.tmHeight * 0.2);
+
+      pls115: Result := Result + vTextMetric.tmExternalLeading + Round((vTextMetric.tmHeight + vTextMetric.tmExternalLeading) * 0.15);
+
+      pls150: Result := Result + vTextMetric.tmExternalLeading + Round((vTextMetric.tmHeight + vTextMetric.tmExternalLeading) * 0.5);
+
+      pls200: Result := Result + vTextMetric.tmExternalLeading + vTextMetric.tmHeight + vTextMetric.tmExternalLeading;
+
+      plsFix: Result := Result + LineSpaceMin;
+    end;
+  end;
 end;
 
 procedure THCCustomData._FormatItemPrepare(const AStartItemNo: Integer;

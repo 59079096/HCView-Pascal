@@ -107,6 +107,7 @@ begin
         vFont.Assign(ACanvas.Font);
         GetObject(vFont.Handle, SizeOf(vLogFont), @vLogFont);
 
+        // 如果引用了HCStyle，下面的GetDeviceCaps可以通过其PixelsPerInchY属性替换
         if (tsSuperscript in FFontStyles) or (tsSubscript in FFontStyles) then
           vLogFont.lfHeight := -Round(FSize / 2 * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale)
         else

@@ -384,10 +384,10 @@ begin
     vWndCls.lpfnWndProc   := @DefWindowProc;
     vWndCls.cbClsExtra    := 0;
     vWndCls.cbWndExtra    := SizeOf(DWord) * 2;
-    vWndCls.hIcon         := LoadIcon(hInstance, MakeIntResource('MAINICON'));
-    vWndCls.hIconSm       := LoadIcon(hInstance, MakeIntResource('MAINICON'));
+    vWndCls.hIcon         := LoadIcon(HInstance, MakeIntResource('MAINICON'));
+    vWndCls.hIconSm       := LoadIcon(HInstance, MakeIntResource('MAINICON'));
     vWndCls.hCursor       := LoadCursor(0, IDC_ARROW);
-    vWndCls.hbrBackground := GetStockObject(white_Brush);
+    vWndCls.hbrBackground := GetStockObject(WHITE_BRUSH);
     vWndCls.lpszMenuName  := nil;
 
     if RegisterClassEx(vWndCls) = 0 then

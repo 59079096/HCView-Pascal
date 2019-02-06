@@ -14,7 +14,6 @@ type
     tlbFontSize: TToolBar;
     btnOpen: TToolButton;
     btnSymmetryMargin: TToolButton;
-    btnAnnotation: TToolButton;
     btnAlignLeft: TToolButton;
     btnAlignCenter: TToolButton;
     btnAlignRight: TToolButton;
@@ -112,7 +111,7 @@ type
     actCopy: TAction;
     actPaste: TAction;
     mniControlItem: TMenuItem;
-    mniN43: TMenuItem;
+    mniBorder: TMenuItem;
     mniLS115: TMenuItem;
     mniN44: TMenuItem;
     mniRadioButton1: TMenuItem;
@@ -183,7 +182,7 @@ type
     procedure actCopyExecute(Sender: TObject);
     procedure actPasteExecute(Sender: TObject);
     procedure mniControlItemClick(Sender: TObject);
-    procedure mniN43Click(Sender: TObject);
+    procedure mniBorderClick(Sender: TObject);
     procedure mniN44Click(Sender: TObject);
     procedure mniRadioButton1Click(Sender: TObject);
     procedure mniSplitRowClick(Sender: TObject);
@@ -580,7 +579,7 @@ begin
   if Sender is TMenuItem then
   begin
     case (Sender as TMenuItem).Tag of
-      0: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls100);   // 单倍
+      0: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls100);  // 单倍
       1: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls115);  // 1.15倍
       2: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls150);  // 1.5倍
       3: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls200);  // 双倍
@@ -886,7 +885,7 @@ begin
   end;
 end;
 
-procedure TfrmHCViewDemo.mniN43Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniBorderClick(Sender: TObject);
 var
   vFrmBorderBackColor: TfrmBorderBackColor;
 begin
@@ -983,17 +982,20 @@ var
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
-    vOpenDlg.Filter := '文件|*' + HC_EXT + '|HCXml|*xml';
+    vOpenDlg.Filter := '文件|*' + HC_EXT + '; *.xml; *.docx|HCXml (*.xml)|*.xml|Word 2007 Document (*.docx)|*.docx';
     if vOpenDlg.Execute then
     begin
       if vOpenDlg.FileName <> '' then
       begin
         Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
-        vExt := ExtractFileExt(vOpenDlg.FileName); // 后缀
-        if LowerCase(vExt) = HC_EXT then
+        vExt := LowerCase(ExtractFileExt(vOpenDlg.FileName)); // 后缀
+        if vExt = HC_EXT then
           FHCView.LoadFromFile(vOpenDlg.FileName)
         else
+        if vExt = '.xml' then
           FHCView.LoadFromXml(vOpenDlg.FileName)
+        else
+          FHCView.LoadFromDocumentFile(vOpenDlg.FileName, vExt)
       end;
     end;
   finally
@@ -1031,7 +1033,7 @@ var
 begin
   vDlg := TSaveDialog.Create(Self);
   try
-    vDlg.Filter := HC_EXT + '|*' + HC_EXT + '|xml|*.xml';
+    vDlg.Filter := HC_EXT + '|*' + HC_EXT + '|xml|*.xml|Word 2007 Document (*.docx)|*.docx';
     vDlg.Execute;
     if vDlg.FileName <> '' then
     begin
@@ -1039,6 +1041,7 @@ begin
       case vDlg.FilterIndex of
         1: vExt := HC_EXT;
         2: vExt := '.xml';
+        3: vExt := '.docx';
       else
         Exit;
       end;
@@ -1054,6 +1057,8 @@ begin
           end;
 
         2: FHCView.SaveToXML(vDlg.FileName, TEncoding.UTF8);  // xml
+      else
+        FHCView.SaveToDocumentFile(vDlg.FileName, vExt)
       end;
     end;
   finally

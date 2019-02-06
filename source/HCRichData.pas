@@ -1279,7 +1279,7 @@ var
 begin
   Self.InitializeField;
 
-  if Self.Items.Last.CanConcatItems(ASrcData.Items.First) then
+  if (Self.Items.Count > 0) and Self.Items.Last.CanConcatItems(ASrcData.Items.First) then
   begin
     Self.Items.Last.Text := Self.Items.Last.Text + ASrcData.Items.First.Text;
     vAddStartNo := 1;

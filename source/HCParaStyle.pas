@@ -23,6 +23,9 @@ type
   /// <summary> 段垂直对齐方式：上、居中、下) </summary>
   TParaAlignVert = (pavTop, pavCenter, pavBottom);
 
+  /// <summary> 首行缩进方式 </summary>
+  TParaFirstLineIndent = (pfiNone, pfiIndented, pfiHanging);
+
   TParaLineSpaceMode = (pls100, pls115, pls150, pls200, plsFix);
 
   THCParaStyle = class(TPersistent)

@@ -241,6 +241,8 @@ type
       var AEndRow, AEndCol: Integer);
     function MergeCells(const AStartRow, AStartCol, AEndRow, AEndCol: Integer):Boolean;
     function GetCells(ARow, ACol: Integer): THCTableCell;
+    function GetColWidth(AIndex: Integer): Integer;
+    procedure SetColWidth(AIndex: Integer; const AWidth: Integer);
     function InsertCol(const ACol, ACount: Integer): Boolean;
     function InsertRow(const ARow, ACount: Integer): Boolean;
     function DeleteCol(const ACol: Integer): Boolean;
@@ -342,6 +344,7 @@ type
     function SplitCurCol: Boolean;
 
     property Cells[ARow, ACol: Integer]: THCTableCell read GetCells;
+    property ColWidth[AIndex: Integer]: Integer read GetColWidth write SetColWidth;
     property Rows: TTableRows read FRows;
     property RowCount: Integer read GetRowCount;
     property ColCount: Integer read GetColCount;
@@ -2208,6 +2211,11 @@ begin
   Result := FColWidths.Count;
 end;
 
+function THCTableItem.GetColWidth(AIndex: Integer): Integer;
+begin
+  Result := FColWidths[AIndex];
+end;
+
 procedure THCTableItem.GetDestCell(const ARow, ACol: Cardinal; var ADestRow,
   ADestCol: Integer);
 begin
@@ -3673,6 +3681,11 @@ begin
     if FBorderWidth > FCellVPadding * 2 then  // 要求不大于最小行高，否则分页计算会有问题
       FBorderWidth := FCellVPadding * 2 - 1;
   end;
+end;
+
+procedure THCTableItem.SetColWidth(AIndex: Integer; const AWidth: Integer);
+begin
+  FColWidths[AIndex] := AWidth;
 end;
 
 procedure THCTableItem.SetResizing(const Value: Boolean);

@@ -45,6 +45,8 @@ type
     FBackgroudColor: TColor;
     FTextStyles: TObjectList<THCTextStyle>;
     FParaStyles: TObjectList<THCParaStyle>;
+    FPixelsPerInchX, FPixelsPerInchY: Integer;  // 1英寸对应的像素数
+    FFontSizeScale,  // 字体需要缩放的比例
     FPixelsPerMMX, FPixelsPerMMY: Single;  // 1毫米dpi数
     FUpdateInfo: TUpdateInfo;
     FShowParaLastMark: Boolean;  // 是否显示换行符
@@ -117,8 +119,11 @@ type
     property CurParaNo: Integer read FCurParaNo write FCurParaNo;
     property CurStyleNo: Integer read FCurStyleNo write FCurStyleNo;
     property DefCanvas: TCanvas read FDefCanvas;
+    property PixelsPerInchX: Integer read FPixelsPerInchX;
+    property PixelsPerInchY: Integer read FPixelsPerInchY;
     property PixelsPerMMX: single read FPixelsPerMMX;
     property PixelsPerMMY: single read FPixelsPerMMY;
+    property FontSizeScale: single read FFontSizeScale;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
@@ -160,13 +165,14 @@ begin
   inherited Create;
 
   FDefCanvas := CreateStyleCanvas;
-  //FDefCanvas.Font.PixelsPerInch := 96;
-  //FDefCanvas.Font.PixelsPerInch := GetDeviceCaps(vDC, LOGPIXELSX);  // 1英寸对应的像素数
+  FPixelsPerInchX := GetDeviceCaps(FDefCanvas.Handle, LOGPIXELSX);  // 每英寸水平逻辑像素数，1英寸dpi数
+  FPixelsPerInchY := GetDeviceCaps(FDefCanvas.Handle, LOGPIXELSY);  // 每英寸水平逻辑像素数，1英寸dpi数
 
   // 1英寸25.4毫米   FPixelsPerInchX
-
   FPixelsPerMMX := Windows.GetDeviceCaps(FDefCanvas.Handle, LOGPIXELSX) / 25.4;  // 1毫米对应像素 = 1英寸dpi数 / 1英寸对应毫米
   FPixelsPerMMY := Windows.GetDeviceCaps(FDefCanvas.Handle, LOGPIXELSY) / 25.4;  // 1毫米对应像素 = 1英寸dpi数 / 1英寸对应毫米
+
+  FFontSizeScale := 72 / FPixelsPerInchX;
 
   FBackgroudColor := $00FFFFFE;
   FSelColor := clSkyBlue;

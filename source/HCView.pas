@@ -111,6 +111,60 @@ type
       const ScrollPos: Integer);
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
     function DoSectionCanEdit(const Sender: TObject): Boolean;
+    procedure DoCaretChange;
+    procedure DoSectionDataChanged(Sender: TObject);
+
+    // 仅重绘和重建光标，不触发Change事件
+    procedure DoSectionDataCheckUpdateInfo(Sender: TObject);
+    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const ALoadSectionProc: TLoadSectionProc);
+
+    function DoUndoNew: THCUndo;
+    function DoUndoGroupBegin(const AItemNo, AOffset: Integer): THCUndoGroupBegin;
+    function DoUndoGroupEnd(const AItemNo, AOffset: Integer): THCUndoGroupEnd;
+    procedure DoUndo(const Sender: THCUndo);
+    procedure DoRedo(const Sender: THCUndo);
+
+    /// <summary> 文档"背板"变动(数据无变化，如对称边距，缩放视图) </summary>
+    procedure DoMapChanged;
+    procedure DoSectionCreateItem(Sender: TObject);
+    procedure DoSectionReadOnlySwitch(Sender: TObject);
+    function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
+    procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData;
+      const AItem: THCCustomItem);
+    procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData;
+      const AItem: THCCustomItem);
+    procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
+      const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
+      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+
+    procedure DoSectionDrawItemPaintContent(const AData: THCCustomData;
+      const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+      const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+
+    procedure DoSectionPaintHeader(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintFooter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintPage(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintWholePageBefor(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintWholePageAfter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionDrawItemAnnotate(const Sender: TObject; const AData: THCCustomData;
+      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
+    function DoSectionGetUndoList: THCUndoList;
+    procedure DoSectionInsertAnnotate(const Sender: TObject; const AData: THCCustomData;
+      const ADataAnnotate: THCDataAnnotate);
+    procedure DoSectionRemoveAnnotate(const Sender: TObject; const AData: THCCustomData;
+      const ADataAnnotate: THCDataAnnotate);
+
+    procedure DoStyleInvalidateRect(const ARect: TRect);
     //
     function NewDefaultSection: THCSection;
 
@@ -149,65 +203,11 @@ type
     procedure Paint; override;
     procedure Resize; override;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
-    procedure DoCaretChange;
-    procedure DoSectionDataChanged(Sender: TObject);
-
-    // 仅重绘和重建光标，不触发Change事件
-    procedure DoSectionDataCheckUpdateInfo(Sender: TObject);
-    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const ALoadSectionProc: TLoadSectionProc);
-
-    function DoUndoNew: THCUndo;
-    function DoUndoGroupBegin(const AItemNo, AOffset: Integer): THCUndoGroupBegin;
-    function DoUndoGroupEnd(const AItemNo, AOffset: Integer): THCUndoGroupEnd;
-    procedure DoUndo(const Sender: THCUndo);
-    procedure DoRedo(const Sender: THCUndo);
-
-    /// <summary> 文档"背板"变动(数据无变化，如对称边距，缩放视图) </summary>
-    procedure DoMapChanged;
     procedure DoChange; virtual;
-    procedure DoSectionCreateItem(Sender: TObject);
-    procedure DoSectionReadOnlySwitch(Sender: TObject);
-    function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
-    procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData;
-      const AItem: THCCustomItem);
-    procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData;
-      const AItem: THCCustomItem);
-    procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
-      const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-    procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
-
-    procedure DoSectionDrawItemPaintContent(const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
-      const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
-      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-
-    procedure DoSectionPaintHeader(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintFooter(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintPage(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintWholePageBefor(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintWholePageAfter(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionDrawItemAnnotate(const Sender: TObject; const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
-    function DoSectionGetUndoList: THCUndoList;
-    procedure DoSectionInsertAnnotate(const Sender: TObject; const AData: THCCustomData;
-      const ADataAnnotate: THCDataAnnotate);
-    procedure DoSectionRemoveAnnotate(const Sender: TObject; const AData: THCCustomData;
-      const ADataAnnotate: THCDataAnnotate);
-
-    procedure DoStyleInvalidateRect(const ARect: TRect);
 
     /// <summary> 是否上屏输入法输入的词条屏词条ID和词条 </summary>
     function DoProcessIMECandi(const ACandi: string): Boolean; virtual;
@@ -445,6 +445,15 @@ type
     /// <summary> 读取hcf文件 </summary>
     procedure LoadFromFile(const AFileName: string);
 
+    /// <summary> 读取其他格式的文件 </summary>
+    procedure LoadFromDocumentFile(const AFileName: string; const AExt: string);
+
+    /// <summary> 另存为其他格式的文件 </summary>
+    procedure SaveToDocumentFile(const AFileName: string; const AExt: string);
+
+    /// <summary> 读取其他格式的文件流 </summary>
+    procedure LoadFromDocumentStream(const AStream: TStream; const AExt: string);
+
     /// <summary> 文档保存为PDF格式 </summary>
     procedure SaveToPDF(const AFileName: string);
 
@@ -672,7 +681,7 @@ type
 implementation
 
 uses
-  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml;
+  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml, HCDocumentRW;
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
@@ -1358,7 +1367,10 @@ var
   i: Integer;
 begin
   for i := 0 to FSections.Count - 1 do
+  begin
     FSections[i].FormatData;
+    FSections[i].BuildSectionPages(0);
+  end;
 
   FStyle.UpdateInfoRePaint;
   FStyle.UpdateInfoReCaret;
@@ -1754,6 +1766,49 @@ procedure THCView.KeyUp(var Key: Word; Shift: TShiftState);
 begin
   inherited;
   ActiveSection.KeyUp(Key, Shift);
+end;
+
+procedure THCView.LoadFromDocumentFile(const AFileName: string; const AExt: string);
+begin
+  Self.BeginUpdate;
+  try
+    // 清除撤销恢复数据
+    FUndoList.Clear;
+    FUndoList.SaveState;
+    try
+      FUndoList.Enable := False;
+
+      Self.Clear;
+      HCViewLoadFromDocumentFile(Self, AFileName, AExt);
+      Self.FormatData;
+    finally
+      FUndoList.RestoreState;
+    end;
+  finally
+    Self.EndUpdate;
+  end;
+end;
+
+procedure THCView.LoadFromDocumentStream(const AStream: TStream;
+  const AExt: string);
+begin
+  Self.BeginUpdate;
+  try
+    // 清除撤销恢复数据
+    FUndoList.Clear;
+    FUndoList.SaveState;
+    try
+      FUndoList.Enable := False;
+
+      Self.Clear;
+      HCViewLoadFromDocumentStream(Self, AStream, AExt);
+      Self.FormatData;
+    finally
+      FUndoList.RestoreState;
+    end;
+  finally
+    Self.EndUpdate;
+  end;
 end;
 
 procedure THCView.LoadFromFile(const AFileName: string);
@@ -2731,6 +2786,11 @@ begin
     if not FStyle.ParaStyles[i].CheckSaveUsed then
       FStyle.ParaStyles.Delete(i);
   end;
+end;
+
+procedure THCView.SaveToDocumentFile(const AFileName, AExt: string);
+begin
+  HCViewSaveToDocumentFile(Self, AFileName, AExt);
 end;
 
 procedure THCView.SaveToFile(const AFileName: string; const AQuick: Boolean = False);

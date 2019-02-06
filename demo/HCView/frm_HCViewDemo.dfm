@@ -100,15 +100,8 @@ object frmHCViewDemo: TfrmHCViewDemo
         '300'
         '500')
     end
-    object btnAnnotation: TToolButton
-      Left = 215
-      Top = 0
-      Hint = #25209#27880
-      Caption = #25209#27880
-      ImageIndex = 9
-    end
     object btnSymmetryMargin: TToolButton
-      Left = 239
+      Left = 215
       Top = 0
       Hint = #23545#31216#39029#36793#36317
       Caption = 'btnSymmetryMargin'
@@ -116,7 +109,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       OnClick = btnSymmetryMarginClick
     end
     object ToolButton1: TToolButton
-      Left = 263
+      Left = 239
       Top = 0
       Width = 8
       Caption = 'ToolButton1'
@@ -124,7 +117,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       Style = tbsSeparator
     end
     object cbbFont: TComboBox
-      Left = 271
+      Left = 247
       Top = 0
       Width = 65
       Height = 21
@@ -134,7 +127,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       OnChange = cbbFontChange
     end
     object btn1: TToolButton
-      Left = 336
+      Left = 312
       Top = 0
       Width = 8
       Caption = 'btn1'
@@ -142,7 +135,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       Style = tbsSeparator
     end
     object cbbFontSize: TComboBox
-      Left = 344
+      Left = 320
       Top = 0
       Width = 51
       Height = 21
@@ -167,7 +160,7 @@ object frmHCViewDemo: TfrmHCViewDemo
         #23567#20116)
     end
     object cbbFontColor: TColorBox
-      Left = 395
+      Left = 371
       Top = 0
       Width = 64
       Height = 22
@@ -176,7 +169,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       OnChange = cbbFontColorChange
     end
     object cbbBackColor: TColorBox
-      Left = 459
+      Left = 435
       Top = 0
       Width = 64
       Height = 22
@@ -189,7 +182,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       OnChange = cbbBackColorChange
     end
     object btnBold: TToolButton
-      Left = 523
+      Left = 499
       Top = 0
       Caption = 'btnBold'
       ImageIndex = 13
@@ -197,7 +190,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnItalic: TToolButton
       Tag = 1
-      Left = 547
+      Left = 523
       Top = 0
       Caption = 'btnItalic'
       ImageIndex = 14
@@ -205,7 +198,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnUnderLine: TToolButton
       Tag = 2
-      Left = 571
+      Left = 547
       Top = 0
       Caption = 'btnUnderLine'
       ImageIndex = 15
@@ -213,7 +206,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnStrikeOut: TToolButton
       Tag = 3
-      Left = 595
+      Left = 571
       Top = 0
       Caption = 'btnStrikeOut'
       ImageIndex = 16
@@ -221,7 +214,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnSuperScript: TToolButton
       Tag = 4
-      Left = 619
+      Left = 595
       Top = 0
       Caption = 'btnSuperScript'
       ImageIndex = 11
@@ -229,14 +222,14 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnSubScript: TToolButton
       Tag = 5
-      Left = 643
+      Left = 619
       Top = 0
       Caption = 'btnSubScript'
       ImageIndex = 12
       OnClick = btnBoldClick
     end
     object btn2: TToolButton
-      Left = 667
+      Left = 643
       Top = 0
       Width = 8
       Caption = 'btn2'
@@ -244,7 +237,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       Style = tbsSeparator
     end
     object btnAlignLeft: TToolButton
-      Left = 675
+      Left = 651
       Top = 0
       Hint = #24038#23545#40784
       Caption = 'btnAlignLeft'
@@ -253,7 +246,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnAlignCenter: TToolButton
       Tag = 1
-      Left = 699
+      Left = 675
       Top = 0
       Hint = #23621#20013#23545#40784
       Caption = 'btnAlignCenter'
@@ -262,7 +255,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnAlignRight: TToolButton
       Tag = 2
-      Left = 723
+      Left = 699
       Top = 0
       Hint = #21491#23545#40784
       Caption = 'btnAlignRight'
@@ -271,7 +264,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnAlignJustify: TToolButton
       Tag = 3
-      Left = 747
+      Left = 723
       Top = 0
       Hint = #20004#31471#23545#40784
       Caption = 'btnAlignJustify'
@@ -280,14 +273,14 @@ object frmHCViewDemo: TfrmHCViewDemo
     end
     object btnAlignScatter: TToolButton
       Tag = 4
-      Left = 771
+      Left = 747
       Top = 0
       Hint = #20998#25955#23545#40784
       ImageIndex = 4
       OnClick = btnAlignLeftClick
     end
     object btnLineSpace: TToolButton
-      Left = 795
+      Left = 771
       Top = 0
       Hint = #34892#38388#36317
       Caption = 'btnLineSpace'
@@ -314,7 +307,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011B001D00880110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011B001D00A40110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000007000000001002000000000000070
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1495,9 +1488,9 @@ object frmHCViewDemo: TfrmHCViewDemo
       object mniN25: TMenuItem
         Caption = '-'
       end
-      object mniN43: TMenuItem
-        Caption = #36793#26694#21450#32972#26223#33394
-        OnClick = mniN43Click
+      object mniBorder: TMenuItem
+        Caption = #36793#26694#21450#32972#26223
+        OnClick = mniBorderClick
       end
       object mniDisBorder: TMenuItem
         Caption = #26174#31034'/'#38544#34255#36793#26694

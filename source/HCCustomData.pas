@@ -90,7 +90,8 @@ type
     /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
     procedure MatchItemSelectState;
 
-    function _CalculateLineSpacingBy(const ACanvas: TCanvas;
+    /// <summary> 计算行高(文本高+行间距) </summary>
+    function _CalculateLineHeight(const ACanvas: TCanvas;
       const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
     /// <summary>
     /// 转换指定Item指定Offs格式化为DItem
@@ -356,10 +357,10 @@ type
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); overload; virtual;
 
-    /// <summary> 根据行中某DrawItem获取当前行间距 </summary>
+    /// <summary> 根据行中某DrawItem获取当前行间距(行中除文本外的空白空间) </summary>
     /// <param name="ADrawNo">行中指定的DrawItem</param>
     /// <returns>行间距</returns>
-    function GetLineSpace(const ADrawNo: Integer): Integer;
+    function GetLineBlankSpace(const ADrawNo: Integer): Integer;
 
     /// <summary> 获取指定DrawItem的行间距 </summary>
     /// <param name="ADrawNo">指定的DrawItem</param>
@@ -610,7 +611,7 @@ begin
     if FItems[AItemNo].StyleNo < THCStyle.Null then
     begin
       vX := X - vDrawRect.Left;
-      vY := Y - vDrawRect.Top - GetLineSpace(vDrawItemNo) div 2;
+      vY := Y - vDrawRect.Top - GetLineBlankSpace(vDrawItemNo) div 2;
 
       Result := (FItems[AItemNo] as THCCustomRectItem).CoordInSelect(vX, vY);
     end
@@ -632,7 +633,7 @@ begin
   vDrawItemNo := GetDrawItemNoByOffset(AItemNo, AOffset);
   vDrawRect := FDrawItems[vDrawItemNo].Rect;
 
-  InflateRect(vDrawRect, 0, -GetLineSpace(vDrawItemNo) div 2);
+  InflateRect(vDrawRect, 0, -GetLineBlankSpace(vDrawItemNo) div 2);
 
   AX := AX - vDrawRect.Left;
   AY := AY - vDrawRect.Top;
@@ -922,7 +923,7 @@ begin
   begin
     vCanvas := THCStyle.CreateStyleCanvas;
     try
-      Result := _CalculateLineSpacingBy(vCanvas,
+      Result := _CalculateLineHeight(vCanvas,
         FStyle.TextStyles[GetDrawItemStyle(ADrawNo)],
         FStyle.ParaStyles[GetDrawItemParaStyle(ADrawNo)].LineSpaceMode);
       {FStyle.TextStyles[GetDrawItemStyle(ADrawNo)].ApplyStyle(vCanvas);
@@ -1485,7 +1486,7 @@ begin
   Result := DrawItems[vLastDItemNo].ItemNo;
 end;
 
-function THCCustomData.GetLineSpace(const ADrawNo: Integer): Integer;
+function THCCustomData.GetLineBlankSpace(const ADrawNo: Integer): Integer;
 var
   i, vFirst, vLast, vHi, vMaxHi, vMaxDrawItemNo, vStyleNo: Integer;
   vCanvas: TCanvas;
@@ -1545,7 +1546,7 @@ begin
     THCStyle.DestroyStyleCanvas(vCanvas);
   end;
 
-  Result := GetDrawItemLineSpace(vMaxDrawItemNo);  // 根据最高的DrawItem取行间距
+  Result := GetDrawItemLineSpace(vMaxDrawItemNo) - vMaxHi;  // 根据最高的DrawItem取行间距
 end;
 
 {procedure THCCustomData.GetParaDrawItemRang(const AItemNo: Integer;
@@ -2279,7 +2280,7 @@ begin
   end
   else  // 文本
   begin  // 可以记录上一个格式化应用的StyleNo，判断不必要的重复Apply
-    vItemHeight := _CalculateLineSpacingBy(FStyle.DefCanvas,
+    vItemHeight := _CalculateLineHeight(FStyle.DefCanvas,
       FStyle.TextStyles[vItem.StyleNo], FStyle.ParaStyles[vItem.ParaNo].LineSpaceMode);
 
     {FStyle.TextStyles[vItem.StyleNo].ApplyStyle(FStyle.DefCanvas);
@@ -2663,7 +2664,7 @@ begin
   vDCState := SaveDC(ACanvas.Handle);
   try
     if not FDrawItems[AFristDItemNo].LineFirst then
-      vLineSpace := GetLineSpace(AFristDItemNo);
+      vLineSpace := GetLineBlankSpace(AFristDItemNo);
 
     for i := AFristDItemNo to ALastDItemNo do  // 遍历要绘制的数据
     begin
@@ -2673,7 +2674,7 @@ begin
       OffsetRect(vDrawRect, ADataDrawLeft, vVOffset);  // 偏移到指定的画布绘制位置(SectionData时为页数据在格式化中可显示起始位置)
 
       if FDrawItems[i].LineFirst then
-        vLineSpace := GetLineSpace(i);
+        vLineSpace := GetLineBlankSpace(i);
 
       { 绘制内容前 }
       DrawItemPaintBefor(Self, i, vDrawRect, ADataDrawLeft, ADataDrawBottom,
@@ -2816,7 +2817,7 @@ begin
         // 绘制文本
         if vText <> '' then
         begin
-          ACanvas.Brush.Style := bsClear;
+          ACanvas.Brush.Style := bsClear;  // 防止选中后面的输出文本时背景没有清空的问题
           case vAlignHorz of  // 水平对齐方式
             pahLeft, pahRight, pahCenter:  // 一般对齐
               begin
@@ -2889,18 +2890,14 @@ begin
     FItems.Delete(0);
 end;
 
-function THCCustomData._CalculateLineSpacingBy(const ACanvas: TCanvas;
-  const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
+function THCCustomData._CalculateLineHeight(const ACanvas: TCanvas;
+  const ATextStyle: THCTextStyle;
+  const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
 
 const
   MS_HHEA_TAG = $61656868;  // MS_MAKE_TAG('h','h','e','a')
-const
-    CJK_CODEPAGE_BITS =
-      (1 shl 17) or
-      (1 shl 18) or
-      (1 shl 19) or
-      (1 shl 20) or
-      (1 shl 21);
+  CJK_CODEPAGE_BITS = (1 shl 17) or (1 shl 18) or (1 shl 19) or (1 shl 20) or (1 shl 21);
+  
 type
   // https://github.com/wine-mirror/wine/blob/master/dlls/gdiplus/font.c
   TT_HHEA = packed record
@@ -3324,7 +3321,7 @@ var
     vRectItem.GetCaretInfo(ACaretInfo);
 
     vDrawRect := vDrawItem.Rect;
-    vLineSpaceHalf := GetLineSpace(vDrawItemNo) div 2;
+    vLineSpaceHalf := GetLineBlankSpace(vDrawItemNo) div 2;
     InflateRect(vDrawRect, 0, -vLineSpaceHalf);
 
     case FStyle.ParaStyles[FItems[AItemNo].ParaNo].AlignVert of  // 垂直对齐方式

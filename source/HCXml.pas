@@ -64,7 +64,7 @@ end;
 
 function GraphicToBase64(const AGraphic: TGraphic): string;
 var
-  vMs:TMemoryStream;
+  vMs: TMemoryStream;
 begin
   vMs := TMemoryStream.Create;
   try

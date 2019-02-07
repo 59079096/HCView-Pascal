@@ -174,7 +174,7 @@ begin
 
   FFontSizeScale := 72 / FPixelsPerInchX;
 
-  FBackgroudColor := $00FFFFFE;
+  FBackgroudColor := $00FFFFFF;
   FSelColor := clSkyBlue;
   FShowParaLastMark := True;
   FUpdateInfo := TUpdateInfo.Create;

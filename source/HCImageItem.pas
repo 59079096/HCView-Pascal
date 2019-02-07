@@ -13,14 +13,16 @@ unit HCImageItem;
 
 interface
 
+{$I HCView.inc}
+
 uses
   Windows, SysUtils, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData,
-  HCXml;
+  HCXml{$IFNDEF BMPIMAGEITEM}, Wincodec{$ENDIF};
 
 type
   THCImageItem = class(THCResizeRectItem)
   private
-    FImage: TBitmap;
+    FImage: {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF};
     procedure DoImageChange(Sender: TObject);
   protected
     function GetWidth: Integer; override;
@@ -48,12 +50,92 @@ type
 
     /// <summary> 恢复到原始尺寸 </summary>
     procedure RecoverOrigianlSize;
-    property Image: TBitmap read FImage;
+    property Image: {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF} read FImage;
   end;
 
 implementation
 
 { THCImageItem }
+
+{$IFNDEF BMPIMAGEITEM}
+function WICBitmap2Bitmap(const AWICBitmap: IWICBitmap; var ABMP: TBitmap): Boolean;
+var
+  vWicBitmap: IWICBitmapSource;
+  vStride: Cardinal;
+  vBuffer: TBytes;
+  vBitmapInfo: TBitmapInfo;
+  vWidth, vHeight: UInt32;
+begin
+  Result := False;
+  if AWICBitmap = nil then Exit;
+  if ABMP = nil then Exit;
+
+  AWICBitmap.GetSize(vWidth, vHeight);
+  vStride := vWidth * 4;
+  SetLength(vBuffer, vStride * vHeight);
+
+  WICConvertBitmapSource(GUID_WICPixelFormat32bppBGRA, AWICBitmap, vWicBitmap);
+  vWicBitmap.CopyPixels(nil, vStride, Length(vBuffer), @vBuffer[0]);
+
+  FillChar(vBitmapInfo, sizeof(vBitmapInfo), 0);
+  with vBitmapInfo.bmiHeader do
+  begin
+    biSize := SizeOf(vBitmapInfo);
+    biWidth := vWidth;
+    biHeight := -vHeight;
+    biPlanes := 1;
+    biBitCount := 32;
+  end;
+
+  with ABMP do
+  begin
+    PixelFormat := pf32bit;
+    SetSize(vWidth, vHeight);
+    // DC par not used (ABMP.Canvas.Handle) since Usage = DIB_RGB_COLORS
+    SetDIBits(0, Handle, 0, vHeight, @vBuffer[0], vBitmapInfo, DIB_RGB_COLORS);
+    AlphaFormat := afDefined;
+  end;
+  Result := True;
+end;
+
+function Bitmap2WICBitmap(const ABMP: TBitmap; var AWICBitmap: IWicBitmap): Boolean;
+var
+  vPixelFormat: TGUID;
+  vBitmapInfo: TBitmapInfo;
+  vBuffer: TBytes;
+  vWidth, vHeight: Int32;
+begin
+  Result := False;
+
+  if ABMP.AlphaFormat = afDefined then
+    vPixelFormat := GUID_WICPixelFormat32bppBGRA
+  else
+    vPixelFormat := GUID_WICPixelFormat32bppBGR;
+
+  ABMP.PixelFormat := pf32bit;
+
+  vWidth := ABMP.Width;
+  vHeight := ABMP.Height;
+
+  SetLength(vBuffer, vWidth * 4 * vHeight);
+
+  FillChar(vBitmapInfo, sizeof(vBitmapInfo), 0);
+  with vBitmapInfo.bmiHeader do
+  begin
+    biSize := SizeOf(vBitmapInfo);
+    biWidth := vWidth;
+    biHeight := -vHeight;
+    biPlanes := 1;
+    biBitCount := 32;
+  end;
+  // Forces evaluation of Bitmap.Handle before Bitmap.Canvas.Handle
+  GetDIBits(ABMP.Canvas.Handle, ABMP.Handle, 0, vHeight, @vBuffer[0],
+    vBitmapInfo, DIB_RGB_COLORS);
+
+  TWICImage.ImagingFactory.CreateBitmapFromMemory(vWidth, vHeight, vPixelFormat,
+    vWidth * 4, Length(vBuffer), @vBuffer[0], AWICBitmap);
+end;
+{$ENDIF}
 
 procedure THCImageItem.Assign(Source: THCCustomItem);
 begin
@@ -64,7 +146,7 @@ end;
 constructor THCImageItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  FImage := TBitmap.Create;
+  FImage := {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF}.Create;
   FImage.OnChange := DoImageChange;
   StyleNo := THCStyle.Image;
 end;
@@ -138,6 +220,7 @@ procedure THCImageItem.DoImageChange(Sender: TObject);
   {$ENDREGION}
 
 begin
+  {$IFDEF BMPIMAGEITEM}
   if FImage.PixelFormat <> pf24bit then
   begin
     FImage.PixelFormat := pf24bit;
@@ -146,6 +229,7 @@ begin
       //FImage.Canvas.CopyMode:= cmSrcCopy;
       FImage.Canvas.CopyRect(FImage.Canvas.ClipRect, FImage.Canvas, Rect(0, FImage.Height, FImage.Width, 0));}
   end;
+  {$ENDIF}
 end;
 
 procedure THCImageItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -199,9 +283,21 @@ end;
 procedure THCImageItem.PaintTop(const ACanvas: TCanvas);
 var
   vBlendFunction: TBlendFunction;
+  {$IFNDEF BMPIMAGEITEM}
+  vBmp: TBitmap;
+  {$ENDIF}
 begin
   {ACanvas.StretchDraw(Bounds(ResizeRect.Left, ResizeRect.Top, ResizeWidth, ResizeHeight),
     FImage);}
+
+//  vFactory := FImage.ImagingFactory;
+//  vFactory.CreateBitmap(FImage.Width, FImage.Height, )
+  {$IFNDEF BMPIMAGEITEM}
+  vBmp := TBitmap.Create;
+  try
+    WICBitmap2Bitmap(FImage.Handle, vBmp);
+  {$ENDIF}
+
   vBlendFunction.BlendOp := AC_SRC_OVER;
   vBlendFunction.BlendFlags := 0;
   vBlendFunction.AlphaFormat := AC_SRC_OVER;  // 通常为 0，如果源位图为32位真彩色，可为 AC_SRC_ALPHA
@@ -211,13 +307,22 @@ begin
                      ResizeRect.Top,
                      ResizeWidth,
                      ResizeHeight,
+                     {$IFDEF BMPIMAGEITEM}
                      FImage.Canvas.Handle,
+                     {$ELSE}
+                     vBmp.Canvas.Handle,
+                     {$ENDIF}
                      0,
                      0,
                      FImage.Width,
                      FImage.Height,
                      vBlendFunction
                      );
+  {$IFNDEF BMPIMAGEITEM}
+  finally
+    FreeAndNil(vBmp);
+  end;
+    {$ENDIF}
   inherited PaintTop(ACanvas);
 end;
 

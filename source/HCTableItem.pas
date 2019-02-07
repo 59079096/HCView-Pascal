@@ -996,7 +996,12 @@ begin
           if (Self.IsSelectComplate or vCellData.CellSelectedAll) and (not APaintInfo.Print) then  // 表格全选中或单元格全选中
             ACanvas.Brush.Color := OwnerData.Style.SelColor
           else
-            ACanvas.Brush.Color := FRows[vDestRow].Cols[vDestCol].BackgroundColor;
+          begin
+            if FRows[vDestRow].Cols[vDestCol].BackgroundColor <> clNone then
+              ACanvas.Brush.Color := FRows[vDestRow].Cols[vDestCol].BackgroundColor
+            else
+              ACanvas.Brush.Style := bsClear;
+          end;
 
           ACanvas.FillRect(Rect(vCellDrawLeft - FBorderWidth + 1, vCellScreenTop,  // + FRows[vR].Height,
             vCellDrawLeft + FRows[vR].Cols[vC].Width + FBorderWidth, vCellScreenBottom));

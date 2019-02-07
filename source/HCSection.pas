@@ -2183,7 +2183,7 @@ var
         vDrawRect := FPageData.DrawItems[ADrawItemNo].Rect;
 
         //if vSuplus = 0 then  // 第一次计算分页
-          InflateRect(vDrawRect, 0, -FPageData.GetLineSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去掉行间距能放下不换页的效果
+          InflateRect(vDrawRect, 0, -FPageData.GetLineBlankSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去掉行间距能放下不换页的效果
 
         vRectItem.CheckFormatPageBreak(  // 去除行间距后，判断表格跨页位置
           FPages.Count - 1,
@@ -2204,7 +2204,7 @@ var
         else  // vBreakSeat >= 0 从vBreakSeat位置跨页
         if vFmtOffset > 0 then  // 整体跨页，整体向下移动了
         begin
-          vFmtOffset := vFmtOffset + FPageData.GetLineSpace(ADrawItemNo) div 2;  // 整体向下移动增加上面减掉的行间距
+          vFmtOffset := vFmtOffset + FPageData.GetLineBlankSpace(ADrawItemNo) div 2;  // 整体向下移动增加上面减掉的行间距
           vSuplus := vSuplus + vFmtOffset + vFmtHeightInc;
 
           OffsetRect(FPageData.DrawItems[ADrawItemNo].Rect, 0, vFmtOffset);

@@ -16,7 +16,7 @@ interface
 uses
   Winapi.Windows, System.Classes, Vcl.Graphics, HCView, HCCommon, HCXml, HCViewData,
   HCStyle, HCTextStyle, HCParaStyle, HCDocumentRW, System.Generics.Collections,
-  HCItem, HCTableItem;
+  HCItem, HCTableItem, HCTableCell;
 
 type
   THCZLibPackageFile = class
@@ -132,8 +132,11 @@ type
     RightBorder: TDocxBorderInfo;
     TopBorder: TDocxBorderInfo;
     BottomBorder: TDocxBorderInfo;
+    TextStyle: THCDocxTextStyle;
     procedure CopyFrom(const ASrc: THCDocxParaStyle);
     procedure SetParaAlignment(const AAlign: string);
+    constructor Create;
+    destructor Destroy; override;
   end;
 
   THCDocxTableStyle = class(THCDocxStyle)
@@ -159,10 +162,13 @@ type
   THCDocxCell = class(TObject)
   private
     FOnReadData: TCellReadDataEvent;
+    function GetAlignVertByName(const AName: string): THCAlignVert;
   public
     ViewData: THCViewData;
     Width: Integer;
     RowSpan, ColSpan: Integer;
+    FillColor: TColor;
+    AlignVert: THCAlignVert;
     Merge: THCDocxCellMerge;
     constructor Create; overload;
     constructor Create(const ANode: IHCXMLNode; const AStyle: THCStyle;
@@ -234,6 +240,7 @@ type
     procedure ReadSettings_(const AFile: string);
     procedure ReadWebSettings_(const AFile: string);
     procedure ReadTextStyleProperty(const ATextStyle: THCDocxTextStyle; const APrNode: IHCXMLNode);
+    procedure ReadParaStyleProperty(const AParaStyle: THCDocxParaStyle; const APrNode: IHCXMLNode);
     procedure ReadStyles_(const AFile: string);
     procedure ReadStyleWithEffects_(const AFile: string);
     procedure ReadNumbering_(const AFile: string);
@@ -250,7 +257,14 @@ type
       const ATableNode: IHCXMLNode; const AStyle: THCStyle);
     procedure ReadDrawing_(const AData: THCViewData; const AParaFirst: Boolean;
       const ANode: IHCXMLNode; const AStyle: THCStyle; const AParaNo: Integer);
-    procedure ReadParagraph_(const AData: THCViewData; const AParaNode: IHCXMLNode; const AStyle: THCStyle);
+
+    /// <summary> 读取段中的内容 </summary>
+    /// <param name="AData"></param>
+    /// <param name="AParaNode"></param>
+    /// <param name="AStyle"></param>
+    /// <param name="AFirstTime">第一次读取段内容(便于迭代调用时区另)</param>
+    procedure ReadParagraph_(const AData: THCViewData; const AParaNode: IHCXMLNode;
+      const AStyle: THCStyle; const AFirstTime: Boolean = True);
     procedure ReadData_(const AData: THCViewData; const ANode: IHCXMLNode; const AStyle: THCStyle);
     //
     procedure WriteData_(const AData: THCViewData; const ANode: IHCXMLNode);
@@ -282,8 +296,10 @@ type
 
 implementation
 
+{$I HCView.inc}
+
 uses
-  System.SysUtils, System.IOUtils, HCZLib, HCImageItem, HCGifItem;
+  System.SysUtils, System.IOUtils, HCZLib, HCImageItem, HCGifItem, Vcl.Imaging.pngimage;
 
 const
   HCDOCX_DEFAULTFONT = 'Calibri';
@@ -319,16 +335,540 @@ const
 
 { THCDocxReader }
 
+{$REGION 'GetColorByName 根据颜色名称返回颜色值'}
+function GetColorByName(const AColorName: string): TColor;
+var
+  vColorName: string;
+begin
+  vColorName := LowerCase(AColorName);
+  if vColorName = 'aliceblue' then
+    Result := $00FFF8F0
+  else
+  if vColorName = 'antiquewhite' then
+    Result := $00D7EBFA
+  else
+  if vColorName = 'aqua' then
+    Result := clAqua
+  else
+  if vColorName = 'aquamarine' then
+    Result := $007FD4FF
+  else
+  if vColorName = 'azure' then
+    Result := $00FFFFF0
+  else
+  if vColorName = 'beige' then
+    Result := $00DCF5F5
+  else
+  if vColorName = 'bisque' then
+    Result := $00C4E4FF
+  else
+  if vColorName = 'black' then
+    Result := clBlack
+  else
+  if vColorName = 'blanchedalmond' then
+    Result := $00CDFFFF
+  else
+  if vColorName = 'blue' then
+    Result := clBlue
+  else
+  if vColorName = 'blueviolet' then
+    Result := $00E22B8A
+  else
+  if vColorName = 'brown' then
+    Result := $002A2AA5
+  else
+  if vColorName = 'burlywood' then
+    Result := $0087B8DE
+  else
+  if vColorName = 'cadetblue' then
+    Result := $00A09E5F
+  else
+  if vColorName = 'chartreuse' then
+    Result := $0000FF7F
+  else
+  if vColorName = 'chocolate' then
+    Result := $001E69D2
+  else
+  if vColorName = 'coral' then
+    Result := $00507FFF
+  else
+  if vColorName = 'cornflowerblue' then
+    Result := $00ED9564
+  else
+  if vColorName = 'cornsilk' then
+    Result := $00DCF8FF
+  else
+  if vColorName = 'crimson' then
+    Result := $003C14DC
+  else
+  if vColorName = 'cyan' then
+    Result := $00FFFF00
+  else
+  if vColorName = 'darkblue' then
+    Result := $008B0000
+  else
+  if vColorName = 'darkcyan' then
+    Result := $008B8B00
+  else
+  if vColorName = 'darkgoldenrod' then
+    Result := $000B86B8
+  else
+  if vColorName = 'darkgray' then
+    Result := $00A9A9A9
+  else
+  if vColorName = 'darkgreen' then
+    Result := $00006400
+  else
+  if vColorName = 'darkkhaki' then
+    Result := $006BB7BD
+  else
+  if vColorName = 'darkmagenta' then
+    Result := $008B008B
+  else
+  if vColorName = 'darkolivegreen' then
+    Result := $002F6B55
+  else
+  if vColorName = 'darkorange' then
+    Result := $00008CFF
+  else
+  if vColorName = 'darkorchid' then
+    Result := $00CC3299
+  else
+  if vColorName = 'darkred' then
+    Result := $0000008B
+  else
+  if vColorName = 'darksalmon' then
+    Result := $007A96E9
+  else
+  if vColorName = 'darkseagreen' then
+    Result := $008FBC8F
+  else
+  if vColorName = 'darkslateblue' then
+    Result := $008B3D48
+  else
+  if vColorName = 'darkslategray' then
+    Result := $004F4F2F
+  else
+  if vColorName = 'darkturquoise' then
+    Result := $00D1CE00
+  else
+  if vColorName = 'darkviolet' then
+    Result := $00D30094
+  else
+  if vColorName = 'deeppink' then
+    Result := $009314FF
+  else
+  if vColorName = 'deepskyblue' then
+    Result := $00FFBF00
+  else
+  if vColorName = 'dimgray' then
+    Result := $00696969
+  else
+  if vColorName = 'dodgerblue' then
+    Result := $00FF901E
+  else
+  if vColorName = 'firebrick' then
+    Result := $002222B2
+  else
+  if vColorName = 'floralwhite' then
+    Result := $00F0FAFF
+  else
+  if vColorName = 'forestgreen' then
+    Result := $00228B22
+  else
+  if vColorName = 'fuchsia' then
+    Result := $00FF00FF
+  else
+  if vColorName = 'gainsboro' then
+    Result := $00DCDCDC
+  else
+  if vColorName = 'ghostwhite' then
+    Result := $00FFF8F8
+  else
+  if vColorName = 'gold' then
+    Result := $0000D7FF
+  else
+  if vColorName = 'goldenrod' then
+    Result := $0020A5DA
+  else
+  if vColorName = 'gray' then
+    Result := clGray
+  else
+  if vColorName = 'green' then
+    Result := clGreen
+  else
+  if vColorName = 'greenyellow' then
+    Result := $002FFFAD
+  else
+  if vColorName = 'honeydew' then
+    Result := $00F0FFF0
+  else
+  if vColorName = 'hotpink' then
+    Result := $00B469FF
+  else
+  if vColorName = 'indianred' then
+    Result := $005C5CCD
+  else
+  if vColorName = 'indigo' then
+    Result := $0082004B
+  else
+  if vColorName = 'ivory' then
+    Result := $00F0F0FF
+  else
+  if vColorName = 'khaki' then
+    Result := $008CE6F0
+  else
+  if vColorName = 'lavender' then
+    Result := $00FAE6E6
+  else
+  if vColorName = 'lavenderblush' then
+    Result := $00F5F0FF
+  else
+  if vColorName = 'lawngreen' then
+    Result := $0000FC7C
+  else
+  if vColorName = 'lemonchiffon' then
+    Result := $00CDFAFF
+  else
+  if vColorName = 'lightblue' then
+    Result := $00E6D8AD
+  else
+  if vColorName = 'lightcoral' then
+    Result := $008080F0
+  else
+  if vColorName = 'lightcyan' then
+    Result := $00FFFFE0
+  else
+  if vColorName = 'lightgoldenrodyellow' then
+    Result := $00D2FAFA
+  else
+  if vColorName = 'lightgreen' then
+    Result := $0090EE90
+  else
+  if vColorName = 'lightgrey' then
+    Result := $00D3D3D3
+  else
+  if vColorName = 'lightpink' then
+    Result := $00C1B6FF
+  else
+  if vColorName = 'lightsalmon' then
+    Result := $007AA0FF
+  else
+  if vColorName = 'lightseagreen' then
+    Result := $00AAB220
+  else
+  if vColorName = 'lightskyblue' then
+    Result := $00FACE87
+  else
+  if vColorName = 'lightslategray' then
+    Result := $00998877
+  else
+  if vColorName = 'lightsteelblue' then
+    Result := $00DEC4B0
+  else
+  if vColorName = 'lightyellow' then
+    Result := $00E0FFFF
+  else
+  if vColorName = 'lime' then
+    Result := clLime
+  else
+  if vColorName = 'limegreen' then
+    Result := $0032CD32
+  else
+  if vColorName = 'linen' then
+    Result := $00E6F0FA
+  else
+  if vColorName = 'magenta' then
+    Result := $00FF00FF
+  else
+  if vColorName = 'maroon' then
+    Result := clMaroon
+  else
+  if vColorName = 'mediumaquamarine' then
+    Result := $00AACD66
+  else
+  if vColorName = 'mediumblue' then
+    Result := $00CD0000
+  else
+  if vColorName = 'mediumorchid' then
+    Result := $00D355BA
+  else
+  if vColorName = 'mediumpurple' then
+    Result := $00DB7093
+  else
+  if vColorName = 'mediumseagreen' then
+    Result := $0071B33C
+  else
+  if vColorName = 'mediumslateblue' then
+    Result := $00EE687B
+  else
+  if vColorName = 'mediumspringgreen' then
+    Result := $009AFA00
+  else
+  if vColorName = 'mediumturquoise' then
+    Result := $00CCD148
+  else
+  if vColorName = 'mediumvioletred' then
+    Result := $008515C7
+  else
+  if vColorName = 'midnightblue' then
+    Result := $00701919
+  else
+  if vColorName = 'mintcream' then
+    Result := $00FAFFF5
+  else
+  if vColorName = 'mistyrose' then
+    Result := $00E1E4FF
+  else
+  if vColorName = 'moccasin' then
+    Result := $00B5E4FF
+  else
+  if vColorName = 'navajowhite' then
+    Result := $00ADDEFF
+  else
+  if vColorName = 'navy' then
+    Result := clNavy
+  else
+  if vColorName = 'oldlace' then
+    Result := $00E6F5FD
+  else
+  if vColorName = 'olive' then
+    Result := $00008080
+  else
+  if vColorName = 'olivedrab' then
+    Result := $00238E6B
+  else
+  if vColorName = 'orange' then
+    Result := $0000A5FF
+  else
+  if vColorName = 'orangered' then
+    Result := $000045FF
+  else
+  if vColorName = 'orchid' then
+    Result := $00D670DA
+  else
+  if vColorName = 'palegoldenrod' then
+    Result := $00AAE8EE
+  else
+  if vColorName = 'palegreen' then
+    Result := $0098FB98
+  else
+  if vColorName = 'paleturquoise' then
+    Result := $00EEEEAF
+  else
+  if vColorName = 'palevioletred' then
+    Result := $009370DB
+  else
+  if vColorName = 'papayawhip' then
+    Result := $00D5EFFF
+  else
+  if vColorName = 'peachpuff' then
+    Result := $00BDDBFF
+  else
+  if vColorName = 'peru' then
+    Result := $003F85CD
+  else
+  if vColorName = 'pink' then
+    Result := $00CBC0FF
+  else
+  if vColorName = 'plum' then
+    Result := $00DDA0DD
+  else
+  if vColorName = 'powderblue' then
+    Result := $00E6E0B0
+  else
+  if vColorName = 'purple' then
+    Result := $00800080
+  else
+  if vColorName = 'red' then
+    Result := clRed
+  else
+  if vColorName = 'rosybrown' then
+    Result := $008F8FBC
+  else
+  if vColorName = 'royalblue' then
+    Result := $00E16941
+  else
+  if vColorName = 'saddlebrown' then
+    Result := $0013458B
+  else
+  if vColorName = 'salmon' then
+    Result := $007280FA
+  else
+  if vColorName = 'sandybrown' then
+    Result := $0060A4F4
+  else
+  if vColorName = 'seagreen' then
+    Result := $00578B2E
+  else
+  if vColorName = 'seashell' then
+    Result := $00EEF5FF
+  else
+  if vColorName = 'sienna' then
+    Result := $002D52A0
+  else
+  if vColorName = 'silver' then
+    Result := $00C0C0C0
+  else
+  if vColorName = 'skyblue' then
+    Result := $00EBCE87
+  else
+  if vColorName = 'slateblue' then
+    Result := $00CD5A6A
+  else
+  if vColorName = 'slategray' then
+    Result := $00908070
+  else
+  if vColorName = 'snow' then
+    Result := $00FAFAFF
+  else
+  if vColorName = 'springgreen' then
+    Result := $007FFF00
+  else
+  if vColorName = 'steelblue' then
+    Result := $00B48246
+  else
+  if vColorName = 'tan' then
+    Result := $008CB4D2
+  else
+  if vColorName = 'teal' then
+    Result := clTeal
+  else
+  if vColorName = 'thistle' then
+    Result := $00D8BFD8
+  else
+  if vColorName = 'tomato' then
+    Result := $004763FD
+  else
+  if vColorName = 'turquoise' then
+    Result := $00D0E040
+  else
+  if vColorName = 'violet' then
+    Result := $00EE82EE
+  else
+  if vColorName = 'wheat' then
+    Result := $00B3DEF5
+  else
+  if vColorName = 'white' then
+    Result := clWhite
+  else
+  if vColorName = 'whitesmoke' then
+    Result := $00F5F5F5
+  else
+  if vColorName = 'yellow' then
+    Result := clYellow
+  else
+  if vColorName = 'yellowgreen' then
+    Result := $0032CD9A
+  else
+  if vColorName = 'activeborder' then
+    Result := clActiveBorder
+  else
+  if vColorName = 'activecaption' then
+    Result := clActiveCaption
+  else
+  if vColorName = 'appworkspace' then
+    Result := clAppWorkSpace
+  else
+  if vColorName = 'background' then
+    Result := clBackground
+  else
+  if vColorName = 'buttonface' then
+    Result := clBtnFace
+  else
+  if vColorName = 'buttonhighlight' then
+    Result := clBtnHighlight
+  else
+  if vColorName = 'buttonshadow' then
+    Result := clBtnShadow
+  else
+  if vColorName = 'buttontext' then
+    Result := clBtnText
+  else
+  if vColorName = 'captiontext' then
+    Result := clCaptionText
+  else
+  if vColorName = 'graytext' then
+    Result := clGrayText
+  else
+  if vColorName = 'highlight' then
+    Result := clHighlight
+  else
+  if vColorName = 'highlighttext' then
+    Result := clHighlightText
+  else
+  if vColorName = 'inactiveborder' then
+    Result := clInactiveBorder
+  else
+  if vColorName = 'inactivecaption' then
+    Result := clInactiveCaption
+  else
+  if vColorName = 'inactivecaptiontext' then
+    Result := clInactiveCaptionText
+  else
+  if vColorName = 'infobackground' then
+    Result := clInfoBk
+  else
+  if vColorName = 'infotext' then
+    Result := clInfoText
+  else
+  if vColorName = 'menu' then
+    Result := clMenu
+  else
+  if vColorName = 'menutext' then
+    Result := clMenuText
+  else
+  if vColorName = 'scrollbar' then
+    Result := clScrollBar
+  else
+  if vColorName = 'threeddarkshadow' then
+    Result := cl3DDkShadow
+  else
+  if vColorName = 'threedface' then
+    Result := clBtnFace
+  else
+  if vColorName = 'threedhighlight' then
+    Result := clHighlightText
+  else
+  if vColorName = 'threedlightshadow' then
+    Result := cl3DLight
+  else
+  if vColorName = 'threedshadow' then
+    Result := clBtnShadow
+  else
+  if vColorName = 'window' then
+    Result := clWindow
+  else
+  if vColorName = 'windowframe' then
+    Result := clWindowFrame
+  else
+  if vColorName = 'windowtext' then
+    Result := clWindowText
+  else
+    Result := clBlack;
+end;
+{$ENDREGION}
+
 function ConvertHtmlColor(const ARGB: Cardinal): TColor;
 var
-  vA, vR, vG, vB: Byte;
+  vR, vG, vB: Byte;
 begin
-  vA := ARGB shr 24;
-  vR := Byte(ARGB shr 16);
-  vG := Byte(ARGB shr 8);
+  //vA := ARGB shr 24;
   vB := Byte(ARGB);
+  vG := Byte(ARGB shr 8);
+  vR := Byte(ARGB shr 16);
 
-  Result := vB shl 24 + vG shl 16 + vR;
+  Result := vR or (vG shl 8) or (vB shl 16);
+end;
+
+function GetOpenXmlNodeColor(const ARGB: string): TColor;
+var
+  vColor: Integer;
+begin
+  if TryStrToInt('$' + ARGB, vColor) then
+    Result := ConvertHtmlColor(vColor)
+  else
+    Result := GetColorByName(ARGB);
 end;
 
 function GetAttributeAsString(const ANode: IHCXMLNode; const AttrName: string): string;
@@ -635,7 +1175,12 @@ begin
         ReadFooter_(FWordFolder + '/' + vRelation.Target)
       else
       if vRelation.&Type = HCDOCX_IMAGE then  // image
-        FMediaFiles.Add(vRelation.Id + '=' + vRelation.Target);
+      begin
+        if vRelation.Target[1] <> '/' then
+          FMediaFiles.Add(vRelation.Id + '=' + FWordFolder + '/' + vRelation.Target)
+        else
+          FMediaFiles.Add(vRelation.Id + '=' + vRelation.Target)
+      end;
     end;
   finally
     vRelations.Free;
@@ -772,10 +1317,10 @@ begin
       FHCView.Sections[0].PaperWidth := 210;
       FHCView.Sections[0].PaperHeight := 297;
 
-      FHCView.Sections[0].PaperMarginTop := TwipToMillimeter(vXmlNode.Attributes['w:top']);
-      FHCView.Sections[0].PaperMarginLeft := TwipToMillimeter(vXmlNode.Attributes['w:left']);
-      FHCView.Sections[0].PaperMarginRight := TwipToMillimeter(vXmlNode.Attributes['w:right']);
-      FHCView.Sections[0].PaperMarginBottom := TwipToMillimeter(vXmlNode.Attributes['w:bottom']);
+      FHCView.Sections[0].PaperMarginTop := TwipToMillimeter(Single(vXmlNode.Attributes['w:top']));
+      FHCView.Sections[0].PaperMarginLeft := TwipToMillimeter(Single(vXmlNode.Attributes['w:left']));
+      FHCView.Sections[0].PaperMarginRight := TwipToMillimeter(Single(vXmlNode.Attributes['w:right']));
+      FHCView.Sections[0].PaperMarginBottom := TwipToMillimeter(Single(vXmlNode.Attributes['w:bottom']));
 
       FHCView.Sections[0].PageOrientation := TPageOrientation.cpoPortrait;  // TPageOrientation.cpoLandscape;
       FHCView.Sections[0].ResetMargin;
@@ -797,6 +1342,11 @@ var
   vImageItem: THCImageItem;
   vGifItem: THCGifItem;
   vZLibPackageFile: THCZLibPackageFile;
+  vW, vH: Integer;
+  {$IFDEF BMPIMAGEITEM}
+  vWICImage: TWICImage;
+  vStream: TMemoryStream;
+  {$ENDIF}
 begin
   vInLineNode := FindChildNodeByName(ANode, 'wp:inline');
   if not Assigned(vInLineNode) then Exit;
@@ -826,32 +1376,71 @@ begin
     vNode := FindChildNodeByName(vInLineNode, 'wp:extent');
     if not Assigned(vNode) then Exit;
 
-    if TPath.GetExtension(vFile) = '.bmp' then
-    begin
-      vImageItem := THCImageItem.Create(AData,
-        Round(MillimeterToTwip(vNode.Attributes['cx'] / 36000.0)),
-        Round(MillimeterToTwip(vNode.Attributes['cy'] / 36000.0)));
-      vImageItem.ParaFirst := AParaFirst;
-      vImageItem.ParaNo := AParaNo;
-
-      vZLibPackageFile.Stream.Position := 0;
-      vImageItem.Image.LoadFromStream(vZLibPackageFile.Stream);
-      vZLibPackageFile.Stream.Position := 0;
-      vImageItem.RestrainSize(AData.Width, vImageItem.Height);
-      AData.Items.Add(vImageItem);
-    end
-    else
+    vW := vNode.Attributes['cx'];
+    vH := vNode.Attributes['cy'];
+    vFile := LowerCase(TPath.GetExtension(vFile));
+    if vFile = '.gif' then
     begin
       vGifItem := THCGifItem.Create(AData,
-        Round(MillimeterToTwip(vNode.Attributes['cx'] / 36000.0)),
-        Round(MillimeterToTwip(vNode.Attributes['cy'] / 36000.0)));
+        TwipToPixel(MillimeterToTwip(vW / 36000.0), AStyle.PixelsPerInchX),
+        TwipToPixel(MillimeterToTwip(vH / 36000.0), AStyle.PixelsPerInchX));
       vGifItem.ParaFirst := AParaFirst;
       vGifItem.ParaNo := AParaNo;
+      vGifItem.Animate := True;
 
       vZLibPackageFile.Stream.Position := 0;
       vGifItem.Image.LoadFromStream(vZLibPackageFile.Stream);
       vZLibPackageFile.Stream.Position := 0;
+
       AData.Items.Add(vGifItem);
+    end
+    else
+    if (vFile = '.bmp') or (vFile = '.jpeg') or (vFile = '.jpg') or (vFile = '.png') then
+    begin
+      vImageItem := THCImageItem.Create(AData,
+        TwipToPixel(MillimeterToTwip(vW / 36000.0), AStyle.PixelsPerInchX),
+        TwipToPixel(MillimeterToTwip(vH / 36000.0), AStyle.PixelsPerInchX));
+      vImageItem.ParaFirst := AParaFirst;
+      vImageItem.ParaNo := AParaNo;
+
+      {$IFDEF BMPIMAGEITEM}
+      if vFile <> '.bmp' then
+      begin
+        vWICImage := TWICImage.Create;
+        try
+          vZLibPackageFile.Stream.Position := 0;
+          vWICImage.LoadFromStream(vZLibPackageFile.Stream);
+          vZLibPackageFile.Stream.Position := 0;
+          vWICImage.Transparent := True;
+          vWICImage.ImageFormat := TWICImageFormat.wifBmp;
+          vStream := TMemoryStream.Create;
+          try
+            vWICImage.SaveToStream(vStream);
+            vStream.Position := 0;
+            vImageItem.Image.LoadFromStream(vStream);
+            vImageItem.Image.Transparent := True;
+            //vImageItem.Image.TransparentColor := clBlack;
+          finally
+            FreeAndNil(vStream);
+          end;
+        finally
+          FreeAndNil(vWICImage);
+        end;
+      end
+      else
+      begin
+        vZLibPackageFile.Stream.Position := 0;
+        vImageItem.Image.LoadFromStream(vZLibPackageFile.Stream);
+        vZLibPackageFile.Stream.Position := 0;
+      end;
+      {$ELSE}
+        vZLibPackageFile.Stream.Position := 0;
+        vImageItem.Image.LoadFromStream(vZLibPackageFile.Stream);
+        vZLibPackageFile.Stream.Position := 0;
+      {$ENDIF}
+
+      vImageItem.RestrainSize(AData.Width, vImageItem.Height);
+      AData.Items.Add(vImageItem);
     end;
   end;
 end;
@@ -962,42 +1551,78 @@ begin
 end;
 
 procedure THCDocxReader.ReadParagraph_(const AData: THCViewData;
-  const AParaNode: IHCXMLNode; const AStyle: THCStyle);
+  const AParaNode: IHCXMLNode; const AStyle: THCStyle; const AFirstTime: Boolean = True);
 var
-  vParaStyle: THCDocxParaStyle;
-  i, j, vParaNo, vStyleNo: Integer;
   vParaStyleLink: string;
-  vWRNode, vParaPrNode, vRPRNode, vFontNode, vNode: IHCXMLNode;
+
+  {$REGION '取段样式编号'}
+  function GetHCParaNo: Integer;
+  var
+    vParaStyle: THCDocxParaStyle;
+    vParaPrNode, vNode: IHCXMLNode;
+    i: Integer;
+  begin
+    Result := THCStyle.Null;
+
+    vParaStyle := THCDocxParaStyle.Create;
+    try
+      vParaStyle.CopyFrom(FindParaStyleDefault);
+
+      vParaPrNode := AParaNode.ChildNodes.FindNode('w:pPr');
+      if Assigned(vParaPrNode) then  // 有自己的段属性
+      begin
+        for i := 0 to vParaPrNode.ChildNodes.Count - 1 do
+        begin
+          vNode := vParaPrNode.ChildNodes[i];
+          if vNode.NodeName = 'w:pStyle' then
+            vParaStyle.CopyFrom(FindParaStyleById(vNode.Attributes['w:val']))
+          else
+          if vNode.NodeName = 'w:jc' then
+            vParaStyle.SetParaAlignment(vNode.Attributes['w:val']);
+        end;
+      end;
+
+      Result := FindHCParaNo(vParaStyle);
+      vParaStyleLink := vParaStyle.Link;
+    finally
+      FreeAndNil(vParaStyle);
+    end;
+  end;
+  {$ENDREGION}
+
+var
+  i, j, vParaNo, vStyleNo: Integer;
+  vWRNode, vRPRNode, vFontNode, vNode: IHCXMLNode;
   vParaFirst: Boolean;
+  vParaStyle: THCDocxParaStyle;
   vTextStyle: THCDocxTextStyle;
 begin
+  vParaFirst := AFirstTime;
   vParaNo := THCStyle.Null;
   vParaStyleLink := '';
-  vParaStyle := THCDocxParaStyle.Create;
-  try
-    vParaStyle.CopyFrom(FindParaStyleDefault);
 
-    vParaPrNode := AParaNode.ChildNodes.FindNode('w:pPr');
-    if Assigned(vParaPrNode) then  // 有自己的段属性
-    begin
-      for i := 0 to vParaPrNode.ChildNodes.Count - 1 do
-      begin
-        vNode := vParaPrNode.ChildNodes[i];
-        if vNode.NodeName = 'w:pStyle' then
-          vParaStyle.CopyFrom(FindParaStyleById(vNode.Attributes['w:val']))
-        else
-        if vNode.NodeName = 'w:jc' then
-          vParaStyle.SetParaAlignment(vNode.Attributes['w:val']);
-      end;
+  if AParaNode.ChildNodes.Count = 0 then
+  begin
+    if vParaNo < 0 then
+      vParaNo := GetHCParaNo;
+
+    vTextStyle := THCDocxTextStyle.Create;
+    try
+      vParaStyle := FindParaStyleDefault;
+      if Assigned(vParaStyle.TextStyle) then
+        vTextStyle.CopyFrom(vParaStyle.TextStyle)
+      else
+        vTextStyle.CopyFrom(FindTextStyleDefault);
+
+      vStyleNo := FindHCStyleNo(vTextStyle);
+    finally
+      FreeAndNil(vTextStyle);
     end;
 
-    vParaNo := FindHCParaNo(vParaStyle);
-    vParaStyleLink := vParaStyle.Link;
-  finally
-    FreeAndNil(vParaStyle);
+    ReadTextItem_(AData, vParaFirst, AParaNode, AStyle, vParaNo, vStyleNo);
+    Exit;
   end;
 
-  vParaFirst := True;
   for i := 0 to AParaNode.ChildNodes.Count - 1 do
   begin
     vWRNode := AParaNode.ChildNodes[i];
@@ -1006,12 +1631,21 @@ begin
       for j := 0 to vWRNode.ChildNodes.Count - 1 do
       begin
         vNode := vWRNode.ChildNodes[j];
-        if (vNode.NodeName = 'w:t') and (vNode.Text <> '') then
+        if (vNode.NodeName = 'w:t') and (vParaFirst or (vNode.Text <> '')) then
         begin
+          if vParaNo < 0 then
+            vParaNo := GetHCParaNo;
+
           vTextStyle := THCDocxTextStyle.Create;
           try
             if vParaStyleLink = '' then
-              vTextStyle.CopyFrom(FindTextStyleDefault)
+            begin
+              vParaStyle := FindParaStyleDefault;
+              if Assigned(vParaStyle.TextStyle) then
+                vTextStyle.CopyFrom(vParaStyle.TextStyle)
+              else
+                vTextStyle.CopyFrom(FindTextStyleDefault);
+            end
             else
               vTextStyle.CopyFrom(FindTextStyleById(vParaStyleLink));
 
@@ -1030,10 +1664,55 @@ begin
         else
         if vNode.NodeName = 'w:drawing' then
         begin
+          if vParaNo < 0 then
+            vParaNo := GetHCParaNo;
+
           ReadDrawing_(AData, vParaFirst, vNode, AStyle, vParaNo);
           vParaFirst := False;
         end;
       end;
+    end
+    else
+    if vWRNode.NodeName = 'w:hyperlink' then
+      ReadParagraph_(AData, vWRNode, AStyle, False);
+  end;
+end;
+
+procedure THCDocxReader.ReadParaStyleProperty(
+  const AParaStyle: THCDocxParaStyle; const APrNode: IHCXMLNode);
+var
+  i: Integer;
+  vNode: IHCXMLNode;
+begin
+  for i := 0 to APrNode.ChildNodes.Count - 1 do
+  begin
+    vNode := APrNode.ChildNodes[i];
+
+    if vNode.NodeName = 'w:widowControl' then
+      AParaStyle.WidowOrphanControl := StrToBoolDef(GetAttributeAsString(vNode, 'w:val'), True)
+    else
+    if vNode.NodeName = 'w:jc' then
+    begin
+      if vNode.HasAttribute('w:val') then
+        AParaStyle.SetParaAlignment(vNode.Attributes['w:val']);
+    end
+    else
+    if vNode.NodeName = 'w:keepNext' then
+    begin
+      if vNode.HasAttribute('w:val') then
+        AParaStyle.KeepWithNext := vNode.Attributes['w:val'];
+    end
+    else
+    if vNode.NodeName = 'w:keepLines' then
+    begin
+      if vNode.HasAttribute('w:val') then
+        AParaStyle.KeepLinesTogether := vNode.Attributes['w:val'];
+    end
+    else
+    if vNode.NodeName = 'w:suppressLineNumbers' then
+    begin
+      if vNode.HasAttribute('w:val') then
+        AParaStyle.SuppressLineNumbers := vNode.Attributes['w:val'];
     end;
   end;
 end;
@@ -1061,8 +1740,8 @@ var
   vPackageFile: THCZLibPackageFile;
   vXml: IHCXMLDocument;
   vXmlNode, vXmlNode2, vXmlNode3, vXmlNode4: IHCXMLNode;
-  vTextStyle: THCDocxTextStyle;
-  vParaStyle: THCDocxParaStyle;
+  vTextStyle, vDocDefaultTextStyle: THCDocxTextStyle;
+  vParaStyle, vDocDefaultParaStyle: THCDocxParaStyle;
   vTableStyle: THCDocxTableStyle;
   i, j: Integer;
 begin
@@ -1079,27 +1758,28 @@ begin
     vXmlNode := vXml.DocumentElement.ChildNodes[i];
     if vXmlNode.NodeName = 'w:docDefaults' then  // 读取默认文本、段样式
     begin
-      {vTextStyle := THCDocxTextStyle.Create;
-
-      vXmlNode2 := vXml.DocumentElement.ChildNodes[i];
-      vXmlNode2 := vXmlNode2.ChildNodes.FindNode('w:rPrDefault');
-      vXmlNode2 := vXmlNode2.ChildNodes.FindNode('w:rPr');
-      // 字体
-      vXmlNode := vXmlNode2.ChildNodes.FindNode('w:rFonts');
-      vXmlNode := vXmlNode.AttributeNodes.FindNode('w:ascii');
-      if vXmlNode <> nil then
-        vTextStyle.FontName := vXmlNode.Text
-      else
-        vTextStyle.FontName := HCDOCX_DEFAULTFONT;
-      // 字号
-      vXmlNode := vXmlNode2.ChildNodes.FindNode('w:sz');
-      vTextStyle.DoubleFontSize := vXmlNode.Attributes['w:val'];
-      FTextStyles.Add(vTextStyle);
+      vXmlNode2 := vXmlNode.ChildNodes.FindNode('w:rPrDefault');
+      if Assigned(vXmlNode2) then  // 文档默认文本样式
+      begin
+        vXmlNode2 := vXmlNode2.ChildNodes.FindNode('w:rPr');
+        if Assigned(vXmlNode2) then
+        begin
+          vDocDefaultTextStyle := THCDocxTextStyle.Create;
+          ReadTextStyleProperty(vDocDefaultTextStyle, vXmlNode2);
+        end;
+      end;
 
       // 段样式
-      vParaStyle := THCDocxParaStyle.Create;
-      vXmlNode2 := vXmlNode2.ChildNodes.FindNode('w:pPrDefault');
-      FParaStyles.Add(vParaStyle);}
+      vXmlNode2 := vXmlNode.ChildNodes.FindNode('w:pPrDefault');
+      if Assigned(vXmlNode2) then
+      begin
+        vXmlNode2 := vXmlNode2.ChildNodes.FindNode('w:pPr');
+        if Assigned(vXmlNode2) then
+        begin
+          vDocDefaultParaStyle := THCDocxParaStyle.Create;
+          ReadParaStyleProperty(vDocDefaultParaStyle, vXmlNode2);
+        end;
+      end;
     end
     else
     if vXmlNode.NodeName = 'w:style' then
@@ -1107,6 +1787,9 @@ begin
       if vXmlNode.Attributes['w:type'] = 'paragraph' then
       begin
         vParaStyle := THCDocxParaStyle.Create;
+        if Assigned(vDocDefaultParaStyle) then
+          vParaStyle.CopyFrom(vDocDefaultParaStyle);
+
         vParaStyle.Default := StrToBoolDef(GetAttributeAsString(vXmlNode, 'w:default'), False);
         vParaStyle.StyleID := GetAttributeAsString(vXmlNode, 'w:styleId');
 
@@ -1135,14 +1818,15 @@ begin
             vParaStyle.QFormat := StrToBoolDef(GetAttributeAsString(vXmlNode2, 'w:val'), True)
           else
           if vXmlNode2.NodeName = 'w:pPr' then
+            ReadParaStyleProperty(vParaStyle, vXmlNode2)
+          else
+          if vXmlNode2.NodeName = 'w:rPr' then
           begin
-            vXmlNode3 := vXmlNode2.ChildNodes.FindNode('w:widowControl');
-            if vXmlNode3 <> nil then
-              vParaStyle.WidowOrphanControl := StrToBoolDef(GetAttributeAsString(vXmlNode3, 'w:val'), True);
+            vParaStyle.TextStyle := THCDocxTextStyle.Create;
 
-            vXmlNode3 := vXmlNode2.ChildNodes.FindNode('w:jc');
-            if vXmlNode3 <> nil then
-              vParaStyle.SetParaAlignment(vXmlNode3.Attributes['w:val']);
+            if Assigned(vDocDefaultTextStyle) then
+              vParaStyle.TextStyle.CopyFrom(vDocDefaultTextStyle);
+            ReadTextStyleProperty(vParaStyle.TextStyle, vXmlNode2);
           end;
         end;
 
@@ -1152,6 +1836,8 @@ begin
       if vXmlNode.Attributes['w:type'] = 'character' then
       begin
         vTextStyle := THCDocxTextStyle.Create;
+        if Assigned(vDocDefaultTextStyle) then
+          vTextStyle.CopyFrom(vDocDefaultTextStyle);
         vTextStyle.Default := StrToBoolDef(GetAttributeAsString(vXmlNode, 'w:default'), False);
         vTextStyle.StyleID := GetAttributeAsString(vXmlNode, 'w:styleId');
 
@@ -1210,7 +1896,7 @@ begin
           if vXmlNode2.NodeName = 'w:rsid' then
             vParaStyle.Rsid := vXmlNode2.Attributes['w:val']  // 以上为通用属性
           else
-          if vXmlNode2.NodeName = 'w:tblPr' then
+          if vXmlNode2.NodeName = 'w:tblPr' then  // 封装为 ReadTableStyleProperty(vTableStyle, vXmlNode2);
           begin
             vXmlNode3 := vXmlNode2.ChildNodes.FindNode('w:tblInd');
             if vXmlNode3 <> nil then
@@ -1250,6 +1936,12 @@ begin
       end;
     end;
   end;
+
+  if Assigned(vDocDefaultTextStyle) then
+    FreeAndNil(vDocDefaultTextStyle);
+
+  if Assigned(vDocDefaultParaStyle) then
+    FreeAndNil(vDocDefaultParaStyle);
 end;
 
 procedure THCDocxReader.ReadStyleWithEffects_(const AFile: string);
@@ -1279,7 +1971,7 @@ procedure THCDocxReader.ReadTextItem_(const AData: THCViewData;
 var
   vTextItem: THCCustomItem;
 begin
-  if ANode.Text <> '' then
+  if AParaFirst or (ANode.Text <> '') then
   begin
     vTextItem := AData.CreateDefaultTextItem;
     vTextItem.Text := ANode.Text;
@@ -1315,28 +2007,49 @@ begin
     if vNode.NodeName = 'w:rFonts' then
     begin
       if vNode.HasAttribute('w:ascii') then  // 如果没有，需要取w:eastAsia或w:cs
-        ATextStyle.FontName := vNode.Attributes['w:ascii']
-      else
-        ATextStyle.FontName := '宋体';
+        ATextStyle.FontName := vNode.Attributes['w:ascii'];
     end
     else
     if vNode.NodeName = 'w:sz' then
       ATextStyle.DoubleFontSize := vNode.Attributes['w:val']
     else
+    if vNode.NodeName = 'w:highlight' then
+      ATextStyle.BackColor := GetOpenXmlNodeColor(vNode.Attributes['w:val'])
+    else
     if vNode.NodeName = 'w:color' then
-      ATextStyle.ForeColor := ConvertHtmlColor(StrToInt('$' + vNode.Attributes['w:val']))
+      ATextStyle.ForeColor := GetOpenXmlNodeColor(vNode.Attributes['w:val'])
     else
     if vNode.NodeName = 'w:strike' then
-      ATextStyle.StrikeoutWordsOnly := True
+    begin
+      if vNode.HasAttribute('w:val') then
+        ATextStyle.StrikeoutWordsOnly := vNode.Attributes['w:val']
+      else
+        ATextStyle.StrikeoutWordsOnly := True;
+    end
     else
     if vNode.NodeName = 'w:u' then
-      ATextStyle.UnderlineWordsOnly := True
+    begin
+      if vNode.HasAttribute('w:val') then
+        ATextStyle.UnderlineWordsOnly := vNode.Attributes['w:val'] <> 'none'
+      else
+        ATextStyle.UnderlineWordsOnly := True;
+    end
     else
     if vNode.NodeName = 'w:b' then
-      ATextStyle.FontBold := True
+    begin
+      if vNode.HasAttribute('w:val') then
+        ATextStyle.FontBold := vNode.Attributes['w:val']
+      else
+        ATextStyle.FontBold := True;
+    end
     else
     if vNode.NodeName = 'w:i' then
-      ATextStyle.FontBold := True
+    begin
+      if vNode.HasAttribute('w:val') then
+        ATextStyle.FontItalic := vNode.Attributes['w:val']
+      else
+        ATextStyle.FontItalic := True;
+    end
     else
     if vNode.NodeName = 'w:vertAlign' then
     begin
@@ -2055,6 +2768,8 @@ begin
     begin
       Result.Cells[vR, vC].RowSpan := Rows[vR].Cells[vC].RowSpan;
       Result.Cells[vR, vC].ColSpan := Rows[vR].Cells[vC].ColSpan;
+      Result.Cells[vR, vC].BackgroundColor := Rows[vR].Cells[vC].FillColor;
+      Result.Cells[vR, vC].AlignVert := Rows[vR].Cells[vC].AlignVert;
       if (Result.Cells[vR, vC].RowSpan < 0) or (Result.Cells[vR, vC].ColSpan < 0) then
       begin
         Result.Cells[vR, vC].CellData.Free;
@@ -2111,6 +2826,8 @@ begin
   Merge := cmNone;
   RowSpan := 0;
   ColSpan := 0;
+  FillColor := clNone;
+
   FOnReadData := AOnReadData;
 
   vNodePr := ANode.ChildNodes.FindNode('w:tcPr');
@@ -2122,9 +2839,11 @@ begin
       if vNode.NodeName = 'w:tcW' then
       begin
         if vNode.Attributes['w:type'] = 'dxa' then  // twentieths
-          Width := TwipToPixel(vNode.Attributes['w:w'], AStyle.PixelsPerInchX)
+          Width := TwipToPixel(Integer(vNode.Attributes['w:w']), AStyle.PixelsPerInchX)
         else
           Width := vNode.Attributes['w:w'];
+
+        ViewData.Width := Width;
       end
       else
       if vNode.NodeName = 'w:vMerge' then
@@ -2137,7 +2856,16 @@ begin
       end
       else
       if vNode.NodeName = 'w:gridSpan' then
-        ColSpan := vNode.Attributes['w:val'] - 1;
+        ColSpan := vNode.Attributes['w:val'] - 1
+      else
+      if vNode.NodeName = 'w:shd' then  // 底纹/背景色
+      begin
+        if vNode.HasAttribute('w:fill') then
+          FillColor := GetOpenXmlNodeColor(vNode.Attributes['w:fill']);
+      end
+      else
+      if vNode.NodeName = '' then
+        AlignVert := GetAlignVertByName(vNode.Attributes['w:val']);
     end;
   end;
 
@@ -2150,12 +2878,24 @@ begin
   Merge := cmNone;
   RowSpan := 0;
   ColSpan := 0;
+  FillColor := clNone;
 end;
 
 destructor THCDocxCell.Destroy;
 begin
   FreeAndNil(ViewData);
   inherited Destroy;
+end;
+
+function THCDocxCell.GetAlignVertByName(const AName: string): THCAlignVert;
+begin
+  if AName = 'bottom' then
+    Result := THCAlignVert.cavBottom
+  else
+  if AName = 'center' then
+    Result := THCAlignVert.cavCenter
+  else
+    Result := THCAlignVert.cavTop;
 end;
 
 { THCDocxParaStyle }
@@ -2197,6 +2937,19 @@ begin
   RightBorder := ASrc.RightBorder;
   TopBorder := ASrc.TopBorder;
   BottomBorder := ASrc.BottomBorder;
+end;
+
+constructor THCDocxParaStyle.Create;
+begin
+  TextStyle := nil;
+end;
+
+destructor THCDocxParaStyle.Destroy;
+begin
+  if Assigned(TextStyle) then
+    FreeAndNil(TextStyle);
+
+  inherited Destroy;
 end;
 
 procedure THCDocxParaStyle.SetParaAlignment(const AAlign: string);
@@ -2248,6 +3001,8 @@ constructor THCDocxTextStyle.Create;
 begin
   ForeColor := clBlack;
   BackColor := clNone;
+  FontName := HCDOCX_DEFAULTFONT;
+  DoubleFontSize := 21;  // 10.5 * 2
 end;
 
 function THCDocxTextStyle.GetHCFontStyles: THCFontStyles;

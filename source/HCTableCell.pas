@@ -18,7 +18,7 @@ uses
 
 type
   /// <summary> 垂直对齐方式：上、居中、下) </summary>
-  TAlignVert = (cavTop, cavCenter, cavBottom);
+  THCAlignVert = (cavTop, cavCenter, cavBottom);
 
   THCTableCell = class
   private
@@ -29,7 +29,7 @@ type
     FColSpan   // 单元格跨几列，用于合并目标单元格记录合并了几列，合并源记录合并到单元格的列号，0没有列合并
       : Integer;
     FBackgroundColor: TColor;
-    FAlignVert: TAlignVert;
+    FAlignVert: THCAlignVert;
     FBorderSides: TBorderSides;
   protected
     function GetActive: Boolean;
@@ -75,7 +75,7 @@ type
     property BackgroundColor: TColor read FBackgroundColor write FBackgroundColor;
     // 用于表格切换编辑的单元格
     property Active: Boolean read GetActive write SetActive;
-    property AlignVert: TAlignVert read FAlignVert write FAlignVert;
+    property AlignVert: THCAlignVert read FAlignVert write FAlignVert;
     property BorderSides: TBorderSides read FBorderSides write FBorderSides;
   end;
 
@@ -195,7 +195,7 @@ begin
   FHeight := ANode.Attributes['height'];
   FRowSpan := ANode.Attributes['rowspan'];
   FColSpan := ANode.Attributes['colspan'];
-  FAlignVert := TAlignVert(ANode.Attributes['vert']);
+  FAlignVert := THCAlignVert(ANode.Attributes['vert']);
   FBackgroundColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);  // 背景色
   SetBorderSideByPro(ANode.Attributes['border'], FBorderSides);
 

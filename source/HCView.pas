@@ -477,6 +477,8 @@ type
     /// <summary> 读取xml格式 </summary>
     procedure LoadFromXml(const AFileName: string);
 
+    /// <summary> 导出为html格式 </summary>
+    /// <param name="ASeparateSrc">True：图片等保存到文件夹，False以base64方式存储到页面中</param>
     procedure SaveToHtml(const AFileName: string; const ASeparateSrc: Boolean = False);
 
     /// <summary> 获取指定页所在的节和相对此节的页序号 </summary>

@@ -267,6 +267,9 @@ procedure THCImageItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vImgSize: Cardinal;
+  {$IFNDEF BMPIMAGEITEM}
+  vStream: TMemoryStream;
+  {$ENDIF}
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
 
@@ -276,7 +279,20 @@ begin
   begin
     AStream.ReadBuffer(vImgSize, SizeOf(vImgSize));
     if vImgSize > 0 then
+    begin
+      {$IFDEF BMPIMAGEITEM}
       FImage.LoadFromStream(AStream);  // »á´¥·¢OnChange
+      {$ELSE}
+      vStream := TMemoryStream.Create;
+      try
+        vStream.CopyFrom(AStream, vImgSize);
+        vStream.Position := 0;
+        FImage.LoadFromStream(vStream);
+      finally
+        FreeAndNil(vStream);
+      end;
+      {$ENDIF}
+    end;
   end;
 end;
 

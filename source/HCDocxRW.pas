@@ -16,7 +16,7 @@ interface
 uses
   Winapi.Windows, System.Classes, Vcl.Graphics, HCView, HCCommon, HCXml, HCViewData,
   HCStyle, HCTextStyle, HCParaStyle, HCDocumentRW, System.Generics.Collections,
-  HCItem, HCTableItem, HCTableCell;
+  HCItem, HCImageItem, HCGifItem, HCTableItem, HCTableRow, HCTableCell;
 
 type
   THCZLibPackageFile = class
@@ -30,6 +30,13 @@ type
     property &Type: string read FType write FType;
     property ContentType: string read FContentType write FContentType;
     property Stream: TStream read FStream;
+  end;
+
+  THCDocxResFile = class
+  public
+    ID, &Type, Target, Extension: string;
+    Stream: TMemoryStream;
+    destructor Destroy; override;
   end;
 
   THCOpenXmlRelation = class
@@ -109,6 +116,7 @@ type
     QFormat: Boolean;
     AfterAutoSpacing: Boolean;
     Alignment: TParaAlignHorz;
+    VerticalAlignment: TParaAlignVert;
     BackColor: TColor;
     BeforeAutoSpacing: Boolean;
     ContextualSpacing: Boolean;
@@ -135,6 +143,7 @@ type
     TextStyle: THCDocxTextStyle;
     procedure CopyFrom(const ASrc: THCDocxParaStyle);
     procedure SetParaAlignment(const AAlign: string);
+    procedure SetParaVerticalAlignment(const AAlign: string);
     constructor Create;
     destructor Destroy; override;
   end;
@@ -213,13 +222,14 @@ type
     FWordFolder: string;
     /// <summary> 解压后的docProps文件夹路径 </summary>
     FDocProps: string;
+    FResFileId: Cardinal;
     //
     FPackageFile: TObjectList<THCZLibPackageFile>;
     FDocxProperty: THCDocxProperty;
     FTextStyles: TObjectList<THCDocxTextStyle>;
     FParaStyles: TObjectList<THCDocxParaStyle>;
     FTableStyles: TObjectList<THCDocxTableStyle>;
-    FMediaFiles: TStringList;
+    FResFiles: TObjectList<THCDocxResFile>;
 
     procedure LoadFromZLibStream(const AStream: TStream);
     function GetZLibPackageFile(const AFileName: string): THCZLibPackageFile;
@@ -230,6 +240,7 @@ type
     function FindTextStyleById(const AStyleId: string): THCDocxTextStyle;
     function FindParaStyleDefault: THCDocxParaStyle;
     function FindParaStyleById(const AStyleId: string): THCDocxParaStyle;
+    function FindResFileById(const AResID: string): THCDocxResFile;
     //
     function FindHCParaNo(const AParaStyle: THCDocxParaStyle): Integer;
     function FindHCStyleNo(const ATextStyle: THCDocxTextStyle): Integer;
@@ -267,7 +278,12 @@ type
       const AStyle: THCStyle; const AFirstTime: Boolean = True);
     procedure ReadData_(const AData: THCViewData; const ANode: IHCXMLNode; const AStyle: THCStyle);
     //
+    function NextResFileId: string;
+    procedure WriteTextStyleProperty(const ATextStyle: THCTextStyle; const APrNode: IHCXMLNode);
     procedure WriteData_(const AData: THCViewData; const ANode: IHCXMLNode);
+    procedure WriteTable_(const ANode: IHCXMLNode; const ATableItem: THCTableItem);
+    procedure WriteDrawingImage_(const ANode: IHCXMLNode; const AImageItem: THCImageItem);
+    procedure WriteDrawingGif_(const ANode: IHCXMLNode; const AGifItem: THCGifItem);
     //
     function WriteDocumentXmlRels_(const APackageFile: TObjectList<THCZLibPackageFile>;
       const AFileName: string): THCZLibPackageFile;
@@ -299,29 +315,29 @@ implementation
 {$I HCView.inc}
 
 uses
-  System.SysUtils, System.IOUtils, HCZLib, HCImageItem, HCGifItem, Vcl.Imaging.pngimage;
+  System.SysUtils, System.IOUtils, System.Math, HCZLib;
 
 const
   HCDOCX_DEFAULTFONT = 'Calibri';
   HCDOCX_Relationships = 'http://schemas.openxmlformats.org/package/2006/relationships';
-  //HCDOCX_XMLNS = 'xmlns';
-  HCDOCX_OfficeDocument = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument';
+  HCDOCX_DocumentRelationships = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  HCDOCX_OfficeDocument = HCDOCX_DocumentRelationships + '/officeDocument';
   HCDOCX_CoreProperties = 'http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties';
-  HCDOCX_ExtendedProperties = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties';
+  HCDOCX_ExtendedProperties = HCDOCX_DocumentRelationships + '/extended-properties';
 
   HCDOCX_Main = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-  HCDOCX_FontTable = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable';
-  HCDOCX_Settings = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings';
-  HCDOCX_WebSettings = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/webSettings';
-  HCDOCX_Styles = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles';
-  HCDOCX_Numbering = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering';
-  HCDOCX_FootNotes = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes';
-  HCDOCX_EndNotes = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes';
-  HCDOCX_Comments = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments';
+  HCDOCX_FontTable = HCDOCX_DocumentRelationships + '/fontTable';
+  HCDOCX_Settings = HCDOCX_DocumentRelationships + '/settings';
+  HCDOCX_WebSettings = HCDOCX_DocumentRelationships + '/webSettings';
+  HCDOCX_Styles = HCDOCX_DocumentRelationships + '/styles';
+  HCDOCX_Numbering = HCDOCX_DocumentRelationships + '/numbering';
+  HCDOCX_FootNotes = HCDOCX_DocumentRelationships + '/footnotes';
+  HCDOCX_EndNotes = HCDOCX_DocumentRelationships + '/endnotes';
+  HCDOCX_Comments = HCDOCX_DocumentRelationships + '/comments';
   HCDOCX_StyleWithEffects = 'http://schemas.microsoft.com/office/2007/relationships/stylesWithEffects';
-  HCDOCX_Header = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/header';
-  HCDOCX_Footer = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer';
-  HCDOCX_IMAGE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image';
+  HCDOCX_Header = HCDOCX_DocumentRelationships + '/header';
+  HCDOCX_Footer = HCDOCX_DocumentRelationships + '/footer';
+  HCDOCX_IMAGE = HCDOCX_DocumentRelationships + '/image';
 
   HCDOCX_NSwps = 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape';
   HCDOCX_NSwp14 = 'http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing';
@@ -871,6 +887,18 @@ begin
     Result := GetColorByName(ARGB);
 end;
 
+function ConvertColorToOpenXml(const AColor: TColor): string;
+var
+  vR, vG, vB: Byte;
+begin
+  //vA := ARGB shr 24;
+  vR := Byte(AColor);
+  vG := Byte(AColor shr 8);
+  vB := Byte(AColor shr 16);
+
+  Result := Copy(IntToHex(vR or (vG shl 8) or (vB shl 16)), 3, 6);
+end;
+
 function GetAttributeAsString(const ANode: IHCXMLNode; const AttrName: string): string;
 var
   vNode: IHCXMLNode;
@@ -900,6 +928,11 @@ begin
   Result := Round(AValue * ADpi / 1440);
 end;
 
+function PixelToTwip(const AValue, ADpi: Cardinal): Cardinal;
+begin
+  Result := Round(AValue * 1440 / ADpi);
+end;
+
 function TwipToMillimeter(const AValue: Single): Single;
 begin
   Result := AValue * 25.4 / 1440;
@@ -918,7 +951,7 @@ begin
   FTextStyles := TObjectList<THCDocxTextStyle>.Create;
   FParaStyles := TObjectList<THCDocxParaStyle>.Create;
   FTableStyles := TObjectList<THCDocxTableStyle>.Create;
-  FMediaFiles := TStringList.Create;
+  FResFiles := TObjectList<THCDocxResFile>.Create;
 end;
 
 destructor THCDocxReader.Destroy;
@@ -928,7 +961,7 @@ begin
   FTextStyles.Free;
   FParaStyles.Free;
   FTableStyles.Free;
-  FMediaFiles.Free;
+  FResFiles.Free;
   inherited Destroy;
 end;
 
@@ -942,6 +975,7 @@ begin
   vHCParaStyle := THCParaStyle.Create;
   try
     vHCParaStyle.AlignHorz := AParaStyle.Alignment;
+    vHCParaStyle.AlignVert := AParaStyle.VerticalAlignment;
     vHCParaStyle.LineSpaceMode := AParaStyle.LineSpacingType;
     vHCParaStyle.FristIndent := AParaStyle.FirstLineIndent;
     vHCParaStyle.LeftIndent := AParaStyle.LeftIndent;
@@ -999,6 +1033,21 @@ begin
     if FParaStyles[i].Default then
     begin
       Result := FParaStyles[i];
+      Break;
+    end;
+  end;
+end;
+
+function THCDocxReader.FindResFileById(const AResID: string): THCDocxResFile;
+var
+  i: Integer;
+begin
+  Result := nil;
+  for i := 0 to FResFiles.Count - 1 do
+  begin
+    if FResFiles[i].ID = AResID then
+    begin
+      Result := FResFiles[i];
       Break;
     end;
   end;
@@ -1113,6 +1162,7 @@ var
   vRelation: THCOpenXmlRelation;
   vFile: string;
   i: Integer;
+  vResFile: THCDocxResFile;
 begin
   FHCView := AHCView;
   LoadFromZLibStream(AStream);
@@ -1176,10 +1226,14 @@ begin
       else
       if vRelation.&Type = HCDOCX_IMAGE then  // image
       begin
+        vResFile := THCDocxResFile.Create;
+        vResFile.ID := vRelation.Id;
         if vRelation.Target[1] <> '/' then
-          FMediaFiles.Add(vRelation.Id + '=' + FWordFolder + '/' + vRelation.Target)
+          vResFile.Target := FWordFolder + '/' + vRelation.Target
         else
-          FMediaFiles.Add(vRelation.Id + '=' + vRelation.Target)
+          vResFile.Target := vRelation.Target;
+
+        FResFiles.Add(vResFile);
       end;
     end;
   finally
@@ -1222,6 +1276,12 @@ begin
   finally
     FreeAndNil(vZLib);
   end;
+end;
+
+function THCDocxReader.NextResFileId: string;
+begin
+  Inc(FResFileId);
+  Result := IntToStr(FResFileId);
 end;
 
 procedure THCDocxReader.ReadComments_(const AFile: string);
@@ -1370,7 +1430,7 @@ begin
   if vImageResID <> '' then
   begin
     // 取图片
-    vFile := FMediaFiles.Values[vImageResID];
+    vFile := FindResFileById(vImageResID).Target;
     vZLibPackageFile := GetZLibPackageFile(vFile);
     // 设置大小
     vNode := FindChildNodeByName(vInLineNode, 'wp:extent');
@@ -1601,7 +1661,7 @@ begin
   vParaNo := THCStyle.Null;
   vParaStyleLink := '';
 
-  if AParaNode.ChildNodes.Count = 0 then
+  if AParaNode.ChildNodes.Count = 0 then  // 空段
   begin
     if vParaNo < 0 then
       vParaNo := GetHCParaNo;
@@ -1684,6 +1744,9 @@ var
   i: Integer;
   vNode: IHCXMLNode;
 begin
+  AParaStyle.Alignment := TParaAlignHorz.pahJustify;
+  AParaStyle.VerticalAlignment := TParaAlignVert.pavBottom;
+
   for i := 0 to APrNode.ChildNodes.Count - 1 do
   begin
     vNode := APrNode.ChildNodes[i];
@@ -1695,6 +1758,12 @@ begin
     begin
       if vNode.HasAttribute('w:val') then
         AParaStyle.SetParaAlignment(vNode.Attributes['w:val']);
+    end
+    else
+    if vNode.NodeName = 'w:textAlignment' then
+    begin
+      if vNode.HasAttribute('w:val') then
+        AParaStyle.SetParaVerticalAlignment(vNode.Attributes['w:val']);
     end
     else
     if vNode.NodeName = 'w:keepNext' then
@@ -2004,6 +2073,9 @@ begin
   begin
     vNode := APrNode.ChildNodes[i];
 
+    if vNode.NodeName = 'w:rStyle' then
+      ATextStyle.CopyFrom(FindTextStyleById(vNode.Attributes['w:val']))
+    else
     if vNode.NodeName = 'w:rFonts' then
     begin
       if vNode.HasAttribute('w:ascii') then  // 如果没有，需要取w:eastAsia或w:cs
@@ -2080,10 +2152,11 @@ procedure THCDocxReader.SaveToStream(const AHCView: THCView; const AStream: TStr
 var
   vZLib: THCZLib;
   //vWordPackFile, vDocPropsPackFile: TObjectList<THCZLibPackageFile>;
-  vPackageFile: THCZLibPackageFile;
+  vPackageFile, vDocumentPackageFile: THCZLibPackageFile;
   i: Integer;
 begin
   FHCView := AHCView;
+  FResFileId := 0;
   FHeaderID := '';
   FFooterID := '';
   FPackageFile.Clear;
@@ -2094,27 +2167,29 @@ begin
 
     //vWordPackFile.Add(WriteNumbering_);
     //vWordPackFile.Add(WriteFontTable_);
-    FPackageFile.Add(WriteSettings_);
+    FPackageFile.Add(WriteSettings_);  // settings.xml
     //vWordPackFile.Add(WriteWebSettings_);
     //vWordPackFile.Add(WriteComments_);
-    FPackageFile.Add(WriteStyles_);
+    FPackageFile.Add(WriteStyles_);  // styles.xml
     //vWordPackFile.Add(WriteStyleWithEffects_);
     //vWordPackFile.Add(WriteFootNotes_);
     //vWordPackFile.Add(WriteEndNotes_);
 
-    vPackageFile := WriteHeader1_;
+    vPackageFile := WriteHeader1_;  // header1.xml
     if Assigned(vPackageFile) then
     begin
       FPackageFile.Add(vPackageFile);
       FHeaderID := 'rId' + IntToStr(FPackageFile.Count);
     end;
 
-    vPackageFile := WriteFooter1_;
+    vPackageFile := WriteFooter1_;  // footer1.xml
     if Assigned(vPackageFile) then
     begin
       FPackageFile.Add(vPackageFile);
       FFooterID := 'rId' + IntToStr(FPackageFile.Count);
     end;
+
+    vDocumentPackageFile := WriteDocument_;
 
     vPackageFile := WriteDocumentXmlRels_(FPackageFile, 'word\_rels\document.xml.rels');
     try
@@ -2123,7 +2198,10 @@ begin
       FreeAndNil(vPackageFile);
     end;
 
-    FPackageFile.Add(WriteDocument_);
+    for i := 0 to FResFiles.Count - 1 do  // 写资源文件
+      vZLib.AppendFile(FResFiles[i].Target, FResFiles[i].Stream);
+
+    FPackageFile.Add(vDocumentPackageFile);  // document.xml
     FPackageFile.Add(WriteContentTypes_(FPackageFile));  // [Content_Types].xml
     for i := 0 to FPackageFile.Count - 1 do
     begin
@@ -2158,6 +2236,7 @@ var
   vXmlNode: IHCXMLNode;
   vStream: TMemoryStream;
   i: Integer;
+  vExtList: TStringList;
 begin
   Result := nil;
   vXml := THCXMLDocument.Create(nil);
@@ -2167,6 +2246,47 @@ begin
   vXmlNode := vXml.DocumentElement.AddChild('Default');
   vXmlNode.Attributes['Extension'] := 'rels';
   vXmlNode.Attributes['ContentType'] := 'application/vnd.openxmlformats-package.relationships+xml';
+
+  vExtList := TStringList.Create;
+  try
+    for i := 0 to FResFiles.Count - 1 do
+    begin
+      if vExtList.IndexOf(FResFiles[i].Extension) < 0 then
+        vExtList.Add(FResFiles[i].Extension)
+      else
+        Continue;
+
+      if FResFiles[i].Extension = 'bmp' then
+      begin
+        vXmlNode := vXml.DocumentElement.AddChild('Default');
+        vXmlNode.Attributes['Extension'] := 'bmp';
+        vXmlNode.Attributes['ContentType'] := 'image/bitmap';
+      end
+      else
+      if (FResFiles[i].Extension = 'jpeg') or (FResFiles[i].Extension = 'jpg') then
+      begin
+        vXmlNode := vXml.DocumentElement.AddChild('Default');
+        vXmlNode.Attributes['Extension'] := 'jpeg';
+        vXmlNode.Attributes['ContentType'] := 'image/jpeg';
+      end
+      else
+      if FResFiles[i].Extension = 'png' then
+      begin
+        vXmlNode := vXml.DocumentElement.AddChild('Default');
+        vXmlNode.Attributes['Extension'] := 'png';
+        vXmlNode.Attributes['ContentType'] := 'image/png';
+      end
+      else
+      if FResFiles[i].Extension = 'gif' then
+      begin
+        vXmlNode := vXml.DocumentElement.AddChild('Default');
+        vXmlNode.Attributes['Extension'] := 'gif';
+        vXmlNode.Attributes['ContentType'] := 'image/gif';
+      end;
+    end;
+  finally
+    FreeAndNil(vExtList);
+  end;
 
   for i := 0 to APackageFile.Count - 1 do
   begin
@@ -2191,23 +2311,33 @@ procedure THCDocxReader.WriteData_(const AData: THCViewData;
 var
   i: Integer;
   vItem: THCCustomItem;
-  vParaNode, vRowNode, vItemNode: IHCXMLNode;
+  vParaNode, vWRNode, vNode: IHCXMLNode;
 begin
   for i := 0 to AData.Items.Count - 1 do
   begin
     vItem := AData.Items[i];
-    if vItem.ParaFirst then
+    if vItem.ParaFirst and (vItem.StyleNo <> THCStyle.Table) then  // docx里表格是段首
       vParaNode := ANode.AddChild('w:p');
-    if vItem.StyleNo > THCStyle.Null then
+    if (vItem.StyleNo > THCStyle.Null) and (vItem.Text <> '') then
     begin
-      vRowNode := vParaNode.AddChild('w:r');
-      vItemNode := vRowNode.AddChild('w:t');
-      vItemNode.Text := vItem.Text;
+      vWRNode := vParaNode.AddChild('w:r');
+      if vItem.StyleNo > 0 then
+      begin
+        vNode := vWRNode.AddChild('w:rPr');
+        vNode.AddChild('w:rStyle').Attributes['w:val'] := 'C' + IntToStr(vItem.StyleNo);
+      end;
+      vNode := vWRNode.AddChild('w:t');
+      vNode.Text := vItem.Text;
     end
     else
-    begin
-
-    end;
+    if vItem.StyleNo = THCStyle.Image then
+      WriteDrawingImage_(vParaNode, vItem as THCImageItem)
+    else
+    if vItem.StyleNo = THCStyle.Gif then
+      WriteDrawingGif_(vParaNode, vItem as THCGifItem)
+    else
+    if vItem.StyleNo = THCStyle.Table then
+      WriteTable_(ANode, vItem as THCTableItem);
   end;
 end;
 
@@ -2225,6 +2355,14 @@ begin
   vXml.Active := True;
   vXml.Version := '1.0';
   vXml.DocumentElement := vXml.AddChild('Relationships', HCDOCX_Relationships);
+
+  for i := 0 to FResFiles.Count - 1 do
+  begin
+    vXmlNode := vXml.DocumentElement.AddChild('Relationship');
+    vXmlNode.Attributes['Id'] := FResFiles[i].ID;
+    vXmlNode.Attributes['Type'] := FResFiles[i].&Type;
+    vXmlNode.Attributes['Target'] := FResFiles[i].Target;
+  end;
 
   for i := 0 to APackageFile.Count - 1 do
   begin
@@ -2296,7 +2434,7 @@ begin
   if FHeaderID <> '' then
   begin
     vXmlNode3 := vXmlNode2.AddChild('w:headerReference');
-    vXmlNode3.Attributes['xmlns:r'] := 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    vXmlNode3.Attributes['xmlns:r'] := HCDOCX_DocumentRelationships;
     vXmlNode3.Attributes['w:type'] := 'default';
     vXmlNode3.Attributes['r:id'] := FHeaderID;
   end;
@@ -2304,7 +2442,7 @@ begin
   if FFooterID <> '' then
   begin
     vXmlNode3 := vXmlNode2.AddChild('w:footerReference');
-    vXmlNode3.Attributes['xmlns:r'] := 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    vXmlNode3.Attributes['xmlns:r'] := HCDOCX_DocumentRelationships;
     vXmlNode3.Attributes['w:type'] := 'default';
     vXmlNode3.Attributes['r:id'] := FFooterID;
   end;
@@ -2326,6 +2464,164 @@ begin
   Result := THCZLibPackageFile.Create('word\document.xml', vStream, vStream.Size);
   Result.&Type := HCDOCX_OfficeDocument;
   Result.ContentType := 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
+end;
+
+procedure THCDocxReader.WriteDrawingGif_(const ANode: IHCXMLNode;
+  const AGifItem: THCGifItem);
+var
+  vWPNode, vGraphicNode, vGraphicDataNode, vPicNode, vPicPrNode,
+  vblipFillNode, vblipNode, vspPrNode, vNode: IHCXMLNode;
+  vW, vH: Cardinal;
+  vResFileId: string;
+  vResFile: THCDocxResFile;
+begin
+  vWPNode := ANode.AddChild('w:r').AddChild('w:drawing').AddChild('wp:inline');
+  vWPNode.Attributes['xmlns:wp'] := 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
+
+  vW := Round(TwipToMillimeter(PixelToTwip(AGifItem.Width, FHCView.Style.PixelsPerInchX) * 36000));
+  vH := Round(TwipToMillimeter(PixelToTwip(AGifItem.Height, FHCView.Style.PixelsPerInchY) * 36000));
+  vNode := vWPNode.AddChild('wp:extent');
+  vNode.Attributes['cx'] := vW;
+  vNode.Attributes['cy'] := vH;
+
+  vResFileId := NextResFileId;
+  vNode := vWPNode.AddChild('wp:docPr');
+  vNode.Attributes['id'] := 1;
+  vNode.Attributes['name'] := 'Picture ' + vResFileId;
+
+  vGraphicNode := vWPNode.AddChild('a:graphic');
+  vGraphicNode.Attributes['xmlns:a'] := 'http://schemas.openxmlformats.org/drawingml/2006/main';
+
+  vGraphicDataNode := vGraphicNode.AddChild('a:graphicData');
+  vGraphicDataNode.Attributes['uri'] := 'http://schemas.openxmlformats.org/drawingml/2006/picture';
+
+  vPicNode := vGraphicDataNode.AddChild('pic:pic');
+  vPicNode.Attributes['xmlns:pic'] := 'http://schemas.openxmlformats.org/drawingml/2006/picture';
+
+  vPicPrNode := vPicNode.AddChild('pic:nvPicPr');
+  vNode := vPicPrNode.AddChild('pic:cNvPr');
+  vNode.Attributes['id'] := 1;
+  vNode.Attributes['name'] := 'Picture ' + vResFileId;
+  vNode := vPicPrNode.AddChild('pic:cNvPicPr');
+
+  vblipFillNode := vPicNode.AddChild('pic:blipFill');
+
+  vblipNode := vblipFillNode.AddChild('a:blip');
+  vblipNode.Attributes['xmlns:r'] := HCDOCX_DocumentRelationships;
+  vResFileId := 'image' + vResFileId;
+  vblipNode.Attributes['r:embed'] := vResFileId;
+
+  vblipFillNode.AddChild('a:stretch').AddChild('a:fillRect');  //
+
+  vspPrNode := vPicNode.AddChild('pic:spPr');
+  vNode := vspPrNode.AddChild('a:xfrm');
+  vblipNode := vNode.AddChild('a:off');  //
+  vblipNode.Attributes['x'] := 0;
+  vblipNode.Attributes['y'] := 0;
+  vblipNode := vNode.AddChild('a:ext');
+  vblipNode.Attributes['cx'] := vW;
+  vblipNode.Attributes['cy'] := vH;
+  vNode := vspPrNode.AddChild('a:prstGeom');
+  vNode.Attributes['prst'] := 'rect';
+  vNode := vspPrNode.AddChild('a:noFill');
+
+  vResFile := THCDocxResFile.Create;
+  vResFile.ID := vResFileId;
+  vResFile.&Type := HCDOCX_IMAGE;
+  vResFile.Extension := 'gif';
+
+  vResFile.Target := '/media/' + vResFileId + '.' + vResFile.Extension;
+
+  vResFile.Stream := TMemoryStream.Create;
+  AGifItem.Image.SaveToStream(vResFile.Stream);
+  vResFile.Stream.Position := 0;
+
+  FResFiles.Add(vResFile);
+end;
+
+procedure THCDocxReader.WriteDrawingImage_(const ANode: IHCXMLNode;
+  const AImageItem: THCImageItem);
+var
+  vWPNode, vGraphicNode, vGraphicDataNode, vPicNode, vPicPrNode,
+  vblipFillNode, vblipNode, vspPrNode, vNode: IHCXMLNode;
+  vW, vH: Cardinal;
+  vResFileId: string;
+  vResFile: THCDocxResFile;
+begin
+  vWPNode := ANode.AddChild('w:r').AddChild('w:drawing').AddChild('wp:inline');
+  vWPNode.Attributes['xmlns:wp'] := 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
+
+  vW := Round(TwipToMillimeter(PixelToTwip(AImageItem.Width, FHCView.Style.PixelsPerInchX) * 36000));
+  vH := Round(TwipToMillimeter(PixelToTwip(AImageItem.Height, FHCView.Style.PixelsPerInchY) * 36000));
+  vNode := vWPNode.AddChild('wp:extent');
+  vNode.Attributes['cx'] := vW;
+  vNode.Attributes['cy'] := vH;
+
+  vResFileId := NextResFileId;
+  vNode := vWPNode.AddChild('wp:docPr');
+  vNode.Attributes['id'] := 1;
+  vNode.Attributes['name'] := 'Picture ' + vResFileId;
+
+  vGraphicNode := vWPNode.AddChild('a:graphic');
+  vGraphicNode.Attributes['xmlns:a'] := 'http://schemas.openxmlformats.org/drawingml/2006/main';
+
+  vGraphicDataNode := vGraphicNode.AddChild('a:graphicData');
+  vGraphicDataNode.Attributes['uri'] := 'http://schemas.openxmlformats.org/drawingml/2006/picture';
+
+  vPicNode := vGraphicDataNode.AddChild('pic:pic');
+  vPicNode.Attributes['xmlns:pic'] := 'http://schemas.openxmlformats.org/drawingml/2006/picture';
+
+  vPicPrNode := vPicNode.AddChild('pic:nvPicPr');
+  vNode := vPicPrNode.AddChild('pic:cNvPr');
+  vNode.Attributes['id'] := 1;
+  vNode.Attributes['name'] := 'Picture ' + vResFileId;
+  vNode := vPicPrNode.AddChild('pic:cNvPicPr');
+
+  vblipFillNode := vPicNode.AddChild('pic:blipFill');
+
+  vblipNode := vblipFillNode.AddChild('a:blip');
+  vblipNode.Attributes['xmlns:r'] := HCDOCX_DocumentRelationships;
+  vResFileId := 'image' + vResFileId;
+  vblipNode.Attributes['r:embed'] := vResFileId;
+
+  vblipFillNode.AddChild('a:stretch').AddChild('a:fillRect');  //
+
+  vspPrNode := vPicNode.AddChild('pic:spPr');
+  vNode := vspPrNode.AddChild('a:xfrm');
+  vblipNode := vNode.AddChild('a:off');  //
+  vblipNode.Attributes['x'] := 0;
+  vblipNode.Attributes['y'] := 0;
+  vblipNode := vNode.AddChild('a:ext');
+  vblipNode.Attributes['cx'] := vW;
+  vblipNode.Attributes['cy'] := vH;
+  vNode := vspPrNode.AddChild('a:prstGeom');
+  vNode.Attributes['prst'] := 'rect';
+  vNode := vspPrNode.AddChild('a:noFill');
+
+  vResFile := THCDocxResFile.Create;
+  vResFile.ID := vResFileId;
+  vResFile.&Type := HCDOCX_IMAGE;
+  {$IFDEF BMPIMAGEITEM}
+  vResFile.Extension := 'bmp';
+  {$ELSE}
+  case AImageItem.Image.ImageFormat of
+    wifBmp: vResFile.Extension := 'bmp';
+    wifPng: vResFile.Extension := 'png';
+    wifJpeg: vResFile.Extension := 'jpeg';
+    wifGif: vResFile.Extension := 'gif';
+    //wifTiff: ;
+    //wifWMPhoto: ;
+    //wifOther: ;
+  end;
+  {$ENDIF}
+
+  vResFile.Target := '/media/' + vResFileId + '.' + vResFile.Extension;
+
+  vResFile.Stream := TMemoryStream.Create;
+  AImageItem.Image.SaveToStream(vResFile.Stream);
+  vResFile.Stream.Position := 0;
+
+  FResFiles.Add(vResFile);
 end;
 
 function THCDocxReader.WriteEndNotes_: THCZLibPackageFile;
@@ -2457,6 +2753,9 @@ var
   vXml: IHCXMLDocument;
   vXmlNode, vXmlNode2, vXmlNode3, vXmlNode4, vXmlNode5: IHCXMLNode;
   vStream: TMemoryStream;
+  i: Integer;
+  vParaStyle: THCParaStyle;
+  vTextStyle: THCTextStyle;
 begin
   Result := nil;
   vXml := THCXMLDocument.Create(nil);
@@ -2465,52 +2764,117 @@ begin
   vXml.DocumentElement := vXml.CreateNode('w:styles');
   vXml.DocumentElement.Attributes['xmlns:w'] := HCDOCX_Main;
 
-  vXmlNode := vXml.DocumentElement.AddChild('w:docDefaults');
-  //w:rPrDefault
+  {vXmlNode := vXml.DocumentElement.AddChild('w:docDefaults');
+  //w:rPrDefault  默认文本样式
   vXmlNode2 := vXmlNode.AddChild('w:rPrDefault');
   vXmlNode3 := vXmlNode2.AddChild('w:rPr');
   // w:rFonts
   vXmlNode4 := vXmlNode3.AddChild('w:rFonts');
-  vXmlNode4.Attributes['w:asciiTheme'] := 'minorHAnsi';
-  vXmlNode4.Attributes['w:eastAsiaTheme'] := 'minorEastAsia';
-  vXmlNode4.Attributes['w:hAnsiTheme'] := 'minorHAnsi';
-  vXmlNode4.Attributes['w:cstheme'] := 'minorBidi';
+  vXmlNode4.Attributes['w:ascii'] := '宋体';
+  vXmlNode4.Attributes['w:eastAsia'] := '宋体';
+  vXmlNode4.Attributes['w:cs'] := '宋体';
+  vXmlNode4.Attributes['w:hAnsi'] := '宋体';
+
+  //vXmlNode4 := vXmlNode3.AddChild('w:lang');
+  //vXmlNode4.Attributes['w:val'] := 'en-US';
+  //vXmlNode4.Attributes['w:eastAsia'] := 'zh-CN';
+  //vXmlNode4.Attributes['w:bidi'] := 'ar-SA';
 
   vXmlNode4 := vXmlNode3.AddChild('w:sz');
   vXmlNode4.Attributes['w:val'] := '21';
   vXmlNode4 := vXmlNode3.AddChild('w:szCs');
   vXmlNode4.Attributes['w:val'] := '22';
 
-  //w:pPrDefault
+  //w:pPrDefault  默认段样式
   vXmlNode2 := vXmlNode.AddChild('w:pPrDefault');
   vXmlNode3 := vXmlNode2.AddChild('w:pPr');
   vXmlNode4 := vXmlNode3.AddChild('w:widowControl');
   vXmlNode4.Attributes['w:val'] := '1';
   vXmlNode4 := vXmlNode3.AddChild('w:jc');
-  vXmlNode4.Attributes['w:val'] := 'left';
+  vXmlNode4.Attributes['w:val'] := 'both';
 
-  // w:style
-  vXmlNode2 := vXmlNode.AddChild('w:style');
+  // 段样式基础
+  vXmlNode2 := vXml.DocumentElement.AddChild('w:style');
   vXmlNode2.Attributes['w:type'] := 'paragraph';
-  vXmlNode2.Attributes['w:styleId'] := 'P0';
+  vXmlNode2.Attributes['w:styleId'] := 'P';
   vXmlNode2.Attributes['w:default'] := '1';
   vXmlNode3 := vXmlNode2.AddChild('w:name');
-  vXmlNode3.Attributes['w:val'] := 'Normal';
-  vXmlNode3 := vXmlNode2.AddChild('w:pPr');
-  vXmlNode3 := vXmlNode2.AddChild('w:rPr');
-  //
-  vXmlNode2 := vXmlNode.AddChild('w:style');
+  vXmlNode3.Attributes['w:val'] := 'Normal';}
+
+  // w:style  可先把不使用的样式删除了
+  for i := 0 to FHCView.Style.ParaStyles.Count - 1 do  // 段样式
+  begin
+    vParaStyle := FHCView.Style.ParaStyles[i];
+
+    vXmlNode2 := vXml.DocumentElement.AddChild('w:style');
+    vXmlNode2.Attributes['w:type'] := 'paragraph';
+    vXmlNode2.Attributes['w:styleId'] := 'P' + IntToStr(i);
+    if i = 0 then
+      vXmlNode2.Attributes['w:default'] := '1'
+    else
+      vXmlNode2.AddChild('w:basedOn').Attributes['w:val'] := 'P';
+
+    vXmlNode3 := vXmlNode2.AddChild('w:name');
+    vXmlNode3.Attributes['w:val'] := 'P' + IntToStr(i);
+
+    vXmlNode3 := vXmlNode2.AddChild('w:pPr');
+    vXmlNode4 := vXmlNode3.AddChild('w:jc');
+    case vParaStyle.AlignHorz of
+      pahLeft: vXmlNode4.Attributes['w:val'] := 'left';
+      pahRight: vXmlNode4.Attributes['w:val'] := 'right';
+      pahCenter: vXmlNode4.Attributes['w:val'] := 'center';
+      pahJustify: vXmlNode4.Attributes['w:val'] := 'both';
+      pahScatter: vXmlNode4.Attributes['w:val'] := 'both';
+    end;
+
+    vXmlNode4 := vXmlNode3.AddChild('w:textAlignment');
+    case vParaStyle.AlignVert of
+      pavTop: vXmlNode4.Attributes['w:val'] := 'top';
+      pavCenter: vXmlNode4.Attributes['w:val'] := 'center';
+      pavBottom: vXmlNode4.Attributes['w:val'] := 'bottom';
+    end;
+
+    {vXmlNode3 := vXmlNode2.AddChild('w:rPr');
+    vXmlNode4 := vXmlNode3.AddChild('w:sz');
+    vXmlNode4.Attributes['w:val'] := '21';
+    vXmlNode4 := vXmlNode3.AddChild('w:szCs');
+    vXmlNode4.Attributes['w:val'] := '22';}
+  end;
+
+  // 文本样式基础
+  {vXmlNode2 := vXml.DocumentElement.AddChild('w:style');
   vXmlNode2.Attributes['w:type'] := 'character';
   vXmlNode2.Attributes['w:styleId'] := 'C0';
   vXmlNode2.Attributes['w:default'] := '1';
   vXmlNode3 := vXmlNode2.AddChild('w:name');
   vXmlNode3.Attributes['w:val'] := 'Default Paragraph Font';
   vXmlNode3 := vXmlNode2.AddChild('w:semiHidden');
+  vXmlNode3 := vXmlNode2.AddChild('w:unhideWhenUsed');
   vXmlNode3 := vXmlNode2.AddChild('w:rPr');
-  //
-  vXmlNode2 := vXmlNode.AddChild('w:style');
+  WriteTextStyleProperty(FHCView.Style.TextStyles[0], vXmlNode3); }
+   
+  for i := 0 to FHCView.Style.TextStyles.Count - 1 do  // 文本样式
+  begin
+    vTextStyle := FHCView.Style.TextStyles[i];
+
+    vXmlNode2 := vXml.DocumentElement.AddChild('w:style');
+    vXmlNode2.Attributes['w:type'] := 'character';
+    vXmlNode2.Attributes['w:styleId'] := 'C' + IntToStr(i);
+    if i = 0 then
+      vXmlNode2.Attributes['w:default'] := '1'
+    else
+      vXmlNode2.AddChild('w:basedOn').Attributes['w:val'] := 'C0';
+
+    vXmlNode3 := vXmlNode2.AddChild('w:name');
+    vXmlNode3.Attributes['w:val'] := 'C' + IntToStr(i);
+    vXmlNode3 := vXmlNode2.AddChild('w:semiHidden');
+    vXmlNode3 := vXmlNode2.AddChild('w:rPr');
+    WriteTextStyleProperty(vTextStyle, vXmlNode3);
+  end;
+
+  {vXmlNode2 := vXmlNode.AddChild('w:style');
   vXmlNode2.Attributes['w:type'] := 'character';
-  vXmlNode2.Attributes['w:styleId'] := 'C1';
+  vXmlNode2.Attributes['w:styleId'] := 'L1';
   vXmlNode3 := vXmlNode2.AddChild('w:name');
   vXmlNode3.Attributes['w:val'] := 'Line Number';
   vXmlNode3 := vXmlNode2.AddChild('w:basedOn');
@@ -2527,15 +2891,17 @@ begin
   vXmlNode4 := vXmlNode3.AddChild('w:color');
   vXmlNode4.Attributes['w:val'] := '0000FF';
   vXmlNode4 := vXmlNode3.AddChild('w:u');
-  vXmlNode4.Attributes['w:val'] := 'single';
-  //
-  vXmlNode2 := vXmlNode.AddChild('w:style');
+  vXmlNode4.Attributes['w:val'] := 'single';}
+  
+  // table style T0
+  vXmlNode2 := vXml.DocumentElement.AddChild('w:style');
   vXmlNode2.Attributes['w:type'] := 'table';
   vXmlNode2.Attributes['w:styleId'] := 'T0';
   vXmlNode2.Attributes['w:default'] := '1';
   vXmlNode3 := vXmlNode2.AddChild('w:name');
   vXmlNode3.Attributes['w:val'] := 'Normal Table';
   vXmlNode3 := vXmlNode2.AddChild('w:tblPr');
+  // 边距
   vXmlNode4 := vXmlNode3.AddChild('w:tblCellMar');
   vXmlNode5 := vXmlNode4.AddChild('w:top');
   vXmlNode5.Attributes['w:w'] := '0';
@@ -2549,6 +2915,53 @@ begin
   vXmlNode5 := vXmlNode4.AddChild('w:right');
   vXmlNode5.Attributes['w:w'] := '108';
   vXmlNode5.Attributes['w:type'] := 'dxa';
+
+  // table style T1
+  vXmlNode2 := vXml.DocumentElement.AddChild('w:style');
+  vXmlNode2.Attributes['w:type'] := 'table';
+  vXmlNode2.Attributes['w:styleId'] := 'T1';
+  vXmlNode3 := vXmlNode2.AddChild('w:name');
+  vXmlNode3.Attributes['w:val'] := 'Table Simple 1';
+  vXmlNode3 := vXmlNode2.AddChild('w:basedOn');
+  vXmlNode3.Attributes['w:val'] := 'T0';
+  vXmlNode3 := vXmlNode2.AddChild('w:tblPr');
+  // 边框
+  vXmlNode4 := vXmlNode3.AddChild('w:tblBorders');
+  vXmlNode5 := vXmlNode4.AddChild('w:left');
+  vXmlNode5.Attributes['w:val'] := 'single';
+  vXmlNode5.Attributes['w:sz'] := 4;
+  vXmlNode5.Attributes['w:space'] := 0;  // w:shadow="0" w:frame="0"
+  vXmlNode5.Attributes['w:color'] := '000000';
+
+  vXmlNode5 := vXmlNode4.AddChild('w:top');
+  vXmlNode5.Attributes['w:val'] := 'single';
+  vXmlNode5.Attributes['w:sz'] := 4;
+  vXmlNode5.Attributes['w:space'] := 0;
+  vXmlNode5.Attributes['w:color'] := '000000';
+
+  vXmlNode5 := vXmlNode4.AddChild('w:right');
+  vXmlNode5.Attributes['w:val'] := 'single';
+  vXmlNode5.Attributes['w:sz'] := 4;
+  vXmlNode5.Attributes['w:space'] := 0;
+  vXmlNode5.Attributes['w:color'] := '000000';
+
+  vXmlNode5 := vXmlNode4.AddChild('w:bottom');
+  vXmlNode5.Attributes['w:val'] := 'single';
+  vXmlNode5.Attributes['w:sz'] := 4;
+  vXmlNode5.Attributes['w:space'] := 0;
+  vXmlNode5.Attributes['w:color'] := '000000';
+
+  vXmlNode5 := vXmlNode4.AddChild('w:insideH');
+  vXmlNode5.Attributes['w:val'] := 'single';
+  vXmlNode5.Attributes['w:sz'] := 4;
+  vXmlNode5.Attributes['w:space'] := 0;
+  vXmlNode5.Attributes['w:color'] := '000000';
+
+  vXmlNode5 := vXmlNode4.AddChild('w:insideV');
+  vXmlNode5.Attributes['w:val'] := 'single';
+  vXmlNode5.Attributes['w:sz'] := 4;
+  vXmlNode5.Attributes['w:space'] := 0;
+  vXmlNode5.Attributes['w:color'] := '000000';
   //
   vStream := TMemoryStream.Create;
   vXml.SaveToStream(vStream);
@@ -2562,6 +2975,115 @@ function THCDocxReader.WriteStyleWithEffects_: THCZLibPackageFile;
 begin
   Result.&Type := HCDOCX_StyleWithEffects;
   Result.ContentType := 'application/vnd.ms-word.stylesWithEffects+xml';
+end;
+
+procedure THCDocxReader.WriteTable_(const ANode: IHCXMLNode;
+  const ATableItem: THCTableItem);
+var
+  vTBLNode, vPrNode, vNode, vRowNode, vCellNode: IHCXMLNode;
+  vRow: THCTableRow;
+  vCell: THCTableCell;
+  vR, vC, i, vW: Integer;
+begin
+  // 表格属性
+  vTBLNode := ANode.AddChild('w:tbl');
+  vPrNode := vTBLNode.AddChild('w:tblPr');
+  vNode := vPrNode.AddChild('w:tblStyle');
+  vNode.Attributes['w:val'] := 'T1';
+  vNode := vPrNode.AddChild('w:tblW');
+  vNode.Attributes['w:w'] := '0';
+  vNode.Attributes['w:type'] := 'auto';
+
+  for vR := 0 to ATableItem.RowCount - 1 do
+  begin
+    vRow := ATableItem.Rows[vR];
+
+    vRowNode := vTBLNode.AddChild('w:tr');
+    for vC := 0 to ATableItem.ColCount - 1 do
+    begin
+      vCell := ATableItem.Cells[vR, vC];
+      if vCell.ColSpan < 0 then
+        Continue;
+
+      vCellNode := vRowNode.AddChild('w:tc');  // 单元格
+      vPrNode := vCellNode.AddChild('w:tcPr');  // 单元格属性
+      vNode := vPrNode.AddChild('w:tcW');  // 宽度
+      vNode.Attributes['w:type'] := 'dxa';     
+      vW := ATableItem.ColWidth[vC]; 
+      if vCell.ColSpan > 0 then
+      begin
+        vPrNode.AddChild('w:gridSpan').Attributes['w:val'] := vCell.ColSpan + 1;
+        for i := vC + 1 to vC + vCell.ColSpan do
+          vW := vW + ATableItem.ColWidth[i];
+      end;
+      vNode.Attributes['w:w'] := PixelToTwip(vW, FHCView.Style.PixelsPerInchX);
+      // 行合并  
+      if vCell.RowSpan > 0 then
+        vPrNode.AddChild('w:vMerge').Attributes['w:val'] := 'restart'
+      else
+      if vCell.RowSpan < 0 then
+      begin
+        vPrNode.AddChild('w:vMerge').Attributes['w:val'] := 'continue';
+        if ATableItem.Cells[vR + vCell.RowSpan, vC].ColSpan > 0 then
+          vPrNode.AddChild('w:gridSpan').Attributes['w:val'] := ATableItem.Cells[vR + vCell.RowSpan, vC].ColSpan + 1;
+      end;
+      
+      if vCell.RowSpan >= 0 then// 数据
+        WriteData_(vCell.CellData, vCellNode)
+      else
+        vCellNode.AddChild('w:p');
+    end;
+  end;
+end;
+
+procedure THCDocxReader.WriteTextStyleProperty(const ATextStyle: THCTextStyle;
+  const APrNode: IHCXMLNode);
+var
+  vNode: IHCXMLNode;
+begin
+  vNode := APrNode.AddChild('w:rFonts');
+  vNode.Attributes['w:ascii'] := ATextStyle.Family;
+  vNode.Attributes['w:eastAsia'] := ATextStyle.Family;
+  vNode.Attributes['w:cs'] := ATextStyle.Family;
+  vNode.Attributes['w:hAnsi'] := ATextStyle.Family;
+
+  vNode := APrNode.AddChild('w:sz');
+  vNode.Attributes['w:val'] := Round(ATextStyle.Size * 2);
+  vNode := APrNode.AddChild('w:szCs');
+  vNode.Attributes['w:val'] := Ceil(ATextStyle.Size) * 2;
+
+  if ATextStyle.BackColor <> clNone then
+  begin
+    vNode := APrNode.AddChild('w:highlight');
+    vNode.Attributes['w:val'] := ConvertColorToOpenXml(ATextStyle.BackColor);
+  end;
+
+  vNode := APrNode.AddChild('w:color');
+  vNode.Attributes['w:val'] := ConvertColorToOpenXml(ATextStyle.Color);
+
+  if THCFontStyle.tsStrikeOut in ATextStyle.FontStyles then
+    vNode := APrNode.AddChild('w:strike');
+
+  if THCFontStyle.tsUnderline in ATextStyle.FontStyles then
+    vNode := APrNode.AddChild('w:u');
+
+  if THCFontStyle.tsBold in ATextStyle.FontStyles then
+    vNode := APrNode.AddChild('w:b');
+
+  if THCFontStyle.tsItalic in ATextStyle.FontStyles then
+    vNode := APrNode.AddChild('w:i');
+
+  if THCFontStyle.tsSuperscript in ATextStyle.FontStyles then
+  begin
+    vNode := APrNode.AddChild('w:vertAlign');
+    vNode.Attributes['w:val'] := 'superscript';
+  end
+  else
+  if THCFontStyle.tsSubscript in ATextStyle.FontStyles then
+  begin
+    vNode := APrNode.AddChild('w:vertAlign');
+    vNode.Attributes['w:val'] := 'subscript';
+  end;
 end;
 
 function THCDocxReader.WriteWebSettings_: THCZLibPackageFile;
@@ -2966,6 +3488,17 @@ begin
     Alignment := TParaAlignHorz.pahLeft;
 end;
 
+procedure THCDocxParaStyle.SetParaVerticalAlignment(const AAlign: string);
+begin
+  if AAlign = 'top' then
+    VerticalAlignment := TParaAlignVert.pavTop
+  else
+  if AAlign = 'center' then
+    VerticalAlignment := TParaAlignVert.pavCenter
+  else
+    VerticalAlignment := TParaAlignVert.pavBottom;
+end;
+
 { THCDocxTextStyle }
 
 procedure THCDocxTextStyle.CopyFrom(const ASrc: THCDocxTextStyle);
@@ -3026,6 +3559,15 @@ begin
   else
   if Script = THCDocxScriptStyle.dssSubscript then
     Result := Result + [THCFontStyle.tsSubscript];
+end;
+
+{ THCDocxResFile }
+
+destructor THCDocxResFile.Destroy;
+begin
+  if Assigned(Stream) then
+    FreeAndNil(Stream);
+  inherited Destroy;
 end;
 
 end.

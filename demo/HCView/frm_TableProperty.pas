@@ -84,7 +84,7 @@ procedure TfrmTableProperty.SetHCView(const AHCView: THCView);
 var
   vR, vC, viValue{, vRowAlignIndex}: Integer;
   vData: THCRichData;
-  vAlignVert: TAlignVert;
+  vAlignVert: THCAlignVert;
   vTableItem: THCTableItem;
 begin
   FHCView := AHCView;
@@ -179,11 +179,11 @@ begin
           for vR := vTableItem.SelectCellRang.StartRow to vTableItem.SelectCellRang.EndRow do
           begin
             for vC := vTableItem.SelectCellRang.StartCol to vTableItem.SelectCellRang.EndCol do
-              vTableItem.Cells[vR, vC].AlignVert := TAlignVert(cbbCellAlignVert.ItemIndex);
+              vTableItem.Cells[vR, vC].AlignVert := THCAlignVert(cbbCellAlignVert.ItemIndex);
           end;
         end
         else
-          vTableItem.GetEditCell.AlignVert := TAlignVert(cbbCellAlignVert.ItemIndex);
+          vTableItem.GetEditCell.AlignVert := THCAlignVert(cbbCellAlignVert.ItemIndex);
       end;
 
       if FReFormt then

@@ -643,7 +643,7 @@ var
 begin
   vDlg := TSaveDialog.Create(Self);
   try
-    vDlg.Filter := '|pdf|*.pdf' + '|html|*.html';
+    vDlg.Filter := 'pdf格式|*.pdf' + '|htm格式|*.html';
     vDlg.Execute;
     if vDlg.FileName <> '' then
     begin
@@ -660,7 +660,7 @@ begin
 
       case vDlg.FilterIndex of
         1: FHCView.SaveToPDF(vDlg.FileName);  // .pdf
-        2: FHCView.SaveToXML(vDlg.FileName, TEncoding.UTF8);  // xml
+        2: FHCView.SaveToHtml(vDlg.FileName, False);
       end;
     end;
   finally
@@ -957,7 +957,7 @@ var
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
-    vOpenDlg.Filter := '图像文件|*.bmp';//|*.jpg|*.jpge|*.png';
+    vOpenDlg.Filter := '图像文件|*.bmp; *.jpg; *.jpeg; *.png|Windows Bitmap|*.bmp|JPEG 文件|*.jpg; *.jpge|可移植网络图形|*.png';
     if vOpenDlg.Execute then
     begin
       if vOpenDlg.FileName <> '' then
@@ -982,7 +982,7 @@ var
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
-    vOpenDlg.Filter := '文件|*' + HC_EXT + '; *.xml; *.docx|HCXml (*.xml)|*.xml|Word 2007 Document (*.docx)|*.docx';
+    vOpenDlg.Filter := '支持的文件|*' + HC_EXT + '; *.xml; *.docx|HCView (*.hcf)|*.' + HC_EXT + '|HCView xml (*.xml)|*.xml|Word 2007 Document (*.docx)|*.docx';
     if vOpenDlg.Execute then
     begin
       if vOpenDlg.FileName <> '' then
@@ -1033,7 +1033,7 @@ var
 begin
   vDlg := TSaveDialog.Create(Self);
   try
-    vDlg.Filter := HC_EXT + '|*' + HC_EXT + '|xml|*.xml|Word 2007 Document (*.docx)|*.docx';
+    vDlg.Filter := 'HCView|*' + HC_EXT + '|HCView xml|*.xml|Word 2007 Document (*.docx)|*.docx';
     vDlg.Execute;
     if vDlg.FileName <> '' then
     begin

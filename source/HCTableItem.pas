@@ -76,7 +76,7 @@ type
 
   TRowAddEvent = procedure(const ARow: THCTableRow) of object;
 
-  TTableRows = Class(TObjectList<THCTableRow>)
+  THCTableRows = Class(TObjectList<THCTableRow>)
   private
     FOnRowAdd: TRowAddEvent;
   protected
@@ -113,7 +113,7 @@ type
      在单个单元格中选择时结束行、列信息为-1 }
     FSelectCellRang: TSelectCellRang;
     FBorderColor: TColor;  // 边框颜色
-    FRows: TTableRows;  // 行
+    FRows: THCTableRows;  // 行
     FColWidths: TList<Integer>;  // 记录各列宽度(除边框、含FCellHPadding * 2)，方便有合并的单元格获取自己水平开始处的位置
     FPageBreaks: TObjectList<TPageBreak>;  // 记录各行分页时的信息
 
@@ -345,7 +345,7 @@ type
 
     property Cells[ARow, ACol: Integer]: THCTableCell read GetCells;
     property ColWidth[AIndex: Integer]: Integer read GetColWidth write SetColWidth;
-    property Rows: TTableRows read FRows;
+    property Rows: THCTableRows read FRows;
     property RowCount: Integer read GetRowCount;
     property ColCount: Integer read GetColCount;
     property SelectCellRang: TSelectCellRang read FSelectCellRang;
@@ -541,7 +541,7 @@ begin
 
   //FWidth := FRows[0].ColCount * (MinColWidth + FBorderWidth) + FBorderWidth;
   Height := ARowCount * (MinRowHeight + FBorderWidth) + FBorderWidth;
-  FRows := TTableRows.Create;
+  FRows := THCTableRows.Create;
   FRows.OnRowAdd := DoRowAdd;  // 添加行时触发的事件
   FSelectCellRang := TSelectCellRang.Create;
   Self.InitializeMouseInfo;
@@ -4477,9 +4477,9 @@ begin
   //MergeSrc := False;
 end;
 
-{ TTableRows }
+{ THCTableRows }
 
-procedure TTableRows.Notify(const Value: THCTableRow;
+procedure THCTableRows.Notify(const Value: THCTableRow;
   Action: TCollectionNotification);
 begin
   inherited;

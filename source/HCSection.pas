@@ -832,7 +832,11 @@ begin
   if FActiveData <> Value then
   begin
     if FActiveData <> nil then
+    begin
+      FActiveData.DisSelect;
       FActiveData.DisActive;  // 旧的取消激活
+    end;
+
     FActiveData := Value;
     FStyle.UpdateInfoReScroll;
   end;

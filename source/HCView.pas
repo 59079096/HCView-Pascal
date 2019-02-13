@@ -2352,7 +2352,7 @@ var
 begin
   SetLength(vPages, AEndPageIndex - AStartPageIndex + 1);
   for i := AStartPageIndex to AEndPageIndex do
-    vPages[i] := i;
+    vPages[i - AStartPageIndex] := i;
 
   Result := Print(APrinter, ACopies, vPages);
 end;

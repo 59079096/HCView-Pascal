@@ -59,6 +59,10 @@ type
       const ADrawRect, AClearRect: TRect; const ADrawText: string; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+
+    /// <summary> 计算行高(文本高+行间距) </summary>
+    function _CalculateLineHeight(const ACanvas: TCanvas;
+      const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
 
@@ -90,9 +94,6 @@ type
     /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
     procedure MatchItemSelectState;
 
-    /// <summary> 计算行高(文本高+行间距) </summary>
-    function _CalculateLineHeight(const ACanvas: TCanvas;
-      const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
     /// <summary>
     /// 转换指定Item指定Offs格式化为DItem
     /// </summary>
@@ -1546,7 +1547,10 @@ begin
     THCStyle.DestroyStyleCanvas(vCanvas);
   end;
 
-  Result := GetDrawItemLineSpace(vMaxDrawItemNo) - vMaxHi;  // 根据最高的DrawItem取行间距
+  if GetDrawItemStyle(vMaxDrawItemNo) < THCStyle.Null then
+    Result := LineSpaceMin
+  else
+    Result := GetDrawItemLineSpace(vMaxDrawItemNo) - vMaxHi;  // 根据最高的DrawItem取行间距
 end;
 
 {procedure THCCustomData.GetParaDrawItemRang(const AItemNo: Integer;
@@ -2951,7 +2955,7 @@ begin
     vLineSpacing := vAscent + vDescent + vLineGap;
 
     vSizeScale := ATextStyle.Size / FStyle.FontSizeScale;
-    vSizeScale := vSizeScale / vOutlineTextMetric.otmEMSquare;
+    vSizeScale := vSizeScale / vOutlineTextmetric.otmEMSquare;
     vAscent := Ceil(vAscent * vSizeScale);
     vDescent := Ceil(vDescent * vSizeScale);
     vLineSpacing := Ceil(vLineSpacing * vSizeScale);
@@ -2960,11 +2964,11 @@ begin
       and (vFontSignature.fsCsb[0] and CJK_CODEPAGE_BITS <> 0)
     then  // CJK Font
     begin
-      if (vOutlineTextMetric.otmfsSelection and 128) <> 0 then
+      if (vOutlineTextmetric.otmfsSelection and 128) <> 0 then
       begin
-        vAscent := vOutlineTextMetric.otmAscent;
-        vDescent := -vOutlineTextMetric.otmDescent;
-        vLineSpacing := vAscent + vDescent + vOutlineTextMetric.otmLineGap;
+        vAscent := vOutlineTextmetric.otmAscent;
+        vDescent := -vOutlineTextmetric.otmDescent;
+        vLineSpacing := vAscent + vDescent + vOutlineTextmetric.otmLineGap;
       end
       else
       begin

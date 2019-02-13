@@ -957,23 +957,15 @@ begin
   else
     vKeyword := AKeyword;
 
-  if AForward then  // 向前找，起始位置向前
+  if Self.SelectInfo.StartItemNo < 0 then
+  begin
+    vItemNo := 0;
+    vOffset := 0;
+  end
+  else
   begin
     vItemNo := Self.SelectInfo.StartItemNo;
     vOffset := Self.SelectInfo.StartItemOffset;
-  end
-  else  // 向后找
-  begin
-    if Self.SelectInfo.EndItemNo < 0 then  // 有选中结束，从选中结束往后
-    begin
-      vItemNo := Self.SelectInfo.StartItemNo;
-      vOffset := Self.SelectInfo.StartItemOffset;
-    end
-    else  // 没有选中结束，从选中起始往后
-    begin
-      vItemNo := Self.SelectInfo.EndItemNo;
-      vOffset := Self.SelectInfo.EndItemOffset;
-    end;
   end;
 
   Result := DoSearchByOffset(vItemNo, vOffset);

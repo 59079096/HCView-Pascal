@@ -287,7 +287,7 @@ type
     property CanResize: Boolean read FCanResize write FCanResize;
   end;
 
-  THCAnimateRectItem = class(THCResizeRectItem)  // ¶¯»­RectItem
+  THCAnimateRectItem = class(THCCustomRectItem)  // ¶¯»­RectItem
   public
     function GetOffsetAt(const X: Integer): Integer; override;
   end;

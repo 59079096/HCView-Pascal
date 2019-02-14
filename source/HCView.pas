@@ -74,8 +74,8 @@ type
     FVScrollBar: THCRichScrollBar;
     FDataBmp: TBitmap;  // 数据显示位图
     FActiveSectionIndex,
-    FDisplayFirstSection, FDisplayLastSection,
-    FUpdateCount: Integer;
+    FDisplayFirstSection, FDisplayLastSection: Integer;
+    FUpdateCount: Cardinal;
     FZoom: Single;
     FAutoZoom,  // 自动缩放
     FIsChanged: Boolean;  // 是否发生了改变
@@ -1360,7 +1360,9 @@ end;
 
 procedure THCView.EndUpdate;
 begin
-  Dec(FUpdateCount);
+  if FUpdateCount > 0 then
+    Dec(FUpdateCount);
+
   DoMapChanged;
 end;
 

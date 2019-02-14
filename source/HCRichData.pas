@@ -10,7 +10,8 @@
 {*******************************************************}
 
 {******************* 代码修改说明 ***********************
-201807311101 在行首插入内容后光标后移，按下时并没有改变ItemNo和Offset，导致光标不重新回到行首
+201807311101 在行首插入内容后光标后移，按下时并没有改变ItemNo和Offset，导致光标
+             不重新回到行首
 }
 
 unit HCRichData;
@@ -143,7 +144,7 @@ type
     /// <summary> 设置光标位置到指定的Item指定位置 </summary>
     /// <param name="AItemNo">指定ItemNo</param>
     /// <param name="AOffset">指定位置</param>
-    /// <param name="ANextWhenMid">如果此位置前后的DrawItem正好分行，True后一个DrawItem前面，False前一个后面</param>
+    /// <param name="ANextWhenMid">如果此位置前后的DrawItem正好分行，True：后一个DrawItem前面，False：前一个后面</param>
     procedure ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
       const ANextWhenMid: Boolean = False); overload;
 

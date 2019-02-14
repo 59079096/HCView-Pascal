@@ -93,8 +93,10 @@ type
     /// <param name="AMouldDomain">"模具"调用完此方法后请自行释放</param>
     function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
 
-    /// <summary> 设置选中范围，仅供外部使用内部不使用 </summary>
-    procedure SetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer);
+    /// <summary> 设置选中范围 </summary>
+    /// <param name="ASilence">是否"静默"调用，False：响应此选中操作的相关动作(光标位置、界面更新) True：不响应(外部自己处理)</param>
+    procedure SetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer;
+      const ASilence: Boolean = True);
 
     /// <summary> 光标选到指定Item的最后面 </summary>
     procedure SelectItemAfterWithCaret(const AItemNo: Integer);
@@ -1026,7 +1028,7 @@ begin
 end;
 
 procedure THCViewData.SetSelectBound(const AStartNo, AStartOffset, AEndNo,
-  AEndOffset: Integer);
+  AEndOffset: Integer; const ASilence: Boolean = True);
 var
   vStartNo, vEndNo, vStartOffset, vEndOffset: Integer;
 begin
@@ -1088,6 +1090,8 @@ begin
   end;
 
   //FSelectSeekNo  如果需要确定 FSelectSeekNo，此方法得移动到CustomRichData
+  if not ASilence then
+    ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, True);
 end;
 
 procedure THCViewData.TraverseItem(const ATraverse: TItemTraverse);

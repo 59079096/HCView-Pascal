@@ -3255,17 +3255,17 @@ var
 begin
   if FCaretDrawItemNo <> Value then
   begin
-    if (FCaretDrawItemNo >= 0) and (FCaretDrawItemNo < FDrawItems.Count) then
+    if (FCaretDrawItemNo >= 0) and (FCaretDrawItemNo < FDrawItems.Count) then  // 有旧的
     begin
       vItemNo := FDrawItems[FCaretDrawItemNo].ItemNo;
-      FItems[vItemNo].Active := False;
+      FItems[vItemNo].Active := False;  // 旧的取消激活
     end
     else
       vItemNo := -1;
 
     FCaretDrawItemNo := Value;
 
-    if (FCaretDrawItemNo >= 0) and (FDrawItems[FCaretDrawItemNo].ItemNo <> vItemNo) then
+    if (FCaretDrawItemNo >= 0) and (FDrawItems[FCaretDrawItemNo].ItemNo <> vItemNo) then  // 有新的
     begin
       if FItems[FDrawItems[FCaretDrawItemNo].ItemNo].StyleNo < THCStyle.Null then
       begin
@@ -3273,7 +3273,7 @@ begin
           FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True
       end
       else
-        FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;
+        FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;  // 激活新的
     end;
   end;
 end;

@@ -279,6 +279,7 @@ type
     /// <param name="APageIndex">要映射到的页序号</param>
     /// <param name="ACaretInfo">光标位置信息</param>
     procedure GetPageCaretInfo(var ACaretInfo: THCCaretInfo);
+
     /// <summary> 绘制指定页到指定的位置，为配合打印，开放ADisplayWidth, ADisplayHeight参数 </summary>
     /// <param name="APageIndex">要绘制的页码</param>
     /// <param name="ALeft">绘制X偏移</param>
@@ -340,6 +341,9 @@ type
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean;
     procedure FormatData;
+
+    /// <summary> 设置选中范围(如不需要更新界面可直接调用Data的SetSelectBound) </summary>
+    procedure ActiveDataSetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer);
 
     procedure Undo(const AUndo: THCUndo);
     procedure Redo(const ARedo: THCUndo);
@@ -431,6 +435,17 @@ uses
   Math, HCHtml;
 
 { THCCustomSection }
+
+procedure THCCustomSection.ActiveDataSetSelectBound(const AStartNo,
+  AStartOffset, AEndNo, AEndOffset: Integer);
+begin
+  FActiveData.SetSelectBound(AStartNo, AStartOffset, AEndNo, AEndOffset, False);
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret;
+  FStyle.UpdateInfoReScroll;
+
+  DoActiveDataCheckUpdateInfo;
+end;
 
 function THCCustomSection.ActiveTableDeleteCurCol: Boolean;
 begin

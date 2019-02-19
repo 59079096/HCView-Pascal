@@ -334,8 +334,8 @@ type
       const AParts: TSectionAreas = [saHeader, saPage, saFooter]);
     procedure SaveToStream(const AStream: TStream;
       const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
-    procedure SaveToText(const AFileName: string; const AEncoding: TEncoding);
-    procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
+    procedure SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
+    procedure LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word);
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
@@ -1514,10 +1514,10 @@ begin
   BuildSectionPages(0);
 end;
 
-procedure THCCustomSection.LoadFromText(const AFileName: string;
+procedure THCCustomSection.LoadFromTextFile(const AFileName: string;
   const AEncoding: TEncoding);
 begin
-  FPageData.LoadFromText(AFileName, AEncoding);
+  FPageData.LoadFromTextFile(AFileName, AEncoding);
   BuildSectionPages(0);
 end;
 
@@ -2461,9 +2461,9 @@ begin
   AStream.Position := vEndPos;
 end;
 
-procedure THCCustomSection.SaveToText(const AFileName: string; const AEncoding: TEncoding);
+procedure THCCustomSection.SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
 begin
-  FPageData.SaveToText(AFileName, AEncoding);
+  FPageData.SaveToTextFile(AFileName, AEncoding);
 end;
 
 procedure THCCustomSection.SectionCoordToPage(const APageIndex, X, Y: Integer; var APageX,

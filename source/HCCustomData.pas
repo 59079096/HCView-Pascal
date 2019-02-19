@@ -3113,14 +3113,16 @@ begin
   begin
     if AStartItemNo <> AEndItemNo then
     begin
+      // 起始
       if FItems[AStartItemNo].StyleNo > THCStyle.Null then
         Result := (FItems[AStartItemNo] as THCTextItem).GetTextPart(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
       else
         Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText;
 
-      for i := AStartItemNo + 1 to AEndItemNo - 1 do
+      for i := AStartItemNo + 1 to AEndItemNo - 1 do  // 中间
         Result := Result + FItems[i].Text;
 
+      // 结尾
       if FItems[AEndItemNo].StyleNo > THCStyle.Null then
         Result := Result + (FItems[AEndItemNo] as THCTextItem).GetTextPart(1, AEndOffset)
       else
@@ -3136,7 +3138,7 @@ end;
 
 function THCCustomData.SaveToText: string;
 begin
-  SaveToText(0, 0, FItems.Count - 1, FItems.Last.Length);
+  Result := SaveToText(0, 0, FItems.Count - 1, FItems.Last.Length);
 end;
 
 procedure THCCustomData.SelectAll;

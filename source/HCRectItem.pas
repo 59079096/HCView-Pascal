@@ -209,6 +209,7 @@ type
     function JustifySplit: Boolean; override;
     function ApplySelectTextStyle(const AStyle: THCStyle;
       const AMatchStyle: THCStyleMatch): Integer; override;
+    procedure MarkStyleUsed(const AMark: Boolean); override;
     function SelectExists: Boolean; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -1093,6 +1094,14 @@ procedure THCTextRectItem.LoadFromStream(const AStream: TStream;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   AStream.ReadBuffer(FTextStyleNo, SizeOf(FTextStyleNo));
+end;
+
+procedure THCTextRectItem.MarkStyleUsed(const AMark: Boolean);
+begin
+  if AMark then  // 标记
+    OwnerData.Style.TextStyles[FTextStyleNo].CheckSaveUsed := True
+  else  // 重新赋值
+    FTextStyleNo := OwnerData.Style.TextStyles[FTextStyleNo].TempNo;
 end;
 
 procedure THCTextRectItem.SaveToStream(const AStream: TStream; const AStart,

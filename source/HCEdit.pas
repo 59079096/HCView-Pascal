@@ -298,7 +298,12 @@ procedure THCEdit.CreateWnd;
 begin
   inherited CreateWnd;
   if not (csDesigning in ComponentState) then
+  begin
+    if Assigned(FCaret) then  // 防止切换Parent时多次创建
+      FreeAndNil(FCaret);
+
     FCaret := THCCaret.Create(Handle);
+  end;
 end;
 
 procedure THCEdit.Cut;

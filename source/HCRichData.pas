@@ -4336,6 +4336,7 @@ var
               // 删除前面的RectItem
               UndoAction_DeleteItem(vCurItemNo, OffsetAfter);
               Items.Delete(vCurItemNo);
+              vDelCount := 1;
 
               if vParaFirst then  // 前面删除的RectItem是段首
               begin
@@ -4345,7 +4346,6 @@ var
               end
               else  // 前面删除的RectItem不是段首
               begin
-                vDelCount := 1;
                 vCurItemNo := vCurItemNo - 1;  // 上一个
                 vLen := Items[vCurItemNo].Length;  // 上一个最后面
 

@@ -109,11 +109,10 @@ type
     function InsertPageBreak: Boolean;
     //
     // ±£´æ
-    function GetTextStr: string;
-    procedure SaveToText(const AFileName: string; const AEncoding: TEncoding);
+    procedure SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
     procedure SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
     // ¶ÁÈ¡
-    procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
+    procedure LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
     procedure LoadFromTextStream(AStream: TStream; AEncoding: TEncoding);
     //
     property ShowLineActiveMark: Boolean read FShowLineActiveMark write FShowLineActiveMark;
@@ -146,7 +145,7 @@ begin
   inherited SaveToStream(AStream);
 end;
 
-procedure THCPageData.SaveToText(const AFileName: string; const AEncoding: TEncoding);
+procedure THCPageData.SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
 var
   vStream: TStream;
 begin
@@ -162,7 +161,7 @@ procedure THCPageData.SaveToTextStream(const AStream: TStream; const AEncoding: 
 var
   vBuffer, vPreamble: TBytes;
 begin
-  vBuffer := AEncoding.GetBytes(GetTextStr);
+  vBuffer := AEncoding.GetBytes(SaveToText);
   vPreamble := AEncoding.GetPreamble;
   if Length(vPreamble) > 0 then
     AStream.WriteBuffer(vPreamble[0], Length(vPreamble));
@@ -271,15 +270,6 @@ begin
   end;
 end;
 
-function THCPageData.GetTextStr: string;
-var
-  i: Integer;
-begin
-  Result := '';
-  for i := 0 to Items.Count - 1 do
-    Result := Result + Items[i].Text;
-end;
-
 function THCPageData.InsertPageBreak: Boolean;
 var
   vPageBreak: TPageBreakItem;
@@ -329,7 +319,7 @@ begin
 //  end;
 end;
 
-procedure THCPageData.LoadFromText(const AFileName: string; const AEncoding: TEncoding);
+procedure THCPageData.LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
 var
   vStream: TStream;
   vFileFormat: string;

@@ -20,13 +20,13 @@ uses
 type
   TTabItem = class(THCTextRectItem)
   protected
-    function JustifySplit: Boolean; override;
-    function GetOffsetAt(const X: Integer): Integer; override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+    function JustifySplit: Boolean; override;
+    function GetOffsetAt(const X: Integer): Integer; override;
   end;
 
 implementation

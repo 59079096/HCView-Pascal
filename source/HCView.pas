@@ -458,11 +458,11 @@ type
     procedure SaveToPDF(const AFileName: string);
 
     /// <summary> 文档保存为Text格式 </summary>
-    procedure SaveToText(const AFileName: string; const AEncoding: TEncoding);
+    procedure SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
 
     // 读取文档
     /// <summary> 读取Txt文件 </summary>
-    procedure LoadFromText(const AFileName: string; const AEncoding: TEncoding);
+    procedure LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
 
     /// <summary> 文档保存到流 </summary>
     procedure SaveToStream(const AStream: TStream; const AQuick: Boolean = False;
@@ -919,7 +919,12 @@ procedure THCView.CreateWnd;
 begin
   inherited CreateWnd;
   if not (csDesigning in ComponentState) then
+  begin
+    if Assigned(FCaret) then  // 防止切换Parent时多次创建Caret
+      FreeAndNil(FCaret);
+
     FCaret := THCCaret.Create(Handle);
+  end;
 end;
 
 procedure THCView.Cut;
@@ -1865,11 +1870,11 @@ begin
   end;
 end;
 
-procedure THCView.LoadFromText(const AFileName: string; const AEncoding: TEncoding);
+procedure THCView.LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
 begin
   Self.Clear;
   FStyle.Initialize;
-  ActiveSection.LoadFromText(AFileName, AEncoding);
+  ActiveSection.LoadFromTextFile(AFileName, AEncoding);
 end;
 
 procedure THCView.LoadFromXml(const AFileName: string);
@@ -2919,13 +2924,13 @@ begin
   end;
 end;
 
-procedure THCView.SaveToText(const AFileName: string; const AEncoding: TEncoding);
+procedure THCView.SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
 var
   i: Integer;
 begin
   // 各节数据
   for i := 0 to FSections.Count - 1 do
-    FSections[i].SaveToText(AFileName, AEncoding);
+    FSections[i].SaveToTextFile(AFileName, AEncoding);
 end;
 
 procedure THCView.SaveToStream(const AStream: TStream; const AQuick: Boolean = False;

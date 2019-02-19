@@ -982,7 +982,7 @@ var
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
-    vOpenDlg.Filter := '支持的文件|*' + HC_EXT + '; *.xml; *.docx|HCView (*.hcf)|*.' + HC_EXT + '|HCView xml (*.xml)|*.xml|Word 2007 Document (*.docx)|*.docx';
+    vOpenDlg.Filter := '支持的文件|*' + HC_EXT + '; *.xml; *.docx|HCView (*.hcf)|*' + HC_EXT + '|HCView xml (*.xml)|*.xml|Word 2007 Document (*.docx)|*.docx';
     if vOpenDlg.Execute then
     begin
       if vOpenDlg.FileName <> '' then

@@ -977,7 +977,7 @@ begin
     vHCParaStyle.AlignHorz := AParaStyle.Alignment;
     vHCParaStyle.AlignVert := AParaStyle.VerticalAlignment;
     vHCParaStyle.LineSpaceMode := AParaStyle.LineSpacingType;
-    vHCParaStyle.FristIndent := AParaStyle.FirstLineIndent;
+    vHCParaStyle.FirstIndent := AParaStyle.FirstLineIndent;
     vHCParaStyle.LeftIndent := AParaStyle.LeftIndent;
     vHCParaStyle.BackColor := AParaStyle.BackColor;
 

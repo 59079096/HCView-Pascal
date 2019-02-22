@@ -46,7 +46,7 @@ type
     mniPaste: TMenuItem;
     mniCut: TMenuItem;
     mniN5: TMenuItem;
-    pmRichEdit: TPopupMenu;
+    pmHCView: TPopupMenu;
     mniN6: TMenuItem;
     mniN7: TMenuItem;
     mniN8: TMenuItem;
@@ -124,6 +124,8 @@ type
     mniN17: TMenuItem;
     mniHyperLink: TMenuItem;
     mniExplore: TMenuItem;
+    btnLeftIndent: TToolButton;
+    btnRightIndent: TToolButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -135,7 +137,7 @@ type
     procedure cbbBackColorChange(Sender: TObject);
     procedure cbbFontSizeChange(Sender: TObject);
     procedure mniN5Click(Sender: TObject);
-    procedure pmRichEditPopup(Sender: TObject);
+    procedure pmHCViewPopup(Sender: TObject);
     procedure btnprintClick(Sender: TObject);
     procedure cbbZoomChange(Sender: TObject);
     procedure mniN9Click(Sender: TObject);
@@ -508,6 +510,12 @@ begin
     2: FHCView.ApplyParaAlignHorz(TParaAlignHorz.pahRight);
     3: FHCView.ApplyParaAlignHorz(TParaAlignHorz.pahJustify);  // ¡Ω∂À
     4: FHCView.ApplyParaAlignHorz(TParaAlignHorz.pahScatter);  // ∑÷…¢
+    5: FHCView.ApplyParaLeftIndent;
+    6: FHCView.ApplyParaLeftIndent(False);
+    //7: FHCView.ApplyParaRightIndent;
+    //8: FHCView.ApplyParaRightIndent(False);
+    //9: FHCView.ApplyParaFirstIndent;
+    //10: FHCView.ApplyParaFirstIndent(False);
   end;
 end;
 
@@ -519,7 +527,7 @@ begin
   FHCView.OnVerScroll := DoVerScroll;
   FHCView.Parent := Self;
   FHCView.Align := alClient;
-  FHCView.PopupMenu := pmRichEdit;
+  FHCView.PopupMenu := pmHCView;
 end;
 
 procedure TfrmHCViewDemo.FormDestroy(Sender: TObject);
@@ -1113,7 +1121,7 @@ begin
   end;
 end;
 
-procedure TfrmHCViewDemo.pmRichEditPopup(Sender: TObject);
+procedure TfrmHCViewDemo.pmHCViewPopup(Sender: TObject);
 var
   vActiveItem, vTopItem: THCCustomItem;
   vTableItem: THCTableItem;

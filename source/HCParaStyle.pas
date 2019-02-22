@@ -31,8 +31,9 @@ type
   THCParaStyle = class(TPersistent)
   strict private
     FLineSpaceMode: TParaLineSpaceMode;
-    FFristIndent,// 首行缩进
-    FLeftIndent  // 左缩进
+    FFirstIndent, // 首行缩进
+    FLeftIndent,  // 左缩进
+    FRightIndent  // 右缩进
       : Integer;
     FBackColor: TColor;
     FAlignHorz: TParaAlignHorz;
@@ -52,8 +53,9 @@ type
     property LineSpaceMode: TParaLineSpaceMode read FLineSpaceMode write FLineSpaceMode;
     //property LineSpace: Integer read FLineSpace write SetLineSpace;
     //property LineSpaceHalf: Integer read FLineSpaceHalf;
-    property FristIndent: Integer read FFristIndent write FFristIndent;
+    property FirstIndent: Integer read FFirstIndent write FFirstIndent;
     property LeftIndent: Integer read FLeftIndent write FLeftIndent;
+    property RightIndent: Integer read FRightIndent write FRightIndent;
     property BackColor: TColor read FBackColor write FBackColor;
     property AlignHorz: TParaAlignHorz read FAlignHorz write FAlignHorz;
     property AlignVert: TParaAlignVert read FAlignVert write FAlignVert;
@@ -68,20 +70,20 @@ uses
 
 procedure THCParaStyle.AssignEx(const ASource: THCParaStyle);
 begin
-  Self.FLineSpaceMode := ASource.LineSpaceMode;
-  //Self.FLineSpace := ASource.LineSpace;
-  //Self.FLineSpaceHalf := ASource.LineSpaceHalf;
-  Self.FFristIndent := ASource.FristIndent;
-  Self.FLeftIndent := ASource.LeftIndent;
-  Self.FBackColor := ASource.BackColor;
-  Self.FAlignHorz := ASource.AlignHorz;
-  Self.FAlignVert := ASource.AlignVert;
+  FLineSpaceMode := ASource.LineSpaceMode;
+  FFirstIndent := ASource.FirstIndent;
+  FLeftIndent := ASource.LeftIndent;
+  FRightIndent := ASource.RightIndent;
+  FBackColor := ASource.BackColor;
+  FAlignHorz := ASource.AlignHorz;
+  FAlignVert := ASource.AlignVert;
 end;
 
 constructor THCParaStyle.Create;
 begin
-  FFristIndent := 0;
+  FFirstIndent := 0;
   FLeftIndent := 0;
+  FRightIndent := 0;
   FLineSpaceMode := TParaLineSpaceMode.pls100;
   FBackColor := clSilver;
   FAlignHorz := TParaAlignHorz.pahJustify;
@@ -92,12 +94,13 @@ function THCParaStyle.EqualsEx(const ASource: THCParaStyle): Boolean;
 begin
   Result :=
   //(Self.FLineSpace = ASource.LineSpace)
-  (Self.FLineSpaceMode = ASource.LineSpaceMode)
-  and (Self.FFristIndent = ASource.FristIndent)
-  and (Self.LeftIndent = ASource.LeftIndent)
-  and (Self.FBackColor = ASource.BackColor)
-  and (Self.FAlignHorz = ASource.AlignHorz)
-  and (Self.FAlignVert = ASource.AlignVert);
+  (FLineSpaceMode = ASource.LineSpaceMode)
+  and (FFirstIndent = ASource.FirstIndent)
+  and (FLeftIndent = ASource.LeftIndent)
+  and (FRightIndent = ASource.RightIndent)
+  and (FBackColor = ASource.BackColor)
+  and (FAlignHorz = ASource.AlignHorz)
+  and (FAlignVert = ASource.AlignVert);
 end;
 
 procedure THCParaStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
@@ -110,7 +113,7 @@ begin
   if AFileVersion > 16 then
     AStream.ReadBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
   //FLineSpaceHalf := FLineSpace div 2;
-  AStream.ReadBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
+  AStream.ReadBuffer(FFirstIndent, SizeOf(FFirstIndent));  // 首行缩进
   AStream.ReadBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
 
   if AFileVersion > 18 then
@@ -175,7 +178,7 @@ procedure THCParaStyle.ParseXml(const ANode: IHCXmlNode);
   end;
 
 begin
-  FFristIndent := ANode.Attributes['fristindent'];
+  FFirstIndent := ANode.Attributes['firstindent'];
   FLeftIndent := ANode.Attributes['leftindent'];
   FBackColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);
   GetXMLLineSpaceMode_;
@@ -186,7 +189,7 @@ end;
 procedure THCParaStyle.SaveToStream(const AStream: TStream);
 begin
   AStream.WriteBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
-  AStream.WriteBuffer(FFristIndent, SizeOf(FFristIndent));  // 首行缩进
+  AStream.WriteBuffer(FFirstIndent, SizeOf(FFirstIndent));  // 首行缩进
   AStream.WriteBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
   //AStream.WriteBuffer(FBackColor, SizeOf(FBackColor));
   HCSaveColorToStream(AStream, FBackColor);
@@ -247,7 +250,7 @@ procedure THCParaStyle.ToXml(const ANode: IHCXmlNode);
   end;
 
 begin
-  ANode.Attributes['fristindent'] := FFristIndent;
+  ANode.Attributes['firstindent'] := FFirstIndent;
   ANode.Attributes['leftindent'] := FLeftIndent;
   ANode.Attributes['bkcolor'] := GetColorXmlRGB(FBackColor);
   ANode.Attributes['spacemode'] := GetLineSpaceModeXML_;

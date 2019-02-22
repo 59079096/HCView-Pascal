@@ -52,9 +52,10 @@ const
   AnnotateBKColor = $00D5D5FF;
   AnnotateBKActiveColor = $00A8A8FF;
   HyperTextColor = $00C16305;
-  // 不能在行首的字符             |                    |                   |
-  DontLineFirstChar = '`-=[]\;'',./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；‘，。、～！＠＃￥％……＆×（）——＋｛｝｜：“《》？°';
-  DontLineLastChar = '/\＼';
+  /// <summary> 不能在行首的字符 </summary>
+  DontLineFirstChar = '`-=[]\;,./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；’，。、～！＠＃￥％……＆×（）——＋｛｝｜：”《》？°';
+  /// <summary> 不能在行尾的字符 </summary>
+  DontLineLastChar = '/\＼“‘';
 
   HCBoolText: array [Boolean] of Char = ('0', '1');
 

@@ -33,6 +33,7 @@ type
     FFontStyles: THCFontStyles;
     FColor: TColor;  // 字体颜色
     FBackColor: TColor;
+    FTextMetric: TTextMetric;
   protected
     procedure SetFamily(const Value: TFontName);
     procedure SetSize(const Value: Single);
@@ -51,6 +52,7 @@ type
     function ToCSS: string;
     procedure ToXml(const ANode: IHCXMLNode);
     procedure ParseXml(const ANode: IHCXmlNode);
+    property TextMetric: TTextMetric read FTextMetric;
   published
     property Family: TFontName read FFamily write SetFamily stored IsFamilyStored;
     property Size: Single read FSize write SetSize stored IsSizeStored nodefault;
@@ -119,6 +121,8 @@ begin
         vFont.Free;
       end;
     end;
+
+    GetTextMetrics(ACanvas.Handle, FTextMetric);  // 得到字体信息
   end;
 end;
 

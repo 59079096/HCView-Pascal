@@ -17,98 +17,142 @@ uses
   Graphics, HCStyle, HCTextStyle, HCParaStyle;
 
 type
-  TOnTextStyle = procedure(const ACurStyleNo: Integer; var AWillStyle: THCTextStyle) of object;
+  TOnTextStyle = procedure(const ACurStyleNo: Integer; const AWillStyle: THCTextStyle) of object;
 
-  THCStyleMatch = class  // 文本样式匹配类
+  THCCustomStyleMathc = class(TObject)
   private
     FAppend: Boolean;  // True添加对应样式
-    FOnTextStyle: TOnTextStyle;
   public
-    function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer; virtual; abstract;
-    function StyleHasMatch(const AStyle: THCStyle; const ACurStyleNo: Integer): Boolean; virtual;
-    property OnTextStyle: TOnTextStyle read FOnTextStyle write FOnTextStyle;
     property Append: Boolean read FAppend write FAppend;
   end;
 
-  TTextStyleMatch = class(THCStyleMatch)
+  THCStyleMatch = class(THCCustomStyleMathc)  // 文本样式匹配类
+  private
+    FOnTextStyle: TOnTextStyle;
+  protected
+    function DoMatchCur(const ATextStyle: THCTextStyle): Boolean; virtual; abstract;
+    procedure DoMatchNew(const ATextStyle: THCTextStyle); virtual; abstract;
+  public
+    function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer;
+    function StyleHasMatch(const AStyle: THCStyle; const ACurStyleNo: Integer): Boolean; virtual;
+    property OnTextStyle: TOnTextStyle read FOnTextStyle write FOnTextStyle;
+  end;
+
+  TTextStyleMatch = class(THCStyleMatch)  // 字体样式匹配类
   private
     FFontStyle: THCFontStyle;
+  protected
+    function DoMatchCur(const ATextStyle: THCTextStyle): Boolean; override;
+    procedure DoMatchNew(const ATextStyle: THCTextStyle); override;
   public
-    function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer; override;
     function StyleHasMatch(const AStyle: THCStyle; const ACurStyleNo: Integer): Boolean; override;
     property FontStyle: THCFontStyle read FFontStyle write FFontStyle;
   end;
 
-  TFontNameStyleMatch = class(THCStyleMatch)
+  TFontNameStyleMatch = class(THCStyleMatch)  // 字体名称匹配类
   private
     FFontName: string;
+  protected
+    function DoMatchCur(const ATextStyle: THCTextStyle): Boolean; override;
+    procedure DoMatchNew(const ATextStyle: THCTextStyle); override;
   public
-    function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer; override;
     property FontName: string read FFontName write FFontName;
   end;
 
-  TFontSizeStyleMatch = class(THCStyleMatch)
+  TFontSizeStyleMatch = class(THCStyleMatch)  // 字体大小匹配类
   private
     FFontSize: Single;
+  protected
+    function DoMatchCur(const ATextStyle: THCTextStyle): Boolean; override;
+    procedure DoMatchNew(const ATextStyle: THCTextStyle); override;
   public
-    function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer; override;
     property FontSize: Single read FFontSize write FFontSize;
   end;
 
-  TColorStyleMatch = class(THCStyleMatch)
+  TColorStyleMatch = class(THCStyleMatch)  // 字体颜色匹配类
   private
     FColor: TColor;
+  protected
+    function DoMatchCur(const ATextStyle: THCTextStyle): Boolean; override;
+    procedure DoMatchNew(const ATextStyle: THCTextStyle); override;
   public
-    function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer; override;
     property Color: TColor read FColor write FColor;
   end;
 
-  TBackColorStyleMatch = class(THCStyleMatch)
+  TBackColorStyleMatch = class(THCStyleMatch)  // 字体背景色匹配类
   private
     FColor: TColor;
+  protected
+    function DoMatchCur(const ATextStyle: THCTextStyle): Boolean; override;
+    procedure DoMatchNew(const ATextStyle: THCTextStyle); override;
   public
-    function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer; override;
     property Color: TColor read FColor write FColor;
   end;
 
-  THCParaMatch = class  // 段样式匹配类
-  private
-    FJoin: Boolean;  // 添加对应样式
+  THCParaMatch = class(THCCustomStyleMathc)  // 段样式匹配类
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; virtual; abstract;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); virtual; abstract;
   public
-    function GetMatchParaNo(const AStyle: THCStyle; const ACurParaNo: Integer): Integer; virtual; abstract;
-    property Join: Boolean read FJoin write FJoin;
+    function GetMatchParaNo(const AStyle: THCStyle; const ACurParaNo: Integer): Integer;
   end;
 
-  TParaAlignHorzMatch = class(THCParaMatch)
+  TParaAlignHorzMatch = class(THCParaMatch)  // 段水平对齐匹配类
   private
     FAlign: TParaAlignHorz;
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
-    function GetMatchParaNo(const AStyle: THCStyle; const ACurParaNo: Integer): Integer; override;
     property Align: TParaAlignHorz read FAlign write FAlign;
   end;
 
-  TParaAlignVertMatch = class(THCParaMatch)
+  TParaAlignVertMatch = class(THCParaMatch)  // 段垂直对齐匹配类
   private
     FAlign: TParaAlignVert;
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
-    function GetMatchParaNo(const AStyle: THCStyle; const ACurParaNo: Integer): Integer; override;
     property Align: TParaAlignVert read FAlign write FAlign;
   end;
 
-  TParaLineSpaceMatch = class(THCParaMatch)
+  TParaLineSpaceMatch = class(THCParaMatch)  // 段行间距匹配类
   private
     FSpaceMode: TParaLineSpaceMode;
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
-    function GetMatchParaNo(const AStyle: THCStyle; const ACurParaNo: Integer): Integer; override;
     property SpaceMode: TParaLineSpaceMode read FSpaceMode write FSpaceMode;
   end;
 
-  TParaBackColorMatch = class(THCParaMatch)
+  TParaBackColorMatch = class(THCParaMatch)  // 段背景色匹配类
   private
     FBackColor: TColor;
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
-    function GetMatchParaNo(const AStyle: THCStyle; const ACurParaNo: Integer): Integer; override;
     property BackColor: TColor read FBackColor write FBackColor;
+  end;
+
+  TParaFirstIndentMatch = class(THCParaMatch)  // 段首行缩进匹配类
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
+  end;
+
+  TParaLeftIndentMatch = class(THCParaMatch)  // 段左缩进匹配类
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
+  end;
+
+  TParaRightIndentMatch = class(THCParaMatch)  // 段右缩进匹配类
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   end;
 
 implementation
@@ -116,216 +160,61 @@ implementation
 uses
   HCCommon;
 
-{ TFontNameStyleMatch }
-
-function TFontNameStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
-  const ACurStyleNo: Integer): Integer;
-var
-  vTextStyle: THCTextStyle;
-begin
-  Result := THCStyle.Null;
-  if AStyle.TextStyles[ACurStyleNo].Family = FFontName then
-  begin
-    Result := ACurStyleNo;
-    Exit;
-  end;
-
-  vTextStyle := THCTextStyle.Create;
-  try
-    vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
-    vTextStyle.Family := FFontName;
-    if Assigned(FOnTextStyle) then
-      FOnTextStyle(ACurStyleNo, vTextStyle);
-    Result := AStyle.GetStyleNo(vTextStyle, True);  // 新样式编号
-  finally
-    vTextStyle.Free;
-  end;
-end;
-
 { TTextStyleMatch }
 
-function TTextStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
-  const ACurStyleNo: Integer): Integer;
-var
-  vTextStyle: THCTextStyle;
+function TTextStyleMatch.DoMatchCur(const ATextStyle: THCTextStyle): Boolean;
 begin
-  Result := THCStyle.Null;
-  vTextStyle := THCTextStyle.Create;
-  try
-    vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
-    if FAppend then  // 添加
-    begin
-      if not (FFontStyle in vTextStyle.FontStyles) then
-      begin
-        // 不能同时为上标和下标
-        if FFontStyle = THCFontStyle.tsSuperscript then
-          vTextStyle.FontStyles := vTextStyle.FontStyles - [THCFontStyle.tsSubscript]
-        else
-        if FFontStyle = THCFontStyle.tsSubscript then
-          vTextStyle.FontStyles := vTextStyle.FontStyles - [THCFontStyle.tsSuperscript];
+  Result := Append and (FFontStyle in ATextStyle.FontStyles);  // 添加且有，不添加且无时True
+end;
 
-        vTextStyle.FontStyles := vTextStyle.FontStyles + [FFontStyle];
-      end
-      else
-        Exit(ACurStyleNo);
-    end
-    else  // 减去
-    begin
-      if FFontStyle in vTextStyle.FontStyles then
-        vTextStyle.FontStyles := vTextStyle.FontStyles - [FFontStyle]
-      else
-        Exit(ACurStyleNo);
-    end;
-    if Assigned(FOnTextStyle) then
-      FOnTextStyle(ACurStyleNo, vTextStyle);
-    Result := AStyle.GetStyleNo(vTextStyle, True);  // 新样式编号
-  finally
-    vTextStyle.Free;
-  end;
+procedure TTextStyleMatch.DoMatchNew(const ATextStyle: THCTextStyle);
+begin
+  if Append then  // 添加
+  begin
+    // 不能同时为上标和下标
+    if FFontStyle = THCFontStyle.tsSuperscript then
+      ATextStyle.FontStyles := ATextStyle.FontStyles - [THCFontStyle.tsSubscript]
+    else
+    if FFontStyle = THCFontStyle.tsSubscript then
+      ATextStyle.FontStyles := ATextStyle.FontStyles - [THCFontStyle.tsSuperscript];
+
+    ATextStyle.FontStyles := ATextStyle.FontStyles + [FFontStyle];
+  end
+  else  // 减去
+    ATextStyle.FontStyles := ATextStyle.FontStyles - [FFontStyle]
 end;
 
 function TTextStyleMatch.StyleHasMatch(const AStyle: THCStyle;
   const ACurStyleNo: Integer): Boolean;
-var
-  vTextStyle: THCTextStyle;
 begin
-  Result := False;
-  vTextStyle := THCTextStyle.Create;
-  try
-    vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
-    Result := FFontStyle in vTextStyle.FontStyles;
-  finally
-    vTextStyle.Free;
-  end;
-end;
-
-{ TParaAlignHorzMatch }
-
-function TParaAlignHorzMatch.GetMatchParaNo(const AStyle: THCStyle;
-  const ACurParaNo: Integer): Integer;
-var
-  vParaStyle: THCParaStyle;
-begin
-  Result := THCStyle.Null;
-  if AStyle.ParaStyles[ACurParaNo].AlignHorz = FAlign then
-  begin
-    Result := ACurParaNo;
-    Exit;
-  end;
-
-  vParaStyle := THCParaStyle.Create;
-  try
-    vParaStyle.AssignEx(AStyle.ParaStyles[ACurParaNo]);
-    vParaStyle.AlignHorz := FAlign;
-    Result := AStyle.GetParaNo(vParaStyle, True);  // 新段样式
-  finally
-    vParaStyle.Free;
-  end;
-end;
-
-{ TColorStyleMatch }
-
-function TColorStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
-  const ACurStyleNo: Integer): Integer;
-var
-  vTextStyle: THCTextStyle;
-begin
-  Result := THCStyle.Null;
-  if AStyle.TextStyles[ACurStyleNo].Color = FColor then
-  begin
-    Result := ACurStyleNo;
-    Exit;
-  end;
-
-  vTextStyle := THCTextStyle.Create;
-  try
-    vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
-    vTextStyle.Color := FColor;
-    if Assigned(FOnTextStyle) then
-      FOnTextStyle(ACurStyleNo, vTextStyle);
-    Result := AStyle.GetStyleNo(vTextStyle, True);  // 新样式编号
-  finally
-    vTextStyle.Free;
-  end;
-end;
-
-{ TBackColorStyleMatch }
-
-function TBackColorStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
-  const ACurStyleNo: Integer): Integer;
-var
-  vTextStyle: THCTextStyle;
-begin
-  Result := THCStyle.Null;
-  if AStyle.TextStyles[ACurStyleNo].BackColor = FColor then
-  begin
-    Result := ACurStyleNo;
-    Exit;
-  end;
-
-  vTextStyle := THCTextStyle.Create;
-  try
-    vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
-    vTextStyle.BackColor := FColor;
-    if Assigned(FOnTextStyle) then
-      FOnTextStyle(ACurStyleNo, vTextStyle);
-    Result := AStyle.GetStyleNo(vTextStyle, True);  // 新样式编号
-  finally
-    vTextStyle.Free;
-  end;
-end;
-
-{ TFontSizeStyleMatch }
-
-function TFontSizeStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
-  const ACurStyleNo: Integer): Integer;
-var
-  vTextStyle: THCTextStyle;
-begin
-  Result := THCStyle.Null;
-  if AStyle.TextStyles[ACurStyleNo].Size = FFontSize then
-  begin
-    Result := ACurStyleNo;
-    Exit;
-  end;
-
-  vTextStyle := THCTextStyle.Create;
-  try
-    vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
-    vTextStyle.Size := FFontSize;
-    if Assigned(FOnTextStyle) then
-      FOnTextStyle(ACurStyleNo, vTextStyle);
-    Result := AStyle.GetStyleNo(vTextStyle, True);  // 新样式编号
-  finally
-    vTextStyle.Free;
-  end;
-end;
-
-{ TParaAlignVertMatch }
-
-function TParaAlignVertMatch.GetMatchParaNo(const AStyle: THCStyle;
-  const ACurParaNo: Integer): Integer;
-var
-  vParaStyle: THCParaStyle;
-begin
-  Result := THCStyle.Null;
-  if AStyle.ParaStyles[ACurParaNo].AlignVert = FAlign then
-  begin
-    Result := ACurParaNo;
-    Exit;
-  end;
-
-  vParaStyle := THCParaStyle.Create;
-  try
-    vParaStyle.AssignEx(AStyle.ParaStyles[ACurParaNo]);
-    vParaStyle.AlignVert := FAlign;
-    Result := AStyle.GetParaNo(vParaStyle, True);  // 新段样式
-  finally
-    vParaStyle.Free;
-  end;
+  Result := FFontStyle in AStyle.TextStyles[ACurStyleNo].FontStyles;
 end;
 
 { THCStyleMatch }
+
+function THCStyleMatch.GetMatchStyleNo(const AStyle: THCStyle;
+  const ACurStyleNo: Integer): Integer;
+var
+  vTextStyle: THCTextStyle;
+begin
+  Result := THCStyle.Null;
+  if DoMatchCur(AStyle.TextStyles[ACurStyleNo]) then
+  begin
+    Result := ACurStyleNo;
+    Exit;
+  end;
+
+  vTextStyle := THCTextStyle.Create;
+  try
+    vTextStyle.AssignEx(AStyle.TextStyles[ACurStyleNo]);  // item当前的样式
+    DoMatchNew(vTextStyle);
+    if Assigned(FOnTextStyle) then
+      FOnTextStyle(ACurStyleNo, vTextStyle);
+    Result := AStyle.GetStyleNo(vTextStyle, True);  // 新样式编号
+  finally
+    vTextStyle.Free;
+  end;
+end;
 
 function THCStyleMatch.StyleHasMatch(const AStyle: THCStyle;
   const ACurStyleNo: Integer): Boolean;
@@ -333,15 +222,15 @@ begin
   Result := False;
 end;
 
-{ TParaLineSpaceMatch }
+{ THCParaMatch }
 
-function TParaLineSpaceMatch.GetMatchParaNo(const AStyle: THCStyle;
+function THCParaMatch.GetMatchParaNo(const AStyle: THCStyle;
   const ACurParaNo: Integer): Integer;
 var
   vParaStyle: THCParaStyle;
 begin
   Result := THCStyle.Null;
-  if AStyle.ParaStyles[ACurParaNo].LineSpaceMode = FSpaceMode then
+  if DoMatchCurPara(AStyle.ParaStyles[ACurParaNo]) then
   begin
     Result := ACurParaNo;
     Exit;
@@ -350,35 +239,152 @@ begin
   vParaStyle := THCParaStyle.Create;
   try
     vParaStyle.AssignEx(AStyle.ParaStyles[ACurParaNo]);
-    vParaStyle.LineSpaceMode := FSpaceMode;
+    DoMatchNewPara(vParaStyle);
     Result := AStyle.GetParaNo(vParaStyle, True);  // 新段样式
   finally
     vParaStyle.Free;
   end;
 end;
 
+{ TParaAlignHorzMatch }
+
+function TParaAlignHorzMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
+begin
+  Result := AParaStyle.AlignHorz = FAlign;
+end;
+
+procedure TParaAlignHorzMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
+begin
+  AParaStyle.AlignHorz := FAlign;
+end;
+
+{ TParaAlignVertMatch }
+
+function TParaAlignVertMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
+begin
+  Result := AParaStyle.AlignVert = FAlign;
+end;
+
+procedure TParaAlignVertMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
+begin
+  AParaStyle.AlignVert := FAlign;
+end;
+
+{ TParaLineSpaceMatch }
+
+function TParaLineSpaceMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
+begin
+  Result := AParaStyle.LineSpaceMode = FSpaceMode;
+end;
+
+procedure TParaLineSpaceMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
+begin
+  AParaStyle.LineSpaceMode := FSpaceMode;
+end;
+
 { TParaBackColorMatch }
 
-function TParaBackColorMatch.GetMatchParaNo(const AStyle: THCStyle;
-  const ACurParaNo: Integer): Integer;
-var
-  vParaStyle: THCParaStyle;
+function TParaBackColorMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
 begin
-  Result := THCStyle.Null;
-  if AStyle.ParaStyles[ACurParaNo].BackColor = FBackColor then
-  begin
-    Result := ACurParaNo;
-    Exit;
-  end;
+  Result := AParaStyle.BackColor = FBackColor;
+end;
 
-  vParaStyle := THCParaStyle.Create;
-  try
-    vParaStyle.AssignEx(AStyle.ParaStyles[ACurParaNo]);
-    vParaStyle.BackColor := FBackColor;
-    Result := AStyle.GetParaNo(vParaStyle, True);  // 新段样式
-  finally
-    vParaStyle.Free;
-  end;
+procedure TParaBackColorMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
+begin
+  AParaStyle.BackColor := FBackColor;
+end;
+
+{ TParaLeftIndentMatch }
+
+function TParaLeftIndentMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
+begin
+  Result := False;
+end;
+
+procedure TParaLeftIndentMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
+begin
+  if Append then
+    AParaStyle.LeftIndent := AParaStyle.LeftIndent + 28
+  else
+    AParaStyle.LeftIndent := AParaStyle.LeftIndent - 28;
+end;
+
+{ TFontNameStyleMatch }
+
+function TFontNameStyleMatch.DoMatchCur(const ATextStyle: THCTextStyle): Boolean;
+begin
+  Result := ATextStyle.Family = FFontName;
+end;
+
+procedure TFontNameStyleMatch.DoMatchNew(const ATextStyle: THCTextStyle);
+begin
+  ATextStyle.Family := FFontName;
+end;
+
+{ TFontSizeStyleMatch }
+
+function TFontSizeStyleMatch.DoMatchCur(const ATextStyle: THCTextStyle): Boolean;
+begin
+  Result := ATextStyle.Size = FFontSize;
+end;
+
+procedure TFontSizeStyleMatch.DoMatchNew(const ATextStyle: THCTextStyle);
+begin
+  ATextStyle.Size := FFontSize;
+end;
+
+{ TColorStyleMatch }
+
+function TColorStyleMatch.DoMatchCur(const ATextStyle: THCTextStyle): Boolean;
+begin
+  Result := ATextStyle.Color = FColor;
+end;
+
+procedure TColorStyleMatch.DoMatchNew(const ATextStyle: THCTextStyle);
+begin
+  ATextStyle.Color := FColor;
+end;
+
+{ TBackColorStyleMatch }
+
+function TBackColorStyleMatch.DoMatchCur(const ATextStyle: THCTextStyle): Boolean;
+begin
+  Result := ATextStyle.BackColor = FColor;
+end;
+
+procedure TBackColorStyleMatch.DoMatchNew(const ATextStyle: THCTextStyle);
+begin
+  ATextStyle.BackColor := FColor;
+end;
+
+{ TParaFirstIndentMatch }
+
+function TParaFirstIndentMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
+begin
+  Result := False;
+end;
+
+procedure TParaFirstIndentMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
+begin
+  if Append then
+    AParaStyle.FirstIndent := AParaStyle.FirstIndent + 28
+  else
+    AParaStyle.FirstIndent := AParaStyle.FirstIndent - 28;
+end;
+
+{ TParaRightIndentMatch }
+
+function TParaRightIndentMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
+begin
+  Result := False;
+end;
+
+procedure TParaRightIndentMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
+begin
+  if Append then
+    AParaStyle.RightIndent := AParaStyle.RightIndent + 28
+  else
+    AParaStyle.RightIndent := AParaStyle.RightIndent - 28;
 end;
 
 end.

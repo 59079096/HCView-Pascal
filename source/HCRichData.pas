@@ -1124,11 +1124,22 @@ procedure THCRichData.FormatData(const AStartItemNo, ALastItemNo: Integer);
 var
   i, vPrioDrawItemNo: Integer;
   vPos: TPoint;
+  vParaStyle: THCParaStyle;
 begin
   _FormatReadyParam(AStartItemNo, vPrioDrawItemNo, vPos);  // 格式化起始DrawItem序号和位置
+  vParaStyle := Style.ParaStyles[Items[AStartItemNo].ParaNo];
 
   for i := AStartItemNo to ALastItemNo do  // 格式化
-    _FormatItemToDrawItems(i, 1, FWidth, vPos, vPrioDrawItemNo);
+  begin
+    if Items[i].ParaFirst then
+    begin
+      vParaStyle := Style.ParaStyles[Items[i].ParaNo];
+      vPos.X := vParaStyle.LeftIndent;
+    end;
+
+    _FormatItemToDrawItems(i, 1, vParaStyle.LeftIndent, FWidth - vParaStyle.RightIndent,
+      FWidth, vPos, vPrioDrawItemNo);
+  end;
 end;
 
 procedure THCRichData.Clear;
@@ -1598,6 +1609,7 @@ var
     else  // 文本
     begin
       vStyleNo := AMatchStyle.GetMatchStyleNo(Style, vItem.StyleNo);
+      Style.CurStyleNo := vStyleNo;
       if vItem.IsSelectComplate then  // Item全部被选中了
       begin
         UndoAction_ItemStyle(AItemNo, SelectInfo.EndItemOffset, vStyleNo);
@@ -5370,8 +5382,8 @@ begin
   { 获取起始DrawItem的上一个序号及格式化开始位置 }
   if AStartItemNo > 0 then  // 不是第一个
   begin
-    APrioDrawItemNo := GetItemLastDrawItemNo(AStartItemNo - 1);  // 上一个最后的DItem
-    if Items[AStartItemNo].ParaFirst then
+    APrioDrawItemNo := GetItemLastDrawItemNo(AStartItemNo - 1);  // 上一个最后的DrawItem
+    if Items[AStartItemNo].ParaFirst then  // 要格式化段首
     begin
       APos.X := 0;
       APos.Y := DrawItems[APrioDrawItemNo].Rect.Bottom;

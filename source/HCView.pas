@@ -353,6 +353,15 @@ type
     /// <summary> 修改当前光标所在段行间距 </summary>
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
 
+    /// <summary> 修改当前光标所在段左缩进 </summary>
+    procedure ApplyParaLeftIndent(const Add: Boolean = True);
+
+    /// <summary> 修改当前光标所在段右缩进 </summary>
+    procedure ApplyParaRightIndent(const Add: Boolean = True);
+
+    /// <summary> 修改当前光标所在段首行缩进 </summary>
+    procedure ApplyParaFirstIndent(const Add: Boolean = True);
+
     /// <summary> 修改当前选中文本的样式 </summary>
     procedure ApplyTextStyle(const AFontStyle: THCFontStyle);
 
@@ -2674,7 +2683,7 @@ begin
     FCaret.Height := vDisplayHeight - FCaret.Y;
 
   FCaret.Show;
-  DoCaretChange();
+  DoCaretChange;
 end;
 
 procedure THCView.Redo;
@@ -3246,9 +3255,24 @@ begin
   ActiveSection.ApplyParaBackColor(AColor);
 end;
 
+procedure THCView.ApplyParaFirstIndent(const Add: Boolean);
+begin
+  ActiveSection.ApplyParaFirstIndent(Add);
+end;
+
+procedure THCView.ApplyParaLeftIndent(const Add: Boolean);
+begin
+  ActiveSection.ApplyParaLeftIndent(Add);
+end;
+
 procedure THCView.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
 begin
   ActiveSection.ApplyParaLineSpace(ASpaceMode);
+end;
+
+procedure THCView.ApplyParaRightIndent(const Add: Boolean);
+begin
+  ActiveSection.ApplyParaRightIndent(Add);
 end;
 
 procedure THCView.Undo;

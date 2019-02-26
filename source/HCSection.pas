@@ -181,12 +181,6 @@ type
     function GetPageMarginRightPix: Integer;
     function GetPageMarginBottomPix: Integer;
 
-    procedure SetPageWidthPix(const Value: Integer);
-    procedure SetPageHeightPix(const Value: Integer);
-    procedure SetPageMarginTopPix(const Value: Integer);
-    procedure SetPageMarginLeftPix(const Value: Integer);
-    procedure SetPageMarginRightPix(const Value: Integer);
-    procedure SetPageMarginBottomPix(const Value: Integer);
     procedure SetHeaderOffset(const Value: Integer);
     function NewEmptyPage: THCPage;
     function GetPageCount: Integer;
@@ -274,9 +268,9 @@ type
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
-    procedure ApplyParaLeftIndent(const Add: Boolean);
-    procedure ApplyParaRightIndent(const Add: Boolean);
-    procedure ApplyParaFirstIndent(const Add: Boolean);
+    procedure ApplyParaLeftIndent(const AIndent: Integer);
+    procedure ApplyParaRightIndent(const AIndent: Integer);
+    procedure ApplyParaFirstIndent(const AIndent: Integer);
     /// <summary> 获取光标在Dtat中的位置信息并映射到指定页面 </summary>
     /// <param name="APageIndex">要映射到的页序号</param>
     /// <param name="ACaretInfo">光标位置信息</param>
@@ -323,6 +317,7 @@ type
     function DeleteSelected: Boolean;
     procedure DisSelect;
     function MergeTableSelectCells: Boolean;
+    procedure ReFormatActiveParagraph;
     procedure ReFormatActiveItem;
     function GetHeaderAreaHeight: Integer;
     function GetContentHeight: Integer;
@@ -360,12 +355,12 @@ type
     property PaperMarginBottom: Single read GetPaperMarginBottom write SetPaperMarginBottom;
     property PageOrientation: TPageOrientation read FPageOrientation write SetPageOrientation;
     //
-    property PageWidthPix: Integer read GetPageWidthPix write SetPageWidthPix;
-    property PageHeightPix: Integer read GetPageHeightPix write SetPageHeightPix;
-    property PageMarginTopPix: Integer read GetPageMarginTopPix write SetPageMarginTopPix;
-    property PageMarginLeftPix: Integer read GetPageMarginLeftPix write SetPageMarginLeftPix;
-    property PageMarginRightPix: Integer read GetPageMarginRightPix write SetPageMarginRightPix;
-    property PageMarginBottomPix: Integer read GetPageMarginBottomPix write SetPageMarginBottomPix;
+    property PageWidthPix: Integer read GetPageWidthPix;
+    property PageHeightPix: Integer read GetPageHeightPix;
+    property PageMarginTopPix: Integer read GetPageMarginTopPix;
+    property PageMarginLeftPix: Integer read GetPageMarginLeftPix;
+    property PageMarginRightPix: Integer read GetPageMarginRightPix;
+    property PageMarginBottomPix: Integer read GetPageMarginBottomPix;
 
     property HeaderOffset: Integer read FHeaderOffset write SetHeaderOffset;
     property Header: THCHeaderData read FHeader;
@@ -537,19 +532,19 @@ begin
     end);
 end;
 
-procedure THCCustomSection.ApplyParaFirstIndent(const Add: Boolean);
+procedure THCCustomSection.ApplyParaFirstIndent(const AIndent: Integer);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
-      FActiveData.ApplyParaFirstIndent(Add);
+      FActiveData.ApplyParaFirstIndent(AIndent);
     end);
 end;
 
-procedure THCCustomSection.ApplyParaLeftIndent(const Add: Boolean);
+procedure THCCustomSection.ApplyParaLeftIndent(const AIndent: Integer);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
-      FActiveData.ApplyParaLeftIndent(Add);
+      FActiveData.ApplyParaLeftIndent(AIndent);
     end);
 end;
 
@@ -561,11 +556,11 @@ begin
     end);
 end;
 
-procedure THCCustomSection.ApplyParaRightIndent(const Add: Boolean);
+procedure THCCustomSection.ApplyParaRightIndent(const AIndent: Integer);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
-      FActiveData.ApplyParaRightIndent(Add);
+      FActiveData.ApplyParaRightIndent(AIndent);
     end);
 end;
 
@@ -654,7 +649,7 @@ begin
   FDisplayFirstPageIndex := -1;
   FDisplayLastPageIndex := -1;
 
-  FPageSize := THCPageSize.Create(AStyle.PixelsPerMMX, AStyle.PixelsPerMMY);
+  FPageSize := THCPageSize.Create;
   FPageOrientation := TPageOrientation.cpoPortrait;
   vWidth := GetContentWidth;
 
@@ -2423,6 +2418,14 @@ begin
     end);
 end;
 
+procedure THCCustomSection.ReFormatActiveParagraph;
+begin
+  ActiveDataChangeByAction(function(): Boolean
+    begin
+      FActiveData.ReFormatActiveParagraph;
+    end);
+end;
+
 procedure THCCustomSection.ResetMargin;
 begin
   FPageData.Width := GetContentWidth;
@@ -2525,36 +2528,6 @@ begin
   end;
 end;
 
-procedure THCCustomSection.SetPageHeightPix(const Value: Integer);
-begin
-  if FPageSize.PageHeightPix <> Value then
-    FPageSize.PageHeightPix := Value;
-end;
-
-procedure THCCustomSection.SetPageMarginBottomPix(const Value: Integer);
-begin
-  if FPageSize.PageMarginBottomPix <> Value then
-    FPageSize.PageMarginBottomPix := Value;
-end;
-
-procedure THCCustomSection.SetPageMarginLeftPix(const Value: Integer);
-begin
-  if FPageSize.PageMarginLeftPix <> Value then
-    FPageSize.PageMarginLeftPix := Value;
-end;
-
-procedure THCCustomSection.SetPageMarginRightPix(const Value: Integer);
-begin
-  if FPageSize.PageMarginRightPix <> Value then
-    FPageSize.PageMarginRightPix := Value;
-end;
-
-procedure THCCustomSection.SetPageMarginTopPix(const Value: Integer);
-begin
-  if FPageSize.PageMarginTopPix <> Value then
-    FPageSize.PageMarginTopPix := Value;
-end;
-
 procedure THCCustomSection.SetPageOrientation(const Value: TPageOrientation);
 var
   vfW: Single;
@@ -2567,12 +2540,6 @@ begin
     FPageSize.PaperWidth := FPageSize.PaperHeight;
     FPageSize.PaperHeight := vfW;
   end;
-end;
-
-procedure THCCustomSection.SetPageWidthPix(const Value: Integer);
-begin
-  if FPageSize.PageWidthPix <> Value then
-    FPageSize.PageWidthPix := Value;
 end;
 
 procedure THCCustomSection.SetPaperHeight(const Value: Single);

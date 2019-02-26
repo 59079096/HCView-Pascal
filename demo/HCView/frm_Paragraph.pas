@@ -19,7 +19,15 @@ type
     cbbAlignHorz: TComboBox;
     cbbAlignVert: TComboBox;
     cbbSpaceMode: TComboBox;
+    edtFirstIndent: TEdit;
+    edtLeftIndent: TEdit;
+    lbl7: TLabel;
+    lbl8: TLabel;
+    lbl9: TLabel;
+    edtRightIndent: TEdit;
+    lbl10: TLabel;
     procedure btnOkClick(Sender: TObject);
+    procedure edtFirstIndentKeyPress(Sender: TObject; var Key: Char);
   private
     { Private declarations }
   public
@@ -39,12 +47,27 @@ begin
   Self.ModalResult := mrOk;
 end;
 
-procedure TfrmParagraph.SetHCView(const AHCView: THCView);
+procedure TfrmParagraph.edtFirstIndentKeyPress(Sender: TObject; var Key: Char);
 begin
-  cbbSpaceMode.ItemIndex := Ord(AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].LineSpaceMode);
-  cbbAlignHorz.ItemIndex := Ord(AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].AlignHorz);
-  cbbAlignVert.ItemIndex := Ord(AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].AlignVert);
-  clrbxBG.Color := AHCView.Style.ParaStyles[AHCView.Style.CurParaNo].BackColor;
+  if not (Key in [#8, '0'..'9']) then
+    Key := #0
+end;
+
+procedure TfrmParagraph.SetHCView(const AHCView: THCView);
+var
+  vParaStyle: THCParaStyle;
+  vFirstIndent, vLeftIndent, vRightIndent: Integer;
+  vReformatPara: Boolean;
+begin
+  vParaStyle := AHCView.Style.ParaStyles[AHCView.Style.CurParaNo];
+
+  cbbSpaceMode.ItemIndex := Ord(vParaStyle.LineSpaceMode);
+  cbbAlignHorz.ItemIndex := Ord(vParaStyle.AlignHorz);
+  cbbAlignVert.ItemIndex := Ord(vParaStyle.AlignVert);
+  clrbxBG.Color := vParaStyle.BackColor;
+  edtFirstIndent.Text := IntToStr(vParaStyle.FirstIndent);
+  edtLeftIndent.Text := IntToStr(vParaStyle.LeftIndent);
+  edtRightIndent.Text := IntToStr(vParaStyle.RightIndent);
 
   Self.ShowModal;
   if Self.ModalResult = mrOk then
@@ -55,6 +78,30 @@ begin
       AHCView.ApplyParaAlignHorz(TParaAlignHorz(cbbAlignHorz.ItemIndex));
       AHCView.ApplyParaAlignVert(TParaAlignVert(cbbAlignVert.ItemIndex));
       AHCView.ApplyParaBackColor(clrbxBG.Color);
+      vFirstIndent := StrToIntDef(edtFirstIndent.Text, 0);
+      vLeftIndent := StrToIntDef(edtLeftIndent.Text, 0);
+      vRightIndent := StrToIntDef(edtRightIndent.Text, 0);
+
+      if vParaStyle.FirstIndent <> vFirstIndent then
+      begin
+        AHCView.ApplyParaFirstIndent(vFirstIndent);
+        vReformatPara := True;
+      end;
+
+      if vParaStyle.LeftIndent <> vLeftIndent then
+      begin
+        AHCView.ApplyParaLeftIndent(vLeftIndent);
+        vReformatPara := True;
+      end;
+
+      if vParaStyle.RightIndent <> vRightIndent then
+      begin
+        AHCView.ApplyParaRightIndent(vRightIndent);
+        vReformatPara := True;
+      end;
+
+      if vReformatPara then
+        AHCView.ActiveSection.ReFormatActiveParagraph;
     finally
       AHCView.EndUpdate;
     end;

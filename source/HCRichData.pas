@@ -240,7 +240,8 @@ type
     // Format仅负责格式化Item，ReFormat仅负责格式化后对后面Item和DrawItem的关联处理
     // 目前仅单元格用了，需要放到CellData中吗？
     procedure ReFormat(const AStartItemNo: Integer);
-
+    /// <summary> 重新格式化当前段(用于修改了段缩进等) </summary>
+    procedure ReFormatActiveParagraph;
     /// <summary> 重新格式化当前Item(用于仅修改当前Item属性或内容) </summary>
     procedure ReFormatActiveItem;
     function GetTopLevelItem: THCCustomItem;
@@ -281,7 +282,7 @@ implementation
 uses
   HCTableItem, HCImageItem, HCCheckBoxItem, HCTabItem, HCLineItem, HCExpressItem,
   HCPageBreakItem, HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem,
-  HCFractionItem, HCDateTimePicker, HCRadioGroup, HCSupSubScriptItem;
+  HCFractionItem, HCDateTimePicker, HCRadioGroup, HCSupSubScriptItem, HCUnitConversion;
 
 { THCRichData }
 
@@ -1120,6 +1121,23 @@ begin
   end;
 end;
 
+procedure THCRichData.ReFormatActiveParagraph;
+var
+  vFormatFirstItemNo, vFormatLastItemNo: Integer;
+begin
+  if SelectInfo.StartItemNo >= 0 then
+  begin
+    GetParaItemRang(SelectInfo.StartItemNo, vFormatFirstItemNo, vFormatLastItemNo);
+    _FormatItemPrepare(vFormatFirstItemNo, vFormatLastItemNo);
+    _ReFormatData(vFormatFirstItemNo, vFormatLastItemNo);
+
+    Style.UpdateInfoRePaint;
+    Style.UpdateInfoReCaret;
+
+    ReSetSelectAndCaret(SelectInfo.StartItemNo);
+  end;
+end;
+
 procedure THCRichData.FormatData(const AStartItemNo, ALastItemNo: Integer);
 var
   i, vPrioDrawItemNo: Integer;
@@ -1134,11 +1152,11 @@ begin
     if Items[i].ParaFirst then
     begin
       vParaStyle := Style.ParaStyles[Items[i].ParaNo];
-      vPos.X := vParaStyle.LeftIndent;
+      vPos.X := vParaStyle.LeftIndentPix;
     end;
 
-    _FormatItemToDrawItems(i, 1, vParaStyle.LeftIndent, FWidth - vParaStyle.RightIndent,
-      FWidth, vPos, vPrioDrawItemNo);
+    _FormatItemToDrawItems(i, 1, vParaStyle.LeftIndentPix,
+      FWidth - vParaStyle.RightIndentPix, FWidth, vPos, vPrioDrawItemNo);
   end;
 end;
 
@@ -1494,8 +1512,7 @@ begin
   end;
 end;
 
-function THCRichData.ApplySelectParaStyle(
-  const AMatchStyle: THCParaMatch): Integer;
+function THCRichData.ApplySelectParaStyle(const AMatchStyle: THCParaMatch): Integer;
 var
   vFirstNo, vLastNo: Integer;
 
@@ -2863,6 +2880,7 @@ var
   procedure TABKeyDown;
   var
     vTabItem: TTabItem;
+    vParaStyle: THCParaStyle;
   begin
     vTabItem := TTabItem.Create(Self);
     if vCurItem.StyleNo < THCStyle.Null then  // 当前是RectItem
@@ -2876,12 +2894,18 @@ var
           (vCurItem as THCCustomRectItem).KeyDown(Key, Shift);
           _ReFormatData(vFormatFirstItemNo, vFormatLastItemNo);
         end;
-
-        Exit;
       end;
+    end
+    else  // TextItem
+    begin
+      if (SelectInfo.StartItemOffset = 0) and (Items[SelectInfo.StartItemNo].ParaFirst) then  // 段首
+      begin
+        vParaStyle := Style.ParaStyles[vCurItem.ParaNo];
+        ApplyParaFirstIndent(vParaStyle.FirstIndent + PixXToMillimeter(TabCharWidth));
+      end
+      else
+        Self.InsertItem(vTabItem);
     end;
-
-    Self.InsertItem(vTabItem);
   end;
   {$ENDREGION}
 
@@ -4245,11 +4269,18 @@ var
     vText: string;
     i, vCurItemNo, vDrawItemNo, vLen, vDelCount, vParaNo: Integer;
     vParaFirst: Boolean;
+    vParaStyle: THCParaStyle;
   begin
     if SelectInfo.StartItemOffset = 0 then  // 光标在Item最开始
     begin
       if (vCurItem.Text = '') and (Style.ParaStyles[vCurItem.ParaNo].AlignHorz <> TParaAlignHorz.pahJustify) then
         ApplyParaAlignHorz(TParaAlignHorz.pahJustify)  // 居中等对齐的空Item，删除时切换到分散对齐
+      else
+      if vCurItem.ParaFirst and (Style.ParaStyles[vCurItem.ParaNo].FirstIndent > 0) then  // 在段最前面删除
+      begin
+        vParaStyle := Style.ParaStyles[vCurItem.ParaNo];
+        ApplyParaFirstIndent(vParaStyle.FirstIndent - PixXToMillimeter(TabCharWidth));
+      end
       else
       if SelectInfo.StartItemNo <> 0 then  // 不是第1个Item最前面删除
       begin

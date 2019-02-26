@@ -96,7 +96,7 @@ type
       FOnSectionPaintWholePageBefor, FOnSectionPaintWholePageAfter: TSectionPagePaintEvent;
     FOnUpdateViewBefor, FOnUpdateViewAfter: TPaintEvent;
 
-    FOnChange, FOnChangedSwitch: TNotifyEvent;
+    FOnChange, FOnChangedSwitch, FOnZoomChanged: TNotifyEvent;
 
     /// <summary> 根据节页面参数设置打印机 </summary>
     /// <param name="ASectionIndex"></param>
@@ -354,13 +354,15 @@ type
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
 
     /// <summary> 修改当前光标所在段左缩进 </summary>
-    procedure ApplyParaLeftIndent(const Add: Boolean = True);
+    procedure ApplyParaLeftIndent(const Add: Boolean = True); overload;
+    /// <summary> 修改当前光标所在段左缩进 </summary>
+    procedure ApplyParaLeftIndent(const AIndent: Integer); overload;
 
     /// <summary> 修改当前光标所在段右缩进 </summary>
-    procedure ApplyParaRightIndent(const Add: Boolean = True);
+    procedure ApplyParaRightIndent(const AIndent: Integer);
 
     /// <summary> 修改当前光标所在段首行缩进 </summary>
-    procedure ApplyParaFirstIndent(const Add: Boolean = True);
+    procedure ApplyParaFirstIndent(const AIndent: Integer);
 
     /// <summary> 修改当前选中文本的样式 </summary>
     procedure ApplyTextStyle(const AFontStyle: THCFontStyle);
@@ -674,6 +676,9 @@ type
     /// <summary> 文档Change状态切换时触发 </summary>
     property OnChangedSwitch: TNotifyEvent read FOnChangedSwitch write FOnChangedSwitch;
 
+    /// <summary> 文档Zoom缩放变化后触发 </summary>
+    property OnZoomChanged: TNotifyEvent read FOnZoomChanged write FOnZoomChanged;
+
     /// <summary> 窗口重绘开始时触发 </summary>
     property OnUpdateViewBefor: TPaintEvent read FOnUpdateViewBefor write FOnUpdateViewBefor;
 
@@ -692,7 +697,7 @@ type
 implementation
 
 uses
-  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml, HCDocumentRW;
+  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml, HCDocumentRW, HCUnitConversion;
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
@@ -1025,10 +1030,20 @@ end;
 function THCView.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
   MousePos: TPoint): Boolean;
 begin
-  if FPageScrollModel = psmVertical then
-    FVScrollBar.Position := FVScrollBar.Position - WheelDelta
+  if GetAsyncKeyState(VK_CONTROL) < 0 then  // 按下ctrl
+  begin
+    if WheelDelta > 0 then  // 向上
+      Zoom := Zoom + 0.1
+    else
+      Zoom := Zoom - 0.1;
+  end
   else
-    FHScrollBar.Position := FHScrollBar.Position - WheelDelta;
+  begin
+    if FPageScrollModel = psmVertical then
+      FVScrollBar.Position := FVScrollBar.Position - WheelDelta
+    else
+      FHScrollBar.Position := FHScrollBar.Position - WheelDelta;
+  end;
   Result := True;
 end;
 
@@ -3099,7 +3114,7 @@ end;
 
 procedure THCView.SetBounds(ALeft, ATop, AWidth, AHeight: Integer);
 begin
-  inherited;
+  inherited SetBounds(ALeft, ATop, AWidth, AHeight);
   FVScrollBar.Left := Width - FVScrollBar.Width;
   FVScrollBar.Height := Height - FHScrollBar.Height;
   //
@@ -3229,13 +3244,25 @@ begin
 end;
 
 procedure THCView.SetZoom(const Value: Single);
+var
+  vValue: Single;
 begin
-  if FZoom <> Value then
+  if Value < 0.25 then
+    vValue := 0.25
+  else
+  if Value > 5 then
+    vValue := 5
+  else
+    vValue := Value;
+  if FZoom <> vValue then
   begin
     Self.SetFocus;
-    FZoom := Value;
+    FZoom := vValue;
     FStyle.UpdateInfoRePaint;
     FStyle.UpdateInfoReCaret(False);
+    if Assigned(FOnZoomChanged) then
+      FOnZoomChanged(Self);
+
     DoMapChanged;
   end;
 end;
@@ -3255,14 +3282,22 @@ begin
   ActiveSection.ApplyParaBackColor(AColor);
 end;
 
-procedure THCView.ApplyParaFirstIndent(const Add: Boolean);
+procedure THCView.ApplyParaFirstIndent(const AIndent: Integer);
 begin
-  ActiveSection.ApplyParaFirstIndent(Add);
+  ActiveSection.ApplyParaFirstIndent(AIndent);
 end;
 
-procedure THCView.ApplyParaLeftIndent(const Add: Boolean);
+procedure THCView.ApplyParaLeftIndent(const AIndent: Integer);
 begin
-  ActiveSection.ApplyParaLeftIndent(Add);
+  ActiveSection.ApplyParaLeftIndent(AIndent);
+end;
+
+procedure THCView.ApplyParaLeftIndent(const Add: Boolean = True);
+begin
+  if Add then
+    ActiveSection.ApplyParaLeftIndent(FStyle.ParaStyles[FStyle.CurParaNo].LeftIndent + PixXToMillimeter(TabCharWidth))
+  else
+    ActiveSection.ApplyParaLeftIndent(FStyle.ParaStyles[FStyle.CurParaNo].LeftIndent - PixXToMillimeter(TabCharWidth));
 end;
 
 procedure THCView.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
@@ -3270,9 +3305,9 @@ begin
   ActiveSection.ApplyParaLineSpace(ASpaceMode);
 end;
 
-procedure THCView.ApplyParaRightIndent(const Add: Boolean);
+procedure THCView.ApplyParaRightIndent(const AIndent: Integer);
 begin
-  ActiveSection.ApplyParaRightIndent(Add);
+  ActiveSection.ApplyParaRightIndent(AIndent);
 end;
 
 procedure THCView.Undo;

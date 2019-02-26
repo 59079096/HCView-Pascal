@@ -316,9 +316,9 @@ type
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert); virtual;
     procedure ApplyParaBackColor(const AColor: TColor); virtual;
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode); virtual;
-    procedure ApplyParaLeftIndent(const Add: Boolean); virtual;
-    procedure ApplyParaRightIndent(const Add: Boolean); virtual;
-    procedure ApplyParaFirstIndent(const Add: Boolean); virtual;
+    procedure ApplyParaLeftIndent(const AIndent: Integer); virtual;
+    procedure ApplyParaRightIndent(const AIndent: Integer); virtual;
+    procedure ApplyParaFirstIndent(const AIndent: Integer); virtual;
 
     // 选中内容应用样式
     function ApplySelectTextStyle(const AMatchStyle: THCStyleMatch): Integer; virtual;
@@ -419,7 +419,7 @@ type
 implementation
 
 uses
-  SysUtils, Math, HCList, HCTextItem, HCRectItem;
+  SysUtils, Math, HCList, HCTextItem, HCRectItem, HCUnitConversion;
 
 { THCCustomData }
 
@@ -566,26 +566,26 @@ begin
   end;
 end;
 
-procedure THCCustomData.ApplyParaFirstIndent(const Add: Boolean);
+procedure THCCustomData.ApplyParaFirstIndent(const AIndent: Integer);
 var
   vMatchStyle: TParaFirstIndentMatch;
 begin
   vMatchStyle := TParaFirstIndentMatch.Create;
   try
-    vMatchStyle.Append := Add;
+    vMatchStyle.Indent := AIndent;
     ApplySelectParaStyle(vMatchStyle);
   finally
     vMatchStyle.Free;
   end;
 end;
 
-procedure THCCustomData.ApplyParaLeftIndent(const Add: Boolean);
+procedure THCCustomData.ApplyParaLeftIndent(const AIndent: Integer);
 var
   vMatchStyle: TParaLeftIndentMatch;
 begin
   vMatchStyle := TParaLeftIndentMatch.Create;
   try
-    vMatchStyle.Append := Add;
+    vMatchStyle.Indent := AIndent;
     ApplySelectParaStyle(vMatchStyle);
   finally
     vMatchStyle.Free;
@@ -605,13 +605,13 @@ begin
   end;
 end;
 
-procedure THCCustomData.ApplyParaRightIndent(const Add: Boolean);
+procedure THCCustomData.ApplyParaRightIndent(const AIndent: Integer);
 var
   vMatchStyle: TParaRightIndentMatch;
 begin
   vMatchStyle := TParaRightIndentMatch.Create;
   try
-    vMatchStyle.Append := Add;
+    vMatchStyle.Indent := AIndent;
     ApplySelectParaStyle(vMatchStyle);
   finally
     vMatchStyle.Free;
@@ -2159,7 +2159,7 @@ var
     vFirstCharWidth  // 第一个字符的宽度
       : Integer;
   begin
-    vLineFirst := APos.X = AFmtLeft;
+    vLineFirst := (APos.X = AFmtLeft) or vParaFirst;  // 段左缩进，或首行缩进
     viBreakOffset := 0;  // 换行位置，第几个字符放不下
     vFirstCharWidth := vCharWidths[ACharOffset - 1] - ABasePos;  // 第一个字符的宽度
 
@@ -2296,7 +2296,7 @@ begin
   begin
     vParaFirst := True;
     vLineFirst := True;
-    Inc(APos.X, vParaStyle.FirstIndent);
+    Inc(APos.X, vParaStyle.FirstIndentPix);
   end
   else  // 非段第1个
   begin
@@ -2981,7 +2981,7 @@ begin
     vLineGap := SwapBytes(vHorizontalHeader.LineGap);
     vLineSpacing := vAscent + vDescent + vLineGap;
 
-    vSizeScale := ATextStyle.Size / FStyle.FontSizeScale;
+    vSizeScale := ATextStyle.Size / FontSizeScale;
     vSizeScale := vSizeScale / vOutlineTextmetric.otmEMSquare;
     vAscent := Ceil(vAscent * vSizeScale);
     vDescent := Ceil(vDescent * vSizeScale);

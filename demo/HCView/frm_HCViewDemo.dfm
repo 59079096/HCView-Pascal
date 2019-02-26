@@ -31,7 +31,6 @@ object frmHCViewDemo: TfrmHCViewDemo
     DrawingStyle = dsGradient
     Images = il1
     TabOrder = 0
-    ExplicitWidth = 874
     object btnOpen: TToolButton
       Left = 0
       Top = 0
@@ -99,7 +98,8 @@ object frmHCViewDemo: TfrmHCViewDemo
         '150'
         '200'
         '300'
-        '500')
+        '500'
+        #33258#23450#20041)
     end
     object btnSymmetryMargin: TToolButton
       Left = 215
@@ -333,7 +333,7 @@ object frmHCViewDemo: TfrmHCViewDemo
   end
   object statbar: TStatusBar
     Left = 0
-    Top = 391
+    Top = 755
     Width = 896
     Height = 19
     Panels = <
@@ -343,15 +343,13 @@ object frmHCViewDemo: TfrmHCViewDemo
       item
         Width = 50
       end>
-    ExplicitTop = 755
-    ExplicitWidth = 874
   end
   object il1: TImageList
     ColorDepth = cd32Bit
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011D007803C80110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011D007803D00110001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000008000000001002000000000000080
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

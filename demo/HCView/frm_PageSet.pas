@@ -32,6 +32,10 @@ type
     lbl9: TLabel;
     chkSymmetryMargin: TCheckBox;
     chkParaLastMark: TCheckBox;
+    lbl10: TLabel;
+    lbl11: TLabel;
+    lbl12: TLabel;
+    lbl13: TLabel;
     procedure btnOkClick(Sender: TObject);
     procedure cbbPaperChange(Sender: TObject);
   private

@@ -204,6 +204,7 @@ type
       ADrawRect: TRect);
     procedure GetPagesAndActive;
     procedure DoCaretChange(Sender: TObject);
+    procedure DoZoomChanged(Sender: TObject);
     procedure DoVerScroll(Sender: TObject);
     procedure CurTextStyleChange(const ANewStyleNo: Integer);
     procedure CurParaStyleChange(const ANewStyleNo: Integer);
@@ -321,7 +322,7 @@ end;
 
 procedure TfrmHCViewDemo.cbbZoomChange(Sender: TObject);
 begin
-  FHCView.Zoom := (StrToInt(cbbZoom.Text) / 100);
+  FHCView.Zoom := (StrToIntDef(cbbZoom.Text, 100) / 100);
 end;
 
 procedure TfrmHCViewDemo.cbbBackColorChange(Sender: TObject);
@@ -424,6 +425,22 @@ begin
   GetPagesAndActive;
 end;
 
+procedure TfrmHCViewDemo.DoZoomChanged(Sender: TObject);
+var
+  vZoom: string;
+  vIndex: Integer;
+begin
+  vZoom := IntToStr(Round(FHCView.Zoom * 100));
+  vIndex := cbbZoom.Items.IndexOf(vZoom);
+  if vIndex < 0 then
+  begin
+    cbbZoom.Items[cbbZoom.Items.Count - 1] := vZoom;
+    vIndex := cbbZoom.Items.Count - 1;
+  end;
+
+  cbbZoom.ItemIndex := vIndex;
+end;
+
 procedure TfrmHCViewDemo.DrawItemClick(Shift: TShiftState; X, Y, AItemNo,
   ADItemNo: Integer; ADrawRect: TRect);
 begin
@@ -512,10 +529,6 @@ begin
     4: FHCView.ApplyParaAlignHorz(TParaAlignHorz.pahScatter);  // ·ÖÉ¢
     5: FHCView.ApplyParaLeftIndent;
     6: FHCView.ApplyParaLeftIndent(False);
-    //7: FHCView.ApplyParaRightIndent;
-    //8: FHCView.ApplyParaRightIndent(False);
-    //9: FHCView.ApplyParaFirstIndent;
-    //10: FHCView.ApplyParaFirstIndent(False);
   end;
 end;
 
@@ -524,6 +537,7 @@ begin
   Caption := 'HCViewDemo ' + GetVersionInfo;
   FHCView := THCView.Create(Self);
   FHCView.OnCaretChange := DoCaretChange;
+  FHCView.OnZoomChanged := DoZoomChanged;
   FHCView.OnVerScroll := DoVerScroll;
   FHCView.Parent := Self;
   FHCView.Align := alClient;

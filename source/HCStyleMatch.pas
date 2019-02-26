@@ -19,15 +19,9 @@ uses
 type
   TOnTextStyle = procedure(const ACurStyleNo: Integer; const AWillStyle: THCTextStyle) of object;
 
-  THCCustomStyleMathc = class(TObject)
+  THCStyleMatch = class(TObject)  // 文本样式匹配类
   private
     FAppend: Boolean;  // True添加对应样式
-  public
-    property Append: Boolean read FAppend write FAppend;
-  end;
-
-  THCStyleMatch = class(THCCustomStyleMathc)  // 文本样式匹配类
-  private
     FOnTextStyle: TOnTextStyle;
   protected
     function DoMatchCur(const ATextStyle: THCTextStyle): Boolean; virtual; abstract;
@@ -35,6 +29,7 @@ type
   public
     function GetMatchStyleNo(const AStyle: THCStyle; const ACurStyleNo: Integer): Integer;
     function StyleHasMatch(const AStyle: THCStyle; const ACurStyleNo: Integer): Boolean; virtual;
+    property Append: Boolean read FAppend write FAppend;
     property OnTextStyle: TOnTextStyle read FOnTextStyle write FOnTextStyle;
   end;
 
@@ -89,7 +84,7 @@ type
     property Color: TColor read FColor write FColor;
   end;
 
-  THCParaMatch = class(THCCustomStyleMathc)  // 段样式匹配类
+  THCParaMatch = class(TObject)  // 段样式匹配类
   protected
     function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; virtual; abstract;
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); virtual; abstract;
@@ -138,27 +133,39 @@ type
   end;
 
   TParaFirstIndentMatch = class(THCParaMatch)  // 段首行缩进匹配类
+  private
+    FIndent: Integer;
   protected
     function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
+  public
+    property Indent: Integer read FIndent write FIndent;
   end;
 
   TParaLeftIndentMatch = class(THCParaMatch)  // 段左缩进匹配类
+  private
+    FIndent: Integer;
   protected
     function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
+  public
+    property Indent: Integer read FIndent write FIndent;
   end;
 
   TParaRightIndentMatch = class(THCParaMatch)  // 段右缩进匹配类
+  private
+    FIndent: Integer;
   protected
     function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
+  public
+    property Indent: Integer read FIndent write FIndent;
   end;
 
 implementation
 
 uses
-  HCCommon;
+  HCCommon, HCUnitConversion;
 
 { TTextStyleMatch }
 
@@ -298,15 +305,12 @@ end;
 
 function TParaLeftIndentMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
 begin
-  Result := False;
+  Result := AParaStyle.LeftIndent = FIndent;
 end;
 
 procedure TParaLeftIndentMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
 begin
-  if Append then
-    AParaStyle.LeftIndent := AParaStyle.LeftIndent + 28
-  else
-    AParaStyle.LeftIndent := AParaStyle.LeftIndent - 28;
+  AParaStyle.LeftIndent := FIndent;
 end;
 
 { TFontNameStyleMatch }
@@ -361,30 +365,24 @@ end;
 
 function TParaFirstIndentMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
 begin
-  Result := False;
+  Result := AParaStyle.FirstIndent = FIndent;
 end;
 
 procedure TParaFirstIndentMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
 begin
-  if Append then
-    AParaStyle.FirstIndent := AParaStyle.FirstIndent + 28
-  else
-    AParaStyle.FirstIndent := AParaStyle.FirstIndent - 28;
+  AParaStyle.FirstIndent := FIndent
 end;
 
 { TParaRightIndentMatch }
 
 function TParaRightIndentMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
 begin
-  Result := False;
+  Result := AParaStyle.RightIndent = FIndent;
 end;
 
 procedure TParaRightIndentMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
 begin
-  if Append then
-    AParaStyle.RightIndent := AParaStyle.RightIndent + 28
-  else
-    AParaStyle.RightIndent := AParaStyle.RightIndent - 28;
+  AParaStyle.RightIndent := FIndent;
 end;
 
 end.

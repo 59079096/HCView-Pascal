@@ -40,11 +40,13 @@ const
    2.0 ImageItem存图像时增加图像数据大小的存储以兼容不同语言图像数据的存储方式
        文件保存时增加由哪种编程语言生成的标识
    2.1 GifImage保存读取改用兼容其他语言的方式
+   2.2 增加段缩进的存储
   }
 
-  HC_FileVersion = '2.1';
-  HC_FileVersionInt = 21;
+  HC_FileVersion = '2.2';
+  HC_FileVersionInt = 22;
 
+  TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   LineSpaceMin = 8;  // 行间距最小值
   PagePadding = 20;  // 节页面显示时之间的间距
   PMSLineHeight = 24;  // 书写范围线的长度

@@ -86,8 +86,8 @@ procedure THCGifItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   FDrawRect := ADrawRect;
-  //ACanvas.StretchDraw(ADrawRect, FGifImage);
-  ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FGifImage);
+  ACanvas.StretchDraw(ADrawRect, FGifImage);
+  //ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FGifImage);
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 end;

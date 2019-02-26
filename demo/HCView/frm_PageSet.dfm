@@ -79,10 +79,38 @@ object frmPageSet: TfrmPageSet
     Height = 13
     Caption = #36793#36317'(mm)'
   end
+  object lbl10: TLabel
+    Left = 141
+    Top = 79
+    Width = 24
+    Height = 13
+    Caption = #27627#31859
+  end
+  object lbl11: TLabel
+    Left = 141
+    Top = 106
+    Width = 24
+    Height = 13
+    Caption = #27627#31859
+  end
+  object lbl12: TLabel
+    Left = 300
+    Top = 79
+    Width = 24
+    Height = 13
+    Caption = #27627#31859
+  end
+  object lbl13: TLabel
+    Left = 300
+    Top = 106
+    Width = 24
+    Height = 13
+    Caption = #27627#31859
+  end
   object edtTop: TEdit
     Left = 64
     Top = 76
-    Width = 121
+    Width = 73
     Height = 21
     TabOrder = 0
     Text = '35'
@@ -90,7 +118,7 @@ object frmPageSet: TfrmPageSet
   object edtBottom: TEdit
     Left = 221
     Top = 76
-    Width = 121
+    Width = 73
     Height = 21
     TabOrder = 1
     Text = '15'
@@ -98,7 +126,7 @@ object frmPageSet: TfrmPageSet
   object edtLeft: TEdit
     Left = 64
     Top = 103
-    Width = 121
+    Width = 73
     Height = 21
     TabOrder = 2
     Text = '20'
@@ -106,7 +134,7 @@ object frmPageSet: TfrmPageSet
   object edtRight: TEdit
     Left = 221
     Top = 103
-    Width = 121
+    Width = 73
     Height = 21
     TabOrder = 3
     Text = '15'
@@ -139,7 +167,7 @@ object frmPageSet: TfrmPageSet
   object cbbPaper: TComboBox
     Left = 64
     Top = 16
-    Width = 121
+    Width = 101
     Height = 21
     Style = csDropDownList
     TabOrder = 7
@@ -179,7 +207,7 @@ object frmPageSet: TfrmPageSet
   object cbbPageOrientation: TComboBox
     Left = 64
     Top = 140
-    Width = 121
+    Width = 101
     Height = 21
     Style = csDropDownList
     ItemIndex = 0

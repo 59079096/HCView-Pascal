@@ -14,12 +14,11 @@ unit HCPage;
 interface
 
 uses
-  Windows, Classes, HCCommon;
+  Windows, Classes, HCCommon, HCUnitConversion;
 
 type
   THCPageSize = class(TObject)
   private
-    FPixelsPerMMX, FPixelsPerMMY: Single;  // 1毫米像素数
     FPaperSize: Integer;  // 纸张大小如A4、B5等
     FPaperWidth, FPaperHeight: Single;  // 纸张宽、高（单位mm）
     FPageWidthPix, FPageHeightPix: Integer;  // 页面大小
@@ -34,7 +33,7 @@ type
     procedure SetPaperMarginRight(const Value: Single);
     procedure SetPaperMarginBottom(const Value: Single);
   public
-    constructor Create(const APixelsPerMMX, APixelsPerMMY: Single);  // 屏幕1英寸dpi数
+    constructor Create;
     procedure SaveToStream(const AStream: TStream);
     procedure LoadToStream(const AStream: TStream; const AFileVersion: Word);
     // 纸张
@@ -45,17 +44,14 @@ type
     property PaperMarginLeft: Single read FPaperMarginLeft write SetPaperMarginLeft;
     property PaperMarginRight: Single read FPaperMarginRight write SetPaperMarginRight;
     property PaperMarginBottom: Single read FPaperMarginBottom write SetPaperMarginBottom;
-
     /// <summary> 页宽(含页左右边距) </summary>
-    property PageWidthPix: Integer read FPageWidthPix write FPageWidthPix;
-
+    property PageWidthPix: Integer read FPageWidthPix;
     /// <summary> 页高(含页眉、页脚) </summary>
-    property PageHeightPix: Integer read FPageHeightPix write FPageHeightPix;
-
-    property PageMarginTopPix: Integer read FPageMarginTopPix write FPageMarginTopPix;
-    property PageMarginLeftPix: Integer read FPageMarginLeftPix write FPageMarginLeftPix;
-    property PageMarginRightPix: Integer read FPageMarginRightPix write FPageMarginRightPix;
-    property PageMarginBottomPix: Integer read FPageMarginBottomPix write FPageMarginBottomPix;
+    property PageHeightPix: Integer read FPageHeightPix;
+    property PageMarginTopPix: Integer read FPageMarginTopPix;
+    property PageMarginLeftPix: Integer read FPageMarginLeftPix;
+    property PageMarginRightPix: Integer read FPageMarginRightPix;
+    property PageMarginBottomPix: Integer read FPageMarginBottomPix;
   end;
 
   THCPage = class(TPersistent)
@@ -88,10 +84,8 @@ implementation
 
 { THCPageSize }
 
-constructor THCPageSize.Create(const APixelsPerMMX, APixelsPerMMY: Single);
+constructor THCPageSize.Create;
 begin
-  FPixelsPerMMX := APixelsPerMMX;
-  FPixelsPerMMY := APixelsPerMMY;
   PaperMarginLeft := 25;
   PaperMarginTop := 25;
   PaperMarginRight := 20;
@@ -102,7 +96,7 @@ end;
 procedure THCPageSize.SetPaperWidth(const Value: Single);
 begin
   FPaperWidth := Value;
-  FPageWidthPix := Round(FPaperWidth * FPixelsPerMMX);
+  FPageWidthPix := MillimeterToPixX(FPaperWidth);
 end;
 
 procedure THCPageSize.LoadToStream(const AStream: TStream; const AFileVersion: Word);
@@ -160,31 +154,31 @@ end;
 procedure THCPageSize.SetPaperHeight(const Value: Single);
 begin
   FPaperHeight := Value;
-  FPageHeightPix := Round(FPaperHeight * FPixelsPerMMY);
+  FPageHeightPix := MillimeterToPixY(FPaperHeight);
 end;
 
 procedure THCPageSize.SetPaperMarginBottom(const Value: Single);
 begin
   FPaperMarginBottom := Value;
-  FPageMarginBottomPix := Round(FPaperMarginBottom * FPixelsPerMMY);
+  FPageMarginBottomPix := MillimeterToPixY(FPaperMarginBottom);
 end;
 
 procedure THCPageSize.SetPaperMarginLeft(const Value: Single);
 begin
   FPaperMarginLeft := Value;
-  FPageMarginLeftPix := Round(FPaperMarginLeft * FPixelsPerMMX);
+  FPageMarginLeftPix := MillimeterToPixX(FPaperMarginLeft);
 end;
 
 procedure THCPageSize.SetPaperMarginRight(const Value: Single);
 begin
   FPaperMarginRight := Value;
-  FPageMarginRightPix := Round(FPaperMarginRight * FPixelsPerMMX);
+  FPageMarginRightPix := MillimeterToPixX(FPaperMarginRight);
 end;
 
 procedure THCPageSize.SetPaperMarginTop(const Value: Single);
 begin
   FPaperMarginTop := Value;
-  FPageMarginTopPix := Round(FPaperMarginTop * FPixelsPerMMY);
+  FPageMarginTopPix := MillimeterToPixY(FPaperMarginTop);
 end;
 
 procedure THCPageSize.SetPaperSize(const Value: Integer);

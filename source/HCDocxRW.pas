@@ -120,16 +120,15 @@ type
     BackColor: TColor;
     BeforeAutoSpacing: Boolean;
     ContextualSpacing: Boolean;
-    FirstLineIndent: Integer;
+    FirstLineIndent: Integer;  // 首行缩进(单位mm)
     FirstLineIndentType: TParaFirstLineIndent;
     KeepLinesTogether: Boolean;
     KeepWithNext: Boolean;
-    LeftIndent: Integer;
+    LeftIndent, RightIndent: Integer;  // 左、右缩进(单位mm)
     LineSpacing: Single;
     LineSpacingType: TParaLineSpaceMode;
     OutlineLevel: Integer;
     PageBreakBefore: Boolean;
-    RightIndent: Integer;
     SpacingAfter: Integer;
     SpacingBefore: Integer;
     SuppressHyphenation: Boolean;
@@ -263,11 +262,11 @@ type
     procedure ReadDocument_(const AFile: string);
     //
     procedure ReadTextItem_(const AData: THCViewData; const AParaFirst: Boolean;
-      const ANode: IHCXMLNode; const AStyle: THCStyle; const AParaNo, AStyleNo: Integer);
+      const ANode: IHCXMLNode; const AParaNo, AStyleNo: Integer);
     procedure ReadTable_(const AData: THCViewData; const AParaFirst: Boolean;
       const ATableNode: IHCXMLNode; const AStyle: THCStyle);
     procedure ReadDrawing_(const AData: THCViewData; const AParaFirst: Boolean;
-      const ANode: IHCXMLNode; const AStyle: THCStyle; const AParaNo: Integer);
+      const ANode: IHCXMLNode; const AParaNo: Integer);
 
     /// <summary> 读取段中的内容 </summary>
     /// <param name="AData"></param>
@@ -315,7 +314,7 @@ implementation
 {$I HCView.inc}
 
 uses
-  System.SysUtils, System.IOUtils, System.Math, HCZLib;
+  System.SysUtils, System.IOUtils, System.Math, HCZLib, HCUnitConversion;
 
 const
   HCDOCX_DEFAULTFONT = 'Calibri';
@@ -923,26 +922,6 @@ begin
   end;
 end;
 
-function TwipToPixel(const AValue: Single; const ADpi: Single): Cardinal;
-begin
-  Result := Round(AValue * ADpi / 1440);
-end;
-
-function PixelToTwip(const AValue, ADpi: Cardinal): Cardinal;
-begin
-  Result := Round(AValue * 1440 / ADpi);
-end;
-
-function TwipToMillimeter(const AValue: Single): Single;
-begin
-  Result := AValue * 25.4 / 1440;
-end;
-
-function MillimeterToTwip(const AValue: Single): Single;
-begin
-  Result := AValue * 1440 / 25.4;
-end;
-
 constructor THCDocxReader.Create;
 begin
   inherited Create;
@@ -979,6 +958,7 @@ begin
     vHCParaStyle.LineSpaceMode := AParaStyle.LineSpacingType;
     vHCParaStyle.FirstIndent := AParaStyle.FirstLineIndent;
     vHCParaStyle.LeftIndent := AParaStyle.LeftIndent;
+    vHCParaStyle.RightIndent := AParaStyle.RightIndent;
     vHCParaStyle.BackColor := AParaStyle.BackColor;
 
     Result := FHCView.Style.GetParaNo(vHCParaStyle, True);
@@ -1393,8 +1373,7 @@ begin
 end;
 
 procedure THCDocxReader.ReadDrawing_(const AData: THCViewData;
-  const AParaFirst: Boolean; const ANode: IHCXMLNode; const AStyle: THCStyle;
-  const AParaNo: Integer);
+  const AParaFirst: Boolean; const ANode: IHCXMLNode; const AParaNo: Integer);
 var
   vInLineNode, vGraphicNode, vGraphicDataNode,
   vPicNode, vPicblipFillNode, vBlipNode, vNode: IHCXMLNode;
@@ -1442,8 +1421,8 @@ begin
     if vFile = '.gif' then
     begin
       vGifItem := THCGifItem.Create(AData,
-        TwipToPixel(MillimeterToTwip(vW / 36000.0), AStyle.PixelsPerInchX),
-        TwipToPixel(MillimeterToTwip(vH / 36000.0), AStyle.PixelsPerInchX));
+        TwipToPixel(MillimeterToTwip(vW / 36000.0), PixelsPerInchX),
+        TwipToPixel(MillimeterToTwip(vH / 36000.0), PixelsPerInchY));
       vGifItem.ParaFirst := AParaFirst;
       vGifItem.ParaNo := AParaNo;
       vGifItem.Animate := True;
@@ -1458,8 +1437,8 @@ begin
     if (vFile = '.bmp') or (vFile = '.jpeg') or (vFile = '.jpg') or (vFile = '.png') then
     begin
       vImageItem := THCImageItem.Create(AData,
-        TwipToPixel(MillimeterToTwip(vW / 36000.0), AStyle.PixelsPerInchX),
-        TwipToPixel(MillimeterToTwip(vH / 36000.0), AStyle.PixelsPerInchX));
+        TwipToPixel(MillimeterToTwip(vW / 36000.0), PixelsPerInchX),
+        TwipToPixel(MillimeterToTwip(vH / 36000.0), PixelsPerInchY));
       vImageItem.ParaFirst := AParaFirst;
       vImageItem.ParaNo := AParaNo;
 
@@ -1679,7 +1658,7 @@ begin
       FreeAndNil(vTextStyle);
     end;
 
-    ReadTextItem_(AData, vParaFirst, AParaNode, AStyle, vParaNo, vStyleNo);
+    ReadTextItem_(AData, vParaFirst, AParaNode, vParaNo, vStyleNo);
     Exit;
   end;
 
@@ -1718,7 +1697,7 @@ begin
             FreeAndNil(vTextStyle);
           end;
 
-          ReadTextItem_(AData, vParaFirst, vNode, AStyle, vParaNo, vStyleNo);
+          ReadTextItem_(AData, vParaFirst, vNode, vParaNo, vStyleNo);
           vParaFirst := False;
         end
         else
@@ -1727,7 +1706,7 @@ begin
           if vParaNo < 0 then
             vParaNo := GetHCParaNo;
 
-          ReadDrawing_(AData, vParaFirst, vNode, AStyle, vParaNo);
+          ReadDrawing_(AData, vParaFirst, vNode, vParaNo);
           vParaFirst := False;
         end;
       end;
@@ -2035,8 +2014,7 @@ begin
 end;
 
 procedure THCDocxReader.ReadTextItem_(const AData: THCViewData;
- const AParaFirst: Boolean; const ANode: IHCXMLNode; const AStyle: THCStyle;
- const AParaNo, AStyleNo: Integer);
+ const AParaFirst: Boolean; const ANode: IHCXMLNode; const AParaNo, AStyleNo: Integer);
 var
   vTextItem: THCCustomItem;
 begin
@@ -2478,8 +2456,8 @@ begin
   vWPNode := ANode.AddChild('w:r').AddChild('w:drawing').AddChild('wp:inline');
   vWPNode.Attributes['xmlns:wp'] := 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
 
-  vW := Round(TwipToMillimeter(PixelToTwip(AGifItem.Width, FHCView.Style.PixelsPerInchX) * 36000));
-  vH := Round(TwipToMillimeter(PixelToTwip(AGifItem.Height, FHCView.Style.PixelsPerInchY) * 36000));
+  vW := Round(TwipToMillimeter(PixelToTwip(AGifItem.Width, PixelsPerInchX) * 36000));
+  vH := Round(TwipToMillimeter(PixelToTwip(AGifItem.Height, PixelsPerInchY) * 36000));
   vNode := vWPNode.AddChild('wp:extent');
   vNode.Attributes['cx'] := vW;
   vNode.Attributes['cy'] := vH;
@@ -2551,8 +2529,8 @@ begin
   vWPNode := ANode.AddChild('w:r').AddChild('w:drawing').AddChild('wp:inline');
   vWPNode.Attributes['xmlns:wp'] := 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
 
-  vW := Round(TwipToMillimeter(PixelToTwip(AImageItem.Width, FHCView.Style.PixelsPerInchX) * 36000));
-  vH := Round(TwipToMillimeter(PixelToTwip(AImageItem.Height, FHCView.Style.PixelsPerInchY) * 36000));
+  vW := Round(TwipToMillimeter(PixelToTwip(AImageItem.Width, PixelsPerInchX) * 36000));
+  vH := Round(TwipToMillimeter(PixelToTwip(AImageItem.Height, PixelsPerInchY) * 36000));
   vNode := vWPNode.AddChild('wp:extent');
   vNode.Attributes['cx'] := vW;
   vNode.Attributes['cy'] := vH;
@@ -3016,7 +2994,7 @@ begin
         for i := vC + 1 to vC + vCell.ColSpan do
           vW := vW + ATableItem.ColWidth[i];
       end;
-      vNode.Attributes['w:w'] := PixelToTwip(vW, FHCView.Style.PixelsPerInchX);
+      vNode.Attributes['w:w'] := PixelToTwip(vW, PixelsPerInchX);
       // 行合并  
       if vCell.RowSpan > 0 then
         vPrNode.AddChild('w:vMerge').Attributes['w:val'] := 'restart'
@@ -3361,7 +3339,7 @@ begin
       if vNode.NodeName = 'w:tcW' then
       begin
         if vNode.Attributes['w:type'] = 'dxa' then  // twentieths
-          Width := TwipToPixel(Integer(vNode.Attributes['w:w']), AStyle.PixelsPerInchX)
+          Width := TwipToPixel(Integer(vNode.Attributes['w:w']), PixelsPerInchX)
         else
           Width := vNode.Attributes['w:w'];
 

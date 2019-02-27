@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData, HCXml,
-  Vcl.Imaging.GIFImg;
+  {$IFDEF DELPHIXE}Imaging.GIFImg{$ELSE}GIFImg{$ENDIF};
 
 type
   THCGifItem = class(THCAnimateRectItem)

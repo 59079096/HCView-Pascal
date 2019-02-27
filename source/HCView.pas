@@ -3858,7 +3858,7 @@ begin
         vText := vDrawAnnotate.DataAnnotate.Text;
         vTextRect := vDrawAnnotate.Rect;
         vTextRect.Inflate(-5, -5);
-        DrawTextEx(ACanvas.Handle, PChar(i.ToString + vText), -1, vTextRect, DT_VCENTER or DT_LEFT or DT_WORDBREAK, nil);
+        DrawTextEx(ACanvas.Handle, PChar(IntToStr(i) + vText), -1, vTextRect, DT_VCENTER or DT_LEFT or DT_WORDBREAK, nil);
 
         // 绘制指向线
         ACanvas.Brush.Style := bsClear;

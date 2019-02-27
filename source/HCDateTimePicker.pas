@@ -65,6 +65,8 @@ type
 
 implementation
 
+{$I HCView.inc}
+
 uses
   DateUtils;
 
@@ -375,9 +377,9 @@ var
                 1, 2:
                   vS := NumberText(Month, Count);
                 3:
-                  vS := FormatSettings.ShortMonthNames[Month];
+                  vS := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ShortMonthNames[Month];
               else
-                vS := FormatSettings.LongMonthNames[Month];
+                vS := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}LongMonthNames[Month];
               end;
               Inc(vCharOffset, System.Length(vS));
 
@@ -406,8 +408,8 @@ var
                     GetDate;
                     vS := NumberText(Day, Count);
                   end;
-                3: vS := FormatSettings.ShortDayNames[DayOfWeek(FDateTime)];
-                4: vS := FormatSettings.LongDayNames[DayOfWeek(FDateTime)];
+                3: vS := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ShortDayNames[DayOfWeek(FDateTime)];
+                4: vS := {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}LongDayNames[DayOfWeek(FDateTime)];
               end;
               Inc(vCharOffset, System.Length(vS));
 
@@ -541,9 +543,9 @@ var
             begin
               GetCount;
               if Count = 1 then
-                AppendFormat(Pointer(FormatSettings.ShortTimeFormat))
+                AppendFormat(Pointer({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ShortTimeFormat))
               else
-                AppendFormat(Pointer(FormatSettings.LongTimeFormat));
+                AppendFormat(Pointer({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}LongTimeFormat));
             end;
           'Z':  // 毫秒
             begin
@@ -600,12 +602,12 @@ var
                 if Hour < 12 then
                 begin
                   //AppendString(TimeAMString);
-                  Inc(vCharOffset, System.Length(FormatSettings.TimeAMString));
+                  Inc(vCharOffset, System.Length({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}TimeAMString));
                 end
                 else
                 begin
                   //AppendString(TimePMString);
-                  Inc(vCharOffset, System.Length(FormatSettings.TimePMString));
+                  Inc(vCharOffset, System.Length({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}TimePMString));
                 end;
                 Inc(Format, 3);
                 Use12HourClock := TRUE;
@@ -615,7 +617,7 @@ var
               begin
                 GetDate;
                 //AppendString(LongDayNames[DayOfWeek(DateTime)]);
-                Inc(vCharOffset, System.Length(FormatSettings.LongDayNames[DayOfWeek(FDateTime)]));
+                Inc(vCharOffset, System.Length({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}LongDayNames[DayOfWeek(FDateTime)]));
                 Inc(Format, 3);
               end
               else
@@ -623,7 +625,7 @@ var
               begin
                 GetDate;
                 //AppendString(ShortDayNames[DayOfWeek(DateTime)]);
-                Inc(vCharOffset, System.Length(FormatSettings.ShortDayNames[DayOfWeek(FDateTime)]));
+                Inc(vCharOffset, System.Length({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ShortDayNames[DayOfWeek(FDateTime)]));
                 Inc(Format, 2);
               end
               else
@@ -635,23 +637,23 @@ var
           'C':  // 短格式日期时间
             begin
               GetCount;
-              AppendFormat(Pointer(FormatSettings.ShortDateFormat));
+              AppendFormat(Pointer({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}ShortDateFormat));
               GetTime;
               if (Hour <> 0) or (Min <> 0) or (Sec <> 0) then
               begin
                 //AppendChars(' ', 1);
                 Inc(vCharOffset);
-                AppendFormat(Pointer(FormatSettings.LongTimeFormat));
+                AppendFormat(Pointer({$IFDEF DELPHIXE}FormatSettings.{$ENDIF}LongTimeFormat));
               end;
             end;
           '/':  // 日期分隔
-            if FormatSettings.DateSeparator <> #0 then
+            if {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}DateSeparator <> #0 then
             begin
               //AppendChars(@DateSeparator, 1);
               Inc(vCharOffset);
             end;
           ':':  // 时间分隔
-            if FormatSettings.TimeSeparator <> #0 then
+            if {$IFDEF DELPHIXE}FormatSettings.{$ENDIF}TimeSeparator <> #0 then
             begin
               //AppendChars(@TimeSeparator, 1);
               Inc(vCharOffset);

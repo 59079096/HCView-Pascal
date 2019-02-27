@@ -14,7 +14,7 @@ unit HCUndo;
 interface
 
 uses
-  System.Classes, System.Generics.Collections;
+  Classes, Generics.Collections;
 
 type
 

@@ -13,6 +13,8 @@ unit HCCommon;
 
 interface
 
+{$I HCView.inc}
+
 uses
   Windows, Controls, Classes, Graphics, HCStyle;
 
@@ -124,6 +126,31 @@ type
     X, Y, Height, PageIndex: Integer;
     Visible: Boolean;
   end;
+
+  {$IFNDEF DELPHIXE}
+  THCPoint = record helper for TPoint
+  public
+    procedure Offset(const DX, DY : Integer); overload;
+    procedure Offset(const Point: TPoint); overload;
+  end;
+
+  THCRect = record helper for TRect
+  protected
+    function GetHeight: Integer;
+    procedure SetHeight(const Value: Integer);
+    function GetWidth: Integer;
+    procedure SetWidth(const Value: Integer);
+    function GetLocation: TPoint;
+    procedure SetLocation(const Point: TPoint);
+  public
+    procedure Offset(const DX, DY: Integer); overload;
+    procedure Offset(const Point: TPoint); overload;
+    procedure Inflate(const DX, DY: Integer);
+    property Height: Integer read GetHeight write SetHeight;
+    property Width: Integer read GetWidth write SetWidth;
+    property Location: TPoint read GetLocation write SetLocation;
+  end;
+  {$ENDIF}
 
   TMarkType = (cmtBeg, cmtEnd);
 
@@ -660,6 +687,71 @@ begin
   SetCaretPos(AX, AY);
   ShowCaret(FOwnHandle);
 end;
+
+{$IFNDEF DELPHIXE}
+{ THCRect }
+
+function THCRect.GetHeight: Integer;
+begin
+  Result := Self.Bottom - Self.Top;
+end;
+
+function THCRect.GetLocation: TPoint;
+begin
+  Result := TopLeft;
+end;
+
+function THCRect.GetWidth: Integer;
+begin
+  Result := Self.Right - Self.Left;
+end;
+
+procedure THCRect.Inflate(const DX, DY: Integer);
+begin
+  TopLeft.Offset(-DX, -DY);
+  BottomRight.Offset(DX, DY);
+end;
+
+procedure THCRect.Offset(const Point: TPoint);
+begin
+  TopLeft.Offset(Point);
+  BottomRight.Offset(Point);
+end;
+
+procedure THCRect.Offset(const DX, DY: Integer);
+begin
+  TopLeft.Offset(DX, DY);
+  BottomRight.Offset(DX, DY);
+end;
+
+procedure THCRect.SetHeight(const Value: Integer);
+begin
+  Self.Bottom := Self.Top + Value;
+end;
+
+procedure THCRect.SetLocation(const Point: TPoint);
+begin
+  Offset(Point.X - Left, Point.Y - Top);
+end;
+
+procedure THCRect.SetWidth(const Value: Integer);
+begin
+  Self.Right := Self.Left + Value;
+end;
+
+{ THCPoint }
+
+procedure THCPoint.Offset(const DX, DY: Integer);
+begin
+  Inc(Self.X, DX);
+  Inc(Self.Y, DY);
+end;
+
+procedure THCPoint.Offset(const Point: TPoint);
+begin
+  Self.Offset(Point.X, Point.Y);
+end;
+{$ENDIF}
 
 initialization
   if HC_FILEFORMAT = 0 then

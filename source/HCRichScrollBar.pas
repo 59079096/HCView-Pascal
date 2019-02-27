@@ -90,7 +90,7 @@ begin
             vDrawTop := ButtonSize + Round(FAreaMarks[i].Position * Percent);
             vDrawHeight := Round(FAreaMarks[i].Height * Percent);
 
-            ACanvas.FillRect(Bounds(AThumRect.Left, vDrawTop, AThumRect.Width, vDrawHeight));
+            ACanvas.FillRect(Bounds(AThumRect.Left, vDrawTop, AThumRect.Right - AThumRect.Left, vDrawHeight));
           end;
         end;
       end;

@@ -418,6 +418,8 @@ type
 
 implementation
 
+{$I HCView.inc}
+
 uses
   SysUtils, Math, HCList, HCTextItem, HCRectItem, HCUnitConversion;
 
@@ -2987,7 +2989,11 @@ begin
     vDescent := Ceil(vDescent * vSizeScale);
     vLineSpacing := Ceil(vLineSpacing * vSizeScale);
 
+    {$IFDEF DELPHIXE}
     if (GetTextCharsetInfo(vDC, @vFontSignature, 0) <> DEFAULT_CHARSET)
+    {$ELSE}
+    if (not (GetTextCharsetInfo(vDC, @vFontSignature, 0)))
+    {$ENDIF}
       and (vFontSignature.fsCsb[0] and CJK_CODEPAGE_BITS <> 0)
     then  // CJK Font
     begin

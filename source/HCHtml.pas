@@ -141,13 +141,13 @@ const
   tpInlineOrEmpty = TpInline or TpEmpty;
 
 type
-{$IF NOT Declared(TStringDynArray)}
+//{$IF NOT Declared(TStringDynArray)}
 {$IFDEF USE_GENERICS}
   TStringDynArray = TArray<string>;
 {$ELSE}
   TStringDynArray = array of string;
 {$ENDIF}
-{$ENDIF}
+//{$ENDIF}
   TPointerList = array [0 .. MaxListSize - 1] of Pointer;
   PPointerList = ^TPointerList;
 
@@ -2683,13 +2683,13 @@ begin
       if (AColor[i] = ',') or (AColor[i] = ')') then
       begin
         if vSeq = 0 then
-          R := StrToInt(Copy(AColor, vPos, i - vPos).Trim)
+          R := StrToInt(Trim(Copy(AColor, vPos, i - vPos)))
         else
         if vSeq = 1 then
-          G := StrToInt(Copy(AColor, vPos, i - vPos).Trim)
+          G := StrToInt(Trim(Copy(AColor, vPos, i - vPos)))
         else
         if vSeq = 2 then
-          B := StrToInt(Copy(AColor, vPos, i - vPos).Trim);
+          B := StrToInt(Trim(Copy(AColor, vPos, i - vPos)));
 
         vPos := i + 1;
         Inc(vSeq);
@@ -2729,7 +2729,7 @@ var
           begin
             SetString(vKey, vPStart, vPm - vPStart);
             SetString(vValue, vPm + 1, vPSeek - vPm - 1);
-            vAttrDict.Add(vKey.Trim, vValue.Trim);
+            vAttrDict.Add(Trim(vKey), Trim(vValue));
           end;
 
           Inc(vPSeek);
@@ -2777,7 +2777,7 @@ var
 
         vValue := vAttrDict.ValueOf('font-family');
         if vValue <> '' then
-          vTextStyle.Family := vValue.DeQuotedString;  // AnsiDequotedStr(vValue, '"');
+          vTextStyle.Family := AnsiDequotedStr(vValue, '"');// vValue.DeQuotedString
 
         vValue := LowerCase(vAttrDict.ValueOf('font-style'));
         if vValue = 'italic' then

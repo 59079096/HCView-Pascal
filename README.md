@@ -9,4 +9,5 @@ HCView代码遵循BSD协议，你可以任意的用于商业项目和自由的�
 demo编译步骤：
 1.在delphi中的菜单Tools-Options对话框里选中Library节点，右侧Library path添加HCView源码的source路径；
 2.打开Demo目录下的代码，编译，运行；
-3.Delphi2010以上的版本编译如果提示找不到Delphi自带的单元，则在工程属性中根据实际情况添加命名空间域Winapi、Vcl、Vcl.Imaging（Project-Options-Delphi Compiler右侧Unit scope names）
+3.Delphi2010以上的版本编译如果提示找不到Delphi自带的单元，则在工程属性中（Project-Options-Delphi Compiler右侧Unit scope names）根据实际情况添加命名空间域
+System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Winapi

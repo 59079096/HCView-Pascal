@@ -33,7 +33,7 @@ type
 implementation
 
 uses
-  System.SysUtils, HCDocxRW;
+  SysUtils, HCDocxRW;
 
 const
   HC_EXT_DOCX = '.docx';

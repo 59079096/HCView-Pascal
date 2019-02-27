@@ -14,7 +14,7 @@ unit HCXml;
 interface
 
 uses
-  Classes, Windows, Graphics, Xml.XMLDoc, Xml.XMLIntf;
+  Classes, Windows, Graphics, XMLDoc, XMLIntf;
 
 type
   IHCXMLDocument = IXMLDocument;
@@ -91,8 +91,8 @@ end;
 
 function GetColorXmlRGB(const AColor: TColor): string;
 begin
-  Result := GetRValue(AColor).ToString + ','
-    + GetGValue(AColor).ToString + ',' + GetBValue(AColor).ToString;
+  Result := IntToStr(GetRValue(AColor)) + ','
+    + IntToStr(GetGValue(AColor)) + ',' + IntToStr(GetBValue(AColor));
 end;
 
 function GetXmlRGBColor(const AColorStr: string): TColor;

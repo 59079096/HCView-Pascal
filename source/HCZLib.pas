@@ -88,7 +88,7 @@ type
 implementation
 
 uses
-  System.ZLib, System.Math, System.AnsiStrings;
+  ZLib, Math, AnsiStrings;
 
 const
   HCUnixPathDelim = AnsiChar('/');
@@ -462,7 +462,7 @@ end;
 class function THCZLibFileEntry.CheckName(const AName: AnsiString): AnsiString;
 begin
   if PathDelim <> HCUnixPathDelim then
-    Result := System.AnsiStrings.StringReplace(AName, PathDelim, HCUnixPathDelim, [rfReplaceAll])
+    Result := AnsiStrings.StringReplace(AName, PathDelim, HCUnixPathDelim, [rfReplaceAll])
   else
     Result := AName;
 

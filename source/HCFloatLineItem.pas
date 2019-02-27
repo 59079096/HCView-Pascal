@@ -44,7 +44,7 @@ type
 implementation
 
 uses
-  System.Math;
+  Math;
 
 { THCFloatLineItem }
 

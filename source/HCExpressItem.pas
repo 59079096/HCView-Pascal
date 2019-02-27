@@ -57,7 +57,7 @@ type
 implementation
 
 uses
-  SysUtils, System.Math;
+  SysUtils, Math;
 
 { THCExpressItem }
 

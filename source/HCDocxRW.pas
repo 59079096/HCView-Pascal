@@ -14,8 +14,8 @@ unit HCDocxRW;
 interface
 
 uses
-  Winapi.Windows, System.Classes, Vcl.Graphics, HCView, HCCommon, HCXml, HCViewData,
-  HCStyle, HCTextStyle, HCParaStyle, HCDocumentRW, System.Generics.Collections,
+  Windows, Classes, Graphics, HCView, HCCommon, HCXml, HCViewData,
+  HCStyle, HCTextStyle, HCParaStyle, HCDocumentRW, Generics.Collections,
   HCItem, HCImageItem, HCGifItem, HCTableItem, HCTableRow, HCTableCell;
 
 type
@@ -314,7 +314,7 @@ implementation
 {$I HCView.inc}
 
 uses
-  System.SysUtils, System.IOUtils, System.Math, HCZLib, HCUnitConversion;
+  SysUtils, IOUtils, Math, HCZLib, HCUnitConversion;
 
 const
   HCDOCX_DEFAULTFONT = 'Calibri';
@@ -895,7 +895,7 @@ begin
   vG := Byte(AColor shr 8);
   vB := Byte(AColor shr 16);
 
-  Result := Copy(IntToHex(vR or (vG shl 8) or (vB shl 16)), 3, 6);
+  Result := Copy(IntToHex(vR or (vG shl 8) or (vB shl 16){$IFNDEF DELPHIXE}, 8{$ENDIF}), 3, 6);
 end;
 
 function GetAttributeAsString(const ANode: IHCXMLNode; const AttrName: string): string;

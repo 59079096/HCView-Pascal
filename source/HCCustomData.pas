@@ -2992,7 +2992,7 @@ begin
     {$IFDEF DELPHIXE}
     if (GetTextCharsetInfo(vDC, @vFontSignature, 0) <> DEFAULT_CHARSET)
     {$ELSE}
-    if (not (GetTextCharsetInfo(vDC, @vFontSignature, 0)))
+    if (Integer(GetTextCharsetInfo(vDC, @vFontSignature, 0)) <> DEFAULT_CHARSET)
     {$ENDIF}
       and (vFontSignature.fsCsb[0] and CJK_CODEPAGE_BITS <> 0)
     then  // CJK Font

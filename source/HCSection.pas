@@ -331,8 +331,7 @@ type
       const AParts: TSectionAreas = [saHeader, saPage, saFooter]);
     procedure SaveToStream(const AStream: TStream;
       const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
-    procedure SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
-    procedure LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
+    function SaveToText: string;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word);
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
@@ -1535,13 +1534,6 @@ begin
   BuildSectionPages(0);
 end;
 
-procedure THCCustomSection.LoadFromTextFile(const AFileName: string;
-  const AEncoding: TEncoding);
-begin
-  FPageData.LoadFromTextFile(AFileName, AEncoding);
-  BuildSectionPages(0);
-end;
-
 procedure THCCustomSection.MarkStyleUsed(const AMark: Boolean;
   const AParts: TSectionAreas = [saHeader, saPage, saFooter]);
 begin
@@ -2490,9 +2482,9 @@ begin
   AStream.Position := vEndPos;
 end;
 
-procedure THCCustomSection.SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
+function THCCustomSection.SaveToText: string;
 begin
-  FPageData.SaveToTextFile(AFileName, AEncoding);
+  Result := FPageData.SaveToText;
 end;
 
 procedure THCCustomSection.SectionCoordToPage(const APageIndex, X, Y: Integer; var APageX,

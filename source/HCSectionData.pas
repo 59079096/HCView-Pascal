@@ -108,13 +108,6 @@ type
     /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
     //
-    // 保存
-    procedure SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
-    procedure SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
-    // 读取
-    procedure LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
-    procedure LoadFromTextStream(AStream: TStream; AEncoding: TEncoding);
-    //
     property ShowLineActiveMark: Boolean read FShowLineActiveMark write FShowLineActiveMark;
     property ShowLineNo: Boolean read FShowLineNo write FShowLineNo;
     property ShowUnderLine: Boolean read FShowUnderLine write FShowUnderLine;
@@ -143,29 +136,6 @@ procedure THCPageData.SaveToStream(const AStream: TStream);
 begin
   AStream.WriteBuffer(FShowUnderLine, SizeOf(FShowUnderLine));
   inherited SaveToStream(AStream);
-end;
-
-procedure THCPageData.SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
-var
-  vStream: TStream;
-begin
-  vStream := TFileStream.Create(AFileName, fmCreate);
-  try
-    SaveToTextStream(vStream, AEncoding);
-  finally
-    vStream.Free;
-  end;
-end;
-
-procedure THCPageData.SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
-var
-  vBuffer, vPreamble: TBytes;
-begin
-  vBuffer := AEncoding.GetBytes(SaveToText);
-  vPreamble := AEncoding.GetPreamble;
-  if Length(vPreamble) > 0 then
-    AStream.WriteBuffer(vPreamble[0], Length(vPreamble));
-  AStream.WriteBuffer(vBuffer[0], Length(vBuffer));
 end;
 
 procedure THCPageData.DoDrawItemPaintAfter(const AData: THCCustomData;
@@ -317,38 +287,6 @@ begin
 //    for i := 0 to APageIndex - 1 do
 //      Result := Result + vContentHeight;
 //  end;
-end;
-
-procedure THCPageData.LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
-var
-  vStream: TStream;
-  vFileFormat: string;
-begin
-  vStream := TFileStream.Create(AFileName, fmOpenRead or fmShareExclusive);  // 只读打开、不允许其他程序以任何方式打开
-  try
-    vFileFormat := ExtractFileExt(AFileName);
-    vFileFormat := LowerCase(vFileFormat);
-    if vFileFormat = '.txt' then
-      LoadFromTextStream(vStream, AEncoding);
-  finally
-    vStream.Free;
-  end;
-end;
-
-procedure THCPageData.LoadFromTextStream(AStream: TStream; AEncoding: TEncoding);
-var
-  vSize: Integer;
-  vBuffer: TBytes;
-  vS: string;
-begin
-  Clear;
-  vSize := AStream.Size - AStream.Position;
-  SetLength(vBuffer, vSize);
-  AStream.Read(vBuffer[0], vSize);
-  vSize := TEncoding.GetBufferEncoding(vBuffer, AEncoding);
-  vS := AEncoding.GetString(vBuffer, vSize, Length(vBuffer) - vSize);
-  if vS <> '' then
-    InsertText(vS);
 end;
 
 procedure THCPageData.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

@@ -468,12 +468,20 @@ type
     /// <summary> 文档保存为PDF格式 </summary>
     procedure SaveToPDF(const AFileName: string);
 
-    /// <summary> 文档保存为Text格式 </summary>
+    /// <summary> 以字符串形式获取文档各节正文内容 </summary>
+    function SaveToText: string;
+
+    /// <summary> 文档各节正文字符串保存为文本格式文件 </summary>
     procedure SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
 
-    // 读取文档
-    /// <summary> 读取Txt文件 </summary>
+    /// <summary> 读取文本文件内容到第一节正文 </summary>
     procedure LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
+
+    /// <summary> 文档各节正文字符串保存为文本格式流 </summary>
+    procedure SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
+
+    /// <summary> 读取文本文件流 </summary>
+    procedure LoadFromTextStream(const AStream: TStream; AEncoding: TEncoding);
 
     /// <summary> 文档保存到流 </summary>
     procedure SaveToStream(const AStream: TStream; const AQuick: Boolean = False;
@@ -689,6 +697,7 @@ type
 
     property OnSectionCanEdit: TOnCanEditEvent read FOnSectionCanEdit write FOnSectionCanEdit;
 
+    property Color;
     property PopupMenu;
   end;
 
@@ -1895,10 +1904,35 @@ begin
 end;
 
 procedure THCView.LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
+var
+  vStream: TMemoryStream;
+begin
+  vStream := TMemoryStream.Create;
+  try
+    vStream.LoadFromFile(AFileName);
+    vStream.Position := 0;
+    LoadFromTextStream(vStream, AEncoding);
+  finally
+    FreeAndNil(vStream);
+  end;
+end;
+
+procedure THCView.LoadFromTextStream(const AStream: TStream; AEncoding: TEncoding);
+var
+  vSize: Integer;
+  vBuffer: TBytes;
+  vS: string;
 begin
   Self.Clear;
   FStyle.Initialize;
-  ActiveSection.LoadFromTextFile(AFileName, AEncoding);
+
+  vSize := AStream.Size - AStream.Position;
+  SetLength(vBuffer, vSize);
+  AStream.Read(vBuffer[0], vSize);
+  vSize := TEncoding.GetBufferEncoding(vBuffer, AEncoding);
+  vS := AEncoding.GetString(vBuffer, vSize, Length(vBuffer) - vSize);
+  if vS <> '' then
+    ActiveSection.InsertText(vS);
 end;
 
 procedure THCView.LoadFromXml(const AFileName: string);
@@ -2948,13 +2982,41 @@ begin
   end;
 end;
 
-procedure THCView.SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
+function THCView.SaveToText: string;
 var
   i: Integer;
 begin
-  // 各节数据
-  for i := 0 to FSections.Count - 1 do
-    FSections[i].SaveToTextFile(AFileName, AEncoding);
+  Result := '';
+  for i := 0 to FSections.Count - 1 do  // 各节数据
+    Result := Result + sLineBreak + FSections[i].SaveToText;
+end;
+
+procedure THCView.SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
+var
+  vStream: TStream;
+begin
+  vStream := TFileStream.Create(AFileName, fmCreate);
+  try
+    SaveToTextStream(vStream, AEncoding);
+  finally
+    vStream.Free;
+  end;
+end;
+
+procedure THCView.SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
+var
+  vText: string;
+  vBuffer, vPreamble: TBytes;
+  vStream: TStream;
+begin
+  vText := SaveToText;
+
+  vBuffer := AEncoding.GetBytes(vText);
+  vPreamble := AEncoding.GetPreamble;
+
+  if Length(vPreamble) > 0 then
+    AStream.WriteBuffer(vPreamble[0], Length(vPreamble));
+  AStream.WriteBuffer(vBuffer[0], Length(vBuffer));
 end;
 
 procedure THCView.SaveToStream(const AStream: TStream; const AQuick: Boolean = False;

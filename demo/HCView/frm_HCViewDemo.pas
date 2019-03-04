@@ -6,12 +6,12 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  Actions, ImageList, Printers, Clipbrd;
+  Printers, Clipbrd, HCRuler, System.Actions, System.ImageList;
 
 type
   TfrmHCViewDemo = class(TForm)
     il1: TImageList;
-    tlbFontSize: TToolBar;
+    tlbTool: TToolBar;
     btnOpen: TToolButton;
     btnSymmetryMargin: TToolButton;
     btnAlignLeft: TToolButton;
@@ -198,6 +198,7 @@ type
     procedure mniExploreClick(Sender: TObject);
   private
     { Private declarations }
+    FHRuler: THCHorizontalRuler;
     FHCView: THCView;
     procedure SetFileName(const AFileName: string);
     procedure DrawItemClick(Shift: TShiftState; X, Y, AItemNo, ADItemNo: Integer;
@@ -206,6 +207,7 @@ type
     procedure DoCaretChange(Sender: TObject);
     procedure DoZoomChanged(Sender: TObject);
     procedure DoVerScroll(Sender: TObject);
+    procedure DoCurParaStyleChange(Sender: TObject);
     procedure CurTextStyleChange(const ANewStyleNo: Integer);
     procedure CurParaStyleChange(const ANewStyleNo: Integer);
     procedure DoCanDelete(const Sender: THCRichData; const AItemNo,
@@ -369,6 +371,11 @@ begin
 
     (Sender as THCComboboxItem).Items.Add('СЎПо' + IntToStr((Sender as THCComboboxItem).Items.Count - 1));
   end;
+end;
+
+procedure TfrmHCViewDemo.DoCurParaStyleChange(Sender: TObject);
+begin
+  FHRuler.Reset;
 end;
 
 procedure TfrmHCViewDemo.DoItemLoaded(const AItem: THCCustomItem);
@@ -539,14 +546,23 @@ begin
   FHCView.OnCaretChange := DoCaretChange;
   FHCView.OnZoomChanged := DoZoomChanged;
   FHCView.OnVerScroll := DoVerScroll;
+  FHCView.Style.OnCurParaStyleChange := DoCurParaStyleChange;
   FHCView.Parent := Self;
   FHCView.Align := alClient;
   FHCView.PopupMenu := pmHCView;
+  //
+  FHRuler := THCHorizontalRuler.Create(Self);
+  FHRuler.Color := FHCView.Color;
+  FHRuler.Parent := Self;
+  FHRuler.Align := alBottom;
+  FHRuler.Align := alTop;
+  FHRuler.View := FHCView;
 end;
 
 procedure TfrmHCViewDemo.FormDestroy(Sender: TObject);
 begin
   FHCView.Free;
+  FHRuler.Free;
   if Assigned(frmSearchAndReplace) then
     FreeAndNil(frmSearchAndReplace);
 end;

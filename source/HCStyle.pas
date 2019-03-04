@@ -50,8 +50,10 @@ type
     FHtmlFileTempName: Integer;
 
     FOnInvalidateRect: TInvalidateRectEvent;
+    FOnCurParaStyleChange: TNotifyEvent;
   protected
-    procedure SetShowParaLastMark(Value: Boolean);
+    procedure SetShowParaLastMark(const Value: Boolean);
+    procedure SetCurParaNo(const Value: Integer);
   public const
     Null = -1;  // TextItem和RectItem分界线
     Image = -2;
@@ -113,12 +115,13 @@ type
     property ParaStyles: TObjectList<THCParaStyle> read FParaStyles write FParaStyles;
     property BackgroudColor: TColor read FBackgroudColor write FBackgroudColor;
     property SelColor: TColor read FSelColor write FSelColor;
-    property CurParaNo: Integer read FCurParaNo write FCurParaNo;
+    property CurParaNo: Integer read FCurParaNo write SetCurParaNo;
     property CurStyleNo: Integer read FCurStyleNo write FCurStyleNo;
     property DefCanvas: TCanvas read FDefCanvas;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
+    property OnCurParaStyleChange: TNotifyEvent read FOnCurParaStyleChange write FOnCurParaStyleChange;
   end;
 
   THCFloatStyle = class(TObject)  // 浮动Item样式
@@ -369,7 +372,17 @@ begin
   AStream.Position := vEndPos;
 end;
 
-procedure THCStyle.SetShowParaLastMark(Value: Boolean);
+procedure THCStyle.SetCurParaNo(const Value: Integer);
+begin
+  if FCurParaNo <> Value then
+  begin
+    FCurParaNo := Value;
+    if Assigned(FOnCurParaStyleChange) then
+      FOnCurParaStyleChange(Self);
+  end;
+end;
+
+procedure THCStyle.SetShowParaLastMark(const Value: Boolean);
 begin
   if FShowParaLastMark <> Value then
   begin

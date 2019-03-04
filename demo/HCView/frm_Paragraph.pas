@@ -65,9 +65,9 @@ begin
   cbbAlignHorz.ItemIndex := Ord(vParaStyle.AlignHorz);
   cbbAlignVert.ItemIndex := Ord(vParaStyle.AlignVert);
   clrbxBG.Color := vParaStyle.BackColor;
-  edtFirstIndent.Text := IntToStr(vParaStyle.FirstIndent);
-  edtLeftIndent.Text := IntToStr(vParaStyle.LeftIndent);
-  edtRightIndent.Text := IntToStr(vParaStyle.RightIndent);
+  edtFirstIndent.Text := FormatFloat('#.#', vParaStyle.FirstIndent);
+  edtLeftIndent.Text := FormatFloat('#.#', vParaStyle.LeftIndent);
+  edtRightIndent.Text := FormatFloat('#.#', vParaStyle.RightIndent);
 
   Self.ShowModal;
   if Self.ModalResult = mrOk then

@@ -316,9 +316,9 @@ type
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert); virtual;
     procedure ApplyParaBackColor(const AColor: TColor); virtual;
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode); virtual;
-    procedure ApplyParaLeftIndent(const AIndent: Integer); virtual;
-    procedure ApplyParaRightIndent(const AIndent: Integer); virtual;
-    procedure ApplyParaFirstIndent(const AIndent: Integer); virtual;
+    procedure ApplyParaLeftIndent(const AIndent: Single); virtual;
+    procedure ApplyParaRightIndent(const AIndent: Single); virtual;
+    procedure ApplyParaFirstIndent(const AIndent: Single); virtual;
 
     // 选中内容应用样式
     function ApplySelectTextStyle(const AMatchStyle: THCStyleMatch): Integer; virtual;
@@ -568,7 +568,7 @@ begin
   end;
 end;
 
-procedure THCCustomData.ApplyParaFirstIndent(const AIndent: Integer);
+procedure THCCustomData.ApplyParaFirstIndent(const AIndent: Single);
 var
   vMatchStyle: TParaFirstIndentMatch;
 begin
@@ -581,7 +581,7 @@ begin
   end;
 end;
 
-procedure THCCustomData.ApplyParaLeftIndent(const AIndent: Integer);
+procedure THCCustomData.ApplyParaLeftIndent(const AIndent: Single);
 var
   vMatchStyle: TParaLeftIndentMatch;
 begin
@@ -607,7 +607,7 @@ begin
   end;
 end;
 
-procedure THCCustomData.ApplyParaRightIndent(const AIndent: Integer);
+procedure THCCustomData.ApplyParaRightIndent(const AIndent: Single);
 var
   vMatchStyle: TParaRightIndentMatch;
 begin

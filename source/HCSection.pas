@@ -268,9 +268,9 @@ type
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
     procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
-    procedure ApplyParaLeftIndent(const AIndent: Integer);
-    procedure ApplyParaRightIndent(const AIndent: Integer);
-    procedure ApplyParaFirstIndent(const AIndent: Integer);
+    procedure ApplyParaLeftIndent(const AIndent: Single);
+    procedure ApplyParaRightIndent(const AIndent: Single);
+    procedure ApplyParaFirstIndent(const AIndent: Single);
     /// <summary> 获取光标在Dtat中的位置信息并映射到指定页面 </summary>
     /// <param name="APageIndex">要映射到的页序号</param>
     /// <param name="ACaretInfo">光标位置信息</param>
@@ -531,7 +531,7 @@ begin
     end);
 end;
 
-procedure THCCustomSection.ApplyParaFirstIndent(const AIndent: Integer);
+procedure THCCustomSection.ApplyParaFirstIndent(const AIndent: Single);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
@@ -539,7 +539,7 @@ begin
     end);
 end;
 
-procedure THCCustomSection.ApplyParaLeftIndent(const AIndent: Integer);
+procedure THCCustomSection.ApplyParaLeftIndent(const AIndent: Single);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
@@ -555,7 +555,7 @@ begin
     end);
 end;
 
-procedure THCCustomSection.ApplyParaRightIndent(const AIndent: Integer);
+procedure THCCustomSection.ApplyParaRightIndent(const AIndent: Single);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin

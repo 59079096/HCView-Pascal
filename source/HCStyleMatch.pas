@@ -134,32 +134,32 @@ type
 
   TParaFirstIndentMatch = class(THCParaMatch)  // 段首行缩进匹配类
   private
-    FIndent: Integer;
+    FIndent: Single;
   protected
     function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
-    property Indent: Integer read FIndent write FIndent;
+    property Indent: Single read FIndent write FIndent;
   end;
 
   TParaLeftIndentMatch = class(THCParaMatch)  // 段左缩进匹配类
   private
-    FIndent: Integer;
+    FIndent: Single;
   protected
     function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
-    property Indent: Integer read FIndent write FIndent;
+    property Indent: Single read FIndent write FIndent;
   end;
 
   TParaRightIndentMatch = class(THCParaMatch)  // 段右缩进匹配类
   private
-    FIndent: Integer;
+    FIndent: Single;
   protected
     function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
-    property Indent: Integer read FIndent write FIndent;
+    property Indent: Single read FIndent write FIndent;
   end;
 
 implementation

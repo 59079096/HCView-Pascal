@@ -40,14 +40,14 @@ type
     FFirstIndent,    // 首行缩进
     FLeftIndent,     // 左缩进
     FRightIndent     // 右缩进
-      : Integer;     // 单位毫米
+      : Single;     // 单位毫米
     FBackColor: TColor;
     FAlignHorz: TParaAlignHorz;
     FAlignVert: TParaAlignVert;
   protected
-    procedure SetFirstIndent(const Value: Integer);
-    procedure SetLeftIndent(const Value: Integer);
-    procedure SetRightIndent(const Value: Integer);
+    procedure SetFirstIndent(const Value: Single);
+    procedure SetLeftIndent(const Value: Single);
+    procedure SetRightIndent(const Value: Single);
   public
     CheckSaveUsed: Boolean;
     TempNo: Integer;
@@ -62,11 +62,11 @@ type
   published
     property LineSpaceMode: TParaLineSpaceMode read FLineSpaceMode write FLineSpaceMode;
     /// <summary> 首行缩进(毫米) </summary>
-    property FirstIndent: Integer read FFirstIndent write SetFirstIndent;
+    property FirstIndent: Single read FFirstIndent write SetFirstIndent;
     /// <summary> 左缩进(毫米) </summary>
-    property LeftIndent: Integer read FLeftIndent write SetLeftIndent;
+    property LeftIndent: Single read FLeftIndent write SetLeftIndent;
     /// <summary> 右缩进(毫米) </summary>
-    property RightIndent: Integer read FRightIndent write SetRightIndent;
+    property RightIndent: Single read FRightIndent write SetRightIndent;
     /// <summary> 首行缩进(像素) </summary>
     property FirstIndentPix: Integer read FFirstIndentPix;
     /// <summary> 左缩进(像素) </summary>
@@ -227,7 +227,7 @@ begin
   AStream.WriteBuffer(FAlignVert, SizeOf(FAlignVert));
 end;
 
-procedure THCParaStyle.SetFirstIndent(const Value: Integer);
+procedure THCParaStyle.SetFirstIndent(const Value: Single);
 begin
   if FFirstIndent <> Value then
   begin
@@ -236,7 +236,7 @@ begin
   end;
 end;
 
-procedure THCParaStyle.SetLeftIndent(const Value: Integer);
+procedure THCParaStyle.SetLeftIndent(const Value: Single);
 begin
   if FLeftIndent <> Value then
   begin
@@ -245,7 +245,7 @@ begin
   end;
 end;
 
-procedure THCParaStyle.SetRightIndent(const Value: Integer);
+procedure THCParaStyle.SetRightIndent(const Value: Single);
 begin
   if FRightIndent <> Value then
   begin

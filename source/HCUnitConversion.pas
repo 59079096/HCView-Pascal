@@ -25,11 +25,11 @@ uses
   /// <summary> 毫米转为缇 </summary>
   function MillimeterToTwip(const AValue: Single): Single;
   /// <summary> 水平像素转为毫米 </summary>
-  function PixXToMillimeter(const AValue: Integer): Cardinal;
+  function PixXToMillimeter(const AValue: Integer): Single;
   /// <summary> 毫米转为水平像素 </summary>
   function MillimeterToPixX(const AValue: Single): Cardinal;
   /// <summary> 垂直像素转为毫米 </summary>
-  function PixYToMillimeter(const AValue: Integer): Cardinal;
+  function PixYToMillimeter(const AValue: Integer): Single;
   /// <summary> 毫米转为垂直像素 </summary>
   function MillimeterToPixY(const AValue: Single): Cardinal;
 
@@ -70,14 +70,14 @@ begin
   Result := AValue * 1440 / 25.4;
 end;
 
-function PixXToMillimeter(const AValue: Integer): Cardinal;
+function PixXToMillimeter(const AValue: Integer): Single;
 begin
-  Result := Round(AValue / PixelsPerMMX);
+  Result := AValue / PixelsPerMMX;
 end;
 
-function PixYToMillimeter(const AValue: Integer): Cardinal;
+function PixYToMillimeter(const AValue: Integer): Single;
 begin
-  Result := Round(AValue / PixelsPerMMY);
+  Result := AValue / PixelsPerMMY;
 end;
 
 function MillimeterToPixX(const AValue: Single): Cardinal;

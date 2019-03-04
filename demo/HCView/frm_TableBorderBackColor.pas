@@ -3,9 +3,8 @@ unit frm_TableBorderBackColor;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, HCView, HCTableItem, Vcl.StdCtrls,
-  Vcl.ExtCtrls;
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, HCView, HCTableItem, StdCtrls, ExtCtrls;
 
 type
   TfrmBorderBackColor = class(TForm)

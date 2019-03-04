@@ -74,6 +74,7 @@ type
     FVScrollBar: THCRichScrollBar;
     FDataBmp: TBitmap;  // 数据显示位图
     FActiveSectionIndex,
+    FViewWidth, FViewHeight,
     FDisplayFirstSection, FDisplayLastSection: Integer;
     FUpdateCount: Cardinal;
     FZoom: Single;
@@ -94,16 +95,18 @@ type
 
     FOnSectionPaintHeader, FOnSectionPaintFooter, FOnSectionPaintPage,
       FOnSectionPaintWholePageBefor, FOnSectionPaintWholePageAfter: TSectionPagePaintEvent;
-    FOnUpdateViewBefor, FOnUpdateViewAfter: TPaintEvent;
+    FOnPaintViewBefor, FOnPaintViewAfter: TPaintEvent;
 
-    FOnChange, FOnChangedSwitch, FOnZoomChanged: TNotifyEvent;
+    FOnChange, FOnChangedSwitch, FOnZoomChanged,
+    FOnViewResize  // 视图大小发生变化
+      : TNotifyEvent;
 
     /// <summary> 根据节页面参数设置打印机 </summary>
     /// <param name="ASectionIndex"></param>
     procedure SetPrintBySectionInfo(const ASectionIndex: Integer);
     //
-    function GetDisplayWidth: Integer;
-    function GetDisplayHeight: Integer;
+    procedure GetViewWidth;
+    procedure GetViewHeight;
     //
     function GetSymmetryMargin: Boolean;
     procedure SetSymmetryMargin(const Value: Boolean);
@@ -125,6 +128,7 @@ type
     procedure DoUndo(const Sender: THCUndo);
     procedure DoRedo(const Sender: THCUndo);
 
+    procedure DoViewResize;
     /// <summary> 文档"背板"变动(数据无变化，如对称边距，缩放视图) </summary>
     procedure DoMapChanged;
     procedure DoSectionCreateItem(Sender: TObject);
@@ -168,7 +172,7 @@ type
     //
     function NewDefaultSection: THCSection;
 
-    function GetDisplayRect: TRect;
+    function GetViewRect: TRect;
 
     /// <summary> 重新获取光标位置 </summary>
     procedure ReBuildCaret;
@@ -222,16 +226,16 @@ type
     procedure DoPasteDataBefor(const AStream: TStream; const AVersion: Word); virtual;
 
     /// <summary> 保存文档前触发事件，便于订制特征数据 </summary>
-    procedure DoSaveBefor(const AStream: TStream); virtual;
+    procedure DoSaveStreamBefor(const AStream: TStream); virtual;
 
     /// <summary> 保存文档后触发事件，便于订制特征数据 </summary>
-    procedure DoSaveAfter(const AStream: TStream); virtual;
+    procedure DoSaveStreamAfter(const AStream: TStream); virtual;
 
     /// <summary> 读取文档前触发事件，便于确认订制特征数据 </summary>
-    procedure DoLoadBefor(const AStream: TStream; const AFileVersion: Word); virtual;
+    procedure DoLoadStreamBefor(const AStream: TStream; const AFileVersion: Word); virtual;
 
     /// <summary> 读取文档后触发事件，便于确认订制特征数据 </summary>
-    procedure DoLoadAfter(const AStream: TStream; const AFileVersion: Word); virtual;
+    procedure DoLoadStreamAfter(const AStream: TStream; const AFileVersion: Word); virtual;
     //
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -356,13 +360,13 @@ type
     /// <summary> 修改当前光标所在段左缩进 </summary>
     procedure ApplyParaLeftIndent(const Add: Boolean = True); overload;
     /// <summary> 修改当前光标所在段左缩进 </summary>
-    procedure ApplyParaLeftIndent(const AIndent: Integer); overload;
+    procedure ApplyParaLeftIndent(const AIndent: Single); overload;
 
     /// <summary> 修改当前光标所在段右缩进 </summary>
-    procedure ApplyParaRightIndent(const AIndent: Integer);
+    procedure ApplyParaRightIndent(const AIndent: Single);
 
     /// <summary> 修改当前光标所在段首行缩进 </summary>
-    procedure ApplyParaFirstIndent(const AIndent: Integer);
+    procedure ApplyParaFirstIndent(const AIndent: Single);
 
     /// <summary> 修改当前选中文本的样式 </summary>
     procedure ApplyTextStyle(const AFontStyle: THCFontStyle);
@@ -470,6 +474,9 @@ type
 
     /// <summary> 以字符串形式获取文档各节正文内容 </summary>
     function SaveToText: string;
+
+    /// <summary> 读文本到第一节正文 </summary>
+    procedure LoadFromText(const AText: string);
 
     /// <summary> 文档各节正文字符串保存为文本格式文件 </summary>
     procedure SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
@@ -616,6 +623,9 @@ type
 
     /// <summary> 当前文档是否有变化 </summary>
     property IsChanged: Boolean read FIsChanged write SetIsChanged;
+
+    property ViewWidth: Integer read FViewWidth;
+    property ViewHeight: Integer read FViewHeight;
   published
     { Published declarations }
 
@@ -688,14 +698,16 @@ type
     property OnZoomChanged: TNotifyEvent read FOnZoomChanged write FOnZoomChanged;
 
     /// <summary> 窗口重绘开始时触发 </summary>
-    property OnUpdateViewBefor: TPaintEvent read FOnUpdateViewBefor write FOnUpdateViewBefor;
+    property OnPaintViewBefor: TPaintEvent read FOnPaintViewBefor write FOnPaintViewBefor;
 
     /// <summary> 窗口重绘结束后触发 </summary>
-    property OnUpdateViewAfter: TPaintEvent read FOnUpdateViewAfter write FOnUpdateViewAfter;
+    property OnPaintViewAfter: TPaintEvent read FOnPaintViewAfter write FOnPaintViewAfter;
 
     property OnSectionCreateStyleItem: TStyleItemEvent read FOnSectionCreateStyleItem write FOnSectionCreateStyleItem;
 
     property OnSectionCanEdit: TOnCanEditEvent read FOnSectionCanEdit write FOnSectionCanEdit;
+
+    property OnViewResize: TNotifyEvent read FOnViewResize write FOnViewResize;
 
     property Color;
     property PopupMenu;
@@ -1001,25 +1013,25 @@ begin
   DoSectionDataCheckUpdateInfo(Self);
 end;
 
-function THCView.GetDisplayHeight: Integer;
+procedure THCView.GetViewHeight;
 begin
   if FHScrollBar.Visible then
-    Result := Height - FHScrollBar.Height
+    FViewHeight := Height - FHScrollBar.Height
   else
-    Result := Height;
+    FViewHeight := Height;
 end;
 
-function THCView.GetDisplayRect: TRect;
+function THCView.GetViewRect: TRect;
 begin
-  Result := Bounds(0, 0, GetDisplayWidth, GetDisplayHeight);
+  Result := Bounds(0, 0, FViewWidth, FViewHeight);
 end;
 
-function THCView.GetDisplayWidth: Integer;
+procedure THCView.GetViewWidth;
 begin
   if FVScrollBar.Visible then
-    Result := Width - FVScrollBar.Width
+    FViewWidth := Width - FVScrollBar.Width
   else
-    Result := Width;
+    FViewWidth := Width;
 end;
 
 function THCView.GetHScrollValue: Integer;
@@ -1184,12 +1196,12 @@ begin
   ActiveSection.Redo(Sender);
 end;
 
-procedure THCView.DoSaveAfter(const AStream: TStream);
+procedure THCView.DoSaveStreamAfter(const AStream: TStream);
 begin
   //SetIsChanged(False);  做定备份保存时不能做为业务保存成功
 end;
 
-procedure THCView.DoSaveBefor(const AStream: TStream);
+procedure THCView.DoSaveStreamBefor(const AStream: TStream);
 begin
   // 用于外部程序存储自定义数据，如上次浏览位置等
 end;
@@ -1270,9 +1282,10 @@ begin
   if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
 
-  DoLoadBefor(AStream, vVersion);  // 触发加载前事件
+  DoLoadStreamBefor(AStream, vVersion);  // 触发加载前事件
   AStyle.LoadFromStream(AStream, vVersion);  // 加载样式表
   ALoadSectionProc(vVersion);  // 加载节数量、节数据
+  DoLoadStreamAfter(AStream, vVersion);
   DoMapChanged;
 end;
 
@@ -1388,11 +1401,11 @@ begin
   Result.CaretDrawItemNo := ActiveSection.ActiveData.CaretDrawItemNo;
 end;
 
-procedure THCView.DoLoadAfter(const AStream: TStream; const AFileVersion: Word);
+procedure THCView.DoLoadStreamAfter(const AStream: TStream; const AFileVersion: Word);
 begin
 end;
 
-procedure THCView.DoLoadBefor(const AStream: TStream; const AFileVersion: Word);
+procedure THCView.DoLoadStreamBefor(const AStream: TStream; const AFileVersion: Word);
 begin
 end;
 
@@ -1505,9 +1518,9 @@ end;
 function THCView.GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
 begin
   if FAnnotate.Count > 0 then  // 显示批注
-    Result := Max((GetDisplayWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix + AnnotationWidth)) div 2, ZoomIn(PagePadding))
+    Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix + AnnotationWidth)) div 2, ZoomIn(PagePadding))
   else
-    Result := Max((GetDisplayWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix)) div 2, ZoomIn(PagePadding));
+    Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix)) div 2, ZoomIn(PagePadding));
   Result := ZoomOut(Result);
 end;
 
@@ -1823,6 +1836,7 @@ begin
       Self.Clear;
       HCViewLoadFromDocumentFile(Self, AFileName, AExt);
       Self.FormatData;
+      DoViewResize;
     finally
       FUndoList.RestoreState;
     end;
@@ -1845,6 +1859,7 @@ begin
       Self.Clear;
       HCViewLoadFromDocumentStream(Self, AStream, AExt);
       Self.FormatData;
+      DoViewResize;
     finally
       FUndoList.RestoreState;
     end;
@@ -1895,12 +1910,23 @@ begin
             FSections.Add(vSection);
           end;
         end);
+
+      DoViewResize;
     finally
       FUndoList.RestoreState;
     end;
   finally
     Self.EndUpdate;
   end;
+end;
+
+procedure THCView.LoadFromText(const AText: string);
+begin
+  Self.Clear;
+  FStyle.Initialize;
+
+  if AText <> '' then
+    ActiveSection.InsertText(AText);
 end;
 
 procedure THCView.LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
@@ -1923,16 +1949,12 @@ var
   vBuffer: TBytes;
   vS: string;
 begin
-  Self.Clear;
-  FStyle.Initialize;
-
   vSize := AStream.Size - AStream.Position;
   SetLength(vBuffer, vSize);
   AStream.Read(vBuffer[0], vSize);
   vSize := TEncoding.GetBufferEncoding(vBuffer, AEncoding);
   vS := AEncoding.GetString(vBuffer, vSize, Length(vBuffer) - vSize);
-  if vS <> '' then
-    ActiveSection.InsertText(vS);
+  LoadFromText(vS);
 end;
 
 procedure THCView.LoadFromXml(const AFileName: string);
@@ -1997,6 +2019,7 @@ begin
         end;
 
         DoMapChanged;
+        DoViewResize;
       end;
     finally
       FUndoList.RestoreState;
@@ -2159,6 +2182,12 @@ begin
   Result.OnGetUndoList := DoSectionGetUndoList;
 end;
 
+procedure THCView.DoViewResize;
+begin
+  if Assigned(FOnViewResize) then  // 文档加载后需要调用，如果将来增加DoLoadComplete事件，可放到其中
+    FOnViewResize(Self);
+end;
+
 procedure THCView.DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
     const ScrollPos: Integer);
 begin
@@ -2206,7 +2235,7 @@ end;
 procedure THCView.Paint;
 begin
   //Canvas.Draw(0, 0, FDataBmp);
-  BitBlt(Canvas.Handle, 0, 0, GetDisplayWidth, GetDisplayHeight,
+  BitBlt(Canvas.Handle, 0, 0, FViewWidth, FViewHeight,
       FDataBmp.Canvas.Handle, 0, 0, SRCCOPY);
   Canvas.Brush.Color := Self.Color;
   Canvas.FillRect(Bounds(FVScrollBar.Left, FHScrollBar.Top, FVScrollBar.Width, FHScrollBar.Height));
@@ -2668,7 +2697,6 @@ end;
 procedure THCView.ReBuildCaret;
 var
   vCaretInfo: THCCaretInfo;
-  vDisplayHeight: Integer;
 begin
   if FCaret = nil then Exit;
 
@@ -2695,16 +2723,15 @@ begin
   FCaret.Y := ZoomIn(GetSectionTopFilm(FActiveSectionIndex) + vCaretInfo.Y) - FVScrollBar.Position;
   FCaret.Height := ZoomIn(vCaretInfo.Height);
 
-  vDisplayHeight := GetDisplayHeight;
   if not FStyle.UpdateInfo.ReScroll then // 滚动条平滑滚动时，可能将光标卷掉看不见
   begin
-    if (FCaret.X < 0) or (FCaret.X > GetDisplayWidth) then
+    if (FCaret.X < 0) or (FCaret.X > FViewWidth) then
     begin
       FCaret.Hide;
       Exit;
     end;
 
-    if (FCaret.Y + FCaret.Height < 0) or (FCaret.Y > vDisplayHeight) then
+    if (FCaret.Y + FCaret.Height < 0) or (FCaret.Y > FViewHeight) then
     begin
       FCaret.Hide;
       Exit;
@@ -2712,24 +2739,24 @@ begin
   end
   else  // 非滚动条(方向键、点击等)引起的光标位置变化
   begin
-    if FCaret.Height < vDisplayHeight then
+    if FCaret.Height < FViewHeight then
     begin
       if FCaret.Y < 0 then
         FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - PagePadding
       else
-      if FCaret.Y + FCaret.Height + PagePadding > vDisplayHeight then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + PagePadding - vDisplayHeight;
+      if FCaret.Y + FCaret.Height + PagePadding > FViewHeight then
+        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + PagePadding - FViewHeight;
 
       if FCaret.X < 0 then
         FHScrollBar.Position := FHScrollBar.Position + FCaret.X - PagePadding
       else
-      if FCaret.X + PagePadding > GetDisplayWidth then
-        FHScrollBar.Position := FHScrollBar.Position + FCaret.X + PagePadding - GetDisplayWidth;
+      if FCaret.X + PagePadding > FViewWidth then
+        FHScrollBar.Position := FHScrollBar.Position + FCaret.X + PagePadding - FViewWidth;
     end;
   end;
 
-  if FCaret.Y + FCaret.Height > vDisplayHeight then
-    FCaret.Height := vDisplayHeight - FCaret.Y;
+  if FCaret.Y + FCaret.Height > FViewHeight then
+    FCaret.Height := FViewHeight - FCaret.Y;
 
   FCaret.Show;
   DoCaretChange;
@@ -2773,26 +2800,25 @@ end;
 procedure THCView.ResetActiveSectionMargin;
 begin
   ActiveSection.ResetMargin;
+  DoViewResize;
 end;
 
 procedure THCView.Resize;
-var
-  vDisplayWidth, vDisplayHeight: Integer;
 begin
   inherited;
 
-  vDisplayWidth := GetDisplayWidth;
-  vDisplayHeight := GetDisplayHeight;
+  GetViewWidth;
+  GetViewHeight;
 
-  if (vDisplayWidth > 0) and (vDisplayHeight > 0) then
-    FDataBmp.SetSize(vDisplayWidth, vDisplayHeight);  // 设置为除滚动条外的大小
+  if (FViewWidth > 0) and (FViewHeight > 0) then
+    FDataBmp.SetSize(FViewWidth, FViewHeight);  // 设置为除滚动条外的大小
 
   if FAutoZoom then
   begin
     if FAnnotate.Count > 0 then  // 显示批注
-      FZoom := (vDisplayWidth - PagePadding * 2) / (ActiveSection.PageWidthPix + AnnotationWidth)
+      FZoom := (FViewWidth - PagePadding * 2) / (ActiveSection.PageWidthPix + AnnotationWidth)
     else
-      FZoom := (vDisplayWidth - PagePadding * 2) / ActiveSection.PageWidthPix;
+      FZoom := (FViewWidth - PagePadding * 2) / ActiveSection.PageWidthPix;
   end;
 
   CalcScrollRang;
@@ -2801,6 +2827,8 @@ begin
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo;
+
+  DoViewResize;
 end;
 
 procedure THCView._DeleteUnUsedStyle(const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
@@ -3028,7 +3056,7 @@ begin
   _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
   if not AQuick then
   begin
-    DoSaveBefor(AStream);
+    DoSaveStreamBefor(AStream);
     _DeleteUnUsedStyle(AAreas);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
   end;
   FStyle.SaveToStream(AStream);
@@ -3040,7 +3068,7 @@ begin
     FSections[i].SaveToStream(AStream, AAreas);
 
   if not AQuick then
-    DoSaveAfter(AStream);
+    DoSaveStreamAfter(AStream);
 end;
 
 procedure THCView.SaveToXml(const AFileName: string; const AEncoding: TEncoding);
@@ -3142,14 +3170,14 @@ begin
     if vStartDrawRect.Top < 0 then
       Self.FVScrollBar.Position := Self.FVScrollBar.Position + vStartDrawRect.Top
     else
-    if vStartDrawRect.Bottom > GetDisplayHeight then
-      Self.FVScrollBar.Position := Self.FVScrollBar.Position + vStartDrawRect.Bottom - GetDisplayHeight;
+    if vStartDrawRect.Bottom > FViewHeight then
+      Self.FVScrollBar.Position := Self.FVScrollBar.Position + vStartDrawRect.Bottom - FViewHeight;
 
     if vStartDrawRect.Left < 0 then
       Self.FHScrollBar.Position := Self.FHScrollBar.Position + vStartDrawRect.Left
     else
-    if vStartDrawRect.Right > GetDisplayWidth then
-      Self.FHScrollBar.Position := Self.FHScrollBar.Position + vStartDrawRect.Right - GetDisplayWidth;
+    if vStartDrawRect.Right > FViewWidth then
+      Self.FHScrollBar.Position := Self.FHScrollBar.Position + vStartDrawRect.Right - FViewWidth;
   end;
 end;
 
@@ -3326,6 +3354,7 @@ begin
       FOnZoomChanged(Self);
 
     DoMapChanged;
+    DoViewResize;
   end;
 end;
 
@@ -3344,12 +3373,12 @@ begin
   ActiveSection.ApplyParaBackColor(AColor);
 end;
 
-procedure THCView.ApplyParaFirstIndent(const AIndent: Integer);
+procedure THCView.ApplyParaFirstIndent(const AIndent: Single);
 begin
   ActiveSection.ApplyParaFirstIndent(AIndent);
 end;
 
-procedure THCView.ApplyParaLeftIndent(const AIndent: Integer);
+procedure THCView.ApplyParaLeftIndent(const AIndent: Single);
 begin
   ActiveSection.ApplyParaLeftIndent(AIndent);
 end;
@@ -3367,7 +3396,7 @@ begin
   ActiveSection.ApplyParaLineSpace(ASpaceMode);
 end;
 
-procedure THCView.ApplyParaRightIndent(const AIndent: Integer);
+procedure THCView.ApplyParaRightIndent(const AIndent: Single);
 begin
   ActiveSection.ApplyParaRightIndent(AIndent);
 end;
@@ -3437,7 +3466,7 @@ procedure THCView.UpdateView(const ARect: TRect);
       end;
       if FDisplayFirstSection >= 0 then
       begin
-        vY := FVScrollBar.Position + GetDisplayHeight;
+        vY := FVScrollBar.Position + FViewHeight;
         for i := FDisplayFirstSection to FSections.Count - 1 do
         begin
           for j := vFirstPage to FSections[i].PageCount - 1 do
@@ -3478,7 +3507,7 @@ procedure THCView.UpdateView(const ARect: TRect);
   {$ENDREGION}
 
 var
-  i, vOffsetY, vDisplayWidth, vDisplayHeight: Integer;
+  i, vOffsetY: Integer;
   vPaintInfo: TSectionPaintInfo;
   vScaleInfo: TScaleInfo;
 begin
@@ -3493,8 +3522,6 @@ begin
       FDataBmp.Canvas.Brush.Color := Self.Color;// $00E7BE9F;
       FDataBmp.Canvas.FillRect(Rect(0, 0, FDataBmp.Width, FDataBmp.Height));
       // 因基于此计算当前页面数据起始结束，所以不能用ARect代替
-      vDisplayWidth := GetDisplayWidth;
-      vDisplayHeight := GetDisplayHeight;
       CalcDisplaySectionAndPage;  // 计算当前范围内可显示的起始节、页和结束节、页
 
       vPaintInfo := TSectionPaintInfo.Create;
@@ -3502,13 +3529,13 @@ begin
         vPaintInfo.ScaleX := FZoom;
         vPaintInfo.ScaleY := FZoom;
         vPaintInfo.Zoom := FZoom;
-        vPaintInfo.WindowWidth := vDisplayWidth;
-        vPaintInfo.WindowHeight := vDisplayHeight;
+        vPaintInfo.WindowWidth := FViewWidth;
+        vPaintInfo.WindowHeight := FViewHeight;
 
         vScaleInfo := vPaintInfo.ScaleCanvas(FDataBmp.Canvas);
         try
-          if Assigned(FOnUpdateViewBefor) then  // 本次窗口重绘开始
-            FOnUpdateViewBefor(FDataBmp.Canvas);
+          if Assigned(FOnPaintViewBefor) then  // 本次窗口重绘开始
+            FOnPaintViewBefor(FDataBmp.Canvas);
 
           if FAnnotate.DrawCount > 0 then  // 在整体绘制前清除一次，整个绘制中记录各页的批注，便于鼠标移动时判断光标处
             FAnnotate.ClearDrawAnnotate;     // 如果每页绘制前清除，则鼠标移动时仅能判断是否在最后绘制页的批注范围内，前面页中的都没有了
@@ -3525,8 +3552,8 @@ begin
           for i := 0 to vPaintInfo.TopItems.Count - 1 do  // 绘制顶层Item
             vPaintInfo.TopItems[i].PaintTop(FDataBmp.Canvas);
 
-          if Assigned(FOnUpdateViewAfter) then  // 本次窗口重绘结束
-            FOnUpdateViewAfter(FDataBmp.Canvas);
+          if Assigned(FOnPaintViewAfter) then  // 本次窗口重绘结束
+            FOnPaintViewAfter(FDataBmp.Canvas);
         finally
           vPaintInfo.RestoreCanvasScale(FDataBmp.Canvas, vScaleInfo);
         end;
@@ -3546,7 +3573,7 @@ end;
 
 procedure THCView.UpdateView;
 begin
-  UpdateView(GetDisplayRect);
+  UpdateView(GetViewRect);
 end;
 
 procedure THCView.UpdateImmPosition;

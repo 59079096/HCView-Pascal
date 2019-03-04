@@ -3,9 +3,8 @@ unit frm_TableProperty;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, HCView, HCTableItem, Vcl.ComCtrls,
-  Vcl.StdCtrls, Vcl.ExtCtrls;
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, HCView, HCTableItem, ComCtrls, StdCtrls, ExtCtrls;
 
 type
   TfrmTableProperty = class(TForm)

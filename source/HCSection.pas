@@ -71,9 +71,10 @@ type
     FHeaderOffset  // 页眉顶部偏移
       : Integer;
 
-    FOnDataChanged,  // 页眉、页脚、页面某一个修改时触发
+    FOnDataChange,  // 页眉、页脚、页面某一个修改时触发
     FOnCheckUpdateInfo,  // 当前Data需要UpdateInfo更新时触发
-    FOnReadOnlySwitch  // 页眉、页脚、页面只读状态发生变化时触发
+    FOnReadOnlySwitch,  // 页眉、页脚、页面只读状态发生变化时触发
+    FOnChangeTopLevelData  // 切换页眉、页脚、正文、表格单元格时触发
       : TNotifyEvent;
 
     FOnGetScreenCoord: TGetScreenCoordEvent;
@@ -88,7 +89,7 @@ type
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemNotifyEvent;
     FOnItemMouseUp: TSectionDataItemMouseEvent;
-    FOnItemResized: TDataItemEvent;
+    FOnItemResize: TDataItemEvent;
     FOnCreateItem: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
@@ -101,7 +102,6 @@ type
 
     /// <summary> 当前Data需要UpdateInfo更新 </summary>
     procedure DoActiveDataCheckUpdateInfo;
-
     procedure DoDataReadOnlySwitch(Sender: TObject);
     function DoGetScreenCoordEvent(const X, Y: Integer): TPoint;
     procedure DoDataDrawItemPaintBefor(const AData: THCCustomData;
@@ -383,13 +383,14 @@ type
 
     /// <summary> 文档所有部分是否只读 </summary>
     property ReadOnly: Boolean read GetReadOnly write SetReadOnly;
-    property OnDataChanged: TNotifyEvent read FOnDataChanged write FOnDataChanged;
+    property OnDataChange: TNotifyEvent read FOnDataChange write FOnDataChange;
+    property OnChangeTopLevelData: TNotifyEvent read FOnChangeTopLevelData write FOnChangeTopLevelData;
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
     property OnCheckUpdateInfo: TNotifyEvent read FOnCheckUpdateInfo write FOnCheckUpdateInfo;
     property OnInsertItem: TSectionDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TSectionDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
-    property OnItemResized: TDataItemEvent read FOnItemResized write FOnItemResized;
+    property OnItemResize: TDataItemEvent read FOnItemResize write FOnItemResize;
     property OnItemMouseUp: TSectionDataItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
     property OnPaintHeader: TSectionPagePaintEvent read FOnPaintHeader write FOnPaintHeader;
     property OnPaintFooter: TSectionPagePaintEvent read FOnPaintFooter write FOnPaintFooter;
@@ -723,8 +724,8 @@ end;
 
 procedure THCCustomSection.DoDataChanged(Sender: TObject);
 begin
-  if Assigned(FOnDataChanged) then
-    FOnDataChanged(Sender);
+  if Assigned(FOnDataChange) then
+    FOnDataChange(Sender);
 end;
 
 procedure THCCustomSection.DoDataCreateItem(Sender: TObject);
@@ -825,8 +826,8 @@ begin
 
   vResizeItem.RestrainSize(vWidth, vHeight);
 
-  if Assigned(FOnItemResized) then
-    FOnItemResized(AData, AItemNo);
+  if Assigned(FOnItemResize) then
+    FOnItemResize(AData, AItemNo);
 end;
 
 procedure THCCustomSection.DoDataReadOnlySwitch(Sender: TObject);
@@ -1558,12 +1559,13 @@ end;
 procedure THCCustomSection.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var
+  vOldTopData: THCRichData;
   vX, vY, vPageIndex: Integer;
   vNewActiveData: THCSectionData;
   vChangeActiveData: Boolean;
 begin
   vChangeActiveData := False;
-
+  vOldTopData := FActiveData.GetTopLevelData;
   vPageIndex := GetPageIndexByFilm(Y);  // 鼠标点击处所在的页(和光标所在页可能并不是同一页，如表格跨页时，空单元格第二页点击时，光标回前一页)
   if FActivePageIndex <> vPageIndex then
     FActivePageIndex := vPageIndex;
@@ -1602,6 +1604,12 @@ begin
     FActiveData.DblClick(vX, vY)
   else
     FActiveData.MouseDown(Button, Shift, vX, vY);
+
+  if vOldTopData <> FActiveData.GetTopLevelData then
+  begin
+    if Assigned(FOnChangeTopLevelData) then
+      FOnChangeTopLevelData(Self);
+  end;
 end;
 
 procedure THCCustomSection.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -2715,14 +2723,14 @@ begin
 
   ANode.Attributes['pagesize'] :=  // 纸张大小
     IntToStr(FPageSize.PaperSize)
-    + ',' + FormatFloat('#.#', FPageSize.PaperWidth)
-    + ',' + FormatFloat('#.#', FPageSize.PaperHeight) ;
+    + ',' + FormatFloat('0.#', FPageSize.PaperWidth)
+    + ',' + FormatFloat('0.#', FPageSize.PaperHeight) ;
 
   ANode.Attributes['margin'] :=  // 边距
-    FormatFloat('#.#', FPageSize.PaperMarginLeft) + ','
-    + FormatFloat('#.#', FPageSize.PaperMarginTop) + ','
-    + FormatFloat('#.#', FPageSize.PaperMarginRight) + ','
-    + FormatFloat('#.#', FPageSize.PaperMarginBottom);
+    FormatFloat('0.#', FPageSize.PaperMarginLeft) + ','
+    + FormatFloat('0.#', FPageSize.PaperMarginTop) + ','
+    + FormatFloat('0.#', FPageSize.PaperMarginRight) + ','
+    + FormatFloat('0.#', FPageSize.PaperMarginBottom);
 
   // 存页眉
   vNode := ANode.AddChild('header');

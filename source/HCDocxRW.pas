@@ -3030,7 +3030,7 @@ begin
   vNode := APrNode.AddChild('w:szCs');
   vNode.Attributes['w:val'] := Ceil(ATextStyle.Size) * 2;
 
-  if ATextStyle.BackColor <> clNone then
+  if ATextStyle.BackColor <> HCTransparentColor then
   begin
     vNode := APrNode.AddChild('w:highlight');
     vNode.Attributes['w:val'] := ConvertColorToOpenXml(ATextStyle.BackColor);
@@ -3326,7 +3326,7 @@ begin
   Merge := cmNone;
   RowSpan := 0;
   ColSpan := 0;
-  FillColor := clNone;
+  FillColor := HCTransparentColor;
 
   FOnReadData := AOnReadData;
 
@@ -3511,7 +3511,7 @@ end;
 constructor THCDocxTextStyle.Create;
 begin
   ForeColor := clBlack;
-  BackColor := clNone;
+  BackColor := HCTransparentColor;
   FontName := HCDOCX_DEFAULTFONT;
   DoubleFontSize := 21;  // 10.5 * 2
 end;

@@ -2791,7 +2791,7 @@ begin
         if tsSubscript in FStyle.TextStyles[vPrioStyleNo].FontStyles then  // 上标时位置不变，下标时中间位置
           vTextDrawTop := vTextDrawTop + vTextHeight div 2;
 
-        if FStyle.TextStyles[vPrioStyleNo].BackColor <> clNone then  // 文字背景
+        if FStyle.TextStyles[vPrioStyleNo].BackColor <> HCTransparentColor then  // 文字背景
         begin
           ACanvas.Brush.Color := FStyle.TextStyles[vPrioStyleNo].BackColor;
           ACanvas.FillRect(Rect(vClearRect.Left, vClearRect.Top, vClearRect.Left + vDrawItem.Width, vClearRect.Bottom));
@@ -2924,8 +2924,7 @@ begin
 end;
 
 function THCCustomData._CalculateLineHeight(const ACanvas: TCanvas;
-  const ATextStyle: THCTextStyle;
-  const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
+  const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
 
 const
   MS_HHEA_TAG = $61656868;  // MS_MAKE_TAG('h','h','e','a')
@@ -2957,12 +2956,12 @@ type
 
 var
   vDC: HDC;
-  vOutlineTextmetric: TOutlineTextmetric;
+  vOutlineTextmetric: ^TOutlineTextmetric;
   vFontSignature: TFontSignature;
   vHorizontalHeader: TT_HHEA;
   vLineSpacing, vDelta, vLeading, vOtherLeading: Integer;
   vAscent, vDescent, vLineGap: Word;
-  vTableSize: DWORD;
+  vOutMetSize: Cardinal;
   vSizeScale: Single;
   vTextMetric: TTextMetric;
 begin
@@ -2971,59 +2970,67 @@ begin
   Result := THCStyle.GetFontHeight(ACanvas);  // 行高
   vDC := ACanvas.Handle;
 
-  vOutlineTextmetric.otmSize := SizeOf(vOutlineTextmetric);
-  if GetOutlineTextMetrics(vDC, vOutlineTextmetric.otmSize, @vOutlineTextmetric) <> 0 then  // 取到TrueType字体的正文度量
+  vOutMetSize := GetOutlineTextMetrics(vDC, 0, nil);
+  //vOutlineTextmetric.otmSize := SizeOf(vOutlineTextmetric);
+  if vOutMetSize <> 0 then
   begin
-    ZeroMemory(@vHorizontalHeader, SizeOf(vHorizontalHeader));
-    if GetFontData(vDC, MS_HHEA_TAG, 0, @vHorizontalHeader, SizeOf(vHorizontalHeader)) = GDI_ERROR then  // 取字体度量信息
-      Exit;
+    GetMem(vOutlineTextmetric, vOutMetSize);
+    try
+      GetOutlineTextMetrics(vDC, vOutMetSize, vOutlineTextmetric);// <> 0 then  // 取到TrueType字体的正文度量
 
-    vAscent  := SwapBytes(vHorizontalHeader.Ascender);
-    vDescent := -SwapBytes(vHorizontalHeader.Descender);
-    vLineGap := SwapBytes(vHorizontalHeader.LineGap);
-    vLineSpacing := vAscent + vDescent + vLineGap;
+      ZeroMemory(@vHorizontalHeader, SizeOf(vHorizontalHeader));
+      if GetFontData(vDC, MS_HHEA_TAG, 0, @vHorizontalHeader, SizeOf(vHorizontalHeader)) = GDI_ERROR then  // 取字体度量信息
+        Exit;
 
-    vSizeScale := ATextStyle.Size / FontSizeScale;
-    vSizeScale := vSizeScale / vOutlineTextmetric.otmEMSquare;
-    vAscent := Ceil(vAscent * vSizeScale);
-    vDescent := Ceil(vDescent * vSizeScale);
-    vLineSpacing := Ceil(vLineSpacing * vSizeScale);
+      vAscent := SwapBytes(vHorizontalHeader.Ascender);
+      vDescent := -SwapBytes(vHorizontalHeader.Descender); // 基线向下
+      vLineGap := SwapBytes(vHorizontalHeader.LineGap);
+      //vLineSpacing := vAscent + vDescent + vLineGap;
 
-    {$IFDEF DELPHIXE}
-    if (GetTextCharsetInfo(vDC, @vFontSignature, 0) <> DEFAULT_CHARSET)
-    {$ELSE}
-    if (Integer(GetTextCharsetInfo(vDC, @vFontSignature, 0)) <> DEFAULT_CHARSET)
-    {$ENDIF}
-      and (vFontSignature.fsCsb[0] and CJK_CODEPAGE_BITS <> 0)
-    then  // CJK Font
-    begin
-      if (vOutlineTextmetric.otmfsSelection and 128) <> 0 then
+      vSizeScale := ATextStyle.Size / FontSizeScale;
+      vSizeScale := vSizeScale / vOutlineTextmetric.otmEMSquare;
+      vAscent := Ceil(vAscent * vSizeScale);
+      vDescent := Ceil(vDescent * vSizeScale);
+      //vLineSpacing := Ceil(vLineSpacing * vSizeScale);
+
+      {$IFDEF DELPHIXE}
+      if (GetTextCharsetInfo(vDC, @vFontSignature, 0) <> DEFAULT_CHARSET)
+      {$ELSE}
+      if (Integer(GetTextCharsetInfo(vDC, @vFontSignature, 0)) <> DEFAULT_CHARSET)
+      {$ENDIF}
+        and (vFontSignature.fsCsb[0] and CJK_CODEPAGE_BITS <> 0)
+      then  // CJK Font
       begin
-        vAscent := vOutlineTextmetric.otmAscent;
-        vDescent := -vOutlineTextmetric.otmDescent;
-        vLineSpacing := vAscent + vDescent + vOutlineTextmetric.otmLineGap;
-      end
-      else
-      begin
-        //vUnderlinePosition := Ceil(vAscent * 1.15 + vDescent * 0.85);
-        vLineSpacing := Ceil(1.3 * (vAscent + vDescent));
-        vDelta := vLineSpacing - (vAscent + vDescent);
-        vLeading := vDelta div 2;
-        vOtherLeading := vDelta - vLeading;
-        Inc(vAscent, vLeading);
-        Inc(vDescent, vOtherLeading);
+        if (vOutlineTextmetric.otmfsSelection and 128) <> 0 then  // 有加粗或其他样式
+        begin
+          vAscent := vOutlineTextmetric.otmAscent;
+          vDescent := -vOutlineTextmetric.otmDescent;
+          vLineSpacing := vAscent + vDescent + vOutlineTextmetric.otmLineGap;
+        end
+        else
+        begin
+          //vUnderlinePosition := Ceil(vAscent * 1.15 + vDescent * 0.85);
+          vLineSpacing := Ceil(1.3 * (vAscent + vDescent));
+          vDelta := vLineSpacing - (vAscent + vDescent);
+          vLeading := vDelta div 2;
+          vOtherLeading := vDelta - vLeading;
+          Inc(vAscent, vLeading);
+          Inc(vDescent, vOtherLeading);
 
-        Result := vAscent + vDescent;
-        case ALineSpaceMode of
-          pls115: Result := Result + Trunc(3 * Result / 20);
+          Result := vAscent + vDescent;
+          case ALineSpaceMode of
+            pls115: Result := Result + Trunc(3 * Result / 20);
 
-          pls150: Result := Trunc(3 * Result / 2);
+            pls150: Result := Trunc(3 * Result / 2);
 
-          pls200: Result := Result * 2;
+            pls200: Result := Result * 2;
 
-          plsFix: Result := Result + LineSpaceMin;
+            plsFix: Result := Result + LineSpaceMin;
+          end;
         end;
       end;
+    finally
+      FreeMem(vOutlineTextmetric, vOutMetSize);
     end;
   end
   else

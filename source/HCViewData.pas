@@ -51,8 +51,7 @@ type
     FOnCanEdit: TOnCanEditEvent;
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
 
-    procedure GetDomainFrom(const AItemNo, AOffset: Integer;
-      const ADomainInfo: THCDomainInfo);
+    procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
     function CanDeleteItem(const AItemNo: Integer): Boolean; override;
@@ -74,8 +73,6 @@ type
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
 
-    function CreateDefaultDomainItem: THCCustomItem; override;
-    function CreateDefaultTextItem: THCCustomItem; override;
     procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -242,20 +239,6 @@ begin
   FHotDomain := THCDomainInfo.Create;
   FActiveDomain := THCDomainInfo.Create;
   inherited Create(AStyle);
-end;
-
-function THCViewData.CreateDefaultDomainItem: THCCustomItem;
-begin
-  Result := inherited CreateDefaultDomainItem;
-  if Assigned(OnCreateItem) then
-    OnCreateItem(Result);
-end;
-
-function THCViewData.CreateDefaultTextItem: THCCustomItem;
-begin
-  Result := inherited CreateDefaultTextItem;
-  if Assigned(OnCreateItem) then
-    OnCreateItem(Result);
 end;
 
 function THCViewData.CreateItemByStyle(const AStyleNo: Integer): THCCustomItem;

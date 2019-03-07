@@ -31,7 +31,6 @@ object frmHCViewDemo: TfrmHCViewDemo
     DrawingStyle = dsGradient
     Images = il1
     TabOrder = 0
-    Transparent = True
     object btnOpen: TToolButton
       Left = 0
       Top = 0
@@ -337,7 +336,6 @@ object frmHCViewDemo: TfrmHCViewDemo
     Top = 755
     Width = 896
     Height = 19
-    DoubleBuffered = False
     Panels = <
       item
         Width = 200
@@ -345,14 +343,13 @@ object frmHCViewDemo: TfrmHCViewDemo
       item
         Width = 50
       end>
-    ParentDoubleBuffered = False
   end
   object il1: TImageList
     ColorDepth = cd32Bit
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011D002100100010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011D002100240010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000008000000001002000000000000080
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

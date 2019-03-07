@@ -328,6 +328,9 @@ begin
     Result := CreateDefaultTextItem;
     Result.StyleNo := AStyleNo;
   end;
+
+  if Assigned(FOnCreateItem) then
+    FOnCreateItem(Result);
 end;
 
 procedure THCRichData.DblClick(X, Y: Integer);

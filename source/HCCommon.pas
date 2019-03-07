@@ -56,6 +56,7 @@ const
   AnnotateBKColor = $00D5D5FF;
   AnnotateBKActiveColor = $00A8A8FF;
   HyperTextColor = $00C16305;
+  HCTransparentColor = clNone;  // 透明色
   /// <summary> 不能在行首的字符 </summary>
   DontLineFirstChar = '`-=[]\;,./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；’，。、～！＠＃￥％……＆×（）——＋｛｝｜：”《》？°';
   /// <summary> 不能在行尾的字符 </summary>
@@ -421,7 +422,7 @@ begin
   else
   if AFontSize = 5 then Result := '八号'
   else
-    Result := FormatFloat('#.#', AFontSize);
+    Result := FormatFloat('0.#', AFontSize);
 end;
 
 function GetPaperSizeStr(APaperSize: Integer): string;
@@ -570,10 +571,11 @@ procedure HCSaveColorToStream(const AStream: TStream; const AColor: TColor);
 var
   vByte: Byte;
 begin
-  if AColor = clNone then
+  if AColor = HCTransparentColor then  // 透明
   begin
     vByte := 0;
     AStream.WriteBuffer(vByte, 1);
+    vByte := 255;
     AStream.WriteBuffer(vByte, 1);
     AStream.WriteBuffer(vByte, 1);
     AStream.WriteBuffer(vByte, 1);
@@ -604,7 +606,7 @@ begin
   AStream.ReadBuffer(vB, 1);
 
   if vA = 0 then
-    AColor := clNone
+    AColor := HCTransparentColor
   else
   if vA = 255 then
     AColor := vB shl 16 + vG shl 8 + vR;

@@ -30,7 +30,7 @@ type
 
   TBarControl = (cbcBar, cbcLeftBtn, cbcThum, cbcRightBtn);
 
-  THCScrollBar = class(TCustomControl)  // 为实现滚动条上按下拖动到控件外也能继续滚动,使用 SetCapture 需要句柄
+  THCScrollBar = class(TGraphicControl)  // 为实现滚动条上按下拖动到控件外也能继续滚动,使用 SetCapture 需要句柄
   private
     /// <summary> 滚动条位置的最小值 </summary>
     FMin,
@@ -175,6 +175,7 @@ begin
   //
   Width := 20;
   Height := 20;
+  Cursor := crArrow;  // crDefault为什么不行？
 end;
 
 destructor THCScrollBar.Destroy;
@@ -621,11 +622,16 @@ begin
 end;
 
 procedure THCScrollBar.UpdateRangRect;
+var
+  vRect: TRect;
 begin
-  if HandleAllocated then
+  //if HandleAllocated then
+  if Assigned(Parent) and Parent.HandleAllocated then
   begin
-    InvalidateRect(Handle, ClientRect, False);
-    UpdateWindow(Handle);
+    vRect := ClientRect;
+    vRect.Offset(Left, Top);
+    InvalidateRect(Parent.Handle, vRect, False);
+    UpdateWindow(Parent.Handle);
     //RedrawWindow(Handle, nil, 0, RDW_INVALIDATE);
   end;
 end;

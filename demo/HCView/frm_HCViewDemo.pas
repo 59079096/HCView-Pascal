@@ -199,6 +199,7 @@ type
   private
     { Private declarations }
     FHRuler: THCHorizontalRuler;
+    FVRuler: THCVerticalRuler;
     FHCView: THCView;
     procedure SetFileName(const AFileName: string);
     procedure DrawItemClick(Shift: TShiftState; X, Y, AItemNo, ADItemNo: Integer;
@@ -207,7 +208,9 @@ type
     procedure DoCaretChange(Sender: TObject);
     procedure DoZoomChanged(Sender: TObject);
     procedure DoVerScroll(Sender: TObject);
-    procedure DoCurParaStyleChange(Sender: TObject);
+    procedure DoHorScroll(Sender: TObject);
+    procedure DoViewResize(Sender: TObject);
+    procedure DoCurParaNoChange(Sender: TObject);
     procedure CurTextStyleChange(const ANewStyleNo: Integer);
     procedure CurParaStyleChange(const ANewStyleNo: Integer);
     procedure DoCanDelete(const Sender: THCRichData; const AItemNo,
@@ -358,6 +361,7 @@ begin
 
   CurTextStyleChange(FHCView.Style.CurStyleNo);
   CurParaStyleChange(FHCView.Style.CurParaNo);
+  btnSymmetryMargin.Down := FHCView.SymmetryMargin;
 end;
 
 procedure TfrmHCViewDemo.DoComboboxPopupItem(Sender: TObject);
@@ -373,7 +377,12 @@ begin
   end;
 end;
 
-procedure TfrmHCViewDemo.DoCurParaStyleChange(Sender: TObject);
+procedure TfrmHCViewDemo.DoCurParaNoChange(Sender: TObject);
+begin
+  FHRuler.Reset;
+end;
+
+procedure TfrmHCViewDemo.DoHorScroll(Sender: TObject);
 begin
   FHRuler.Reset;
 end;
@@ -430,6 +439,13 @@ end;
 procedure TfrmHCViewDemo.DoVerScroll(Sender: TObject);
 begin
   GetPagesAndActive;
+  FVRuler.Reset;
+end;
+
+procedure TfrmHCViewDemo.DoViewResize(Sender: TObject);
+begin
+  FHRuler.Reset;
+  FVRuler.Reset;
 end;
 
 procedure TfrmHCViewDemo.DoZoomChanged(Sender: TObject);
@@ -545,8 +561,11 @@ begin
   FHCView := THCView.Create(Self);
   FHCView.OnCaretChange := DoCaretChange;
   FHCView.OnZoomChanged := DoZoomChanged;
+
   FHCView.OnVerScroll := DoVerScroll;
-  FHCView.Style.OnCurParaStyleChange := DoCurParaStyleChange;
+  FHCView.OnHorScroll := DoHorScroll;
+  FHCView.OnViewResize := DoViewResize;
+  FHCView.Style.OnCurParaNoChange := DoCurParaNoChange;
   FHCView.Parent := Self;
   FHCView.Align := alClient;
   FHCView.PopupMenu := pmHCView;
@@ -557,12 +576,20 @@ begin
   FHRuler.Align := alBottom;
   FHRuler.Align := alTop;
   FHRuler.View := FHCView;
+  //
+  FVRuler := THCVerticalRuler.Create(Self);
+  FVRuler.Color := FHCView.Color;
+  FVRuler.Parent := Self;
+  FVRuler.Align := alLeft;
+  FVRuler.View := FHCView;
 end;
 
 procedure TfrmHCViewDemo.FormDestroy(Sender: TObject);
 begin
-  FHCView.Free;
-  FHRuler.Free;
+  FreeAndNil(FHRuler);
+  FreeAndNil(FVRuler);
+  FreeAndNil(FHCView);
+
   if Assigned(frmSearchAndReplace) then
     FreeAndNil(frmSearchAndReplace);
 end;

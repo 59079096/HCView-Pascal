@@ -45,8 +45,8 @@ var
 
   procedure SetCellBorderBackColor(const ARow, ACol: Integer);
   begin
-    if cbbBackColor.Selected = clNone then
-      vTableItem.Cells[ARow, ACol].BackgroundColor := cbbBackColor.NoneColorColor
+    if cbbBackColor.Selected = HCTransparentColor then
+      vTableItem.Cells[ARow, ACol].BackgroundColor := HCTransparentColor  //cbbBackColor.NoneColorColor
     else
       vTableItem.Cells[ARow, ACol].BackgroundColor := cbbBackColor.Selected;
 

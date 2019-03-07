@@ -87,7 +87,7 @@ type
     FPageScrollModel: THCPageScrollModel;  // 页面滚动显示模式：纵向、横向
     FCaret: THCCaret;
     FOnMouseDown, FOnMouseUp: TMouseEvent;
-    FOnCaretChange, FOnVerScroll, FOnSectionCreateItem, FOnSectionReadOnlySwitch: TNotifyEvent;
+    FOnCaretChange, FOnVerScroll, FOnHorScroll, FOnSectionCreateItem, FOnSectionReadOnlySwitch: TNotifyEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
     FOnSectionCanEdit: TOnCanEditEvent;
     FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemNotifyEvent;
@@ -110,12 +110,13 @@ type
     //
     function GetSymmetryMargin: Boolean;
     procedure SetSymmetryMargin(const Value: Boolean);
-    procedure DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
-      const ScrollPos: Integer);
+    procedure DoVerScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
+    procedure DoHorScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
     function DoSectionCanEdit(const Sender: TObject): Boolean;
     procedure DoCaretChange;
-    procedure DoSectionDataChanged(Sender: TObject);
+    procedure DoSectionDataChange(Sender: TObject);
+    procedure DoSectionChangeTopLevelData(Sender: TObject);
 
     // 仅重绘和重建光标，不触发Change事件
     procedure DoSectionDataCheckUpdateInfo(Sender: TObject);
@@ -140,6 +141,7 @@ type
       const AItem: THCCustomItem);
     procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
       const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure DoSectionItemResize(const AData: THCCustomData; const AItemNo: Integer);
     procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -688,6 +690,9 @@ type
     /// <summary> 垂直滚动条滚动时触发 </summary>
     property OnVerScroll: TNotifyEvent read FOnVerScroll write FOnVerScroll;
 
+    /// <summary> 水平滚动条滚动时触发 </summary>
+    property OnHorScroll: TNotifyEvent read FOnHorScroll write FOnHorScroll;
+
     /// <summary> 文档内容变化时触发 </summary>
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
 
@@ -938,11 +943,11 @@ begin
   // 垂直滚动条，范围在Resize中设置
   FVScrollBar := THCRichScrollBar.Create(Self);
   FVScrollBar.Orientation := TOrientation.oriVertical;
-  FVScrollBar.OnScroll := DoVScrollChange;
+  FVScrollBar.OnScroll := DoVerScroll;
   // 水平滚动条，范围在Resize中设置
   FHScrollBar := THCScrollBar.Create(Self);
   FHScrollBar.Orientation := TOrientation.oriHorizontal;
-  FHScrollBar.OnScroll := DoVScrollChange;
+  FHScrollBar.OnScroll := DoHorScroll;
 
   FHScrollBar.Parent := Self;
   FVScrollBar.Parent := Self;
@@ -1214,6 +1219,11 @@ begin
     Result := True;
 end;
 
+procedure THCView.DoSectionChangeTopLevelData(Sender: TObject);
+begin
+  DoViewResize;
+end;
+
 procedure THCView.DoSectionCreateItem(Sender: TObject);
 begin
   if Assigned(FOnSectionCreateItem) then
@@ -1228,7 +1238,7 @@ begin
     Result := nil;
 end;
 
-procedure THCView.DoSectionDataChanged(Sender: TObject);
+procedure THCView.DoSectionDataChange(Sender: TObject);
 begin
   DoChange;
 end;
@@ -1254,6 +1264,15 @@ end;
 
 procedure THCView.DoCopyDataBefor(const AStream: TStream);
 begin
+end;
+
+procedure THCView.DoHorScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
+begin
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret(False);
+  CheckUpdateInfo;
+  if Assigned(FOnHorScroll) then
+    FOnHorScroll(Self);
 end;
 
 function THCView.DoUndoNew: THCUndo;
@@ -1308,6 +1327,12 @@ procedure THCView.DoSectionItemMouseUp(const Sender: TObject;
 begin
   if (ssCtrl in Shift) and (AData.Items[AItemNo].HyperLink <> '')then
     ShellExecute(Application.Handle, nil, PChar(AData.Items[AItemNo].HyperLink), nil, nil, SW_SHOWNORMAL);
+end;
+
+procedure THCView.DoSectionItemResize(const AData: THCCustomData;
+  const AItemNo: Integer);
+begin
+  DoViewResize;
 end;
 
 procedure THCView.DoSectionDrawItemAnnotate(const Sender: TObject; const AData: THCCustomData;
@@ -2110,6 +2135,7 @@ begin
     FSections[FActiveSectionIndex].MouseMove(Shift,
       ZoomOut(FHScrollBar.Position + X) - GetSectionDrawLeft(FActiveSectionIndex),
       ZoomOut(FVScrollBar.Position + Y) - GetSectionTopFilm(FActiveSectionIndex));
+
     if ShowHint then
       ProcessHint;
 
@@ -2158,7 +2184,8 @@ function THCView.NewDefaultSection: THCSection;
 begin
   Result := THCSection.Create(FStyle);
   // 创建节后马上赋值事件（保证后续插入表格等需要这些事件的操作可获取到事件）
-  Result.OnDataChanged := DoSectionDataChanged;
+  Result.OnDataChange := DoSectionDataChange;
+  Result.OnChangeTopLevelData := DoSectionChangeTopLevelData;
   Result.OnCheckUpdateInfo := DoSectionDataCheckUpdateInfo;
   Result.OnCreateItem := DoSectionCreateItem;
   Result.OnCreateItemByStyle := DoSectionCreateStyleItem;
@@ -2166,6 +2193,7 @@ begin
   Result.OnInsertItem := DoSectionInsertItem;
   Result.OnRemoveItem := DoSectionRemoveItem;
   Result.OnItemMouseUp := DoSectionItemMouseUp;
+  Result.OnItemResize := DoSectionItemResize;
   Result.OnReadOnlySwitch := DoSectionReadOnlySwitch;
   Result.OnGetScreenCoord := DoSectionGetScreenCoord;
   Result.OnDrawItemPaintAfter := DoSectionDrawItemPaintAfter;
@@ -2182,20 +2210,20 @@ begin
   Result.OnGetUndoList := DoSectionGetUndoList;
 end;
 
-procedure THCView.DoViewResize;
-begin
-  if Assigned(FOnViewResize) then  // 文档加载后需要调用，如果将来增加DoLoadComplete事件，可放到其中
-    FOnViewResize(Self);
-end;
-
-procedure THCView.DoVScrollChange(Sender: TObject; ScrollCode: TScrollCode;
-    const ScrollPos: Integer);
+procedure THCView.DoVerScroll(Sender: TObject; ScrollCode: TScrollCode;
+  const ScrollPos: Integer);
 begin
   FStyle.UpdateInfoRePaint;
   FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo;
   if Assigned(FOnVerScroll) then
     FOnVerScroll(Self);
+end;
+
+procedure THCView.DoViewResize;
+begin
+  if Assigned(FOnViewResize) then
+    FOnViewResize(Self);
 end;
 
 function THCView.GetPageCount: Integer;
@@ -3323,6 +3351,7 @@ begin
     FStyle.UpdateInfoRePaint;
     FStyle.UpdateInfoReCaret(False);
     DoMapChanged;
+    DoViewResize;
   end;
 end;
 

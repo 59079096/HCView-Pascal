@@ -997,7 +997,7 @@ begin
             ACanvas.Brush.Color := OwnerData.Style.SelColor
           else
           begin
-            if FRows[vDestRow].Cols[vDestCol].BackgroundColor <> clNone then
+            if FRows[vDestRow].Cols[vDestCol].BackgroundColor <> HCTransparentColor then
               ACanvas.Brush.Color := FRows[vDestRow].Cols[vDestCol].BackgroundColor
             else
               ACanvas.Brush.Style := bsClear;
@@ -1597,7 +1597,6 @@ end;
 
 procedure THCTableItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
-  //i: Integer;
   vMouseDownRow, vMouseDownCol: Integer;// abstract vBottom;
   vCell: THCTableCell;
   vCellPt: TPoint;
@@ -1638,25 +1637,13 @@ begin
     end
     else  // 不在选中区域中
     begin
-      {DisSelect;  // 清除原选中
-
+      // 如果先执行 DisSelect 会清除Mouse信息，导致当前编辑单元格不能响应取消激活事件
       if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // 新位置
       begin
         vCell := GetEditCell;
         if vCell <> nil then  // 取消原来编辑
           vCell.Active := False;
 
-        FMouseDownRow := vMouseDownRow;
-        FMouseDownCol := vMouseDownCol;
-        FOwnerData.Style.UpdateInfoReCaret;
-      end; }
-
-      // 如果先执行DisSelect会清除Mouse信息，导致当前编辑单元格不能响应取消激活事件
-      if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // 新位置
-      begin
-        vCell := GetEditCell;
-        if vCell <> nil then  // 取消原来编辑
-          vCell.Active := False;
         OwnerData.Style.UpdateInfoReCaret;
       end;
 

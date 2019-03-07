@@ -64,20 +64,21 @@ type
 implementation
 
 uses
-  HCCommon;
+  HCCommon, HCUnitConversion;
 
 { THCTextStyle }
 
 procedure THCTextStyle.ApplyStyle(const ACanvas: TCanvas; const AScale: Single = 1);
 var
-  vFont: TFont;
+  //vFont: TFont;
   vLogFont: TLogFont;
 begin
   with ACanvas do
   begin
-    Brush.Color := FBackColor;
-    if FBackColor = clNone then
-      Brush.Style := bsClear;
+    if FBackColor = HCTransparentColor then
+      Brush.Style := bsClear
+    else
+      Brush.Color := FBackColor;
 
     Font.Color := FColor;
     Font.Name := FFamily;
@@ -103,24 +104,34 @@ begin
       Font.Style := Font.Style - [TFontStyle.fsStrikeOut];
 
     //if AScale <> 1 then
-    begin
-      vFont := TFont.Create;
-      try
-        vFont.Assign(ACanvas.Font);
-        GetObject(vFont.Handle, SizeOf(vLogFont), @vLogFont);
+//    begin
+//      vFont := TFont.Create;
+//      try
+//        vFont.Assign(ACanvas.Font);
+        GetObject(ACanvas.Font.Handle, SizeOf(vLogFont), @vLogFont);
 
         // 如果引用了HCStyle，下面的GetDeviceCaps可以通过其PixelsPerInchY属性替换
         if (tsSuperscript in FFontStyles) or (tsSubscript in FFontStyles) then
-          vLogFont.lfHeight := -Round(FSize / 2 * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale)
+        begin
+          if vLogFont.lfHeight < 0 then
+            vLogFont.lfHeight := -Round(FSize / 2 * PixelsPerInchY / 72 / AScale)
+          else
+            vLogFont.lfHeight := Round(FSize / 2 * PixelsPerInchY / 72 / AScale)
+        end
         else
-          vLogFont.lfHeight := -Round(FSize * GetDeviceCaps(ACanvas.Handle, LOGPIXELSY) / 72 / AScale);
+        begin
+          if vLogFont.lfHeight < 0 then
+            vLogFont.lfHeight := -Round(FSize * PixelsPerInchY / 72 / AScale)
+          else
+            vLogFont.lfHeight := Round(FSize * PixelsPerInchY / 72 / AScale)
+        end;
 
-        vFont.Handle := CreateFontIndirect(vLogFont);
-        ACanvas.Font.Assign(vFont);
-      finally
-        vFont.Free;
-      end;
-    end;
+        ACanvas.Font.Handle := CreateFontIndirect(vLogFont);
+//        ACanvas.Font.Assign(vFont);
+//      finally
+//        vFont.Free;
+//      end;
+//    end;
 
     GetTextMetrics(ACanvas.Handle, FTextMetric);  // 得到字体信息
   end;
@@ -141,7 +152,7 @@ begin
   FFamily := DefaultFontFamily;
   FFontStyles := [];
   FColor := clBlack;
-  FBackColor := clNone;
+  FBackColor := HCTransparentColor;
 end;
 
 function THCTextStyle.EqualsEx(const ASource: THCTextStyle): Boolean;
@@ -360,7 +371,7 @@ procedure THCTextStyle.ToXml(const ANode: IHCXMLNode);
   end;
 
 begin
-  ANode.Attributes['size'] := FormatFloat('#.#', FSize);
+  ANode.Attributes['size'] := FormatFloat('0.#', FSize);
   ANode.Attributes['color'] := GetColorXmlRGB(FColor);
   ANode.Attributes['bkcolor'] := GetColorXmlRGB(FBackColor);
   ANode.Attributes['style'] := GetFontStyleXML;

@@ -73,7 +73,7 @@ var
 begin
   with ACanvas do
   begin
-    if ATextStyle.BackColor = clNone then
+    if ATextStyle.BackColor = HCTransparentColor then
       Brush.Style := bsClear
     else
       Brush.Color := ATextStyle.BackColor;

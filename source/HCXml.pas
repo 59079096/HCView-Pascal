@@ -34,7 +34,7 @@ type
 implementation
 
 uses
-  SysUtils, EncdDecd;
+  SysUtils, EncdDecd, HCCommon;
 
 function StreamToBase64(const AStream: TStream): string;
 var
@@ -90,9 +90,18 @@ begin
 end;
 
 function GetColorXmlRGB(const AColor: TColor): string;
+var
+  vR, vG, vB: Byte;
 begin
-  Result := IntToStr(GetRValue(AColor)) + ','
-    + IntToStr(GetGValue(AColor)) + ',' + IntToStr(GetBValue(AColor));
+  if AColor = HCTransparentColor then
+    Result := '0,255,255,255'
+  else
+  begin
+    vR := Byte(AColor);
+    vG := Byte(AColor shr 8);
+    vB := Byte(AColor shr 16);
+    Result := Format('255,%d,%d,%d', [vR, vG, vB]);
+  end;
 end;
 
 function GetXmlRGBColor(const AColorStr: string): TColor;
@@ -103,7 +112,16 @@ begin
   try
     vsRGB.Delimiter := ',';
     vsRGB.DelimitedText := AColorStr;
-    Result := RGB(StrToInt(vsRGB[0]), StrToInt(vsRGB[1]), StrToInt(vsRGB[2]))
+
+    if vsRGB.Count > 3 then
+    begin
+      if vsRGB[0] = '0' then
+        Result := HCTransparentColor
+      else
+        Result := RGB(StrToInt(vsRGB[1]), StrToInt(vsRGB[2]), StrToInt(vsRGB[3]));
+    end
+    else
+      Result := RGB(StrToInt(vsRGB[0]), StrToInt(vsRGB[1]), StrToInt(vsRGB[2]));
   finally
     FreeAndNil(vsRGB);
   end;

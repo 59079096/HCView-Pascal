@@ -50,7 +50,7 @@ type
     FHtmlFileTempName: Integer;
 
     FOnInvalidateRect: TInvalidateRectEvent;
-    FOnCurParaStyleChange: TNotifyEvent;
+    FOnCurParaNoChange: TNotifyEvent;
   protected
     procedure SetShowParaLastMark(const Value: Boolean);
     procedure SetCurParaNo(const Value: Integer);
@@ -121,7 +121,7 @@ type
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
-    property OnCurParaStyleChange: TNotifyEvent read FOnCurParaStyleChange write FOnCurParaStyleChange;
+    property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
   end;
 
   THCFloatStyle = class(TObject)  // ¸¡¶¯ItemÑùÊ½
@@ -377,8 +377,8 @@ begin
   if FCurParaNo <> Value then
   begin
     FCurParaNo := Value;
-    if Assigned(FOnCurParaStyleChange) then
-      FOnCurParaStyleChange(Self);
+    if Assigned(FOnCurParaNoChange) then
+      FOnCurParaNoChange(Self);
   end;
 end;
 

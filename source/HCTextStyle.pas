@@ -64,7 +64,7 @@ type
 implementation
 
 uses
-  HCCommon, HCUnitConversion;
+  HCCommon;
 
 { THCTextStyle }
 
@@ -72,6 +72,7 @@ procedure THCTextStyle.ApplyStyle(const ACanvas: TCanvas; const AScale: Single =
 var
   //vFont: TFont;
   vLogFont: TLogFont;
+  vPixPerInch: Integer;
 begin
   with ACanvas do
   begin
@@ -108,22 +109,23 @@ begin
 //      vFont := TFont.Create;
 //      try
 //        vFont.Assign(ACanvas.Font);
+        vPixPerInch := GetDeviceCaps(ACanvas.Handle, LOGPIXELSY);  // 要根据环境实时取不可使用HCUnitConversion中默认DC的值
         GetObject(ACanvas.Font.Handle, SizeOf(vLogFont), @vLogFont);
 
         // 如果引用了HCStyle，下面的GetDeviceCaps可以通过其PixelsPerInchY属性替换
         if (tsSuperscript in FFontStyles) or (tsSubscript in FFontStyles) then
         begin
           if vLogFont.lfHeight < 0 then
-            vLogFont.lfHeight := -Round(FSize / 2 * PixelsPerInchY / 72 / AScale)
+            vLogFont.lfHeight := -Round(FSize / 2 * vPixPerInch / 72 / AScale)
           else
-            vLogFont.lfHeight := Round(FSize / 2 * PixelsPerInchY / 72 / AScale)
+            vLogFont.lfHeight := Round(FSize / 2 * vPixPerInch / 72 / AScale)
         end
         else
         begin
           if vLogFont.lfHeight < 0 then
-            vLogFont.lfHeight := -Round(FSize * PixelsPerInchY / 72 / AScale)
+            vLogFont.lfHeight := -Round(FSize * vPixPerInch / 72 / AScale)
           else
-            vLogFont.lfHeight := Round(FSize * PixelsPerInchY / 72 / AScale)
+            vLogFont.lfHeight := Round(FSize * vPixPerInch / 72 / AScale)
         end;
 
         ACanvas.Font.Handle := CreateFontIndirect(vLogFont);

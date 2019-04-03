@@ -36,11 +36,11 @@ type
 
   THCStyle = class(TPersistent)
   strict private
-    FDefCanvas: TCanvas;
-    /// <summary> 外部当前的段样式 </summary>
-    FCurParaNo,
-    /// <summary> 外部当前的文本样式 </summary>
-    FCurStyleNo: Integer;
+    // 临时Canvas，请使用ApplyTempStyle修改其属性，避免根据FTempStyleNo判断不需要
+    // 重新设置时其属性和FTempStyleNo并不对应
+    FTempCanvas: TCanvas;
+    /// <summary> 记录最近一次格式化的样式 </summary>
+    FTempStyleNo: Integer;
     FSelColor: TColor;
     FBackgroudColor: TColor;
     FTextStyles: TObjectList<THCTextStyle>;
@@ -50,10 +50,8 @@ type
     FHtmlFileTempName: Integer;
 
     FOnInvalidateRect: TInvalidateRectEvent;
-    FOnCurParaNoChange: TNotifyEvent;
   protected
     procedure SetShowParaLastMark(const Value: Boolean);
-    procedure SetCurParaNo(const Value: Integer);
   public const
     Null = -1;  // TextItem和RectItem分界线
     Image = -2;
@@ -90,7 +88,6 @@ type
     procedure UpdateInfoReCaret(const ACaretStyle: Boolean = True);
     function AddTextStyle(const ATextStyle: THCTextStyle): Integer;
 
-    class function GetFontHeight(const ACanvas: TCanvas): Integer;
     class function CreateStyleCanvas: TCanvas;
     class procedure DestroyStyleCanvas(const ACanvas: TCanvas);
 
@@ -100,6 +97,7 @@ type
     function NewDefaultParaStyle: Integer;
     function GetStyleNo(const ATextStyle: THCTextStyle; const ACreateIfNull: Boolean): Integer;
     function GetParaNo(const AParaStyle: THCParaStyle; const ACreateIfNull: Boolean): Integer;
+    procedure ApplyTempStyle(const Value: Integer; const AScale: Single = 1);
 
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
@@ -115,13 +113,12 @@ type
     property ParaStyles: TObjectList<THCParaStyle> read FParaStyles write FParaStyles;
     property BackgroudColor: TColor read FBackgroudColor write FBackgroudColor;
     property SelColor: TColor read FSelColor write FSelColor;
-    property CurParaNo: Integer read FCurParaNo write SetCurParaNo;
-    property CurStyleNo: Integer read FCurStyleNo write FCurStyleNo;
-    property DefCanvas: TCanvas read FDefCanvas;
+    property TempStyleNo: Integer read FTempStyleNo;
+    /// <summary> 临时Canvas，请使用ApplyTempStyle修改其属性避免根据FTempStyleNo判断不需要重新设置时其属性和FTempStyleNo并不对应 </summary>
+    property TempCanvas: TCanvas read FTempCanvas;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
-    property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
   end;
 
   THCFloatStyle = class(TObject)  // 浮动Item样式
@@ -145,8 +142,6 @@ procedure THCStyle.Initialize;
 begin
   FTextStyles.DeleteRange(1, FTextStyles.Count - 1);  // 保留默认文本样式
   FParaStyles.DeleteRange(1, FParaStyles.Count - 1);  // 保留默认段样式
-  FCurStyleNo := 0;
-  FCurParaNo := 0;
 end;
 
 procedure THCStyle.InvalidateRect(const ARect: TRect);
@@ -155,10 +150,21 @@ begin
     FOnInvalidateRect(ARect);
 end;
 
+procedure THCStyle.ApplyTempStyle(const Value: Integer; const AScale: Single);
+begin
+  if FTempStyleNo <> Value then
+  begin
+    FTempStyleNo := Value;
+    if Value > THCStyle.Null then
+      FTextStyles[Value].ApplyStyle(FTempCanvas, AScale);
+  end;
+end;
+
 constructor THCStyle.Create;
 begin
   inherited Create;
-  FDefCanvas := CreateStyleCanvas;
+  FTempCanvas := CreateStyleCanvas;
+  FTempStyleNo := THCStyle.Null;
   FBackgroudColor := $00FFFFFF;
   FSelColor := clSkyBlue;
   FShowParaLastMark := True;
@@ -188,7 +194,7 @@ end;
 
 destructor THCStyle.Destroy;
 begin
-  DestroyStyleCanvas(FDefCanvas);
+  DestroyStyleCanvas(FTempCanvas);
 
   FTextStyles.Free;
   FParaStyles.Free;
@@ -251,11 +257,6 @@ begin
     FTextStyles.Add(vTextStyle);
     Result := FTextStyles.Count - 1;
   end;
-end;
-
-class function THCStyle.GetFontHeight(const ACanvas: TCanvas): Integer;
-begin
-  Result := ACanvas.TextHeight('H');
 end;
 
 function THCStyle.GetHtmlFileTempName(const AReset: Boolean = False): string;
@@ -372,16 +373,6 @@ begin
   AStream.Position := vEndPos;
 end;
 
-procedure THCStyle.SetCurParaNo(const Value: Integer);
-begin
-  if FCurParaNo <> Value then
-  begin
-    FCurParaNo := Value;
-    if Assigned(FOnCurParaNoChange) then
-      FOnCurParaNoChange(Self);
-  end;
-end;
-
 procedure THCStyle.SetShowParaLastMark(const Value: Boolean);
 begin
   if FShowParaLastMark <> Value then
@@ -430,8 +421,7 @@ end;
 procedure THCStyle.UpdateInfoReCaret(const ACaretStyle: Boolean = True);
 begin
   FUpdateInfo.ReCaret := True;
-  if ACaretStyle then
-    FUpdateInfo.ReStyle := True;
+  FUpdateInfo.ReStyle := ACaretStyle;
 end;
 
 procedure THCStyle.UpdateInfoRePaint;

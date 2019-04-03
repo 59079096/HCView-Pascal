@@ -48,7 +48,8 @@ type
 
     function InsertText(const AText: string): Boolean; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
-    procedure SetText(const Value: string); virtual;
+    function GetText: string; override;
+    procedure SetText(const Value: string); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
@@ -59,7 +60,6 @@ type
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
-    property Text: string read FText write SetText;
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
     property BorderSides: TBorderSides read FBorderSides write FBorderSides;
     property BorderWidth: Byte read FBorderWidth write FBorderWidth;
@@ -154,11 +154,12 @@ var
 begin
   if Self.AutoSize then
   begin
-    ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
+    ARichData.Style.ApplyTempStyle(TextStyleNo);
     if FText <> '' then
-      vSize := ARichData.Style.DefCanvas.TextExtent(FText)
+      vSize := ARichData.Style.TempCanvas.TextExtent(FText)
     else
-      vSize := ARichData.Style.DefCanvas.TextExtent('I');
+      vSize := ARichData.Style.TempCanvas.TextExtent('H');
+
     Width := FMargin + vSize.cx + FMargin;  // ¼ä¾à
     Height := FMargin + vSize.cy + FMargin;
   end;
@@ -175,17 +176,18 @@ var
   vS: string;
 begin
   vS := Copy(FText, 1, FCaretOffset);
-  OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
+  OwnerData.Style.ApplyTempStyle(TextStyleNo);
 
   if vS <> '' then
   begin
-    vSize := OwnerData.Style.DefCanvas.TextExtent(vS);
-    ACaretInfo.Height := vSize.cy;
+    vSize := OwnerData.Style.TempCanvas.TextExtent(vS);
+    ACaretInfo.Height := vSize.cy + OwnerData.Style.TextStyles[TextStyleNo].TextMetric.tmExternalLeading;
     ACaretInfo.X := FMargin + vSize.cx;// + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   end
   else
   begin
-    ACaretInfo.Height := OwnerData.Style.DefCanvas.TextHeight('H');
+    ACaretInfo.Height := OwnerData.Style.TextStyles[TextStyleNo].FontHeight
+      + OwnerData.Style.TextStyles[TextStyleNo].TextMetric.tmExternalLeading;
     ACaretInfo.X := FMargin;// + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   end;
 
@@ -204,6 +206,11 @@ begin
     Result := OffsetAfter
   else
     Result := OffsetInner;
+end;
+
+function THCEditItem.GetText: string;
+begin
+  Result := FText;
 end;
 
 function THCEditItem.InsertText(const AText: string): Boolean;
@@ -283,9 +290,9 @@ var
   vOffset: Integer;
 begin
   inherited MouseDown(Button, Shift, X, Y);
-  OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
+  OwnerData.Style.ApplyTempStyle(TextStyleNo);
   vX := X - FMargin;// - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
-  vOffset := GetCharOffsetAt(OwnerData.Style.DefCanvas, FText, vX);
+  vOffset := GetCharOffsetAt(OwnerData.Style.TempCanvas, FText, vX);
   if vOffset <> FCaretOffset then
   begin
     FCaretOffset := vOffset;

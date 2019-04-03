@@ -14,12 +14,13 @@ unit HCUndoData;
 interface
 
 uses
-  Windows, Classes, HCCommon, HCUndo, HCCustomData, HCItem, HCStyle;
+  Windows, Classes, HCCommon, HCUndo, HCFormatData, HCItem, HCStyle;
 
 type
-  THCUndoData = class(THCCustomData)  // 支持撤销恢复功能的Data
+  THCUndoData = class(THCFormatData)  // 支持撤销恢复功能的Data
   private
-    FFormatFirstItemNo, FFormatLastItemNo, FUndoGroupCount, FItemAddCount: Integer;
+    FFormatFirstItemNo, FFormatFirstDrawItemNo, FFormatLastItemNo,
+      FUndoGroupCount, FItemAddCount: Integer;
     procedure DoUndoRedo(const AUndo: THCCustomUndo);
   protected
     // Item单独保存和读取事件
@@ -104,6 +105,7 @@ var
   procedure DoUndoRedoAction(const AAction: THCCustomUndoAction;
     const AIsUndo: Boolean);
 
+    {$REGION 'UndoRedoDeleteBackText'}
     procedure UndoRedoDeleteBackText;
     var
       vAction: THCTextUndoAction;
@@ -127,7 +129,9 @@ var
 
       Items[vAction.ItemNo].Text := vText;
     end;
+    {$ENDREGION}
 
+    {$REGION 'UndoRedoDeleteText'}
     procedure UndoRedoDeleteText;
     var
       vAction: THCTextUndoAction;
@@ -146,7 +150,9 @@ var
       vCaretOffset := vAction.Offset - 1;
       Items[vAction.ItemNo].Text := vText;
     end;
+    {$ENDREGION}
 
+    {$REGION 'UndoRedoInsertText'}
     procedure UndoRedoInsertText;
     var
       vAction: THCTextUndoAction;
@@ -171,7 +177,9 @@ var
 
       Items[vAction.ItemNo].Text := vText;
     end;
+    {$ENDREGION}
 
+    {$REGION 'UndoRedoDeleteItem'}
     procedure UndoRedoDeleteItem;
     var
       vAction: THCItemUndoAction;
@@ -207,7 +215,9 @@ var
           vCaretOffset := 0;
       end;
     end;
+    {$ENDREGION}
 
+    {$REGION 'UndoRedoInsertItem'}
     procedure UndoRedoInsertItem;
     var
       vAction: THCItemUndoAction;
@@ -248,7 +258,9 @@ var
         vCaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo + 1;
       end;
     end;
+    {$ENDREGION}
 
+    {$REGION 'UndoRedoItemProperty'}
     procedure UndoRedoItemProperty;
     var
       vAction: THCItemPropertyUndoAction;
@@ -285,7 +297,9 @@ var
           end;
       end;
     end;
+    {$ENDREGION}
 
+    {$REGION 'UndoRedoItemSelf'}
     procedure UndoRedoItemSelf;
     var
       vAction: THCItemSelfUndoAction;
@@ -298,7 +312,9 @@ var
       else
         Items[vCaretItemNo].Redo(vAction);
     end;
+    {$ENDREGION}
 
+    {$REGION 'UndoRedoItemMirror'}
     procedure UndoRedoItemMirror;
     var
       vAction: THCItemUndoAction;
@@ -313,6 +329,7 @@ var
       else
         LoadItemFromStreamAlone(vAction.ItemStream, vItem);
     end;
+    {$ENDREGION}
 
   begin
     case AAction.Tag of
@@ -327,20 +344,79 @@ var
     end;
   end;
 
-  function GetActionAffect(const AAction: THCCustomUndoAction): Integer;
+  /// <summary> 根据撤销/恢复的事件类型计算前一个ItemNo是否需要格式化 </summary>
+  function GetActionAffectFirst(const AAction: THCCustomUndoAction): Integer;
+  var
+    vPropAction: THCItemPropertyUndoAction;
   begin
     Result := AAction.ItemNo;
+
     case AAction.Tag of
       uatDeleteItem:
         begin
-          if AUndo.IsUndo and (Result > 0) then
+          if Result > 0 then
             Dec(Result);
         end;
 
       uatInsertItem:
         begin
-          if (not AUndo.IsUndo) and (Result > Items.Count - 1) then
-            Dec(Result);
+          if AUndo.IsUndo then  // 是撤销
+          begin
+            if Result > 0 then
+              Dec(Result);
+          end
+          else  // 是恢复
+          begin
+            if Result > Items.Count - 1 then
+              Dec(Result);
+          end;
+        end;
+
+      uatItemProperty:
+        begin
+          if AAction.Tag = TUndoActionTag.uatItemProperty then
+          begin
+            vPropAction := AAction as THCItemPropertyUndoAction;
+            if vPropAction.ItemProperty = TItemProperty.uipParaFirst then  // 段首属性变化
+            begin
+              if Result > 0 then
+                Dec(Result);
+            end;
+          end;
+        end
+    else
+      if Result > Items.Count - 1 then
+        Result := Items.Count - 1;
+    end;
+  end;
+
+  /// <summary> 根据撤销/恢复的事件类型计算后一个ItemNo是否需要格式化 </summary>
+  function GetActionAffectLast(const AAction: THCCustomUndoAction): Integer;
+  begin
+    Result := AAction.ItemNo;
+
+    case AAction.Tag of
+      uatDeleteItem:
+        begin
+          if AUndo.IsUndo then
+          begin
+            if Result > 0 then
+              Dec(Result);
+          end;
+        end;
+
+      uatInsertItem:
+        begin
+          if AUndo.IsUndo then
+          begin
+            if (Result < Items.Count - 1) and AAction.ParaFirst then
+              Inc(Result);
+          end
+          else
+          begin
+            if Result > Items.Count - 1 then
+              Dec(Result);
+          end;
         end;
     else
       if Result > Items.Count - 1 then
@@ -349,9 +425,8 @@ var
   end;
 
 var
-  i, j: Integer;
+  i: Integer;
   vUndoList: THCUndoList;
-  vUndo: THCCustomUndo;
 begin
   if AUndo is THCUndoGroupEnd then  // 组结束(无Actions)
   begin
@@ -362,27 +437,21 @@ begin
         vUndoList := GetUndoList;
         FFormatFirstItemNo := (vUndoList[vUndoList.CurGroupBeginIndex] as THCUndoGroupBegin).ItemNo;
         FFormatLastItemNo := (vUndoList[vUndoList.CurGroupEndIndex] as THCUndoGroupEnd).ItemNo;
-        {for i := vUndoList.CurGroupEndIndex - 1 downto vUndoList.CurGroupBeginIndex + 1 do
-        begin
-          vUndo := vUndoList[i];
-          for j := vUndo.Actions.Count - 1 downto 0 do
-          begin
-            if FFormatFirstItemNo > vUndo.Actions[j].ItemNo then
-              FFormatFirstItemNo := vUndo.Actions[j].ItemNo;
 
-            if FFormatLastItemNo < vUndo.Actions[j].ItemNo then
-              FFormatLastItemNo := vUndo.Actions[j].ItemNo;
-          end;
-        end;}
+        // 如果FFormatLastItemNo是从文档最开始插入增加的，撤销时要格式化到原开头，暴力处理直接下一个
+        if FFormatLastItemNo < Items.Count - 1 then
+          Inc(FFormatLastItemNo);
+
         if FFormatFirstItemNo <> FFormatLastItemNo then
         begin
           FFormatFirstItemNo := GetParaFirstItemNo(FFormatFirstItemNo);  // 取段第一个为起始
+          FFormatFirstDrawItemNo := Items[FFormatFirstItemNo].FirstDItemNo;
           FFormatLastItemNo := GetParaLastItemNo(FFormatLastItemNo);  // 取段最后一个为结束
         end
         else
-          GetReformatItemRange(FFormatFirstItemNo, FFormatLastItemNo, FFormatFirstItemNo, 0);
+          GetFormatRange(FFormatFirstItemNo, 1, FFormatFirstDrawItemNo, FFormatLastItemNo);
 
-        _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+        FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;
         Self.InitializeField;
@@ -397,7 +466,7 @@ begin
 
       if FUndoGroupCount = 0 then  // 组恢复结束
       begin
-        _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+        ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupEnd).Offset;
@@ -419,7 +488,7 @@ begin
 
       if FUndoGroupCount = 0 then  // 组撤销结束
       begin
-        _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+        ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupBegin).Offset;
@@ -434,8 +503,11 @@ begin
       if FUndoGroupCount = 0 then  // 组恢复开始
       begin
         FFormatFirstItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
-        FFormatLastItemNo := FFormatFirstItemNo;
-        _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+        FFormatFirstDrawItemNo := GetFormatFirstDrawItem(Items[FFormatFirstItemNo].FirstDItemNo);
+
+        vUndoList := GetUndoList;
+        FFormatLastItemNo := (vUndoList[vUndoList.CurGroupEndIndex] as THCUndoGroupEnd).ItemNo;
+        FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;
         Self.InitializeField;
@@ -459,16 +531,17 @@ begin
 
     if AUndo.Actions.First.ItemNo > AUndo.Actions.Last.ItemNo then
     begin
-      FFormatFirstItemNo := GetParaFirstItemNo(GetActionAffect(AUndo.Actions.Last));
-      FFormatLastItemNo := GetParaLastItemNo(GetActionAffect(AUndo.Actions.First));
+      FFormatFirstItemNo := GetParaFirstItemNo(GetActionAffectFirst(AUndo.Actions.Last));
+      FFormatLastItemNo := GetParaLastItemNo(GetActionAffectLast(AUndo.Actions.First));
     end
     else
     begin
-      FFormatFirstItemNo := GetParaFirstItemNo(GetActionAffect(AUndo.Actions.First));
-      FFormatLastItemNo := GetParaLastItemNo(GetActionAffect(AUndo.Actions.Last));
+      FFormatFirstItemNo := GetParaFirstItemNo(GetActionAffectFirst(AUndo.Actions.First));
+      FFormatLastItemNo := GetParaLastItemNo(GetActionAffectLast(AUndo.Actions.Last));
     end;
 
-    _FormatItemPrepare(FFormatFirstItemNo, FFormatLastItemNo);
+    FFormatFirstDrawItemNo := Items[FFormatFirstItemNo].FirstDItemNo;
+    FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
   end;
 
   if AUndo.IsUndo then  // 撤销
@@ -487,7 +560,7 @@ begin
 
   if FUndoGroupCount = 0 then
   begin
-    _ReFormatData(FFormatFirstItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+    ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
 
     if vCaretDrawItemNo < 0 then
       vCaretDrawItemNo := GetDrawItemNoByOffset(vCaretItemNo, vCaretOffset)
@@ -587,7 +660,8 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vItemAction := vUndo.ActionAppend(uatDeleteItem, AItemNo, AOffset) as THCItemUndoAction;
+      vItemAction := vUndo.ActionAppend(uatDeleteItem, AItemNo, AOffset,
+        Items[AItemNo].ParaFirst) as THCItemUndoAction;
       SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
     end;
   end;
@@ -606,7 +680,8 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vTextAction := vUndo.ActionAppend(uatDeleteText, AItemNo, AOffset) as THCTextUndoAction;
+      vTextAction := vUndo.ActionAppend(uatDeleteText, AItemNo, AOffset,
+        Items[AItemNo].ParaFirst) as THCTextUndoAction;
       vTextAction.Text := AText;
     end;
   end;
@@ -625,7 +700,8 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vTextAction := vUndo.ActionAppend(uatDeleteBackText, AItemNo, AOffset) as THCTextUndoAction;
+      vTextAction := vUndo.ActionAppend(uatDeleteBackText, AItemNo, AOffset,
+        Items[AItemNo].ParaFirst) as THCTextUndoAction;
       vTextAction.Text := AText;
     end;
   end;
@@ -644,7 +720,8 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vItemAction := vUndo.ActionAppend(uatInsertItem, AItemNo, AOffset) as THCItemUndoAction;
+      vItemAction := vUndo.ActionAppend(uatInsertItem, AItemNo, AOffset,
+        Items[AItemNo].ParaFirst) as THCItemUndoAction;
       SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
     end;
   end;
@@ -663,7 +740,8 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vTextAction := vUndo.ActionAppend(uatInsertText, AItemNo, AOffset) as THCTextUndoAction;
+      vTextAction := vUndo.ActionAppend(uatInsertText, AItemNo, AOffset,
+        Items[AItemNo].ParaFirst) as THCTextUndoAction;
       vTextAction.Text := AText;
     end;
   end;
@@ -682,7 +760,8 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vItemAction := vUndo.ActionAppend(uatItemMirror, AItemNo, AOffset) as THCItemUndoAction;
+      vItemAction := vUndo.ActionAppend(uatItemMirror, AItemNo, AOffset,
+        Items[AItemNo].ParaFirst) as THCItemUndoAction;
       SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
     end;
   end;
@@ -722,7 +801,7 @@ begin
   begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
-      vUndo.ActionAppend(uatItemSelf, AItemNo, AOffset);
+      vUndo.ActionAppend(uatItemSelf, AItemNo, AOffset, Items[AItemNo].ParaFirst);
   end;
 end;
 

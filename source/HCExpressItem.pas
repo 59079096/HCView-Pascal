@@ -141,12 +141,12 @@ var
   vStyle: THCStyle;
 begin
   vStyle := ARichData.Style;
-  vStyle.TextStyles[TextStyleNo].ApplyStyle(vStyle.DefCanvas);
-  vH := vStyle.DefCanvas.TextHeight('H');
-  vLeftW := Max(vStyle.DefCanvas.TextWidth(FLeftText), Padding);
-  vTopW := Max(vStyle.DefCanvas.TextWidth(TopText), Padding);
-  vRightW := Max(vStyle.DefCanvas.TextWidth(FRightText), Padding);
-  vBottomW := Max(vStyle.DefCanvas.TextWidth(BottomText), Padding);
+  vStyle.ApplyTempStyle(TextStyleNo);
+  vH := vStyle.TextStyles[TextStyleNo].FontHeight;// vStyle.TempCanvas.TextHeight('H');
+  vLeftW := Max(vStyle.TempCanvas.TextWidth(FLeftText), Padding);
+  vTopW := Max(vStyle.TempCanvas.TextWidth(TopText), Padding);
+  vRightW := Max(vStyle.TempCanvas.TextWidth(FRightText), Padding);
+  vBottomW := Max(vStyle.TempCanvas.TextWidth(BottomText), Padding);
   // 计算尺寸
   if vTopW > vBottomW then  // 上面比下面宽
     Width := vLeftW + vTopW + vRightW + 6 * Padding
@@ -168,33 +168,33 @@ procedure THCExpressItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
-    OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
+    OwnerData.Style.ApplyTempStyle(TextStyleNo);
     case FActiveArea of
       ceaLeft:
         begin
           ACaretInfo.Height := FLeftRect.Bottom - FLeftRect.Top;
-          ACaretInfo.X := FLeftRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(FLeftText, 1, FCaretOffset));
+          ACaretInfo.X := FLeftRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(FLeftText, 1, FCaretOffset));
           ACaretInfo.Y := FLeftRect.Top;
         end;
 
       ceaTop:
         begin
           ACaretInfo.Height := TopRect.Bottom - TopRect.Top;
-          ACaretInfo.X := TopRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(TopText, 1, FCaretOffset));
+          ACaretInfo.X := TopRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(TopText, 1, FCaretOffset));
           ACaretInfo.Y := TopRect.Top;
         end;
 
       ceaRight:
         begin
           ACaretInfo.Height := FRightRect.Bottom - FRightRect.Top;
-          ACaretInfo.X := FRightRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(FRightText, 1, FCaretOffset));
+          ACaretInfo.X := FRightRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(FRightText, 1, FCaretOffset));
           ACaretInfo.Y := FRightRect.Top;
         end;
 
       ceaBottom:
         begin
           ACaretInfo.Height := BottomRect.Bottom - BottomRect.Top;
-          ACaretInfo.X := BottomRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(BottomText, 1, FCaretOffset));
+          ACaretInfo.X := BottomRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(BottomText, 1, FCaretOffset));
           ACaretInfo.Y := BottomRect.Top;
         end;
     end;
@@ -393,8 +393,8 @@ begin
 
   if FActiveArea <> TExpressArea.ceaNone then
   begin
-    OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
-    vOffset := GetCharOffsetAt(OwnerData.Style.DefCanvas, vS, vX);
+    OwnerData.Style.ApplyTempStyle(TextStyleNo);
+    vOffset := GetCharOffsetAt(OwnerData.Style.TempCanvas, vS, vX);
   end
   else
     vOffset := -1;

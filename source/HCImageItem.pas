@@ -235,8 +235,37 @@ end;
 procedure THCImageItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+var
+  vBitmap: TBitmap;
+  vStream: TMemoryStream;
 begin
-  ACanvas.StretchDraw(ADrawRect, FImage);
+  if APaintInfo.Print then
+  begin
+    vBitmap := TBitmap.Create;
+    try
+      vStream := TMemoryStream.Create;
+      try
+        FImage.SaveToStream(vStream);
+        vStream.Position := 0;
+        vBitmap.LoadFromStream(vStream);
+        if (vBitmap.Width <> Width) or (vBitmap.Height <> Height) then
+          ACanvas.StretchDraw(ADrawRect, vBitmap)
+        else
+          ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, vBitmap);
+      finally
+        FreeAndNil(vStream);
+      end;
+    finally
+      FreeAndNil(vBitmap);
+    end;
+  end
+  else
+  begin
+    if (FImage.Width <> Width) or (FImage.Height <> Height) then
+      ACanvas.StretchDraw(ADrawRect, FImage)
+    else
+      ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FImage);
+  end;
 
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
@@ -338,7 +367,7 @@ begin
   finally
     FreeAndNil(vBmp);
   end;
-    {$ENDIF}
+  {$ENDIF}
   inherited PaintTop(ACanvas);
 end;
 

@@ -39,6 +39,9 @@ type
     function GetDisplayWidth: Integer;
     function GetDisplayHeight: Integer;
 
+    function GetCurStyleNo: Integer;
+    function GetCurParaNo: Integer;
+
     /// <summary> 重新获取光标位置 </summary>
     procedure ReBuildCaret(const AScrollBar: Boolean = False);
 
@@ -119,8 +122,6 @@ type
     /// <summary> 获取顶层Data </summary>
     function TopLevelData: THCRichData;
 
-    property Style: THCStyle read FStyle;
-    property Changed: Boolean read FChanged write FChanged;
     /// <summary> 全选 </summary>
     procedure SelectAll;
     procedure SaveToFile(const AFileName: string);
@@ -133,6 +134,14 @@ type
 
     /// <summary> 重做 </summary>
     procedure Redo;
+
+    /// <summary> 当前光标处的文本样式 </summary>
+    property CurStyleNo: Integer read GetCurStyleNo;
+    /// <summary> 当前光标处的段样式 </summary>
+    property CurParaNo: Integer read GetCurParaNo;
+
+    property Style: THCStyle read FStyle;
+    property Changed: Boolean read FChanged write FChanged;
   published
     property OnMouseDown: TMouseEvent read FOnMouseDown write FOnMouseDown;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
@@ -478,6 +487,16 @@ procedure THCEdit.EndUpdate;
 begin
   Dec(FUpdateCount);
   DoMapChanged;
+end;
+
+function THCEdit.GetCurParaNo: Integer;
+begin
+  Result := FData.GetTopLevelData.CurStyleNo;
+end;
+
+function THCEdit.GetCurStyleNo: Integer;
+begin
+  Result := FData.GetTopLevelData.CurParaNo;
 end;
 
 function THCEdit.GetDisplayHeight: Integer;
@@ -844,7 +863,7 @@ begin
   inherited;
   FDataBmp.SetSize(GetDisplayWidth, GetDisplayHeight);
   FData.Width := FDataBmp.Width - Self.Padding.Left - Self.Padding.Right;
-  FData.ReFormat(0);
+  FData.ReFormat;
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);

@@ -18,7 +18,7 @@ uses
 
 const
   MinRowHeight = 20;
-  MinColWidth = 20;
+  MinColWidth = 20;  // 如果修改要和左缩进离边距的最小值匹配
   MaxListSize = Maxint div 16;
 
 type
@@ -39,7 +39,7 @@ type
     procedure SetItems(Index: Integer; const Value: Pointer);
     procedure SetColCount(const Value: Integer);
   protected
-    function GetCols(Index: Integer): THCTableCell;
+    function GetCols(const Index: Integer): THCTableCell;
 
     property Items[Index: Integer]: Pointer read GetItems write SetItems; default;
   public
@@ -49,7 +49,6 @@ type
     function Insert(Index: Integer; Item: Pointer): Boolean;
     procedure Clear;
     procedure Delete(Index: Integer);
-    function ClearFormatExtraHeight: Integer;
     //
     //function CalcFormatHeight: Integer;
     procedure SetRowWidth(const AWidth: Integer);
@@ -62,7 +61,7 @@ type
     property ColCount: Integer read FColCount write SetColCount;
     //property List: PCellDataList read FList;
     //
-    property Cols[Index: Integer]: THCTableCell read GetCols;
+    property Cols[const Index: Integer]: THCTableCell read GetCols;
 
     /// <summary> 当前行中所有没有发生合并单元格的高度(含CellVPadding * 2因为会受有合并列的影响，所以>=数据高度) </summary>
     property Height: Integer read FHeight write SetHeight;
@@ -197,29 +196,9 @@ begin
   inherited;
 end;
 
-function THCTableRow.GetCols(Index: Integer): THCTableCell;
+function THCTableRow.GetCols(const Index: Integer): THCTableCell;
 begin
   Result := THCTableCell(Items[Index]);
-end;
-
-function THCTableRow.ClearFormatExtraHeight: Integer;
-var
-  i, vMaxDiff: Integer;
-begin
-  Result := FFmtOffset;
-  FFmtOffset := 0;
-  vMaxDiff := 0;
-  for i := 0 to ColCount - 1 do
-    vMaxDiff := Max(vMaxDiff, Cols[i].ClearFormatExtraHeight);
-
-  if vMaxDiff > 0 then
-  begin
-    for i := 0 to ColCount - 1 do
-      Self.Cols[i].Height := Self.Cols[i].Height - vMaxDiff;
-    FHeight := FHeight - vMaxDiff;
-  end;
-
-  Result := Result + vMaxDiff;
 end;
 
 function THCTableRow.GetItems(Index: Integer): Pointer;

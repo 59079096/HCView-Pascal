@@ -34,13 +34,13 @@ type
     function GetAreaAt(const X, Y: Integer): TDateTimeArea;
 
     procedure SetDateTime(const Value: TDateTime);
-
+    procedure SetInputYear;
     procedure SetFormat(const Value: string);
   protected
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-
+    procedure SetActive(const Value: Boolean); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
@@ -725,10 +725,22 @@ begin
         end;
       end;
 
+    VK_RETURN:
+      begin
+        if FActiveArea = dtaYear then
+        begin
+          SetInputYear;
+          Self.OwnerData.Style.UpdateInfoRePaint;
+        end;
+      end;
+
     VK_LEFT:
       begin
         if FActiveArea > dtaNone then
         begin
+          if FActiveArea = dtaYear then
+            SetInputYear;
+
           FActiveArea := System.Pred(FActiveArea);
           FAreaRect := GetAreaRect(FActiveArea);
           Self.OwnerData.Style.UpdateInfoRePaint;
@@ -739,6 +751,9 @@ begin
       begin
         if FActiveArea < dtaMillisecond then
         begin
+          if FActiveArea = dtaYear then
+            SetInputYear;
+
           FActiveArea := System.Succ(FActiveArea);
           FAreaRect := GetAreaRect(FActiveArea);
           Self.OwnerData.Style.UpdateInfoRePaint;
@@ -923,44 +938,6 @@ end;
 
 procedure THCDateTimePicker.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
-
-  procedure SetInputYear;
-  var
-    vDateTime: TDateTime;
-
-    function GetYear(const AYear: string): Word;
-
-      function Power10(const Sqr: Byte): Cardinal;
-      var
-        i: Integer;
-      begin
-        Result := 10;
-        for i := 2 to Sqr do
-          Result := Result * 10;
-      end;
-
-    var
-      vYear: Word;
-      vPie: Cardinal;
-    begin
-      Result := YearOf(vDateTime);
-      vYear := StrToIntDef(AYear, Result);
-      if vYear < Result then
-      begin
-        vPie := Power10(System.Length(AYear));
-        Result := Result div vPie;
-        Result := Result * vPie + vYear;
-      end;
-    end;
-
-  begin
-    if FNewYear <> '' then  // 有输入年，根据输入字符串确定输入的年
-    begin
-      vDateTime := RecodeYear(vDateTime, GetYear(FNewYear));
-      FNewYear := '';  // 取消输入的年内容
-    end;
-  end;
-
 var
   vArea: TDateTimeArea;
 begin
@@ -996,6 +973,18 @@ begin
   AStream.WriteBuffer(FDateTime, SizeOf(FDateTime));
 end;
 
+procedure THCDateTimePicker.SetActive(const Value: Boolean);
+begin
+  inherited SetActive(Value);
+  if not Self.Active then
+  begin
+    if FActiveArea = dtaYear then
+      SetInputYear;
+
+    FActiveArea := TDateTimeArea.dtaNone;
+  end;
+end;
+
 procedure THCDateTimePicker.SetDateTime(const Value: TDateTime);
 begin
   if FDateTime <> Value then
@@ -1013,6 +1002,43 @@ begin
     FFormat := Value;
     Self.Text := FormatDateTime(FFormat, FDateTime);
     FAreaRect := GetAreaRect(FActiveArea);
+  end;
+end;
+
+procedure THCDateTimePicker.SetInputYear;
+
+  function GetYear(const AYear: string): Word;
+
+    function Power10(const Sqr: Byte): Cardinal;
+    var
+      i: Integer;
+    begin
+      Result := 10;
+      for i := 2 to Sqr do
+        Result := Result * 10;
+    end;
+
+  var
+    vYear: Word;
+    vPie: Cardinal;
+  begin
+    Result := YearOf(FDateTime);
+    vYear := StrToIntDef(AYear, Result);
+    if vYear < Result then
+    begin
+      vPie := Power10(System.Length(AYear));
+      Result := Result div vPie;
+      Result := Result * vPie + vYear;
+    end
+    else
+      Result := vYear;
+  end;
+
+begin
+  if FNewYear <> '' then  // 有输入年，根据输入字符串确定输入的年
+  begin
+    Self.DateTime := RecodeYear(FDateTime, GetYear(FNewYear));
+    FNewYear := '';  // 取消输入的年内容
   end;
 end;
 

@@ -26,6 +26,8 @@ type
   public
     procedure Initialize; override;
     procedure CopyRange(const ASrc: TSelectInfo);
+    procedure SaveToStream(const AStream: TStream);
+    procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word);
     property ID: Integer read FID write FID;
     property StartDrawItemNo: Integer read FStartDrawItemNo write FStartDrawItemNo;
     property EndDrawItemNo: Integer read FEndDrawItemNo write FEndDrawItemNo;
@@ -39,6 +41,7 @@ type
   protected
     procedure Notify(const Value: THCDataAnnotate; Action: TCollectionNotification); override;
   public
+    procedure DeleteByID(const AID: Integer);
     procedure NewDataAnnotate(const ASelectInfo: TSelectInfo; const ATitle, AText: string);
     property OnInsertAnnotate: TNotifyEvent read FOnInsertAnnotate write FOnInsertAnnotate;
     property OnRemoveAnnotate: TNotifyEvent read FOnRemoveAnnotate write FOnRemoveAnnotate;
@@ -75,9 +78,6 @@ type
     FOnInsertAnnotate, FOnRemoveAnnotate: TDataAnnotateEvent;
     FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
 
-    procedure DoInsertItem(const AItem: THCCustomItem);
-    procedure DoRemoveItem(const AItem: THCCustomItem);
-
     /// <summary> 获取指定的DrawItem所属的批注以及在各批注中的区域 </summary>
     /// <param name="ADrawItemNo"></param>
     /// <param name="ACanvas">应用了DrawItem样式的Canvas</param>
@@ -92,8 +92,8 @@ type
 
     function GetDrawItemFirstDataAnnotateAt(const ADrawItemNo, X, Y: Integer): THCDataAnnotate;
   protected
-    procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
-    procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
+    procedure DoInsertItem(const AItem: THCCustomItem); override;
+    procedure DoRemoveItem(const AItem: THCCustomItem); override;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); override;
     procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string;
@@ -112,16 +112,20 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure InitializeField; override;
     procedure Clear; override;
+    procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
+      AEndItemNo, AEndOffset: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
 
     function InsertAnnotate(const ATitle, AText: string): Boolean;
-
+    property DataAnnotates: THCDataAnnotates read FDataAnnotates;
+    property HotAnnotate: THCDataAnnotate read FHotAnnotate;
+    property ActiveAnnotate: THCDataAnnotate read FActiveAnnotate;
     property OnDrawItemAnnotate: TDataDrawItemAnnotateEvent read FOnDrawItemAnnotate write FOnDrawItemAnnotate;
     property OnInsertAnnotate: TDataAnnotateEvent read FOnInsertAnnotate write FOnInsertAnnotate;
     property OnRemoveAnnotate: TDataAnnotateEvent read FOnRemoveAnnotate write FOnRemoveAnnotate;
     property OnInsertItem: TDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
-    property HotAnnotate: THCDataAnnotate read FHotAnnotate;
-    property ActiveAnnotate: THCDataAnnotate read FActiveAnnotate;
   end;
 
 implementation
@@ -219,8 +223,6 @@ begin
   inherited Create(AStyle);
   FHotAnnotate := nil;
   FActiveAnnotate := nil;
-  Self.Items.OnInsertItem := DoInsertItem;
-  Self.Items.OnRemoveItem := DoRemoveItem;
 end;
 
 destructor THCAnnotateData.Destroy;
@@ -228,20 +230,6 @@ begin
   FDataAnnotates.Free;
   FDrawItemAnnotates.Free;
   inherited Destroy;
-end;
-
-procedure THCAnnotateData.DoDataInsertItem(const AData: THCCustomData;
-  const AItem: THCCustomItem);
-begin
-  if Assigned(FOnInsertItem) then
-    FOnInsertItem(AData, AItem);
-end;
-
-procedure THCAnnotateData.DoDataRemoveItem(const AData: THCCustomData;
-  const AItem: THCCustomItem);
-begin
-  if Assigned(FOnRemoveItem) then
-    FOnRemoveItem(AData, AItem);
 end;
 
 procedure THCAnnotateData.DoDrawItemPaintContent(const AData: THCCustomData;
@@ -309,7 +297,10 @@ end;
 
 procedure THCAnnotateData.DoInsertItem(const AItem: THCCustomItem);
 begin
-  DoDataInsertItem(Self, AItem);
+  inherited DoInsertItem(AItem);
+
+  if Assigned(FOnInsertItem) then
+    FOnInsertItem(Self, AItem);
 end;
 
 procedure THCAnnotateData.DoItemAction(const AItemNo, AOffset: Integer;
@@ -320,6 +311,7 @@ procedure THCAnnotateData.DoItemAction(const AItemNo, AOffset: Integer;
 
   end;
 
+  {$REGION '插入字符'}
   procedure _AnnotateInsertChar;
   var
     i: Integer;
@@ -364,6 +356,55 @@ procedure THCAnnotateData.DoItemAction(const AItemNo, AOffset: Integer;
       end;
     end;
   end;
+  {$ENDREGION}
+
+  {$REGION 'Backspace键删除了字符'}
+  procedure _AnnotateBackChar;
+  var
+    i: Integer;
+    vDataAnn: THCDataAnnotate;
+  begin
+    for i := FDataAnnotates.Count - 1 downto 0 do
+    begin
+      if FDataAnnotates[i].StartItemNo > AItemNo then  // 变动在此批注之前
+        Continue;
+      if FDataAnnotates[i].EndItemNo < AItemNo then  // 变动在此批注之后
+        Break;
+
+      vDataAnn := FDataAnnotates[i];
+
+      if vDataAnn.StartItemNo = AItemNo then  // 是批注起始Item
+      begin
+        if vDataAnn.EndItemNo = AItemNo then  // 同时也是批注结束Item(批注在同一个Item里)
+        begin
+          if (AOffset > vDataAnn.StartItemOffset)  // 在批注起始后面
+            and (AOffset <= vDataAnn.EndItemOffset)  // 在批注中间
+          then
+            vDataAnn.EndItemOffset := vDataAnn.EndItemOffset - 1
+          else  // 在批注所在的Item批注位置前面删除
+          begin
+            vDataAnn.StartItemOffset := vDataAnn.StartItemOffset - 1;
+            vDataAnn.EndItemOffset := vDataAnn.EndItemOffset - 1
+          end;
+
+          if vDataAnn.StartItemOffset = vDataAnn.EndItemOffset then  // 删除没了
+            FDataAnnotates.Delete(i);
+        end
+        else  // 批注起始和结束不是同一个Item
+        begin
+          if AOffset >= vDataAnn.StartItemOffset then  // 在批注起始后面
+            vDataAnn.StartItemOffset := vDataAnn.StartItemOffset - 1;
+        end;
+      end
+      else
+      if vDataAnn.EndItemNo = AItemNo then  // 是批注结束Item
+      begin
+        if AOffset <= vDataAnn.EndItemOffset then  // 在批注中间
+          vDataAnn.EndItemOffset := vDataAnn.EndItemOffset - 1;
+      end;
+    end;
+  end;
+  {$ENDREGION}
 
   {$REGION 'Delete键删除了字符'}
   procedure _AnnotateDeleteChar;
@@ -416,7 +457,7 @@ begin
   case AAction of
     hiaRemove: _AnnotateRemove;
     hiaInsertChar: _AnnotateInsertChar;
-    hiaBackDeleteChar: ;
+    hiaBackDeleteChar: _AnnotateBackChar;
     hiaDeleteChar: _AnnotateDeleteChar;
   end;
 end;
@@ -430,7 +471,10 @@ end;
 
 procedure THCAnnotateData.DoRemoveItem(const AItem: THCCustomItem);
 begin
-  DoDataRemoveItem(Self, AItem);
+  inherited DoRemoveItem(AItem);
+
+  if Assigned(FOnRemoveItem) then
+    FOnRemoveItem(Self, AItem);
 end;
 
 function THCAnnotateData.DrawItemOfAnnotate(const ADrawItemNo: Integer;
@@ -502,14 +546,19 @@ procedure THCAnnotateData.GetCaretInfo(const AItemNo, AOffset: Integer;
   var ACaretInfo: THCCaretInfo);
 var
   vDataAnnotate: THCDataAnnotate;
-  X: Integer;
+  vCaretDrawItemNo: Integer;
 begin
   inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
 
-  vDataAnnotate := GetDrawItemFirstDataAnnotateAt(CaretDrawItemNo,
-    GetDrawItemOffsetWidth(CaretDrawItemNo,
-      SelectInfo.StartItemOffset - DrawItems[CaretDrawItemNo].CharOffs + 1),
-    DrawItems[CaretDrawItemNo].Rect.Top + 1);
+  if CaretDrawItemNo < 0 then
+    vCaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset)
+  else
+    vCaretDrawItemNo := CaretDrawItemNo;
+
+  vDataAnnotate := GetDrawItemFirstDataAnnotateAt(vCaretDrawItemNo,
+    GetDrawItemOffsetWidth(vCaretDrawItemNo,
+      SelectInfo.StartItemOffset - DrawItems[vCaretDrawItemNo].CharOffs + 1),
+    DrawItems[vCaretDrawItemNo].Rect.Top + 1);
 
   if FActiveAnnotate <> vDataAnnotate then
   begin
@@ -528,9 +577,9 @@ begin
 
   vStyleNo := GetDrawItemStyle(ADrawItemNo);
   if vStyleNo > THCStyle.Null then
-    Style.TextStyles[vStyleNo].ApplyStyle(Style.DefCanvas);
+    Style.ApplyTempStyle(vStyleNo);
 
-  if DrawItemOfAnnotate(ADrawItemNo, Style.DefCanvas, DrawItems[ADrawItemNo].Rect) then
+  if DrawItemOfAnnotate(ADrawItemNo, Style.TempCanvas, DrawItems[ADrawItemNo].Rect) then
   begin
     vPt := Point(X, Y);
     for i := 0 to FDrawItemAnnotates.Count - 1 do
@@ -552,12 +601,41 @@ begin
 end;
 
 function THCAnnotateData.InsertAnnotate(const ATitle, AText: string): Boolean;
+var
+  vTopData: THCRichData;
 begin
   Result := False;
   if not CanEdit then Exit;
   if not Self.SelectExists then Exit;
 
-  FDataAnnotates.NewDataAnnotate(SelectInfo, ATitle, AText);
+  vTopData := GetTopLevelData;
+  if (vTopData is THCAnnotateData) and (vTopData <> Self) then
+    (vTopData as THCAnnotateData).InsertAnnotate(ATitle, AText)
+  else
+    FDataAnnotates.NewDataAnnotate(SelectInfo, ATitle, AText);
+end;
+
+procedure THCAnnotateData.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vAnnCount: Word;
+  i: Integer;
+  vAnn: THCDataAnnotate;
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  if AFileVersion > 22 then
+  begin
+    AStream.ReadBuffer(vAnnCount, SizeOf(vAnnCount));
+    if vAnnCount > 0 then
+    begin
+      for i := 0 to vAnnCount - 1 do
+      begin
+        vAnn := THCDataAnnotate.Create;
+        vAnn.LoadFromStream(AStream, AFileVersion);
+        FDataAnnotates.Add(vAnn);
+      end;
+    end;
+  end;
 end;
 
 procedure THCAnnotateData.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -585,6 +663,20 @@ begin
   FDrawItemAnnotates.Clear;
 end;
 
+procedure THCAnnotateData.SaveToStream(const AStream: TStream;
+  const AStartItemNo, AStartOffset, AEndItemNo, AEndOffset: Integer);
+var
+  vAnnCount: Word;
+  i: Integer;
+begin
+  inherited SaveToStream(AStream, AStartItemNo, AStartOffset, AEndItemNo, AEndOffset);
+  // 存批注
+  vAnnCount := FDataAnnotates.Count;
+  AStream.WriteBuffer(vAnnCount, SizeOf(vAnnCount));  // 数量
+  for i := 0 to vAnnCount - 1 do
+    FDataAnnotates[i].SaveToStream(AStream);
+end;
+
 { THCDataAnnotate }
 
 procedure THCDataAnnotate.CopyRange(const ASrc: TSelectInfo);
@@ -601,7 +693,50 @@ begin
   FID := -1;
 end;
 
+procedure THCDataAnnotate.LoadFromStream(const AStream: TStream;
+  const AFileVersion: Word);
+begin
+  AStream.ReadBuffer(FID, SizeOf(FID));
+  Self.StartItemNo := FID;
+  AStream.ReadBuffer(FID, SizeOf(FID));
+  Self.StartItemOffset := FID;
+  AStream.ReadBuffer(FID, SizeOf(FID));
+  Self.EndItemNo := FID;
+  AStream.ReadBuffer(FID, SizeOf(FID));
+  Self.EndItemOffset := FID;
+  AStream.ReadBuffer(FID, SizeOf(FID));
+
+  HCLoadTextFromStream(AStream, FTitle);
+  HCLoadTextFromStream(AStream, FText);
+end;
+
+procedure THCDataAnnotate.SaveToStream(const AStream: TStream);
+begin
+  AStream.WriteBuffer(Self.StartItemNo, SizeOf(Self.StartItemNo));
+  AStream.WriteBuffer(Self.StartItemOffset, SizeOf(Self.StartItemOffset));
+  AStream.WriteBuffer(Self.EndItemNo, SizeOf(Self.EndItemNo));
+  AStream.WriteBuffer(Self.EndItemOffset, SizeOf(Self.EndItemOffset));
+  AStream.WriteBuffer(FID, SizeOf(FID));
+
+  HCSaveTextToStream(AStream, FTitle);
+  HCSaveTextToStream(AStream, FText);
+end;
+
 { THCDataAnnotates }
+
+procedure THCDataAnnotates.DeleteByID(const AID: Integer);
+var
+  i: Integer;
+begin
+  for i := 0 to Self.Count - 1 do
+  begin
+    if Items[i].ID = AID then
+    begin
+      Self.Delete(i);
+      Break;
+    end;
+  end;
+end;
 
 procedure THCDataAnnotates.NewDataAnnotate(const ASelectInfo: TSelectInfo;
   const ATitle, AText: string);

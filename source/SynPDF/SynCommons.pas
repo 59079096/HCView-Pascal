@@ -766,11 +766,7 @@ uses
   Windows,
   Messages,
   {$ifndef LVCL}
-    {$IFDEF ISDELPHIXE}
   System.Win.Registry,
-    {$ELSE}
-  Registry,
-    {$ENDIF}
   {$endif}
 {$else MSWINDOWS}
 {$ifdef KYLIX3}

@@ -72,15 +72,13 @@ end;
 
 destructor THCGifItem.Destroy;
 begin
-  FGifImage.Animate := False;
-  FreeAndNil(FGifImage);
+  FGifImage.Free;
   inherited;
 end;
 
 procedure THCGifItem.DoImageAnimate(Sender: TObject);
 begin
-  if FGifImage.Animate then
-    OwnerData.Style.InvalidateRect(FDrawRect);
+  OwnerData.Style.InvalidateRect(FDrawRect);
 end;
 
 procedure THCGifItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -88,12 +86,8 @@ procedure THCGifItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   FDrawRect := ADrawRect;
-  if APaintInfo.Print then
-    ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FGifImage.Bitmap)
-  else
-    //ACanvas.StretchDraw(ADrawRect, FGifImage);
-    ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FGifImage);
-
+  ACanvas.StretchDraw(ADrawRect, FGifImage);
+  //ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FGifImage);
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 end;

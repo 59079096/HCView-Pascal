@@ -393,8 +393,7 @@ end;
 
 procedure THCCustomItem.SetActive(const Value: Boolean);
 begin
-  if FActive <> Value then
-    FActive := Value;
+  FActive := Value;
 end;
 
 procedure THCCustomItem.SetHyperLink(const Value: string);

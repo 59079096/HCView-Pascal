@@ -30,21 +30,21 @@ implementation
 { TPageBreakItem }
 
 constructor TPageBreakItem.Create(const AOwnerData: THCCustomData);
+var
+  vSize: TSize;
 begin
   inherited Create(AOwnerData);
   StyleNo := THCStyle.PageBreak;
 
-  Width := 0;
-  if AOwnerData.CurStyleNo > THCStyle.Null then
-  begin
-    AOwnerData.Style.ApplyTempStyle(AOwnerData.CurStyleNo);
-    Height := AOwnerData.Style.TextStyles[AOwnerData.CurStyleNo].FontHeight;
-  end
+  if AOwnerData.Style.CurStyleNo > THCStyle.Null then
+    AOwnerData.Style.TextStyles[AOwnerData.Style.CurStyleNo].ApplyStyle(AOwnerData.Style.DefCanvas)
   else
-  begin
-    AOwnerData.Style.ApplyTempStyle(0);
-    Height := AOwnerData.Style.TextStyles[0].FontHeight;
-  end;
+    AOwnerData.Style.TextStyles[0].ApplyStyle(AOwnerData.Style.DefCanvas);
+
+  vSize := AOwnerData.Style.DefCanvas.TextExtent('H');
+
+  Width := 0;
+  Height := vSize.cy;
 end;
 
 {function TPageBreakItem.GetOffsetAt(const X: Integer): Integer;

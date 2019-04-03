@@ -130,10 +130,9 @@ end;
 
 function THCTableCell.ClearFormatExtraHeight: Integer;
 begin
+  Result := 0;
   if FCellData <> nil then
-    Result := FCellData.ClearFormatExtraHeight
-  else
-    Result := 0;
+    Result := FCellData.ClearFormatExtraHeight;
 end;
 
 procedure THCTableCell.LoadFromStream(const AStream: TStream;

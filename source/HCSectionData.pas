@@ -82,8 +82,11 @@ type
     FShowLineActiveMark: Boolean;  // 当前激活的行前显示标识
     FShowUnderLine: Boolean;  // 下划线
     FShowLineNo: Boolean;  // 行号
+    FReFormatStartItemNo: Integer;
     function GetPageDataFmtTop(const APageIndex: Integer): Integer;
   protected
+    procedure _ReFormatData(const AStartItemNo: Integer; const ALastItemNo: Integer = -1;
+      const AExtraItemCount: Integer = 0); override;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -108,6 +111,7 @@ type
     property ShowLineActiveMark: Boolean read FShowLineActiveMark write FShowLineActiveMark;
     property ShowLineNo: Boolean read FShowLineNo write FShowLineNo;
     property ShowUnderLine: Boolean read FShowUnderLine write FShowUnderLine;
+    property ReFormatStartItemNo: Integer read FReFormatStartItemNo;
   end;
 
 implementation
@@ -323,6 +327,13 @@ begin
         0, 0, ACanvas, APaintInfo);
     end;
   end;
+end;
+
+procedure THCPageData._ReFormatData(const AStartItemNo, ALastItemNo,
+  AExtraItemCount: Integer);
+begin
+  FReFormatStartItemNo := AStartItemNo;
+  inherited _ReFormatData(AStartItemNo, ALastItemNo, AExtraItemCount);
 end;
 
 { THCSectionData }

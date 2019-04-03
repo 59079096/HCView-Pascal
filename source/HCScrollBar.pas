@@ -629,7 +629,7 @@ begin
   if Assigned(Parent) and Parent.HandleAllocated then
   begin
     vRect := ClientRect;
-    OffsetRect(vRect, Left, Top);
+    vRect.Offset(Left, Top);
     InvalidateRect(Parent.Handle, vRect, False);
     UpdateWindow(Parent.Handle);
     //RedrawWindow(Handle, nil, 0, RDW_INVALIDATE);

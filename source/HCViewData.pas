@@ -98,11 +98,8 @@ type
     /// <summary> 光标选到指定Item的最后面 </summary>
     procedure SelectItemAfterWithCaret(const AItemNo: Integer);
 
-    /// <summary> 光标选到最后一个Item的最后面 </summary>
+    /// <summary> 光村选到最后一个Item的最后面 </summary>
     procedure SelectLastItemAfterWithCaret;
-
-    /// <summary> 光标选到第一个Item的最前面 </summary>
-    procedure SelectFirstItemBeforWithCaret;
 
     /// <summary> 获取DomainItem配对的另一个ItemNo </summary>
     /// <param name="AItemNo">当前DomainItem(头或尾)</param>
@@ -283,41 +280,24 @@ procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
     ACanvas.Pen.Style := psSolid;
     ACanvas.Pen.Color := clActiveBorder;
 
-    if APaintInfo.ScaleX <> 1 then
-    begin
-      SetViewportExtEx(ACanvas.Handle, APaintInfo.WindowWidth, APaintInfo.WindowHeight, @vPt);
-      try
-        ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 4, APaintInfo.GetScaleY(ADrawRect.Bottom) - 8);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 8);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
+    SetViewportExtEx(ACanvas.Handle, APaintInfo.WindowWidth, APaintInfo.WindowHeight, @vPt);
+    try
+      ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 4,
+        APaintInfo.GetScaleY(ADrawRect.Bottom) - 8);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 8);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
 
-        ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right),     APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
+      ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right),     APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
 
-        ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 1, APaintInfo.GetScaleY(ADrawRect.Bottom) - 4);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 1, APaintInfo.GetScaleY(ADrawRect.Bottom) - 1);
+      ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 1, APaintInfo.GetScaleY(ADrawRect.Bottom) - 4);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 1, APaintInfo.GetScaleY(ADrawRect.Bottom) - 1);
 
-        ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 2, APaintInfo.GetScaleY(ADrawRect.Bottom) - 5);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 2, APaintInfo.GetScaleY(ADrawRect.Bottom));
-      finally
-        SetViewportExtEx(ACanvas.Handle, APaintInfo.GetScaleX(APaintInfo.WindowWidth),
-          APaintInfo.GetScaleY(APaintInfo.WindowHeight), @vPt);
-      end;
-    end
-    else
-    begin
-      ACanvas.MoveTo(ADrawRect.Right + 4, ADrawRect.Bottom - 8);
-      ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 8);
-      ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 3);
-
-      ACanvas.MoveTo(ADrawRect.Right,     ADrawRect.Bottom - 3);
-      ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 3);
-
-      ACanvas.MoveTo(ADrawRect.Right + 1, ADrawRect.Bottom - 4);
-      ACanvas.LineTo(ADrawRect.Right + 1, ADrawRect.Bottom - 1);
-
-      ACanvas.MoveTo(ADrawRect.Right + 2, ADrawRect.Bottom - 5);
-      ACanvas.LineTo(ADrawRect.Right + 2, ADrawRect.Bottom);
+      ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 2, APaintInfo.GetScaleY(ADrawRect.Bottom) - 5);
+      ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 2, APaintInfo.GetScaleY(ADrawRect.Bottom));
+    finally
+      SetViewportExtEx(ACanvas.Handle, APaintInfo.GetScaleX(APaintInfo.WindowWidth),
+        APaintInfo.GetScaleY(APaintInfo.WindowHeight), @vPt);
     end;
   end;
   {$ENDREGION}
@@ -822,7 +802,7 @@ var
     begin
       if AForward then  // 向前找
       begin
-        vText := (Self.Items[AItemNo] as THCTextItem).SubString(1, AOffset);
+        vText := (Self.Items[AItemNo] as THCTextItem).GetTextPart(1, AOffset);
         if not AMatchCase then  // 不区分大小写
           vText := UpperCase(vText);
 
@@ -830,7 +810,7 @@ var
       end
       else  // 向后找
       begin
-        vText := (Self.Items[AItemNo] as THCTextItem).SubString(AOffset + 1,
+        vText := (Self.Items[AItemNo] as THCTextItem).GetTextPart(AOffset + 1,
           Self.Items[AItemNo].Length - AOffset);
         if not AMatchCase then  // 不区分大小写
           vText := UpperCase(vText);
@@ -968,12 +948,6 @@ begin
     vOffset := 0;
   end
   else
-  if Self.SelectInfo.EndItemNo >= 0 then
-  begin
-    vItemNo := Self.SelectInfo.EndItemNo;
-    vOffset := Self.SelectInfo.EndItemOffset;
-  end
-  else
   begin
     vItemNo := Self.SelectInfo.StartItemNo;
     vOffset := Self.SelectInfo.StartItemOffset;
@@ -987,7 +961,7 @@ begin
     begin
       for i := vItemNo - 1 downto 0 do
       begin
-        if DoSearchByOffset(i, GetItemOffsetAfter(i)) then
+        if DoSearchByOffset(i, GetItemAfterOffset(i)) then
         begin
           Result := True;
           Break;
@@ -1024,11 +998,6 @@ begin
 
   Self.Style.UpdateInfoRePaint;
   Self.Style.UpdateInfoReCaret;
-end;
-
-procedure THCViewData.SelectFirstItemBeforWithCaret;
-begin
-  ReSetSelectAndCaret(0, 0);
 end;
 
 procedure THCViewData.SelectItemAfterWithCaret(const AItemNo: Integer);

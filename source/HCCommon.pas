@@ -43,11 +43,10 @@ const
        文件保存时增加由哪种编程语言生成的标识
    2.1 GifImage保存读取改用兼容其他语言的方式
    2.2 增加段缩进的存储
-   2.3 增加批注的保存和读取
   }
 
-  HC_FileVersion = '2.3';
-  HC_FileVersionInt = 23;
+  HC_FileVersion = '2.2';
+  HC_FileVersionInt = 22;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   LineSpaceMin = 8;  // 行间距最小值
@@ -174,7 +173,6 @@ type
     property Height: Integer read FHeight write SetHeight;
   end;
 
-  function SwapBytes(AValue: Word): Word;
   function IsKeyPressWant(const AKey: Char): Boolean;
   function IsKeyDownWant(const AKey: Word): Boolean;
 
@@ -221,7 +219,7 @@ type
 
 var
   GCursor: TCursor;
-  HC_FILEFORMAT, CF_HTML, CF_RTF: Word;
+  HC_FILEFORMAT, CF_HTML: Word;
 
 implementation
 
@@ -249,11 +247,6 @@ begin
   end;
 end;
 {$ENDIF}
-
-function SwapBytes(AValue: Word): Word;
-begin
-  Result := (AValue shr 8) or Word(AValue shl 8);
-end;
 
 procedure HCSaveTextToStream(const AStream: TStream; const S: string);
 var
@@ -768,8 +761,5 @@ initialization
 
   if CF_HTML = 0 then
     CF_HTML := RegisterClipboardFormat('HTML Format');
-
-  if CF_RTF = 0 then
-    CF_RTF := RegisterClipboardFormat('Rich Text Format');
 
 end.

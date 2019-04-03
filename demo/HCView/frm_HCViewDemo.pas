@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  Printers, Clipbrd, HCRuler;
+  Printers, Clipbrd, HCRuler, System.Actions, System.ImageList;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -126,8 +126,6 @@ type
     mniExplore: TMenuItem;
     btnLeftIndent: TToolButton;
     btnRightIndent: TToolButton;
-    mniModAnnotate: TMenuItem;
-    mniDelAnnotate: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -198,15 +196,14 @@ type
     procedure mniN17Click(Sender: TObject);
     procedure mniHyperLinkClick(Sender: TObject);
     procedure mniExploreClick(Sender: TObject);
-    procedure mniModAnnotateClick(Sender: TObject);
-    procedure mniDelAnnotateClick(Sender: TObject);
   private
     { Private declarations }
     FHRuler: THCHorizontalRuler;
     FVRuler: THCVerticalRuler;
     FHCView: THCView;
     procedure SetFileName(const AFileName: string);
-    function SaveFile: Boolean;
+    procedure DrawItemClick(Shift: TShiftState; X, Y, AItemNo, ADItemNo: Integer;
+      ADrawRect: TRect);
     procedure GetPagesAndActive;
     procedure DoCaretChange(Sender: TObject);
     procedure DoZoomChanged(Sender: TObject);
@@ -214,9 +211,11 @@ type
     procedure DoHorScroll(Sender: TObject);
     procedure DoViewResize(Sender: TObject);
     procedure DoCurParaNoChange(Sender: TObject);
-    procedure DoActivePageChange(Sender: TObject);
     procedure CurTextStyleChange(const ANewStyleNo: Integer);
     procedure CurParaStyleChange(const ANewStyleNo: Integer);
+    procedure DoCanDelete(const Sender: THCRichData; const AItemNo,
+      AItemOffs: Integer; var ACanDelete: Boolean);
+    procedure DoItemLoaded(const AItem: THCCustomItem);
     procedure DoComboboxPopupItem(Sender: TObject);
   public
     { Public declarations }
@@ -232,8 +231,7 @@ uses
   HCDrawItem, HCExpressItem, HCLineItem, HCCheckBoxItem, HCEditItem, HCImageItem,
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
   HCDateTimePicker, HCSupSubScriptItem, HCRadioGroup, frm_Paragraph, frm_TableProperty,
-  frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_Annotate,
-  frm_TableBorderBackColor;
+  frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_TableBorderBackColor;
 
 {$R *.dfm}
 
@@ -329,7 +327,7 @@ end;
 
 procedure TfrmHCViewDemo.cbbZoomChange(Sender: TObject);
 begin
-  FHCView.Zoom := StrToIntDef(cbbZoom.Text, 100) / 100;
+  FHCView.Zoom := (StrToIntDef(cbbZoom.Text, 100) / 100);
 end;
 
 procedure TfrmHCViewDemo.cbbBackColorChange(Sender: TObject);
@@ -351,23 +349,24 @@ begin
     FHCView.SetFocus;
 end;
 
-procedure TfrmHCViewDemo.DoActivePageChange(Sender: TObject);
+procedure TfrmHCViewDemo.DoCanDelete(const Sender: THCRichData;
+  const AItemNo, AItemOffs: Integer; var ACanDelete: Boolean);
 begin
-  FHRuler.Reset;
+
 end;
 
 procedure TfrmHCViewDemo.DoCaretChange(Sender: TObject);
 begin
   GetPagesAndActive;
 
-  CurTextStyleChange(FHCView.CurStyleNo);
-  CurParaStyleChange(FHCView.CurParaNo);
+  CurTextStyleChange(FHCView.Style.CurStyleNo);
+  CurParaStyleChange(FHCView.Style.CurParaNo);
   btnSymmetryMargin.Down := FHCView.SymmetryMargin;
 end;
 
 procedure TfrmHCViewDemo.DoComboboxPopupItem(Sender: TObject);
-//var
-//  vCombobox: THCComboboxItem;
+var
+  vCombobox: THCComboboxItem;
 begin
   if Sender is THCComboboxItem then
   begin
@@ -386,6 +385,15 @@ end;
 procedure TfrmHCViewDemo.DoHorScroll(Sender: TObject);
 begin
   FHRuler.Reset;
+end;
+
+procedure TfrmHCViewDemo.DoItemLoaded(const AItem: THCCustomItem);
+begin
+  if AItem.StyleNo < THCStyle.Null then
+
+  else
+  if AItem.Text = '姓名' then
+    AItem.Text := '张三';
 end;
 
 procedure TfrmHCViewDemo.CurParaStyleChange(const ANewStyleNo: Integer);
@@ -456,6 +464,17 @@ begin
   cbbZoom.ItemIndex := vIndex;
 end;
 
+procedure TfrmHCViewDemo.DrawItemClick(Shift: TShiftState; X, Y, AItemNo,
+  ADItemNo: Integer; ADrawRect: TRect);
+begin
+//  Caption := 'X:' + IntToStr(X) + ' Y:' + IntToStr(Y)
+//    + ' DItemNo:' + IntToStr(ADItemNo)
+//    + ' DrawRect:' + IntToStr(ADrawRect.Left) + ','
+//    + IntToStr(ADrawRect.Top) + ','
+//    + IntToStr(ADrawRect.Right) + ','
+//    + IntToStr(ADrawRect.Bottom);
+end;
+
 procedure TfrmHCViewDemo.btnBoldClick(Sender: TObject);
 begin
   case (Sender as TToolButton).Tag of
@@ -470,13 +489,6 @@ end;
 
 procedure TfrmHCViewDemo.btnNewClick(Sender: TObject);
 begin
-  if FHCView.IsChanged then
-  begin
-    if MessageDlg('是否保存修改？', mtConfirmation, [mbYes, mbNo], 0) = mrYes then
-    begin
-      if not SaveFile then Exit;
-    end;
-  end;
   FHCView.FileName := '';
   FHCView.Clear;
 end;
@@ -553,8 +565,7 @@ begin
   FHCView.OnVerScroll := DoVerScroll;
   FHCView.OnHorScroll := DoHorScroll;
   FHCView.OnViewResize := DoViewResize;
-  FHCView.OnSectionCurParaNoChange := DoCurParaNoChange;
-  FHCView.OnSectionActivePageChange := DoActivePageChange;
+  FHCView.Style.OnCurParaNoChange := DoCurParaNoChange;
   FHCView.Parent := Self;
   FHCView.Align := alClient;
   FHCView.PopupMenu := pmHCView;
@@ -644,18 +655,6 @@ end;
 procedure TfrmHCViewDemo.mniMergeClick(Sender: TObject);
 begin
   FHCView.MergeTableSelectCells;
-end;
-
-procedure TfrmHCViewDemo.mniModAnnotateClick(Sender: TObject);
-var
-  vFrmAnnotate: TfrmAnnotate;
-begin
-  vFrmAnnotate := TfrmAnnotate.Create(Self);
-  try
-    vFrmAnnotate.SetAnnotate(FHCView.AnnotatePre.ActiveAnnotate);
-  finally
-    FreeAndNil(vFrmAnnotate);
-  end;
 end;
 
 procedure TfrmHCViewDemo.mniN14Click(Sender: TObject);
@@ -794,11 +793,6 @@ begin
   FHCView.ActiveTableDeleteCurRow;
 end;
 
-procedure TfrmHCViewDemo.mniDelAnnotateClick(Sender: TObject);
-begin
-  FHCView.AnnotatePre.DeleteDataAnnotateByDraw(FHCView.AnnotatePre.ActiveDrawAnnotateIndex);
-end;
-
 procedure TfrmHCViewDemo.mniDeleteCurColClick(Sender: TObject);
 begin
   FHCView.ActiveTableDeleteCurCol;
@@ -837,19 +831,8 @@ begin
 end;
 
 procedure TfrmHCViewDemo.mniN2Click(Sender: TObject);
-var
-  vFrmAnnotate: TfrmAnnotate;
 begin
-  if not FHCView.ActiveSection.SelectExists then Exit;
-
-  vFrmAnnotate := TfrmAnnotate.Create(Self);
-  try
-    vFrmAnnotate.SetAnnotate(nil);
-    if vFrmAnnotate.ModalResult = mrOk then
-      FHCView.InsertAnnotate(vFrmAnnotate.edtTitle.Text, vFrmAnnotate.mmoText.Text);
-  finally
-    FreeAndNil(vFrmAnnotate);
-  end;
+  FHCView.InsertAnnotate('标题', '内容');
 end;
 
 procedure TfrmHCViewDemo.mniLSFixClick(Sender: TObject);
@@ -1149,8 +1132,27 @@ begin
 end;
 
 procedure TfrmHCViewDemo.mniSaveClick(Sender: TObject);
+var
+  vDlg: TSaveDialog;
 begin
-  SaveFile;
+  if FHCView.FileName <> '' then
+    FHCView.SaveToFile(FHCView.FileName)
+  else
+  begin
+    vDlg := TSaveDialog.Create(Self);
+    try
+      vDlg.Filter := '文件|*' + HC_EXT;
+      vDlg.Execute;
+      if vDlg.FileName <> '' then
+      begin
+        if ExtractFileExt(vDlg.FileName) <> HC_EXT then
+          vDlg.FileName := vDlg.FileName + HC_EXT;
+        FHCView.SaveToFile(vDlg.FileName);
+      end;
+    finally
+      vDlg.Free;
+    end;
+  end;
 end;
 
 procedure TfrmHCViewDemo.mniTablePropertyClick(Sender: TObject);
@@ -1167,7 +1169,7 @@ end;
 
 procedure TfrmHCViewDemo.pmLineSpacePopup(Sender: TObject);
 begin
-  case FHCView.Style.ParaStyles[FHCView.CurParaNo].LineSpaceMode of
+  case FHCView.Style.ParaStyles[FHCView.Style.CurParaNo].LineSpaceMode of
     pls100: mniLS100.Checked := True;
     pls115: mniLS115.Checked := True;
     pls150: mniLS150.Checked := True;
@@ -1178,29 +1180,10 @@ end;
 
 procedure TfrmHCViewDemo.pmHCViewPopup(Sender: TObject);
 var
-  i: Integer;
   vActiveItem, vTopItem: THCCustomItem;
   vTableItem: THCTableItem;
   vActiveData, vTopData: THCCustomData;
 begin
-  if FHCView.AnnotatePre.ActiveDrawAnnotateIndex >= 0 then  // 在某个显示的批注上右键
-  begin
-    for i := 0 to pmHCView.Items.Count - 1 do
-      pmHCView.Items[i].Visible := False;
-
-    mniModAnnotate.Visible := True;
-    mniDelAnnotate.Visible := True;
-    Exit;
-  end
-  else
-  begin
-    for i := 0 to pmHCView.Items.Count - 1 do
-      pmHCView.Items[i].Visible := True;
-
-    mniModAnnotate.Visible := False;
-    mniDelAnnotate.Visible := False;
-  end;
-
   vActiveData := FHCView.ActiveSection.ActiveData;
   vActiveItem := vActiveData.GetCurItem;
 
@@ -1259,39 +1242,6 @@ begin
     and (vTopItem is THCControlItem) and vTopItem.Active;
   if mniControlItem.Visible then
     mniControlItem.Caption := '属性(' + (vTopItem as THCControlItem).ClassName + ')';
-end;
-
-function TfrmHCViewDemo.SaveFile: Boolean;
-var
-  vDlg: TSaveDialog;
-begin
-  Result := False;
-
-  if FHCView.FileName <> '' then
-  begin
-    FHCView.SaveToFile(FHCView.FileName);
-    FHCView.IsChanged := False;
-    Result := True;
-  end
-  else
-  begin
-    vDlg := TSaveDialog.Create(Self);
-    try
-      vDlg.Filter := '文件|*' + HC_EXT;
-      vDlg.Execute;
-      if vDlg.FileName <> '' then
-      begin
-        if ExtractFileExt(vDlg.FileName) <> HC_EXT then
-          vDlg.FileName := vDlg.FileName + HC_EXT;
-
-        FHCView.SaveToFile(vDlg.FileName);
-        FHCView.IsChanged := False;
-        Result := True;
-      end;
-    finally
-      vDlg.Free;
-    end;
-  end;
 end;
 
 procedure TfrmHCViewDemo.SetFileName(const AFileName: string);

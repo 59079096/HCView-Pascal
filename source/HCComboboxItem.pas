@@ -339,12 +339,11 @@ var
 begin
   if Self.AutoSize then
   begin
-    ARichData.Style.ApplyTempStyle(TextStyleNo);
+    ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
     if Self.Text <> '' then
-      vSize := ARichData.Style.TempCanvas.TextExtent(Self.Text)
+      vSize := ARichData.Style.DefCanvas.TextExtent(Self.Text)
     else
-      vSize := ARichData.Style.TempCanvas.TextExtent('H');
-
+      vSize := ARichData.Style.DefCanvas.TextExtent('I');
     Width := FMargin + vSize.cx + FMargin + BTNWIDTH;  // ¼ä¾à
     Height := FMargin + vSize.cy + FMargin;
   end;

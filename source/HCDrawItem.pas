@@ -30,13 +30,17 @@ type
     procedure SetParaFirst(const Value: Boolean);
   public
     ItemNo,    // 对应的Item
-    /// <summary> 从第几个字符开始 >=1 </summary>
-    CharOffs,
-    /// <summary> 从CharOffs开始的字符长度 </summary>
-    CharLen
+    CharOffs,  // 从1开始
+    CharLen   // 从CharOffs开始的字符长度
+    //DrawLeft,  // 绘制时屏幕坐标左
+    //DrawRight  // 绘制时屏幕坐标右
       : Integer;
-    /// <summary> 格式化区域 </summary>
-    Rect: TRect;
+    //CharSpace: Single;  // 分散对齐和两端对齐时，各字符额外间距
+    //RemWidth,  // 所在行右侧结余
+    //RemHeight, // 行中有高度不一致的DItem时，底部对齐额外补充的量
+    //FmtTopOffset
+    //  : Integer;
+    Rect: TRect;  // 在文档中的格式化区域
     //
     function CharOffsetEnd: Integer;
     function Width: Integer;
@@ -49,7 +53,8 @@ type
   private
     // 格式化相关参数
     FDeleteStartDrawItemNo,
-    FDeleteCount: Integer;
+    FDeleteCount,
+    FFormatBeforBottom: Integer;
     function GetItem(Index: Integer): THCCustomDrawItem;
     procedure SetItem(Index: Integer; const Value: THCCustomDrawItem);
   protected
@@ -68,6 +73,9 @@ type
     procedure Insert(const AIndex: Integer; const AItem: THCCustomDrawItem);
     function Last: THCCustomDrawItem;
     property Items[Index: Integer]: THCCustomDrawItem read GetItem write SetItem; default;
+
+    /// <summary> 格式化前对应的DrawItem底部位置 </summary>
+    property FormatBeforBottom: Integer read FFormatBeforBottom write FFormatBeforBottom;
   end;
 
 implementation
@@ -127,6 +135,7 @@ procedure THCDrawItems.ClearFormatMark;
 begin
   FDeleteStartDrawItemNo := -1;
   FDeleteCount := 0;
+  FFormatBeforBottom := -1;
 end;
 
 procedure THCDrawItems.DeleteFormatMark;

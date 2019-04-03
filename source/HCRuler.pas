@@ -43,9 +43,7 @@ type
     GradFontColor, GradLineColor: TColor;
     procedure Resize; override;
     procedure Paint;
-    /// <summary> 放大 </summary>
     function ZoomIn(const Value: Integer): Integer;
-    /// <summary> 缩小 </summary>
     function ZoomOut(const Value: Integer): Integer;
   public
     constructor Create(AOwner: TComponent); override;
@@ -126,7 +124,7 @@ type
 implementation
 
 uses
-  Math, SysUtils, HCItem, HCSectionData, HCRichData, HCStyle, HCParaStyle;
+  Math, SysUtils, HCItem, HCRichData, HCStyle, HCParaStyle;
 
 { THCRuler }
 
@@ -306,7 +304,7 @@ begin
   end;
   vGradWidth := vTabWidth + vDevInc;
 
-  vLeft := GradLeft + MarginLeftWidth - 1;  // 正文刻度起始位置，0刻度的位置
+  vLeft := GradLeft + MarginLeftWidth;  // 正文刻度起始位置，0刻度的位置
   // 跳过刻度0
   if vDev > 0 then
   begin
@@ -483,9 +481,9 @@ begin
     vItem := vData.GetCurItem;
   end;
 
-  FFirstIndent := View.Style.ParaStyles[View.CurParaNo].FirstIndent;
-  FLeftIndent := View.Style.ParaStyles[View.CurParaNo].LeftIndent;
-  FRightIndent := View.Style.ParaStyles[View.CurParaNo].RightIndent;
+  FFirstIndent := View.Style.ParaStyles[View.Style.CurParaNo].FirstIndent;
+  FLeftIndent := View.Style.ParaStyles[View.Style.CurParaNo].LeftIndent;
+  FRightIndent := View.Style.ParaStyles[View.Style.CurParaNo].RightIndent;
   Self.UpdateView;
 end;
 
@@ -509,25 +507,25 @@ begin
   if PtInRegion(FFirstIndentRgn, X, Y) then
   begin
     FSlider := hsdFirstIndent;
-    FMouseGrad := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent + FFirstIndent));
+    FMouseGrad := GradLeft + MarginLeftWidth + FCellLeft + MillimeterToPixX(FLeftIndent + FFirstIndent);
   end
   else
   if PtInRegion(FLeftIndentRgn, X, Y) then
   begin
     FSlider := hsdLeftIndent;
-    FMouseGrad := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent));
+    FMouseGrad := GradLeft + MarginLeftWidth + FCellLeft + MillimeterToPixX(FLeftIndent);
   end
   else
   if PtInRegion(FRightIndentRgn, X, Y) then
   begin
     FSlider := hsdRightIndent;
-    FMouseGrad := GradRight - MarginRightWidth - ZoomIn(FCellRight + MillimeterToPixX(FRightIndent));
+    FMouseGrad := GradRight - MarginRightWidth - FCellRight - MillimeterToPixX(FRightIndent);
   end
   else
   if PtInRect(FLeftFirstIndentRect, Point(X, Y)) then
   begin
     FSlider := hsdLeftFirstIndent;
-    FMouseGrad := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent));
+    FMouseGrad := GradLeft + MarginLeftWidth + FCellLeft + MillimeterToPixX(FLeftIndent);
   end
   else
     FSlider := hsdNone;
@@ -543,9 +541,7 @@ begin
   else
     Self.Cursor := crDefault;
 
-  if FSlider = hsdNone then Exit;
-
-  vGap := Trunc(PixXToMillimeter(ZoomOut(X - FMouseGrad)));
+  vGap := Round(PixXToMillimeter(X - FMouseGrad));
   if Abs(vGap) < 1 then Exit;  // 差异大于1毫米再变动，否则会假死
 
   if FSlider = hsdMarginLeft then
@@ -566,7 +562,7 @@ begin
   begin
     FFirstIndent := FFirstIndent + vGap;
     UpdateView;
-    FMouseGrad := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent + FFirstIndent));
+    FMouseGrad := GradLeft + MarginLeftWidth + FCellLeft + MillimeterToPixX(FLeftIndent + FFirstIndent);
   end
   else
   if FSlider = hsdLeftIndent then
@@ -574,21 +570,21 @@ begin
     FLeftIndent := FLeftIndent + vGap;
     FFirstIndent := FFirstIndent - vGap;
     UpdateView;
-    FMouseGrad := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent));
+    FMouseGrad := GradLeft + MarginLeftWidth + FCellLeft + MillimeterToPixX(FLeftIndent);
   end
   else
   if FSlider = hsdRightIndent then
   begin
     FRightIndent := FRightIndent - vGap;
     UpdateView;
-    FMouseGrad := GradRight - MarginRightWidth - ZoomIn(FCellRight + MillimeterToPixX(FRightIndent));
+    FMouseGrad := GradRight - MarginRightWidth - FCellRight - MillimeterToPixX(FRightIndent);
   end
   else
   if FSlider = hsdLeftFirstIndent then
   begin
     FLeftIndent := FLeftIndent + vGap;
     UpdateView;
-    FMouseGrad := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent));
+    FMouseGrad := GradLeft + MarginLeftWidth + FCellLeft + MillimeterToPixX(FLeftIndent);
   end;
 end;
 
@@ -680,7 +676,7 @@ end;
 
 procedure THCHorizontalRuler.PaintToEx(const ACanvas: TCanvas);
 var
-  vLeft: Integer;
+  i, vLeft: Integer;
   vPoints: array[0..4] of TPoint;
 begin
   inherited PaintToEx(ACanvas);
@@ -689,7 +685,7 @@ begin
   PaintTableKnot(ACanvas); // 表格列位置
 
   // ======== 左缩进+首行缩进整体控制块 ========
-  vLeft := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent));  // 正文刻度起始位置，0刻度的位置
+  vLeft := GradLeft + MarginLeftWidth + FCellLeft + MillimeterToPixX(FLeftIndent);  // 正文刻度起始位置，0刻度的位置
   ACanvas.Brush.Color := $D5D1D0;
   ACanvas.Pen.Color := GradLineColor;
   FLeftFirstIndentRect := Rect(vLeft - 4, GradRectBottom, vLeft + 5, Height);
@@ -729,7 +725,7 @@ begin
 
   // ======== 首行缩进控制块 ========
   //vLeft := vLeft + MillimeterToPixX(FFirstIndent); 使用正面减少误差，解决FFirstIndent不为0时，只拖动改变FLeftIndent时FFirstIndent抖动
-  vLeft := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent + FFirstIndent));
+  vLeft := GradLeft + MarginLeftWidth + FCellLeft + MillimeterToPixX(FLeftIndent + FFirstIndent);
   vPoints[0] := Point(vLeft - 4, GradRectTop);
   vPoints[1] := Point(vLeft - 4, GradRectTop - 3);
   ACanvas.MoveTo(vPoints[0].X, vPoints[0].Y);
@@ -764,7 +760,7 @@ begin
   //FrameRgn(ACanvas.Handle, FFirstIndentRgn, ACanvas.Brush.Handle, 1, 1);
 
   // ======== 右缩进控制块 ========
-  vLeft := GradRight - MarginRightWidth - ZoomIn(FCellRight + MillimeterToPixX(FRightIndent));
+  vLeft := GradRight - MarginRightWidth - FCellRight - MillimeterToPixX(FRightIndent);
   vPoints[0] := Point(vLeft - 4, GradRectBottom - 3);
   vPoints[1] := Point(vLeft - 4, GradRectBottom);
   ACanvas.MoveTo(vPoints[0].X, vPoints[0].Y);
@@ -871,7 +867,6 @@ begin
     - View.ClientToParent(Point(0, 0), Self.Parent).Y + Top;
 
   FKnots.Clear;
-  vRTop := 0;
   FCellTop := 0;
   FCellBottom := 0;
   vPageDataTop := View.ActiveSection.GetPageDataFmtTop(vPageIndex);
@@ -881,10 +876,7 @@ begin
   begin
     vTable := vItem as THCTableItem;
     vTable.GetEditCell(vRow, vCol);
-    if vData is THCSectionData then
-      vRTop := vRTop + vData.DrawItems[vTable.FirstDItemNo].Rect.Top + LineSpaceMin div 2 - vPageDataTop
-    else
-      vRTop := vRTop + vData.DrawItems[vTable.FirstDItemNo].Rect.Top + LineSpaceMin div 2;
+    vRTop := vData.DrawItems[vTable.FirstDItemNo].Rect.Top - vPageDataTop;
 
     FKnots.Clear;
     vRBottom := vRTop + vTable.BorderWidth;
@@ -946,9 +938,7 @@ begin
   else
     Self.Cursor := crDefault;
 
-  if FSlider = vsdNone then Exit;
-
-  vGap := Trunc(PixXToMillimeter(ZoomOut(Y - FMouseGrad)));
+  vGap := Round(PixXToMillimeter(Y - FMouseGrad));
   if Abs(vGap) < 1 then Exit;  // 差异大于1毫米再变动，否则会假死
 
   if FSlider = vsdMarginTop then
@@ -993,7 +983,7 @@ begin
   ACanvas.Brush.Color := Self.Color;
   ACanvas.Pen.Color := GradLineColor;
 
-  vTop := GradLeft + MarginLeftWidth - 5{9 / 2 居中};
+  vTop := GradLeft + MarginLeftWidth - 1{居中};
   vW := GradRectBottom - GradRectTop + 1;
   for i := 0 to FKnots.Count - 1 do
   begin
@@ -1005,7 +995,7 @@ end;
 procedure THCVerticalRuler.PaintToEx(const ACanvas: TCanvas);
 var
   vGradWidth, vPageHeight, vGraCount,
-  vLeft, vTop, vDev, vDevInc: Integer;
+  vLeft, vTop, vDev, vDevInc, vTabWidth: Integer;
   i: Integer;
   vS: string;
   vLogFont: TLogFont;

@@ -106,7 +106,7 @@ procedure THCRadioGroup.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 var
-  i: Integer;
+  i, vLeft, vTop: Integer;
   vPoint: TPoint;
 begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
@@ -149,16 +149,16 @@ var
 begin
   Height := FMinHeight;
 
-  ARichData.Style.ApplyTempStyle(TextStyleNo);
+  ARichData.Style.TextStyles[TextStyleNo].ApplyStyle(ARichData.Style.DefCanvas);
 
   vLeft := FMargin;
   vTop := FMargin;
   for i := 0 to FItems.Count - 1 do
   begin
     if FItems[i].Text <> '' then
-      vSize := ARichData.Style.TempCanvas.TextExtent(FItems[i].Text)
+      vSize := ARichData.Style.DefCanvas.TextExtent(FItems[i].Text)
     else
-      vSize := ARichData.Style.TempCanvas.TextExtent('H');
+      vSize := ARichData.Style.DefCanvas.TextExtent('I');
 
     if vLeft + vSize.cx + RadioButtonWidth > Width then
     begin
@@ -192,10 +192,10 @@ var
   vSize: TSize;
 begin
   Result := -1;
-  Self.OwnerData.Style.ApplyTempStyle(TextStyleNo);
+  Self.OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(Self.OwnerData.Style.DefCanvas);
   for i := 0 to FItems.Count - 1 do
   begin
-    vSize := Self.OwnerData.Style.TempCanvas.TextExtent(FItems[i].Text);
+    vSize := Self.OwnerData.Style.DefCanvas.TextExtent(FItems[i].Text);
     if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
       RadioButtonWidth + vSize.cx, vSize.cy), Point(X, Y))
     then

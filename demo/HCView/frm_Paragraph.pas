@@ -59,7 +59,7 @@ var
   vFirstIndent, vLeftIndent, vRightIndent: Integer;
   vReformatPara: Boolean;
 begin
-  vParaStyle := AHCView.Style.ParaStyles[AHCView.CurParaNo];
+  vParaStyle := AHCView.Style.ParaStyles[AHCView.Style.CurParaNo];
 
   cbbSpaceMode.ItemIndex := Ord(vParaStyle.LineSpaceMode);
   cbbAlignHorz.ItemIndex := Ord(vParaStyle.AlignHorz);
@@ -82,7 +82,6 @@ begin
       vLeftIndent := StrToIntDef(edtLeftIndent.Text, 0);
       vRightIndent := StrToIntDef(edtRightIndent.Text, 0);
 
-      vReformatPara := False;
       if vParaStyle.FirstIndent <> vFirstIndent then
       begin
         AHCView.ApplyParaFirstIndent(vFirstIndent);

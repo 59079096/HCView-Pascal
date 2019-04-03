@@ -946,6 +946,7 @@ end;
 
 function THCDocxReader.FindHCParaNo(const AParaStyle: THCDocxParaStyle): Integer;
 var
+  i: Integer;
   vHCParaStyle: THCParaStyle;
 begin
   Result := THCStyle.Null;
@@ -968,6 +969,7 @@ end;
 
 function THCDocxReader.FindHCStyleNo(const ATextStyle: THCDocxTextStyle): Integer;
 var
+  i: Integer;
   vHCTextStyle: THCTextStyle;
 begin
   Result := THCStyle.Null;
@@ -1629,7 +1631,7 @@ var
 
 var
   i, j, vParaNo, vStyleNo: Integer;
-  vWRNode, vRPRNode, vNode: IHCXMLNode;
+  vWRNode, vRPRNode, vFontNode, vNode: IHCXMLNode;
   vParaFirst: Boolean;
   vParaStyle: THCDocxParaStyle;
   vTextStyle: THCDocxTextStyle;
@@ -2727,7 +2729,7 @@ end;
 function THCDocxReader.WriteStyles_: THCZLibPackageFile;
 var
   vXml: IHCXMLDocument;
-  vXmlNode2, vXmlNode3, vXmlNode4, vXmlNode5: IHCXMLNode;
+  vXmlNode, vXmlNode2, vXmlNode3, vXmlNode4, vXmlNode5: IHCXMLNode;
   vStream: TMemoryStream;
   i: Integer;
   vParaStyle: THCParaStyle;
@@ -2739,6 +2741,43 @@ begin
   vXml.Version := '1.0';
   vXml.DocumentElement := vXml.CreateNode('w:styles');
   vXml.DocumentElement.Attributes['xmlns:w'] := HCDOCX_Main;
+
+  {vXmlNode := vXml.DocumentElement.AddChild('w:docDefaults');
+  //w:rPrDefault  默认文本样式
+  vXmlNode2 := vXmlNode.AddChild('w:rPrDefault');
+  vXmlNode3 := vXmlNode2.AddChild('w:rPr');
+  // w:rFonts
+  vXmlNode4 := vXmlNode3.AddChild('w:rFonts');
+  vXmlNode4.Attributes['w:ascii'] := '宋体';
+  vXmlNode4.Attributes['w:eastAsia'] := '宋体';
+  vXmlNode4.Attributes['w:cs'] := '宋体';
+  vXmlNode4.Attributes['w:hAnsi'] := '宋体';
+
+  //vXmlNode4 := vXmlNode3.AddChild('w:lang');
+  //vXmlNode4.Attributes['w:val'] := 'en-US';
+  //vXmlNode4.Attributes['w:eastAsia'] := 'zh-CN';
+  //vXmlNode4.Attributes['w:bidi'] := 'ar-SA';
+
+  vXmlNode4 := vXmlNode3.AddChild('w:sz');
+  vXmlNode4.Attributes['w:val'] := '21';
+  vXmlNode4 := vXmlNode3.AddChild('w:szCs');
+  vXmlNode4.Attributes['w:val'] := '22';
+
+  //w:pPrDefault  默认段样式
+  vXmlNode2 := vXmlNode.AddChild('w:pPrDefault');
+  vXmlNode3 := vXmlNode2.AddChild('w:pPr');
+  vXmlNode4 := vXmlNode3.AddChild('w:widowControl');
+  vXmlNode4.Attributes['w:val'] := '1';
+  vXmlNode4 := vXmlNode3.AddChild('w:jc');
+  vXmlNode4.Attributes['w:val'] := 'both';
+
+  // 段样式基础
+  vXmlNode2 := vXml.DocumentElement.AddChild('w:style');
+  vXmlNode2.Attributes['w:type'] := 'paragraph';
+  vXmlNode2.Attributes['w:styleId'] := 'P';
+  vXmlNode2.Attributes['w:default'] := '1';
+  vXmlNode3 := vXmlNode2.AddChild('w:name');
+  vXmlNode3.Attributes['w:val'] := 'Normal';}
 
   // w:style  可先把不使用的样式删除了
   for i := 0 to FHCView.Style.ParaStyles.Count - 1 do  // 段样式
@@ -2920,6 +2959,7 @@ procedure THCDocxReader.WriteTable_(const ANode: IHCXMLNode;
   const ATableItem: THCTableItem);
 var
   vTBLNode, vPrNode, vNode, vRowNode, vCellNode: IHCXMLNode;
+  vRow: THCTableRow;
   vCell: THCTableCell;
   vR, vC, i, vW: Integer;
 begin
@@ -2934,6 +2974,8 @@ begin
 
   for vR := 0 to ATableItem.RowCount - 1 do
   begin
+    vRow := ATableItem.Rows[vR];
+
     vRowNode := vTBLNode.AddChild('w:tr');
     for vC := 0 to ATableItem.ColCount - 1 do
     begin

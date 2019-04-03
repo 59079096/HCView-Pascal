@@ -14,7 +14,7 @@ unit HCTableCellData;
 interface
 
 uses
-  Windows, Classes, Types, HCViewData, HCCustomData, HCStyle, HCCommon, HCStyleMatch;
+  Windows, Types, HCViewData, HCCustomData, HCCommon;
 
 type
   TGetRootDataEvent = function (): THCCustomData of object;
@@ -41,11 +41,12 @@ type
     /// <summary> 删除选中 </summary>
     function DeleteSelected: Boolean; override;
 
+    procedure _FormatReadyParam(const AStartItemNo: Integer;
+      var APrioDrawItemNo: Integer; var APos: TPoint); override;
+
     procedure SetActive(const Value: Boolean);
   public
-    procedure ApplySelectTextStyle(const AMatchStyle: THCStyleMatch); override;
-    procedure ApplySelectParaStyle(const AMatchStyle: THCParaMatch); override;
-
+    //constructor Create; override;
     /// <summary> 全选 </summary>
     procedure SelectAll; override;
 
@@ -57,9 +58,6 @@ type
     procedure GetItemAt(const X, Y: Integer; var AItemNo, AOffset, ADrawItemNo: Integer;
       var ARestrain: Boolean); override;
     function GetRootData: THCCustomData; override;
-
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
 
     /// <summary> 选在第一个Item最前面 </summary>
     function SelectFirstItemOffsetBefor: Boolean;
@@ -90,25 +88,9 @@ type
 implementation
 
 uses
-  HCRectItem, HCItem;
+  HCRectItem, HCStyle, HCItem;
 
 { THCTableCellData }
-
-procedure THCTableCellData.ApplySelectParaStyle(const AMatchStyle: THCParaMatch);
-begin
-  if FCellSelectedAll then  // 单元格全选时，应用样式以第一个为准
-    CurParaNo := Items[0].ParaNo;
-
-  inherited ApplySelectParaStyle(AMatchStyle);
-end;
-
-procedure THCTableCellData.ApplySelectTextStyle(const AMatchStyle: THCStyleMatch);
-begin
-  if FCellSelectedAll then  // 单元格全选时，应用样式以第一个为准
-    CurStyleNo := Items[0].StyleNo;
-
-  inherited ApplySelectTextStyle(AMatchStyle);
-end;
 
 function THCTableCellData.ClearFormatExtraHeight: Integer;
 var
@@ -182,17 +164,6 @@ begin
     Result := inherited GetRootData;
 end;
 
-procedure THCTableCellData.LoadFromStream(const AStream: TStream;
-  const AStyle: THCStyle; const AFileVersion: Word);
-begin
-  Self.BeginFormat;
-  try
-    inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  finally
-    Self.EndFormat(False);
-  end;
-end;
-
 function THCTableCellData.PointInCellRect(const APt: TPoint): Boolean;
 begin
   Result := PtInRect(Bounds(0, 0, Width, FCellHeight), APt);
@@ -220,7 +191,7 @@ function THCTableCellData.SelectLastItemOffsetAfter: Boolean;
 begin
   Result := False;
   if (not SelectExists) and (SelectInfo.StartItemNo = Self.Items.Count - 1) then  // 最后一个
-    Result := SelectInfo.StartItemOffset = Self.GetItemOffsetAfter(SelectInfo.StartItemNo);
+    Result := SelectInfo.StartItemOffset = Self.GetItemAfterOffset(SelectInfo.StartItemNo);
 end;
 
 function THCTableCellData.SelectLastLine: Boolean;
@@ -241,6 +212,19 @@ begin
     Self.InitializeField;
     Style.UpdateInfoRePaint;
   end;
+end;
+
+procedure THCTableCellData._FormatReadyParam(const AStartItemNo: Integer;
+  var APrioDrawItemNo: Integer; var APos: TPoint);
+begin
+  { 和父类不同，表格因为涉及跨页时有些DrawItem增加了偏移，所以重新格式化时
+    起始DrawItem正好是上次跨页有偏移的，会影响本次的位置计算，所以表格格式化时
+    全部从0开始，如果将来此函数不需要此处处理，则将父类中的此函数取消虚方法 }
+  {APrioDrawItemNo := -1;
+  APos.X := 0;
+  APos.Y := 0;
+  DrawItems.Clear; }
+  inherited _FormatReadyParam(AStartItemNo, APrioDrawItemNo, APos);
 end;
 
 end.

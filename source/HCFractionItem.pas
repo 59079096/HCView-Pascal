@@ -155,10 +155,10 @@ var
   vStyle: THCStyle;
 begin
   vStyle := ARichData.Style;
-  vStyle.ApplyTempStyle(TextStyleNo);
-  vH := vStyle.TextStyles[TextStyleNo].FontHeight;// vStyle.TempCanvas.TextHeight('H');
-  vTopW := Max(vStyle.TempCanvas.TextWidth(FTopText), FPadding);
-  vBottomW := Max(vStyle.TempCanvas.TextWidth(FBottomText), FPadding);
+  vStyle.TextStyles[TextStyleNo].ApplyStyle(vStyle.DefCanvas);
+  vH := vStyle.DefCanvas.TextHeight('H');
+  vTopW := Max(vStyle.DefCanvas.TextWidth(FTopText), FPadding);
+  vBottomW := Max(vStyle.DefCanvas.TextWidth(FBottomText), FPadding);
   // 计算尺寸
   if vTopW > vBottomW then  // 上面比下面宽
     Width := vTopW + 4 * FPadding
@@ -178,18 +178,18 @@ procedure THCFractionItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
-    OwnerData.Style.ApplyTempStyle(TextStyleNo);
+    OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
     case FActiveArea of
       ceaTop:
         begin
           ACaretInfo.Height := FTopRect.Bottom - FTopRect.Top;
-          ACaretInfo.X := FTopRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(FTopText, 1, FCaretOffset));
+          ACaretInfo.X := FTopRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(FTopText, 1, FCaretOffset));
           ACaretInfo.Y := FTopRect.Top;
         end;
       ceaBottom:
         begin
           ACaretInfo.Height := FBottomRect.Bottom - FBottomRect.Top;
-          ACaretInfo.X := FBottomRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(FBottomText, 1, FCaretOffset));
+          ACaretInfo.X := FBottomRect.Left + OwnerData.Style.DefCanvas.TextWidth(Copy(FBottomText, 1, FCaretOffset));
           ACaretInfo.Y := FBottomRect.Top;
         end;
     end;
@@ -379,8 +379,8 @@ begin
 
   if FActiveArea <> TExpressArea.ceaNone then
   begin
-    OwnerData.Style.ApplyTempStyle(TextStyleNo);
-    vOffset := GetCharOffsetAt(OwnerData.Style.TempCanvas, vS, vX);
+    OwnerData.Style.TextStyles[TextStyleNo].ApplyStyle(OwnerData.Style.DefCanvas);
+    vOffset := GetCharOffsetAt(OwnerData.Style.DefCanvas, vS, vX);
   end
   else
     vOffset := -1;

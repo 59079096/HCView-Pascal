@@ -22,24 +22,6 @@ type
 
   THCFontStyles = set of THCFontStyle;
 
-  // https://github.com/wine-mirror/wine/blob/master/dlls/gdiplus/font.c
-  TT_HHEA = packed record
-    Version: Cardinal;
-    Ascender: SmallInt;
-    Descender: SmallInt;
-    LineGap: SmallInt;
-    advanceWidthMax: Word;
-    minLeftSideBearing: SmallInt;
-    minRightSideBearing: SmallInt;
-    xMaxExtent: SmallInt;
-    caretSlopeRise: SmallInt;
-    caretSlopeRun: SmallInt;
-    caretOffset: SmallInt;
-    reserved: array[0..3] of SmallInt;
-    metricDataFormat: SmallInt;
-    numberOfHMetrics: Word;
-  end;
-
   THCTextStyle = class(TPersistent)
   private const
     DefaultFontSize: Single = 10.5;  // 五号
@@ -47,17 +29,11 @@ type
     MaxFontSize: Single = 512;
   strict private
     FSize: Single;
-    FFontHeight: Integer;
     FFamily: TFontName;
     FFontStyles: THCFontStyles;
     FColor: TColor;  // 字体颜色
     FBackColor: TColor;
     FTextMetric: TTextMetric;
-
-    FCJKFont: Boolean;
-    FOutMetSize: Cardinal;
-    FOutlineTextmetric: POutlineTextmetric;
-    FFontHeader: TT_HHEA;
   protected
     procedure SetFamily(const Value: TFontName);
     procedure SetSize(const Value: Single);
@@ -66,7 +42,6 @@ type
     CheckSaveUsed: Boolean;
     TempNo: Integer;
     constructor Create;
-    destructor Destroy; override;
     function IsSizeStored: Boolean;
     function IsFamilyStored: Boolean;
     procedure ApplyStyle(const ACanvas: TCanvas; const AScale: Single = 1);
@@ -78,14 +53,9 @@ type
     procedure ToXml(const ANode: IHCXMLNode);
     procedure ParseXml(const ANode: IHCXmlNode);
     property TextMetric: TTextMetric read FTextMetric;
-    property OutMetSize: Cardinal read FOutMetSize;
-    property OutlineTextmetric: POutlineTextmetric read FOutlineTextmetric;
-    property FontHeader: TT_HHEA read FFontHeader;
-    property CJKFont: Boolean read FCJKFont;
   published
     property Family: TFontName read FFamily write SetFamily stored IsFamilyStored;
     property Size: Single read FSize write SetSize stored IsSizeStored nodefault;
-    property FontHeight: Integer read FFontHeight;
     property FontStyles: THCFontStyles read FFontStyles write SetFontStyles default [];
     property Color: TColor read FColor write FColor default clBlack;
     property BackColor: TColor read FBackColor write FBackColor default clWhite;
@@ -99,16 +69,10 @@ uses
 { THCTextStyle }
 
 procedure THCTextStyle.ApplyStyle(const ACanvas: TCanvas; const AScale: Single = 1);
-
-const
-  MS_HHEA_TAG = $61656868;  // MS_MAKE_TAG('h','h','e','a')
-  CJK_CODEPAGE_BITS = (1 shl 17) or (1 shl 18) or (1 shl 19) or (1 shl 20) or (1 shl 21);
-
 var
   //vFont: TFont;
   vLogFont: TLogFont;
   vPixPerInch: Integer;
-  vFontSignature: TFontSignature;
 begin
   with ACanvas do
   begin
@@ -139,56 +103,40 @@ begin
       Font.Style := Font.Style + [TFontStyle.fsStrikeOut]
     else
       Font.Style := Font.Style - [TFontStyle.fsStrikeOut];
+
+    //if AScale <> 1 then
+//    begin
+//      vFont := TFont.Create;
+//      try
+//        vFont.Assign(ACanvas.Font);
+        vPixPerInch := GetDeviceCaps(ACanvas.Handle, LOGPIXELSY);  // 要根据环境实时取不可使用HCUnitConversion中默认DC的值
+        GetObject(ACanvas.Font.Handle, SizeOf(vLogFont), @vLogFont);
+
+        // 如果引用了HCStyle，下面的GetDeviceCaps可以通过其PixelsPerInchY属性替换
+        if (tsSuperscript in FFontStyles) or (tsSubscript in FFontStyles) then
+        begin
+          if vLogFont.lfHeight < 0 then
+            vLogFont.lfHeight := -Round(FSize / 2 * vPixPerInch / 72 / AScale)
+          else
+            vLogFont.lfHeight := Round(FSize / 2 * vPixPerInch / 72 / AScale)
+        end
+        else
+        begin
+          if vLogFont.lfHeight < 0 then
+            vLogFont.lfHeight := -Round(FSize * vPixPerInch / 72 / AScale)
+          else
+            vLogFont.lfHeight := Round(FSize * vPixPerInch / 72 / AScale)
+        end;
+
+        ACanvas.Font.Handle := CreateFontIndirect(vLogFont);
+//        ACanvas.Font.Assign(vFont);
+//      finally
+//        vFont.Free;
+//      end;
+//    end;
+
+    GetTextMetrics(ACanvas.Handle, FTextMetric);  // 得到字体信息
   end;
-
-  vPixPerInch := GetDeviceCaps(ACanvas.Handle, LOGPIXELSY);  // 要根据环境实时取不可使用HCUnitConversion中默认DC的值
-  GetObject(ACanvas.Font.Handle, SizeOf(vLogFont), @vLogFont);
-
-  // 如果引用了HCStyle，下面的GetDeviceCaps可以通过其PixelsPerInchY属性替换
-  if (tsSuperscript in FFontStyles) or (tsSubscript in FFontStyles) then
-  begin
-    if vLogFont.lfHeight < 0 then
-      vLogFont.lfHeight := -Round(FSize / 2 * vPixPerInch / 72 / AScale)
-    else
-      vLogFont.lfHeight := Round(FSize / 2 * vPixPerInch / 72 / AScale)
-  end
-  else
-  begin
-    if vLogFont.lfHeight < 0 then
-      vLogFont.lfHeight := -Round(FSize * vPixPerInch / 72 / AScale)
-    else
-      vLogFont.lfHeight := Round(FSize * vPixPerInch / 72 / AScale)
-  end;
-
-  ACanvas.Font.Handle := CreateFontIndirect(vLogFont);
-
-  GetTextMetrics(ACanvas.Handle, FTextMetric);  // 得到字体信息
-  FFontHeight := ACanvas.TextHeight('H');
-
-  {$IFDEF DELPHIXE}
-  if (GetTextCharsetInfo(ACanvas.Handle, @vFontSignature, 0) <> DEFAULT_CHARSET)
-  {$ELSE}
-  if (Integer(GetTextCharsetInfo(ACanvas.Handle, @vFontSignature, 0)) <> DEFAULT_CHARSET)
-  {$ENDIF}
-    and (vFontSignature.fsCsb[0] and CJK_CODEPAGE_BITS <> 0)
-  then
-    FCJKFont := True
-  else
-    FCJKFont := False;
-
-  if FOutMetSize > 0 then
-    FreeMem(FOutlineTextmetric, FOutMetSize);
-
-  FOutMetSize := GetOutlineTextMetrics(ACanvas.Handle, 0, nil);
-  //vOutlineTextmetric.otmSize := SizeOf(vOutlineTextmetric);
-  if FOutMetSize <> 0 then
-  begin
-    GetMem(FOutlineTextmetric, FOutMetSize);
-    GetOutlineTextMetrics(ACanvas.Handle, FOutMetSize, FOutlineTextmetric);  // 取到TrueType字体的正文度量
-  end;
-
-  if GetFontData(ACanvas.Handle, MS_HHEA_TAG, 0, @FFontHeader, SizeOf(FFontHeader)) = GDI_ERROR then  // 接收一种可缩放字体文件的数据
-    Exit;
 end;
 
 procedure THCTextStyle.AssignEx(const ASource: THCTextStyle);
@@ -207,15 +155,6 @@ begin
   FFontStyles := [];
   FColor := clBlack;
   FBackColor := HCTransparentColor;
-  FOutMetSize := 0;
-end;
-
-destructor THCTextStyle.Destroy;
-begin
-  if FOutMetSize > 0 then
-    FreeMem(FOutlineTextmetric, FOutMetSize);
-
-  inherited Destroy;
 end;
 
 function THCTextStyle.EqualsEx(const ASource: THCTextStyle): Boolean;

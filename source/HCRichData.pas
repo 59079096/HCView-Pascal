@@ -118,6 +118,7 @@ type
     procedure DoItemMouseLeave(const AItemNo: Integer); virtual;
     procedure DoItemMouseEnter(const AItemNo: Integer); virtual;
     procedure DoItemResized(const AItemNo: Integer);
+    function DoInsertText(const AText: string): Boolean;
     function GetHeight: Cardinal; virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
 
@@ -846,6 +847,161 @@ begin
     FOnDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
+end;
+
+function THCRichData.DoInsertText(const AText: string): Boolean;
+var
+  vCarteItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
+  vNewItem: THCCustomItem;
+
+  {$REGION ' DoTextItemInsert 在文本Item前后或中间插入文本 '}
+  function DoTextItemInsert: Boolean;
+  var
+    vTextItem: THCTextItem;
+    vS: string;
+    vLen: Integer;
+  begin
+    Result := False;
+
+    vTextItem := Items[vCarteItemNo] as THCTextItem;
+
+    if vTextItem.StyleNo = CurStyleNo then  // 当前样式和插入位置TextItem样式相同
+    begin
+      if vTextItem.CanAccept(SelectInfo.StartItemOffset, hiaInsertChar) then  // TextItem此偏移位置可接受输入
+      begin
+        Undo_New;
+        UndoAction_InsertText(vCarteItemNo, SelectInfo.StartItemOffset + 1, AText);
+
+        GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+        FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+        if SelectInfo.StartItemOffset = 0 then  // 在最前面插入
+        begin
+          vTextItem.Text := AText + vTextItem.Text;
+          vLen := Length(AText);
+        end
+        else
+        if SelectInfo.StartItemOffset = vTextItem.Length then  // 在TextItem最后插入
+        begin
+          vTextItem.Text := vTextItem.Text + AText;
+          vLen := vTextItem.Length;
+        end
+        else  // 在Item中间
+        begin
+          vLen := SelectInfo.StartItemOffset + Length(AText);
+          vS := vTextItem.Text;
+          Insert(AText, vS, SelectInfo.StartItemOffset + 1);
+          vTextItem.Text := vS;
+        end;
+
+        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+        ReSetSelectAndCaret(vCarteItemNo, vLen);
+
+        Result := True;
+      end
+      else  // 此位置不可接受输入
+      begin
+        if (SelectInfo.StartItemOffset = 0)
+          or (SelectInfo.StartItemOffset = vTextItem.Length)   // 在首尾不可接受时，插入到前后位置
+        then
+        begin
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.Text := AText;
+
+          if SelectInfo.StartItemOffset = 0 then
+            Result := InsertItem(vCarteItemNo, vNewItem, True)
+          else
+            Result := InsertItem(vCarteItemNo + 1, vNewItem, False);
+        end;
+      end;
+    end
+    else  // 插入位置TextItem样式和当前样式不同，在TextItem头、中、尾没选中，但应用了新样式，以新样式处理
+    begin
+      vNewItem := CreateDefaultTextItem;
+      vNewItem.Text := AText;
+      Result := InsertItem(vNewItem);
+    end;
+  end;
+  {$ENDREGION}
+
+var
+  vCarteItem: THCCustomItem;
+  vRectItem: THCCustomRectItem;
+begin
+  Result := False;
+  if AText <> '' then
+  begin
+    vCarteItemNo := GetCurItemNo;
+    vCarteItem := Items[vCarteItemNo];
+
+    if vCarteItem.StyleNo < THCStyle.Null then  // 当前位置是 RectItem
+    begin
+      if SelectInfo.StartItemOffset = OffsetInner then  // 在其上输入内容
+      begin
+        Undo_New;
+        UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner);
+
+        vRectItem := vCarteItem as THCCustomRectItem;
+        Result := vRectItem.InsertText(AText);
+        if vRectItem.SizeChanged then
+        begin
+          GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+          FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+          ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+          vRectItem.SizeChanged := False;
+        end
+        else
+          Self.FormatInit;
+      end
+      else  // 其后或其前
+      if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后输入内容
+      begin
+        if (vCarteItemNo < Items.Count - 1)
+          and (Items[vCarteItemNo + 1].StyleNo > THCStyle.Null)
+          and (not Items[vCarteItemNo + 1].ParaFirst)
+        then  // 下一个是TextItem且不是段首，则合并到下一个开始
+        begin
+          Inc(vCarteItemNo);
+          SelectInfo.StartItemNo := vCarteItemNo;
+          SelectInfo.StartItemOffset := 0;
+          CurStyleNo := Items[vCarteItemNo].StyleNo;
+          Result := DoTextItemInsert;  // 在下一个TextItem前面插入
+        end
+        else  // 最后或下一个还是RectItem或当前是段尾
+        begin
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.Text := AText;
+          SelectInfo.StartItemNo := vCarteItemNo + 1;
+          Result := InsertItem(SelectInfo.StartItemNo, vNewItem, False);  // 在两个RectItem中间插入
+        end;
+      end
+      else  // 在其前输入内容
+      begin
+        if (vCarteItemNo > 0)
+          and (Items[vCarteItemNo - 1].StyleNo > THCStyle.Null)
+          and (not Items[vCarteItemNo].ParaFirst)
+        then  // 前一个是TextItem，当前不是段首，合并到前一个尾
+        begin
+          Dec(vCarteItemNo);
+          SelectInfo.StartItemNo := vCarteItemNo;
+          SelectInfo.StartItemOffset := Items[vCarteItemNo].Length;
+          CurStyleNo := Items[vCarteItemNo].StyleNo;
+          Result := DoTextItemInsert;  // 在前一个后面插入
+        end
+        else  // 最前或前一个还是RectItem
+        begin
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.Text := AText;
+          Result := InsertItem(SelectInfo.StartItemNo, vNewItem, True);  // 在两个RectItem中间插入
+        end;
+      end;
+    end
+    else
+      Result := DoTextItemInsert;
+  end
+  else
+    Result := InsertBreak;  // 空的按回车新行处理
 end;
 
 procedure THCRichData.DoItemMouseEnter(const AItemNo: Integer);
@@ -2476,258 +2632,66 @@ end;
 
 function THCRichData.InsertText(const AText: string): Boolean;
 var
-  vAddCount: Integer;
-
-  {$REGION ' DoTextItemInsert 在文本Item前后或中间插入文本 '}
-  function DoTextItemInsert(const AText: string; const ANewPara: Boolean): Boolean;
-  var
-    vTextItem: THCCustomItem;
-    vS: string;
-    vLen: Integer;
-  begin
-    Result := False;
-
-    vTextItem := Items[SelectInfo.StartItemNo] as THCTextItem;
-
-    if vTextItem.StyleNo = CurStyleNo then  // 当前样式和插入位置TextItem样式相同
-    begin
-      if vTextItem.CanAccept(SelectInfo.StartItemOffset, hiaInsertChar) then  // TextItem此偏移位置可接受输入
-      begin
-
-        if SelectInfo.StartItemOffset = 0 then  // 在TextItem最前面插入
-        begin
-          UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
-          vTextItem.Text := AText + vTextItem.Text;
-          if ANewPara then
-            vTextItem.ParaFirst := True;
-
-          vLen := Length(AText);
-        end
-        else
-        if SelectInfo.StartItemOffset = vTextItem.Length then  // 在TextItem最后插入
-        begin
-          if ANewPara then
-          begin
-            vTextItem := CreateDefaultTextItem;
-            vTextItem.ParaFirst := True;
-            vTextItem.Text := AText;
-
-            Items.Insert(SelectInfo.StartItemNo + 1, vTextItem);
-            UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-            Inc(vAddCount);
-
-            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-            vLen := vTextItem.Length;
-          end
-          else
-          begin
-            UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
-            vTextItem.Text := vTextItem.Text + AText;
-            vLen := vTextItem.Length;
-          end;
-        end
-        else  // 在Item中间
-        begin
-          vLen := SelectInfo.StartItemOffset + Length(AText);
-          vS := vTextItem.Text;
-          Insert(AText, vS, SelectInfo.StartItemOffset + 1);
-          UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
-          vTextItem.Text := vS;
-        end;
-
-        SelectInfo.StartItemOffset := vLen;
-
-        Result := True;
-      end
-      else  // 此位置不可接受输入
-      begin
-        if (SelectInfo.StartItemOffset = 0)
-          or (SelectInfo.StartItemOffset = vTextItem.Length)   // 在首尾不可接受时，插入到前后位置
-        then
-        begin
-          vTextItem := CreateDefaultTextItem;
-          vTextItem.ParaFirst := ANewPara;
-          vTextItem.Text := AText;
-
-          if SelectInfo.StartItemOffset = 0 then  // 在首
-          begin
-            Items.Insert(SelectInfo.StartItemNo, vTextItem);
-            UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
-          end
-          else
-          begin
-            Items.Insert(SelectInfo.StartItemNo + 1, vTextItem);
-            UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-          end;
-
-          Inc(vAddCount);
-          SelectInfo.StartItemOffset := vTextItem.Length;
-        end;
-      end;
-    end
-    else  // 插入位置TextItem样式和当前样式不同，在TextItem头、中、尾没选中，但应用了新样式，以新样式处理
-    begin
-      vTextItem := CreateDefaultTextItem;
-      vTextItem.ParaFirst := ANewPara;
-      vTextItem.Text := AText;
-      Items.Insert(SelectInfo.StartItemNo + 1, vTextItem);
-      UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-      Inc(vAddCount);
-
-      SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-      SelectInfo.StartItemOffset := vTextItem.Length;
-    end;
-  end;
-  {$ENDREGION}
-
-  procedure DoInsertText(const AText: string; const ANewPara: Boolean);
-  var
-    vItem: THCCustomItem;
-  begin
-    vItem := Items[SelectInfo.StartItemNo];
-
-    if vItem.StyleNo < THCStyle.Null then  // 当前位置是 RectItem  并且通过过滤已经不会是其上的情况了
-    begin
-      if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后输入内容
-      begin
-        if (SelectInfo.StartItemNo < Items.Count - 1)
-          and (Items[SelectInfo.StartItemNo + 1].StyleNo > THCStyle.Null)
-          and (not Items[SelectInfo.StartItemNo + 1].ParaFirst)
-        then  // 下一个是TextItem且不是段首，则合并到下一个开始
-        begin
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-          SelectInfo.StartItemOffset := 0;
-          CurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;
-          DoInsertText(AText, ANewPara);  // 在下一个TextItem前面插入
-        end
-        else  // 最后或下一个还是RectItem或当前是段尾
-        begin
-          vItem := CreateDefaultTextItem;
-          vItem.Text := AText;
-          vItem.ParaFirst := ANewPara;
-
-          Items.Insert(SelectInfo.StartItemNo + 1, vItem);  // 在两个RectItem中间插入
-          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-          Inc(vAddCount);
-
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-          SelectInfo.StartItemOffset := vItem.Length;
-          CurStyleNo := vItem.StyleNo;
-        end;
-      end
-      else  // 在其前输入内容
-      begin
-        if (SelectInfo.StartItemNo > 0)
-          and (Items[SelectInfo.StartItemNo - 1].StyleNo > THCStyle.Null)
-          and (not Items[SelectInfo.StartItemNo].ParaFirst)
-        then  // 前一个是TextItem，当前不是段首，合并到前一个尾
-        begin
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-          SelectInfo.StartItemOffset := Items[SelectInfo.StartItemNo].Length;
-          CurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;
-          DoInsertText(AText, ANewPara);  // 在前一个后面插入
-        end
-        else  // 最前或前一个还是RectItem
-        begin
-          vItem := CreateDefaultTextItem;
-          vItem.Text := AText;
-          vItem.ParaFirst := ANewPara;
-          Items.Insert(SelectInfo.StartItemNo, vItem);  // 在两个RectItem中间插入
-          UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
-          Inc(vAddCount);
-
-          SelectInfo.StartItemOffset := vItem.Length;
-          CurStyleNo := vItem.StyleNo;
-        end;
-      end;
-    end
-    else  // 当前位置是TextItem
-      DoTextItemInsert(AText, ANewPara);
-  end;
-
-var
   vPCharStart, vPCharEnd, vPtr: PChar;
-  vNewPara: Boolean;
+  vParaFirst: Boolean;
   vS: string;
-  vRectItem: THCCustomRectItem;
-  vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
+  vTextItem: THCCustomItem;
 begin
   Result := False;
 
   if not CanEdit then Exit;
-  if AText = '' then Exit;
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
     DeleteSelected;
 
-    Undo_New;
-
-    if (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)  // 当前位置是 RectItem
-      and (SelectInfo.StartItemOffset = OffsetInner)
-    then  // 在其上输入内容
+    vParaFirst := False;
+    vPCharStart := PChar(AText);
+    vPCharEnd := vPCharStart + Length(AText);
+    if vPCharStart = vPCharEnd then Exit;
+    vPtr := vPCharStart;
+    while vPtr < vPCharEnd do
     begin
-      UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner);
+      case vPtr^ of
+        #13:
+          begin
+            System.SetString(vS, vPCharStart, vPtr - vPCharStart);
 
-      vRectItem := Items[SelectInfo.StartItemNo] as THCCustomRectItem;
-      Result := vRectItem.InsertText(AText);
-      if vRectItem.SizeChanged then
-      begin
-        GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        vRectItem.SizeChanged := False;
-      end
-      else
-        Self.FormatInit;
-    end
-    else
-    begin
-      vNewPara := False;
-      vAddCount := 0;
-      GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
-      FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-
-      vPCharStart := PChar(AText);
-      vPCharEnd := vPCharStart + Length(AText);
-      if vPCharStart = vPCharEnd then Exit;
-      vPtr := vPCharStart;
-      while vPtr < vPCharEnd do
-      begin
-        case vPtr^ of
-          #13:
+            if vParaFirst then
             begin
-              System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-              DoInsertText(vS, vNewPara);
-              vNewPara := True;
+              vTextItem := CreateDefaultTextItem;
+              vTextItem.ParaFirst := True;
+              vTextItem.Text := vS;
+              Result := InsertItem(vTextItem);
+            end
+            else
+              Result := DoInsertText(vS);
 
-              Inc(vPtr);
-              vPCharStart := vPtr;
-              Continue;
-            end;
+            vParaFirst := True;
 
-          #10:
-            begin
-              Inc(vPtr);
-              vPCharStart := vPtr;
-              Continue;
-            end;
-        end;
+            Inc(vPtr);
+            vPCharStart := vPtr;
+            Continue;
+          end;
 
-        Inc(vPtr);
+        #10:
+          begin
+            Inc(vPtr);
+            vPCharStart := vPtr;
+            Continue;
+          end;
       end;
 
-      System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-      DoInsertText(vS, vNewPara);
-
-      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + vAddCount, vAddCount);
+      Inc(vPtr);
     end;
+
+    System.SetString(vS, vPCharStart, vPtr - vPCharStart);
+
+    Result := DoInsertText(vS);
   finally
     Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   end;
 
-  ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   InitializeMouseField;  // 201807311101
 
   Style.UpdateInfoRePaint;
@@ -3906,9 +3870,6 @@ var
     begin
       if not vCurItem.ParaFirst then  // 原来不是段首
       begin
-        Undo_New;
-        UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
-
         vCurItem.ParaFirst := True;
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
       end
@@ -3919,10 +3880,6 @@ var
         vItem.StyleNo := vCurItem.StyleNo;
         vItem.ParaFirst := True;
         Items.Insert(SelectInfo.StartItemNo, vItem);  // 原位置的向下移动
-
-        Undo_New;
-        UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
-
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
       end;
@@ -3935,9 +3892,6 @@ var
         vItem := Items[SelectInfo.StartItemNo + 1];  // 下一个Item
         if not vItem.ParaFirst then  // 下一个不是段起始
         begin
-          Undo_New;
-          UndoAction_ItemParaFirst(SelectInfo.StartItemNo + 1, 0, True);
-
           vItem.ParaFirst := True;
           ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
         end
@@ -3948,10 +3902,6 @@ var
           vItem.StyleNo := vCurItem.StyleNo;
           vItem.ParaFirst := True;
           Items.Insert(SelectInfo.StartItemNo + 1, vItem);
-
-          Undo_New;
-          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-
           ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
         end;
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
@@ -3964,10 +3914,6 @@ var
         vItem.StyleNo := vCurItem.StyleNo;
         vItem.ParaFirst := True;
         Items.Insert(SelectInfo.StartItemNo + 1, vItem);
-
-        Undo_New;
-        UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
         SelectInfo.StartItemOffset := 0;
@@ -3979,10 +3925,6 @@ var
       vItem.ParaFirst := True;
 
       Items.Insert(SelectInfo.StartItemNo + 1, vItem);
-
-      Undo_New;
-      UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
 
       SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;

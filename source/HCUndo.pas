@@ -87,12 +87,10 @@ type
     FItemNo,  // 事件发生时的ItemNo
     FOffset  // 事件发生时的Offset
       : Integer;
-    FParaFirst: Boolean;
   public
     constructor Create; virtual;
     property ItemNo: Integer read FItemNo write FItemNo;
     property Offset: Integer read FOffset write FOffset;
-    property ParaFirst: Boolean read FParaFirst write FParaFirst;
     property Tag: TUndoActionTag read FTag write FTag;
   end;
 
@@ -107,7 +105,7 @@ type
   TItemProperty = (uipStyleNo, uipParaNo, uipParaFirst);
 
   THCItemPropertyUndoAction = class(THCCustomUndoAction)
-  strict private
+  private
     FItemProperty: TItemProperty;
   public
     constructor Create; override;
@@ -185,7 +183,7 @@ type
   public
     constructor Create; override;
     function ActionAppend(const ATag: TUndoActionTag;
-      const AItemNo, AOffset: Integer; const AParaFirst: Boolean): THCCustomUndoAction;
+      const AItemNo, AOffset: Integer): THCCustomUndoAction;
     property Data: TObject read FData write FData;
   end;
 
@@ -591,7 +589,7 @@ end;
 { THCUndo }
 
 function THCUndo.ActionAppend(const ATag: TUndoActionTag;
-  const AItemNo, AOffset: Integer; const AParaFirst: Boolean): THCCustomUndoAction;
+  const AItemNo, AOffset: Integer): THCCustomUndoAction;
 begin
   case ATag of
     uatDeleteBackText, uatDeleteText, uatInsertText:
@@ -612,7 +610,6 @@ begin
   Result.Tag := ATag;
   Result.ItemNo := AItemNo;
   Result.Offset := AOffset;
-  Result.ParaFirst := AParaFirst;
 
   FActions.Add(Result);
 end;
@@ -659,7 +656,7 @@ end;
 constructor THCItemParaFirstUndoAction.Create;
 begin
   inherited Create;
-  Self.ItemProperty := TItemProperty.uipParaFirst;
+  FItemProperty := TItemProperty.uipParaFirst;
 end;
 
 { THCItemSelfUndoAction }
@@ -748,7 +745,7 @@ end;
 constructor THCItemStyleUndoAction.Create;
 begin
   inherited Create;
-  Self.ItemProperty := TItemProperty.uipStyleNo;
+  FItemProperty := TItemProperty.uipStyleNo;
 end;
 
 { THCItemParaUndoAction }
@@ -756,7 +753,7 @@ end;
 constructor THCItemParaUndoAction.Create;
 begin
   inherited Create;
-  Self.ItemProperty := TItemProperty.uipParaNo;
+  FItemProperty := TItemProperty.uipParaNo;
 end;
 
 end.

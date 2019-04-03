@@ -79,8 +79,6 @@ type
     procedure InitializeField; override;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
     function DeleteSelected: Boolean; override;
-    function DeleteActiveDomain: Boolean;
-    function DeleteDomain(const ADomain: THCDomainInfo): Boolean;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     function InsertItem(const AItem: THCCustomItem): Boolean; override;
@@ -255,88 +253,6 @@ begin
 
   if not Assigned(Result) then
     Result := inherited CreateItemByStyle(AStyleNo);
-end;
-
-function THCViewData.DeleteActiveDomain: Boolean;
-var
-  vFirstDrawItemNo, vLastItemNo: Integer;
-begin
-  Result := False;
-  if SelectExists then Exit;
-
-  if FActiveDomain.BeginNo >= 0 then
-    Result := DeleteDomain(FActiveDomain)
-  else
-  if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
-  begin
-    Result := (Items[SelectInfo.StartItemNo] as THCCustomRectItem).DeleteActiveDomain;
-    if Result then
-    begin
-      GetFormatRange(vFirstDrawItemNo, vLastItemNo);
-      FormatPrepare(vFirstDrawItemNo, vLastItemNo);
-      ReFormatData(vFirstDrawItemNo, vLastItemNo);
-
-      Style.UpdateInfoRePaint;
-      Style.UpdateInfoReCaret;
-    end;
-  end;
-end;
-
-function THCViewData.DeleteDomain(const ADomain: THCDomainInfo): Boolean;
-var
-  i, vFirstDrawItemNo, vParaLastItemNo, vDelCount, vCaretItemNo: Integer;
-begin
-  Result := False;
-  if ADomain.BeginNo < 0 then Exit;
-
-  Undo_New;
-
-  vCaretItemNo := ADomain.BeginNo;
-
-  vFirstDrawItemNo := GetFormatFirstDrawItem(Items[ADomain.BeginNo].FirstDItemNo);
-  vParaLastItemNo := GetParaLastItemNo(ADomain.EndNo);
-  if Items[ADomain.BeginNo].ParaFirst then  // 域起始是段首
-  begin
-    if ADomain.EndNo = vParaLastItemNo then  // 域结束是段尾
-    begin
-      if ADomain.BeginNo > 0 then  // 段删除干净了要从上一段最后开始格式化
-        vFirstDrawItemNo := GetFormatFirstDrawItem(Items[ADomain.BeginNo].FirstDItemNo - 1);
-    end
-    else  // 域结束不是段尾，起始是段首
-    begin
-      UndoAction_ItemParaFirst(ADomain.EndNo + 1, 0, True);
-      Items[ADomain.EndNo + 1].ParaFirst := True;
-    end;
-  end;
-
-  FormatPrepare(vFirstDrawItemNo, vParaLastItemNo);
-
-  vDelCount := 0;
-
-  for i := ADomain.EndNo downto ADomain.BeginNo do  // 删除域及域范围内的Item
-  begin
-    //if CanDeleteItem(i) then  // 允许删除
-    begin
-      UndoAction_DeleteItem(i, 0);
-      Items.Delete(i);
-
-      Inc(vDelCount);
-    end;
-  end;
-
-  FActiveDomain.Clear;
-  ReFormatData(vFirstDrawItemNo, vParaLastItemNo - vDelCount, -vDelCount);
-
-  Self.InitializeField;
-  if vCaretItemNo > Items.Count - 1 then
-    ReSetSelectAndCaret(vCaretItemNo - 1)
-  else
-    ReSetSelectAndCaret(vCaretItemNo, 0);
-
-  Style.UpdateInfoRePaint;
-  Style.UpdateInfoReCaret;
-
-  Result := True;
 end;
 
 function THCViewData.DeleteSelected: Boolean;
@@ -544,7 +460,6 @@ begin
       if AOffset = OffsetAfter then  // 光标在后面
       begin
         ADomainInfo.BeginNo := AItemNo;  // 当前即为起始标识
-        vLevel := (Items[AItemNo] as THCDomainItem).Level;
         vEndNo := AItemNo + 1;
       end
       else  // 光标在前面
@@ -572,7 +487,7 @@ begin
     end;
   end;
 
-  if ADomainInfo.BeginNo < 0 then  // 没找到起始
+  if ADomainInfo.BeginNo < 0 then
   begin
     vCount := 0;
 
@@ -662,27 +577,6 @@ begin
           raise Exception.Create('异常：获取域起始位置出错！');
       end;
     end;
-  end
-  else
-  if ADomainInfo.EndNo < 0 then // 找到起始了，找结束
-  begin
-    for i := vEndNo to Items.Count - 1 do
-    begin
-      if Items[i] is THCDomainItem then
-      begin
-        if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结尾
-        begin
-          if (Items[i] as THCDomainItem).Level = vLevel then
-          begin
-            ADomainInfo.EndNo := i;
-            Break;
-          end;
-        end;
-      end;
-    end;
-
-    if ADomainInfo.EndNo < 0 then
-      raise Exception.Create('异常：获取域结束位置出错！');
   end;
 end;
 

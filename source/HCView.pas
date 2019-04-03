@@ -315,9 +315,6 @@ type
     /// <summary> 删除选中内容 </summary>
     procedure DeleteSelected;
 
-    /// <summary> 删除当前域 </summary>
-    function DeleteActiveDomain: Boolean;
-
     /// <summary> 删除当前节 </summary>
     procedure DeleteActiveSection;
 
@@ -760,6 +757,8 @@ type
     property PopupMenu;
   end;
 
+//procedure Register;
+
 implementation
 
 uses
@@ -768,6 +767,11 @@ uses
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
+
+{procedure Register;
+begin
+  RegisterComponents('HCControl', [THCView]);
+end;  }
 
 function GetPDFPaperSize(const APaperSize: Integer): TPDFPaperSize;
 begin
@@ -1014,11 +1018,6 @@ end;
 function THCView.ActiveSection: THCSection;
 begin
   Result := FSections[FActiveSectionIndex];
-end;
-
-function THCView.DeleteActiveDomain: Boolean;
-begin
-  Result := ActiveSection.DeleteActiveDomain;
 end;
 
 procedure THCView.DeleteActiveSection;
@@ -2360,32 +2359,21 @@ end;
 
 procedure THCView.Paste;
 
-  {$REGION 'PasteBitmapImage'}
-  procedure PasteBitmapImage;
+  procedure PasteImage;
   var
     vImageItem: THCImageItem;
     vTopData: THCRichData;
-    vBitmap: TBitmap;
   begin
     vTopData := Self.ActiveSectionTopLevelData;
     vImageItem := THCImageItem.Create(vTopData);
-
-    vBitmap := TBitmap.Create;
-    try
-      vBitmap.Assign(Clipboard);
-      vImageItem.Image.Assign(vBitmap);
-    finally
-      FreeAndNil(vBitmap);
-    end;
+    vImageItem.Image.Assign(Clipboard);
     vImageItem.Width := vImageItem.Image.Width;
     vImageItem.Height := vImageItem.Image.Height;
 
     vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
     Self.InsertItem(vImageItem);
   end;
-  {$ENDREGION}
 
-  {$REGION 'PasteRtf'}
   procedure PasteRtf;
   var
     vData, vLen: Cardinal;
@@ -2423,9 +2411,7 @@ procedure THCView.Paste;
       FreeAndNil(vStream);
     end;
   end;
-  {$ENDREGION}
 
-  {$REGION 'PasteHtml'}
   procedure PasteHtml;
   var
     vMem: Cardinal;
@@ -2457,7 +2443,6 @@ procedure THCView.Paste;
         InsertText(Clipboard.AsText);
     end;
   end;
-  {$ENDREGION}
 
 var
   vStream: TMemoryStream;
@@ -2515,7 +2500,7 @@ begin
     InsertText(Clipboard.AsText)
   else
   if Clipboard.HasFormat(CF_BITMAP) then
-    PasteBitmapImage;
+    PasteImage;
 end;
 
 function THCView.Print(const APrinter: string; const ACopies: Integer = 1): TPrintResult;

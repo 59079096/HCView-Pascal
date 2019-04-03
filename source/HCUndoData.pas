@@ -54,6 +54,8 @@ type
     /// <param name="AOffset">操作发生时的Offset</param>
     procedure UndoAction_InsertItem(const AItemNo, AOffset: Integer);
     procedure UndoAction_ItemStyle(const AItemNo, AOffset, ANewStyleNo: Integer);
+
+    /// <summary> 修改Item的段起始属性(修改前调用) </summary>
     procedure UndoAction_ItemParaFirst(const AItemNo, AOffset: Integer; const ANewParaFirst: Boolean);
 
     procedure UndoAction_ItemSelf(const AItemNo, AOffset: Integer);
@@ -507,6 +509,9 @@ begin
 
         vUndoList := GetUndoList;
         FFormatLastItemNo := (vUndoList[vUndoList.CurGroupEndIndex] as THCUndoGroupEnd).ItemNo;
+        if FFormatLastItemNo > Items.Count - 1 then  // 防止在最后插入Item的撤销后恢复访问越界
+          Dec(FFormatLastItemNo);
+
         FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
 
         SelectInfo.Initialize;

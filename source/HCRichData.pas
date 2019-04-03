@@ -2481,7 +2481,8 @@ var
   {$REGION ' DoTextItemInsert 在文本Item前后或中间插入文本 '}
   function DoTextItemInsert(const AText: string; const ANewPara: Boolean): Boolean;
   var
-    vTextItem: THCCustomItem;
+    vTextItem: THCTextItem;
+    vNewItem, vAfterItem: THCCustomItem;
     vS: string;
     vLen: Integer;
   begin
@@ -2508,16 +2509,16 @@ var
         begin
           if ANewPara then
           begin
-            vTextItem := CreateDefaultTextItem;
-            vTextItem.ParaFirst := True;
-            vTextItem.Text := AText;
+            vNewItem := CreateDefaultTextItem;
+            vNewItem.ParaFirst := True;
+            vNewItem.Text := AText;
 
-            Items.Insert(SelectInfo.StartItemNo + 1, vTextItem);
+            Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
             UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
             Inc(vAddCount);
 
             SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-            vLen := vTextItem.Length;
+            vLen := vNewItem.Length;
           end
           else
           begin
@@ -2530,7 +2531,7 @@ var
         begin
           vLen := SelectInfo.StartItemOffset + Length(AText);
           vS := vTextItem.Text;
-1          Insert(AText, vS, SelectInfo.StartItemOffset + 1);
+          Insert(AText, vS, SelectInfo.StartItemOffset + 1);
           UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
           vTextItem.Text := vS;
         end;
@@ -2545,38 +2546,77 @@ var
           or (SelectInfo.StartItemOffset = vTextItem.Length)   // 在首尾不可接受时，插入到前后位置
         then
         begin
-          vTextItem := CreateDefaultTextItem;
-          vTextItem.ParaFirst := ANewPara;
-          vTextItem.Text := AText;
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.ParaFirst := ANewPara;
+          vNewItem.Text := AText;
 
           if SelectInfo.StartItemOffset = 0 then  // 在首
           begin
-            Items.Insert(SelectInfo.StartItemNo, vTextItem);
+            Items.Insert(SelectInfo.StartItemNo, vNewItem);
             UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
           end
           else
           begin
-            Items.Insert(SelectInfo.StartItemNo + 1, vTextItem);
+            Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
             UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
             SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
           end;
 
           Inc(vAddCount);
-          SelectInfo.StartItemOffset := vTextItem.Length;
+          SelectInfo.StartItemOffset := vNewItem.Length;
         end;
       end;
     end
     else  // 插入位置TextItem样式和当前样式不同，在TextItem头、中、尾没选中，但应用了新样式，以新样式处理
     begin
-      vTextItem := CreateDefaultTextItem;
-      vTextItem.ParaFirst := ANewPara;
-      vTextItem.Text := AText;
-      Items.Insert(SelectInfo.StartItemNo + 1, vTextItem);
-      UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-      Inc(vAddCount);
+      vNewItem := CreateDefaultTextItem;
+      vNewItem.ParaFirst := ANewPara;
+      vNewItem.Text := AText;
 
-      SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-      SelectInfo.StartItemOffset := vTextItem.Length;
+      if SelectInfo.StartItemOffset = 0 then  // 在TextItem最前面插入
+      begin
+        if (not vNewItem.ParaFirst) and vTextItem.ParaFirst then  // 在段首插入非段首Item
+        begin
+          vNewItem.ParaFirst := True;
+          UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
+          vTextItem.ParaFirst := False;
+        end;
+
+        Items.Insert(SelectInfo.StartItemNo, vNewItem);
+        UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+        Inc(vAddCount);
+
+        SelectInfo.StartItemOffset := vNewItem.Length;
+      end
+      else
+      if SelectInfo.StartItemOffset = vTextItem.Length then  // 在TextItem最后面插入
+      begin
+        Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
+        UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+        Inc(vAddCount);
+
+        SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+        SelectInfo.StartItemOffset := vNewItem.Length;
+      end
+      else  // 在TextItem中间插入
+      begin
+        // 原TextItem打断
+        vS := vTextItem.SubString(SelectInfo.StartItemOffset + 1, vTextItem.Length - SelectInfo.StartItemOffset);
+        UndoAction_DeleteText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, vS);
+        // 原位置后半部分
+        vAfterItem := vTextItem.BreakByOffset(SelectInfo.StartItemOffset);
+        vAfterItem.ParaFirst := False;
+        // 先插入新的
+        Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
+        UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+        Inc(vAddCount);
+        SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+        SelectInfo.StartItemOffset := vNewItem.Length;
+        // 再插入原TextItem后半部分
+        Items.Insert(SelectInfo.StartItemNo + 1, vAfterItem);
+        UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+        Inc(vAddCount);
+      end;
     end;
   end;
   {$ENDREGION}

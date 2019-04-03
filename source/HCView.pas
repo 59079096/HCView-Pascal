@@ -1368,10 +1368,6 @@ begin
   _LoadFileFormatAndVersion(AStream, vFileExt, vVersion, vLang);  // 文件格式和版本
   if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
-  if vVersion > HC_FileVersionInt then
-    raise Exception.Create('加载失败，当前编辑器最高支持版本为'
-      + IntToStr(HC_FileVersionInt) + '的文件，无法打开版本为'
-      + IntToStr(vVersion) + '的文件！');
 
   DoLoadStreamBefor(AStream, vVersion);  // 触发加载前事件
   AStyle.LoadFromStream(AStream, vVersion);  // 加载样式表

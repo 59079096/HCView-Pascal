@@ -10,7 +10,8 @@ uses
   frm_SearchAndReplace in 'frm_SearchAndReplace.pas' {frmSearchAndReplace},
   frm_PrintView in 'frm_PrintView.pas' {frmPrintView},
   frm_ControlItemProperty in 'frm_ControlItemProperty.pas' {frmControlItemProperty},
-  frm_TableBorderBackColor in 'frm_TableBorderBackColor.pas' {frmBorderBackColor};
+  frm_TableBorderBackColor in 'frm_TableBorderBackColor.pas' {frmBorderBackColor},
+  frm_Annotate in 'frm_Annotate.pas' {frmAnnotate};
 
 {$R *.res}
 

@@ -2,7 +2,7 @@ object frmHCViewDemo: TfrmHCViewDemo
   Left = 0
   Top = 0
   Caption = 'HCViewDemo'
-  ClientHeight = 774
+  ClientHeight = 820
   ClientWidth = 896
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -333,7 +333,7 @@ object frmHCViewDemo: TfrmHCViewDemo
   end
   object statbar: TStatusBar
     Left = 0
-    Top = 755
+    Top = 801
     Width = 896
     Height = 19
     Panels = <
@@ -349,7 +349,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011D002100240010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011D002100080010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000008000000001002000000000000080
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1682,6 +1682,14 @@ object frmHCViewDemo: TfrmHCViewDemo
     object mniControlItem: TMenuItem
       Caption = #23646#24615
       OnClick = mniControlItemClick
+    end
+    object mniModAnnotate: TMenuItem
+      Caption = #20462#25913
+      OnClick = mniModAnnotateClick
+    end
+    object mniDelAnnotate: TMenuItem
+      Caption = #21024#38500
+      OnClick = mniDelAnnotateClick
     end
   end
   object pmLineSpace: TPopupMenu

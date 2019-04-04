@@ -2605,6 +2605,7 @@ var
   end;
   {$ENDREGION}
 
+  {$REGION 'DoInsertText'}
   procedure DoInsertText(const AText: string; const ANewPara: Boolean);
   var
     vItem: THCCustomItem;
@@ -2669,6 +2670,7 @@ var
     else  // 当前位置是TextItem
       DoTextItemInsert(AText, ANewPara);
   end;
+  {$ENDREGION}
 
 var
   vPCharStart, vPCharEnd, vPtr: PChar;
@@ -5128,6 +5130,7 @@ var
 begin
   if not CanEdit then Exit;
 
+  Self.InitializeField;
   vActiveItem := GetCurItem;
   if not Assigned(vActiveItem) then Exit;  // 跨页合并时，合并后并没有当前Item
 
@@ -5310,6 +5313,7 @@ var
 begin
   if not CanEdit then Exit;
 
+  Self.InitializeField;
   vActiveItem := GetCurItem;
   if not Assigned(vActiveItem) then Exit;  // 跨页合并时，合并后并没有当前Item
 

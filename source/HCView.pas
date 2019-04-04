@@ -3269,11 +3269,11 @@ var
   i: Integer;
 begin
   _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
+  DoSaveStreamBefor(AStream);
+
   if not AQuick then
-  begin
-    DoSaveStreamBefor(AStream);
     _DeleteUnUsedStyle(AAreas);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
-  end;
+
   FStyle.SaveToStream(AStream);
   // 节数量
   vByte := FSections.Count;
@@ -3282,8 +3282,7 @@ begin
   for i := 0 to FSections.Count - 1 do
     FSections[i].SaveToStream(AStream, AAreas);
 
-  if not AQuick then
-    DoSaveStreamAfter(AStream);
+  DoSaveStreamAfter(AStream);
 end;
 
 procedure THCView.SaveToXml(const AFileName: string; const AEncoding: TEncoding);

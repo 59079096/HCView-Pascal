@@ -206,6 +206,8 @@ type
     //
     /// <summary> 修改纸张边距 </summary>
     procedure ResetMargin;
+    /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
+    procedure ReAdaptActiveItem;
     procedure DisActive;
     function SelectExists: Boolean;
     procedure SelectAll;
@@ -220,6 +222,8 @@ type
 
     /// <summary> 返回正文格式位置所在页序号 </summary>
     function GetPageIndexByFormat(const AVOffset: Integer): Integer;
+    /// <summary> 直接设置当前TextItem的Text值 </summary>
+    procedure SetActiveItemText(const AText: string);
 
     procedure PaintDisplayPage(const AFilmOffsetX, AFilmOffsetY: Integer;
       const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
@@ -911,6 +915,14 @@ begin
     FActiveData := Value;
     FStyle.UpdateInfoReScroll;
   end;
+end;
+
+procedure THCCustomSection.SetActiveItemText(const AText: string);
+begin
+  ActiveDataChangeByAction(function(): Boolean
+    begin
+      FActiveData.SetActiveItemText(AText);
+    end);
 end;
 
 procedure THCCustomSection.SetActivePageIndex(const Value: Integer);
@@ -2426,6 +2438,14 @@ begin
     if FPageData.FloatItems[i].PageIndex > FPages.Count - 1 then
       FPageData.FloatItems.Delete(i);
   end;
+end;
+
+procedure THCCustomSection.ReAdaptActiveItem;
+begin
+  ActiveDataChangeByAction(function(): Boolean
+    begin
+      FActiveData.ReAdaptActiveItem;
+    end);
 end;
 
 procedure THCCustomSection.Redo(const ARedo: THCUndo);

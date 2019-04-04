@@ -70,8 +70,10 @@ type
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer; virtual;
     procedure ReFormatActiveItem; virtual;
+    procedure ReAdaptActiveItem; virtual;
     function DeleteSelected: Boolean; virtual;
     function DeleteActiveDomain: Boolean; virtual;
+    procedure SetActiveItemText(const AText: string); virtual;
     procedure MarkStyleUsed(const AMark: Boolean); virtual;
     procedure SaveSelectToStream(const AStream: TStream); virtual;
     function SaveSelectToText: string; virtual;
@@ -570,6 +572,10 @@ begin
   Self.Active := PtInRect(Rect(0, 0, FWidth, FHeight), Point(X, Y));
 end;
 
+procedure THCCustomRectItem.ReAdaptActiveItem;
+begin
+end;
+
 procedure THCCustomRectItem.Redo(const ARedoAction: THCCustomUndoAction);
 var
   vUndoList: THCUndoList;
@@ -639,6 +645,10 @@ end;
 function THCCustomRectItem.SelectExists: Boolean;
 begin
   Result := False;
+end;
+
+procedure THCCustomRectItem.SetActiveItemText(const AText: string);
+begin
 end;
 
 procedure THCCustomRectItem.SetHeight(const Value: Integer);

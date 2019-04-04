@@ -104,12 +104,6 @@ type
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
-    /// <summary> 合并2个文本Item </summary>
-    /// <param name="ADestItem">合并后的Item</param>
-    /// <param name="ASrcItem">源Item</param>
-    /// <returns>True:合并成功，False不能合并</returns>
-    function MergeItemText(const ADestItem, ASrcItem: THCCustomItem): Boolean; virtual;
-
     /// <summary> 是否能删除指定的Item(常用于Data层面Items.Delete(i)前判断是否可删除) </summary>
     function CanDeleteItem(const AItemNo: Integer): Boolean; virtual;
 
@@ -159,6 +153,9 @@ type
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
       const AOffsetBefor: Boolean = True): Boolean; overload; virtual;
 
+    /// <summary> 直接设置当前TextItem的Text值 </summary>
+    procedure SetActiveItemText(const AText: string); virtual;
+
     procedure KillFocus; virtual;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); virtual;
@@ -174,12 +171,12 @@ type
     // Key返回0表示此键按下Data没有做任何事情
     procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
 
+    /// <summary> 在Data层面是否可编辑 </summary>
+    function CanEdit: Boolean; virtual;
+
     procedure BeginBatchInsert;
     procedure EndBatchInsert;
     function BatchInsert: Boolean;
-
-    /// <summary> 在Data层面是否可编辑 </summary>
-    function CanEdit: Boolean; virtual;
     //
     procedure DblClick(X, Y: Integer);
     procedure DeleteItems(const AStartNo: Integer; const AEndNo: Integer = -1);
@@ -213,6 +210,9 @@ type
     function GetTopLevelItem: THCCustomItem;
     function GetTopLevelDrawItem: THCCustomDrawItem;
     function GetActiveDrawItemCoord: TPoint;
+
+    /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
+    procedure ReAdaptActiveItem;
 
     /// <summary> 取消激活(用于页眉、页脚、正文切换时原激活的取消) </summary>
     procedure DisActive;
@@ -876,6 +876,7 @@ begin
   AItem.ParaFirst := True;
   Items.Add(AItem);
   UndoAction_InsertItem(0, 0);
+  SelectInfo.StartItemOffset := GetItemOffsetAfter(0);
 
   // 因FormatItemPrepare及ReFormatData_会标记第一个的DrawItem为-1，
   // 调用FormatData时_FormatItemToDrawItems里Inc后
@@ -1297,23 +1298,6 @@ begin
 end;
 
 procedure THCRichData.ApplySelectTextStyle(const AMatchStyle: THCStyleMatch);
-
-  {$REGION ' MergeItemToPrio 当前Item成功合并到同段前一个Item '}
-  function MergeItemToPrio(const AItemNo: Integer): Boolean;
-  begin
-    Result := (AItemNo > 0) and (not Items[AItemNo].ParaFirst)
-              and MergeItemText(Items[AItemNo - 1], Items[AItemNo]);
-  end;
-  {$ENDREGION}
-
-  {$REGION ' MergeItemToNext 同段后一个Item成功合并到当前Item '}
-  function MergeItemToNext(const AItemNo: Integer): Boolean;
-  begin
-    Result := (AItemNo < Items.Count - 1) and (not Items[AItemNo + 1].ParaFirst)
-              and MergeItemText(Items[AItemNo], Items[AItemNo + 1]);
-  end;
-  {$ENDREGION}
-
 var
   vStyleNo, vExtraCount, vLen: Integer;
   vItem: THCCustomItem;
@@ -2708,9 +2692,12 @@ begin
       and (SelectInfo.StartItemOffset = OffsetInner)
     then  // 在其上输入内容
     begin
-      UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner);
-
       vRectItem := Items[SelectInfo.StartItemNo] as THCCustomRectItem;
+      if vRectItem.MangerUndo then
+        UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+      else
+        UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
       Result := vRectItem.InsertText(AText);
       if vRectItem.SizeChanged then
       begin
@@ -4705,14 +4692,6 @@ begin
   end;
 end;
 
-function THCRichData.MergeItemText(const ADestItem,
-  ASrcItem: THCCustomItem): Boolean;
-begin
-  Result := ADestItem.CanConcatItems(ASrcItem);
-  if Result then
-    ADestItem.Text := ADestItem.Text + ASrcItem.Text;
-end;
-
 function THCRichData.MergeTableSelectCells: Boolean;
 var
   vItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
@@ -5141,6 +5120,81 @@ begin
   Style.UpdateInfoReScroll;
 end;
 
+procedure THCRichData.ReAdaptActiveItem;
+var
+  vActiveItem: THCCustomItem;
+  vRectItem: THCCustomRectItem;
+  vItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo, vLen, vExtraCount: Integer;
+begin
+  if not CanEdit then Exit;
+
+  vActiveItem := GetCurItem;
+  if not Assigned(vActiveItem) then Exit;  // 跨页合并时，合并后并没有当前Item
+
+  if (vActiveItem.StyleNo < THCStyle.Null)  // 当前位置是 RectItem
+    and (SelectInfo.StartItemOffset = OffsetInner)  // 在其上输入内容
+  then
+  begin
+    Undo_New;
+
+    vRectItem := vActiveItem as THCCustomRectItem;
+    if vRectItem.MangerUndo then
+      UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+    else
+      UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
+    vRectItem.ReAdaptActiveItem;
+    if vRectItem.SizeChanged then
+    begin
+      GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+      FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+      vRectItem.SizeChanged := False;
+    end
+    else
+      Self.FormatInit;
+  end
+  else
+  begin
+    vExtraCount := 0;
+    GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+    FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+    Undo_New;
+
+    vItemNo := SelectInfo.StartItemNo;
+    if MergeItemToNext(vItemNo) then  // 可以合并到下一个Item
+    begin
+      UndoAction_InsertText(vItemNo, Items[vItemNo].Length - Items[vItemNo + 1].Length + 1, Items[vItemNo + 1].Text);
+      UndoAction_DeleteItem(vItemNo + 1, 0);
+      Items.Delete(vItemNo + 1);
+      Dec(vExtraCount);
+    end;
+
+    if vItemNo > 0 then  // 向前合并
+    begin
+      vLen := Items[vItemNo - 1].Length;
+      if MergeItemToPrio(vItemNo) then  // 当前Item合并到上一个Item(如果上面合并了，vItem已经失效，不能直接使用了)
+      begin
+        UndoAction_InsertText(vItemNo - 1, Items[vItemNo - 1].Length - Items[vItemNo].Length + 1, Items[vItemNo].Text);
+        UndoAction_DeleteItem(vItemNo, 0);
+        Items.Delete(vItemNo);
+        Dec(vExtraCount);
+
+        ReSetSelectAndCaret(SelectInfo.StartItemNo - 1, vLen + SelectInfo.StartItemOffset);
+      end;
+    end;
+
+    if vExtraCount <> 0 then
+    begin
+      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + vExtraCount, vExtraCount);
+      Style.UpdateInfoRePaint;
+      Style.UpdateInfoReCaret;
+    end;
+  end;
+end;
+
 function THCRichData.SelectByMouseDownShift(var AMouseDownItemNo,
   AMouseDownItemOffset: Integer): Boolean;
 var
@@ -5246,6 +5300,60 @@ begin
     else
       Result := False;
   end;
+end;
+
+procedure THCRichData.SetActiveItemText(const AText: string);
+var
+  vActiveItem: THCCustomItem;
+  vRectItem: THCCustomRectItem;
+  vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
+begin
+  if not CanEdit then Exit;
+
+  vActiveItem := GetCurItem;
+  if not Assigned(vActiveItem) then Exit;  // 跨页合并时，合并后并没有当前Item
+
+  if (vActiveItem.StyleNo < THCStyle.Null)  // 当前位置是 RectItem
+    and (SelectInfo.StartItemOffset = OffsetInner)  // 在其上输入内容
+  then
+  begin
+    Undo_New;
+
+    vRectItem := vActiveItem as THCCustomRectItem;
+    if vRectItem.MangerUndo then
+      UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+    else
+      UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
+    vRectItem.SetActiveItemText(AText);
+    if vRectItem.SizeChanged then
+    begin
+      GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+      FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+      vRectItem.SizeChanged := False;
+    end
+    else
+      Self.FormatInit;
+  end
+  else
+  begin
+    Undo_New;
+    UndoAction_SetItemText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, AText);
+    Items[SelectInfo.StartItemNo].Text := AText;
+
+    GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+    FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+    ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+    SelectInfo.StartItemOffset := Length(AText);
+    ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+  end;
+
+  Style.UpdateInfoRePaint;
+  Style.UpdateInfoReCaret;
+  //Style.UpdateInfoReScroll;
 end;
 
 procedure THCRichData.SetEmptyData;

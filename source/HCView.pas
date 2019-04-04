@@ -306,6 +306,9 @@ type
     /// <summary> 重设当前节纸张边距 </summary>
     procedure ResetActiveSectionMargin;
 
+    /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
+    procedure ReAdaptActiveItem;
+
     /// <summary> 全部清空(清除各节页眉、页脚、页面的Item及DrawItem) </summary>
     procedure Clear;
 
@@ -475,6 +478,9 @@ type
     /// <summary> 返回光标处DrawItem相对当前页显示的窗体坐标 </summary>
     /// <returns>坐标</returns>
     function GetActiveDrawItemClientCoord: TPoint;
+
+    /// <summary> 直接设置当前TextItem的Text值 </summary>
+    procedure SetActiveItemText(const AText: string);
 
     /// <summary> 格式化指定节的数据 </summary>
     procedure FormatSection(const ASectionIndex: Integer);
@@ -2899,6 +2905,11 @@ begin
     Result := TPrintResult.prNoSupport;
 end;
 
+procedure THCView.ReAdaptActiveItem;
+begin
+  ActiveSection.ReAdaptActiveItem;
+end;
+
 procedure THCView.ReBuildCaret;
 var
   vCaretInfo: THCCaretInfo;
@@ -3394,6 +3405,11 @@ begin
 
   FStyle.UpdateInfoRePaint;
   CheckUpdateInfo;
+end;
+
+procedure THCView.SetActiveItemText(const AText: string);
+begin
+  ActiveSection.SetActiveItemText(AText);
 end;
 
 procedure THCView.SetActiveSectionIndex(const Value: Integer);

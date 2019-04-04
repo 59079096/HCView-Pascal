@@ -43,6 +43,8 @@ type
     procedure UndoAction_DeleteBackText(const AItemNo, AOffset: Integer; const AText: string);
     procedure UndoAction_DeleteText(const AItemNo, AOffset: Integer; const AText: string);
     procedure UndoAction_InsertText(const AItemNo, AOffset: Integer; const AText: string);
+    /// <summary> 直接替换TextItem的Text </summary>
+    procedure UndoAction_SetItemText(const AItemNo, AOffset: Integer; const ANewText: string);
 
     /// <summary> 删除指定的Item </summary>
     /// <param name="AItemNo">操作发生时的ItemNo</param>
@@ -178,6 +180,28 @@ var
       end;
 
       Items[vAction.ItemNo].Text := vText;
+    end;
+    {$ENDREGION}
+
+    {$REGION 'UndoRedoSetItemText'}
+    procedure UndoRedoSetItemText;
+    var
+      vAction: THCSetItemTextUndoAction;
+      vOldText: string;
+    begin
+      vAction := AAction as THCSetItemTextUndoAction;
+      vCaretItemNo := vAction.ItemNo;
+
+      if AIsUndo then
+      begin
+        Items[vAction.ItemNo].Text := vAction.Text;
+        vCaretOffset := vAction.Offset;
+      end
+      else
+      begin
+        Items[vAction.ItemNo].Text := vAction.NewText;
+        vCaretOffset := Length(vAction.NewText);
+      end;
     end;
     {$ENDREGION}
 
@@ -338,6 +362,7 @@ var
       uatDeleteBackText: UndoRedoDeleteBackText;
       uatDeleteText: UndoRedoDeleteText;
       uatInsertText: UndoRedoInsertText;
+      uatSetItemText: UndoRedoSetItemText;
       uatDeleteItem: UndoRedoDeleteItem;
       uatInsertItem: UndoRedoInsertItem;
       uatItemProperty: UndoRedoItemProperty;
@@ -829,6 +854,27 @@ begin
       vItemAction.NewStyleNo := ANewStyleNo;
 
       vUndo.Actions.Add(vItemAction);
+    end;
+  end;
+end;
+
+procedure THCUndoData.UndoAction_SetItemText(const AItemNo, AOffset: Integer;
+  const ANewText: string);
+var
+  vUndo: THCUndo;
+  vUndoList: THCUndoList;
+  vTextAction: THCSetItemTextUndoAction;
+begin
+  vUndoList := GetUndoList;
+  if Assigned(vUndoList) and vUndoList.Enable then
+  begin
+    vUndo := vUndoList.Last;
+    if vUndo <> nil then
+    begin
+      vTextAction := vUndo.ActionAppend(uatSetItemText, AItemNo, AOffset,
+        Items[AItemNo].ParaFirst) as THCSetItemTextUndoAction;
+      vTextAction.Text := Items[AItemNo].Text;
+      vTextAction.NewText := ANewText;
     end;
   end;
 end;

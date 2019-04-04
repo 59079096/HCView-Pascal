@@ -216,7 +216,9 @@ type
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
     procedure ReFormatActiveItem; override;
+    procedure ReAdaptActiveItem; override;
     function DeleteActiveDomain: Boolean; override;
+    procedure SetActiveItemText(const AText: string); override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function IsSelectComplateTheory: Boolean; override;
@@ -564,8 +566,6 @@ var
   vResult: Boolean;
 begin
   inherited DeleteActiveDomain;
-
-  Self.SizeChanged := False;
 
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
@@ -1298,7 +1298,12 @@ begin
     vRedoCellUndoData := ARedo.Data as THCCellUndoData;
     FSelectCellRang.StartRow := vRedoCellUndoData.Row;
     FSelectCellRang.StartCol := vRedoCellUndoData.Col;
-    Cells[vRedoCellUndoData.Row, vRedoCellUndoData.Col].CellData.Redo(ARedo);
+
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      begin
+        Self.Cells[vRedoCellUndoData.Row, vRedoCellUndoData.Col].CellData.Redo(ARedo);
+      end);
   end
   else
   if ARedo.Data is THCColSizeUndoData then
@@ -1310,12 +1315,14 @@ begin
         FColWidths[vColSizeUndoData.Col] - vColSizeUndoData.NewWidth;
     end;
     FColWidths[vColSizeUndoData.Col] := vColSizeUndoData.NewWidth;
+    FLastChangeFormated := False;
   end
   else
   if ARedo.Data is THCRowSizeUndoData then
   begin
     vRowSizeUndoData := ARedo.Data as THCRowSizeUndoData;
     FRows[vRowSizeUndoData.Row].Height := vRowSizeUndoData.NewHeight;
+    FLastChangeFormated := False;
   end
   else
   if ARedo.Data is THCMirrorUndoData then
@@ -1331,6 +1338,7 @@ begin
 
       vMirrorUndoData.Stream.Clear;
       vMirrorUndoData.Stream.CopyFrom(vStream, 0);  // 保存恢复前状态
+      FLastChangeFormated := False;
     finally
       vStream.Free;
     end;
@@ -1370,7 +1378,11 @@ begin
     FSelectCellRang.StartRow := vCellUndoData.Row;
     FSelectCellRang.StartCol := vCellUndoData.Col;
 
-    Cells[vCellUndoData.Row, vCellUndoData.Col].CellData.Undo(AUndo);
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      begin
+        Self.Cells[vCellUndoData.Row, vCellUndoData.Col].CellData.Undo(AUndo);
+      end);
   end
   else
   if AUndo.Data is THCColSizeUndoData then
@@ -1382,12 +1394,14 @@ begin
         FColWidths[vColSizeUndoData.Col] - vColSizeUndoData.OldWidth;
     end;
     FColWidths[vColSizeUndoData.Col] := vColSizeUndoData.OldWidth;
+    FLastChangeFormated := False;
   end
   else
   if AUndo.Data is THCRowSizeUndoData then
   begin
     vRowSizeUndoData := AUndo.Data as THCRowSizeUndoData;
     FRows[vRowSizeUndoData.Row].Height := vRowSizeUndoData.OldHeight;
+    FLastChangeFormated := False;
   end
   else
   if AUndo.Data is THCMirrorUndoData then
@@ -1404,6 +1418,7 @@ begin
 
       vMirrorUndoData.Stream.Clear;
       vMirrorUndoData.Stream.CopyFrom(vStream, 0);  // 保存撤销前状态
+      FLastChangeFormated := False;
     finally
       vStream.Free;
     end;
@@ -1575,8 +1590,6 @@ var
   vOldKey: Char;
   vEditCell: THCTableCell;
 begin
-  Self.SizeChanged := False;
-
   vEditCell := GetEditCell;
   if vEditCell <> nil then
   begin
@@ -2198,10 +2211,23 @@ begin
     FRows[i].ParseXml(ANode.ChildNodes[i]);
 end;
 
+procedure THCTableItem.ReAdaptActiveItem;
+begin
+  if FSelectCellRang.EditCell then  // 在同一单元格中编辑
+  begin
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      var
+        vEditCell: THCTableCell;
+      begin
+        vEditCell := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol];
+        vEditCell.CellData.ReAdaptActiveItem;
+      end);
+  end;
+end;
+
 procedure THCTableItem.ReFormatActiveItem;
 begin
-  Self.SizeChanged := False;
-
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
@@ -3126,6 +3152,7 @@ end;
 
 procedure THCTableItem.CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure);
 begin
+  Self.SizeChanged := False;
   AProcedure();
   if not Self.SizeChanged then
     Self.SizeChanged := Cells[ARow, ACol].CellData.FormatHeightChange;
@@ -3764,6 +3791,23 @@ begin
       Self.InitializeMouseInfo;
 
     inherited SetActive(Value);
+  end;
+end;
+
+procedure THCTableItem.SetActiveItemText(const AText: string);
+begin
+  inherited SetActiveItemText(AText);
+
+  if FSelectCellRang.EditCell then  // 在同一单元格中编辑
+  begin
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      var
+        vEditCell: THCTableCell;
+      begin
+        vEditCell := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol];
+        vEditCell.CellData.SetActiveItemText(AText);
+      end);
   end;
 end;
 

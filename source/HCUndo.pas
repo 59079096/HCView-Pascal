@@ -74,6 +74,7 @@ type
     uatDeleteBackText,  // 向前删除文本
     uatDeleteText,  // 向后删除文本
     uatInsertText,  // 插入文本
+    uatSetItemText,    // 直接赋值Item的Text
     uatDeleteItem,  // 删除Item
     uatInsertItem,  // 插入Item
     uatItemProperty,  // Item属性变化
@@ -101,6 +102,13 @@ type
     FText: string;
   public
     property Text: string read FText write FText;
+  end;
+
+  THCSetItemTextUndoAction = class(THCTextUndoAction)
+  private
+    FNewText: string;
+  public
+    property NewText: string read FNewText write FNewText;
   end;
 
   /// <summary> Item通用属性 </summary>
@@ -596,6 +604,9 @@ begin
   case ATag of
     uatDeleteBackText, uatDeleteText, uatInsertText:
       Result := THCTextUndoAction.Create;
+
+    uatSetItemText:
+      Result := THCSetItemTextUndoAction.Create;
 
     uatDeleteItem, uatInsertItem, uatItemMirror:
       Result := THCItemUndoAction.Create;

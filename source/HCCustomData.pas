@@ -350,6 +350,7 @@ type
     /// <summary> 保存选中内容到流 </summary>
     procedure SaveSelectToStream(const AStream: TStream); virtual;
     function SaveSelectToText: string;
+    function GetSelectText: string;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; virtual;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -1598,6 +1599,11 @@ begin
     then  // 有选中时，SelectInfo.StartItemOffset在本行最后时，要转为下一行行首
       Inc(Result);
   end;
+end;
+
+function THCCustomData.GetSelectText: string;
+begin
+  Result := SaveSelectToText;
 end;
 
 function THCCustomData.GetUndoList: THCUndoList;

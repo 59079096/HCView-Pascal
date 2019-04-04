@@ -44,10 +44,11 @@ const
    2.1 GifImage保存读取改用兼容其他语言的方式
    2.2 增加段缩进的存储
    2.3 增加批注的保存和读取
+   2.4 兼容EmrView保存保护元素属性
   }
 
-  HC_FileVersion = '2.3';
-  HC_FileVersionInt = 23;
+  HC_FileVersion = '2.4';
+  HC_FileVersionInt = 24;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   LineSpaceMin = 8;  // 行间距最小值

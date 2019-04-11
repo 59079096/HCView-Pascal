@@ -52,18 +52,6 @@ type
     procedure FormatItemToDrawItems(const AItemNo, AOffset, AFmtLeft, AFmtRight,
       AContentWidth: Integer; var APos: TPoint; var ALastDrawItemNo: Integer);
   protected
-    /// <summary> 合并2个文本Item </summary>
-    /// <param name="ADestItem">合并后的Item</param>
-    /// <param name="ASrcItem">源Item</param>
-    /// <returns>True:合并成功，False不能合并</returns>
-    function MergeItemText(const ADestItem, ASrcItem: THCCustomItem): Boolean;
-
-    /// <summary> Item成功合并到同段前一个Item </summary>
-    function MergeItemToPrio(const AItemNo: Integer): Boolean;
-
-    /// <summary> Item成功合并到同段后一个Item </summary>
-    function MergeItemToNext(const AItemNo: Integer): Boolean;
-
     /// <summary> 初始化格式化的相关参数适用于 201903141706 </summary>
     procedure FormatInit;
 
@@ -1037,26 +1025,6 @@ begin
 //    AFirstItemNo := GetLineFirstItemNo(AItemNo, 0);  // 取行第一个DrawItem对应的ItemNo
 //
 //  ALastItemNo := GetParaLastItemNo(AItemNo);
-end;
-
-function THCFormatData.MergeItemText(const ADestItem,
-  ASrcItem: THCCustomItem): Boolean;
-begin
-  Result := ADestItem.CanConcatItems(ASrcItem);
-  if Result then
-    ADestItem.Text := ADestItem.Text + ASrcItem.Text;
-end;
-
-function THCFormatData.MergeItemToNext(const AItemNo: Integer): Boolean;
-begin
-  Result := (AItemNo < Items.Count - 1) and (not Items[AItemNo + 1].ParaFirst)
-    and MergeItemText(Items[AItemNo], Items[AItemNo + 1]);
-end;
-
-function THCFormatData.MergeItemToPrio(const AItemNo: Integer): Boolean;
-begin
-  Result := (AItemNo > 0) and (not Items[AItemNo].ParaFirst)
-    and MergeItemText(Items[AItemNo - 1], Items[AItemNo]);
 end;
 
 procedure THCFormatData.ReFormat;

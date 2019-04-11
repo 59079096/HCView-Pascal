@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  Printers, Clipbrd, HCRuler, System.Actions, System.ImageList;
+  Printers, Clipbrd, HCRuler;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -681,9 +681,9 @@ procedure TfrmHCViewDemo.mniDisBorderClick(Sender: TObject);
 var
   vTable: THCTableItem;
 begin
-  if FHCView.ActiveSection.ActiveData.GetCurItem is THCTableItem then
+  if FHCView.ActiveSection.ActiveData.GetActiveItem is THCTableItem then
   begin
-    vTable := FHCView.ActiveSection.ActiveData.GetCurItem as THCTableItem;
+    vTable := FHCView.ActiveSection.ActiveData.GetActiveItem as THCTableItem;
     vTable.BorderVisible := not vTable.BorderVisible;
     FHCView.UpdateView;
   end;
@@ -759,7 +759,7 @@ end;
 
 procedure TfrmHCViewDemo.mniHyperLinkClick(Sender: TObject);
 var
-  vTopData: THCRichData;
+  vTopData: THCCustomData;
   vTextItem: THCTextItem;
 begin
   vTopData := FHCView.ActiveSectionTopLevelData;
@@ -1044,7 +1044,7 @@ begin
     begin
       if vOpenDlg.FileName <> '' then
       begin
-        vTopData := FHCView.ActiveSectionTopLevelData;
+        vTopData := FHCView.ActiveSectionTopLevelData as THCRichData;
         vImageItem := THCImageItem.Create(vTopData);
         vImageItem.LoadFromBmpFile(vOpenDlg.FileName);
         vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
@@ -1202,7 +1202,7 @@ begin
   end;
 
   vActiveData := FHCView.ActiveSection.ActiveData;
-  vActiveItem := vActiveData.GetCurItem;
+  vActiveItem := vActiveData.GetActiveItem;
 
   //if vActiveItem = nil then Exit;
 
@@ -1211,7 +1211,7 @@ begin
 
   while vTopItem is THCCustomRectItem do
   begin
-    if (vTopItem as THCCustomRectItem).GetActiveData <> nil then
+    if (vTopItem as THCCustomRectItem).GetTopLevelData <> nil then
     begin
       if vTopData <> nil then
       begin
@@ -1219,8 +1219,8 @@ begin
         vActiveItem := vTopItem;
       end;
 
-      vTopData := (vTopItem as THCCustomRectItem).GetActiveData;
-      vTopItem := vTopData.GetCurItem;
+      vTopData := (vTopItem as THCCustomRectItem).GetTopLevelData;
+      vTopItem := vTopData.GetActiveItem;
     end
     else
       Break;

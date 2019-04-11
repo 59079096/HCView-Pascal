@@ -65,6 +65,20 @@ type
     procedure SetCurParaNo(const Value: Integer);
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
+    /// <summary> 合并2个文本Item </summary>
+    /// <param name="ADestItem">合并后的Item</param>
+    /// <param name="ASrcItem">源Item</param>
+    /// <returns>True:合并成功，False不能合并</returns>
+    function MergeItemText(const ADestItem, ASrcItem: THCCustomItem): Boolean;
+
+    /// <summary> Item成功合并到同段前一个Item </summary>
+    function MergeItemToPrio(const AItemNo: Integer): Boolean;
+
+    /// <summary> Item成功合并到同段后一个Item </summary>
+    function MergeItemToNext(const AItemNo: Integer): Boolean;
+
+    function CalcContentHeight: Integer;
+
     /// <summary> 处理选中范围内Item的全选中、部分选中状态 </summary>
     procedure MatchItemSelectState;
 
@@ -121,14 +135,12 @@ type
     constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
 
-    /// <summary>
-    /// 当前Data是不是无内容(仅有一个Item且内容为空)
-    /// </summary>
-    /// <returns></returns>
-    function IsEmptyData: Boolean;
+    /// <summary> 全选 </summary>
+    procedure SelectAll; virtual;
 
+    /// <summary> 当前内容是否全选中了 </summary>
+    function SelectedAll: Boolean; virtual;
     procedure Clear; virtual;
-
     procedure InitializeField; virtual;
 
     /// <summary> 嵌套时获取根级Data </summary>
@@ -139,6 +151,26 @@ type
     function CreateDefaultTextItem: THCCustomItem; virtual;
     function CreateDefaultDomainItem: THCCustomItem; virtual;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); virtual;
+
+    /// <summary>
+    /// 返回指定坐标下的Item和Offset
+    /// </summary>
+    /// <param name="X">水平坐标值X</param>
+    /// <param name="Y">垂直坐标值Y</param>
+    /// <param name="AItemNo">坐标处的Item</param>
+    /// <param name="AOffset">坐标在Item中的位置</param>
+    /// <param name="ARestrain">True并不是在AItemNo范围内(在行最右侧或最后一行底部，通过约束坐标找到的)</param>
+    procedure GetItemAt(const X, Y: Integer; var AItemNo, AOffset, ADrawItemNo: Integer;
+      var ARestrain: Boolean); virtual;
+
+    /// <summary> 坐标是否在AItem的选中区域中 </summary>
+    /// <param name="X"></param>
+    /// <param name="Y"></param>
+    /// <param name="AItemNo">X、Y处的Item</param>
+    /// <param name="AOffset">X、Y处的Item偏移(供在RectItem上时计算)</param>
+    /// <param name="ARestrain">AItemNo, AOffset是X、Y位置约束后的(此参数为方便单元格Data处理)</param>
+    function CoordInSelect(const X, Y, AItemNo, AOffset: Integer;
+      const ARestrain: Boolean): Boolean; virtual;
 
     /// <summary> 获取DItem中指定偏移处的内容绘制宽度 </summary>
     /// <param name="ADrawItemNo"></param>
@@ -162,17 +194,6 @@ type
     procedure GetDataDrawItemRang(const ATop, ABottom: Integer;
       var AFirstDItemNo, ALastDItemNo: Integer);
 
-    /// <summary>
-    /// 返回指定坐标下的Item和Offset
-    /// </summary>
-    /// <param name="X">水平坐标值X</param>
-    /// <param name="Y">垂直坐标值Y</param>
-    /// <param name="AItemNo">坐标处的Item</param>
-    /// <param name="AOffset">坐标在Item中的位置</param>
-    /// <param name="ARestrain">True并不是在AItemNo范围内(在行最右侧或最后一行底部，通过约束坐标找到的)</param>
-    procedure GetItemAt(const X, Y: Integer; var AItemNo, AOffset, ADrawItemNo: Integer;
-      var ARestrain: Boolean); virtual;
-
     {procedure GetParaDrawItemRang(const AItemNo: Integer;
       var AFirstDItemNo, ALastDItemNo: Integer);}
 
@@ -191,15 +212,6 @@ type
     /// <param name="AOffset"></param>
     /// <returns></returns>
     function OffsetInSelect(const AItemNo, AOffset: Integer): Boolean;
-
-    /// <summary> 坐标是否在AItem的选中区域中 </summary>
-    /// <param name="X"></param>
-    /// <param name="Y"></param>
-    /// <param name="AItemNo">X、Y处的Item</param>
-    /// <param name="AOffset">X、Y处的Item偏移(供在RectItem上时计算)</param>
-    /// <param name="ARestrain">AItemNo, AOffset是X、Y位置约束后的(此参数为方便单元格Data处理)</param>
-    function CoordInSelect(const X, Y, AItemNo, AOffset: Integer;
-      const ARestrain: Boolean): Boolean; virtual;
     /// <summary>
     /// 获取Data中的坐标X、Y处的Item和Offset，并返回X、Y相对DrawItem的坐标
     /// </summary>
@@ -220,10 +232,18 @@ type
     function IsParaLastDrawItem(const ADrawItemNo: Integer): Boolean;
     function IsParaLastItem(const AItemNo: Integer): Boolean;
 
-    function GetCurDrawItemNo: Integer;
-    function GetCurDrawItem: THCCustomDrawItem;
-    function GetCurItemNo: Integer;
-    function GetCurItem: THCCustomItem;
+    /// <summary> 返回当前光标处的顶层Data </summary>
+    function GetTopLevelData: THCCustomData;
+
+    /// <summary> 返回指定位置处的顶层Data </summary>
+    function GetTopLevelDataAt(const X, Y: Integer): THCCustomData;
+    function GetActiveDrawItemNo: Integer;
+    function GetActiveDrawItem: THCCustomDrawItem;
+    function GetActiveItemNo: Integer;
+    function GetActiveItem: THCCustomItem;
+    function GetTopLevelItem: THCCustomItem;
+    function GetTopLevelDrawItem: THCCustomDrawItem;
+    function GetActiveDrawItemCoord: TPoint;
 
     /// <summary> 返回Item的文本样式 </summary>
     function GetItemStyle(const AItemNo: Integer): Integer;
@@ -268,11 +288,9 @@ type
     /// <returns></returns>
     function SelectedResizing: Boolean;
 
-    /// <summary> 全选 </summary>
-    procedure SelectAll; virtual;
-
-    /// <summary> 当前内容是否全选中了 </summary>
-    function SelectedAll: Boolean; virtual;
+    /// <summary> 当前Data是不是无内容(仅有一个Item且内容为空) </summary>
+    /// <returns></returns>
+    function IsEmptyData: Boolean;
 
     /// <summary> 为段应用对齐方式 </summary>
     /// <param name="AAlign">对方方式</param>
@@ -661,73 +679,6 @@ end;
 function THCCustomData.CreateItemByStyle(const AStyleNo: Integer): THCCustomItem;
 begin
   Result := nil;
-end;
-
-function THCCustomData.GetCurDrawItem: THCCustomDrawItem;
-var
-  vCurDItemNo: Integer;
-begin
-  vCurDItemNo := GetCurDrawItemNo;
-  if vCurDItemNo < 0 then
-    Result := nil
-  else
-    Result := FDrawItems[vCurDItemNo];
-end;
-
-function THCCustomData.GetCurDrawItemNo: Integer;
-var
-  i, vItemNo: Integer;
-  vDrawItem: THCCustomDrawItem;
-begin
-  Result := -1;
-  if SelectInfo.StartItemNo < 0 then  // 没有选择
-
-  else
-  begin
-    if SelectExists then  // 有选中时，当前以选中结束位置的Item为当前Item
-    begin
-      if FSelectInfo.EndItemNo >= 0 then
-        vItemNo := FSelectInfo.EndItemNo
-      else
-        vItemNo := FSelectInfo.StartItemNo;
-    end
-    else
-      vItemNo := FSelectInfo.StartItemNo;
-
-    if FItems[vItemNo].StyleNo < THCStyle.Null then  // RectItem
-      Result := FItems[vItemNo].FirstDItemNo
-    else  // 文本
-    begin
-      for i := FItems[vItemNo].FirstDItemNo to FDrawItems.Count - 1 do
-      begin
-        vDrawItem := FDrawItems[i];
-        if SelectInfo.StartItemOffset - vDrawItem.CharOffs + 1 <= vDrawItem.CharLen then
-        begin
-          Result := i;
-          Break;
-        end;
-      end;
-    end;
-  end;
-end;
-
-function THCCustomData.GetCurItem: THCCustomItem;
-var
-  vItemNo: Integer;
-begin
-  vItemNo := GetCurItemNo;
-  if vItemNo < 0 then
-    Result := nil
-  else
-    Result := FItems[vItemNo];
-end;
-
-function THCCustomData.GetCurItemNo: Integer;
-begin
-  {if IsEmptyData then
-    Result := 0
-  else}
-    Result := FSelectInfo.StartItemNo;
 end;
 
 function THCCustomData.DeleteSelected: Boolean;
@@ -1606,6 +1557,60 @@ begin
   Result := SaveSelectToText;
 end;
 
+function THCCustomData.GetTopLevelData: THCCustomData;
+begin
+  Result := nil;
+  if (FSelectInfo.StartItemNo >= 0) and (FSelectInfo.EndItemNo < 0) then
+  begin
+    if (FItems[FSelectInfo.StartItemNo].StyleNo < THCStyle.Null)
+      and (FSelectInfo.StartItemOffset = OffsetInner)
+    then
+      Result := (FItems[FSelectInfo.StartItemNo] as THCCustomRectItem).GetTopLevelData;
+  end;
+
+  if Result = nil then
+    Result := Self;
+end;
+
+function THCCustomData.GetTopLevelDataAt(const X, Y: Integer): THCCustomData;
+var
+  vItemNo, vOffset, vDrawItemNo, vX, vY: Integer;
+  vRestrain: Boolean;
+begin
+  Result := nil;
+  GetItemAt(X, Y, vItemNo, vOffset, vDrawItemNo, vRestrain);
+  if (not vRestrain) and (vItemNo >= 0) then
+  begin
+    if FItems[vItemNo].StyleNo < THCStyle.Null then
+    begin
+      CoordToItemOffset(X, Y, vItemNo, vOffset, vX, vY);
+      Result := (FItems[vItemNo] as THCCustomRectItem).GetTopLevelDataAt(vX, vY);
+    end;
+  end;
+  if Result = nil then
+    Result := Self;
+end;
+
+function THCCustomData.GetTopLevelDrawItem: THCCustomDrawItem;
+var
+  vItem: THCCustomItem;
+begin
+  Result := nil;
+  vItem := GetActiveItem;
+  if vItem.StyleNo < THCStyle.Null then
+    Result := (vItem as THCCustomRectItem).GetActiveDrawItem;
+
+  if Result = nil then
+    Result := GetActiveDrawItem;
+end;
+
+function THCCustomData.GetTopLevelItem: THCCustomItem;
+begin
+  Result := GetActiveItem;
+  if (Result <> nil) and (Result.StyleNo < THCStyle.Null) then
+    Result := (Result as THCCustomRectItem).GetTopLevelItem;
+end;
+
 function THCCustomData.GetUndoList: THCUndoList;
 begin
   if Assigned(FOnGetUndoList) then
@@ -1743,6 +1748,26 @@ begin
     for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do  // 起始结束之间的按全选中处理
       CheckItemSelectedState(i);
   end;
+end;
+
+function THCCustomData.MergeItemText(const ADestItem,
+  ASrcItem: THCCustomItem): Boolean;
+begin
+  Result := ADestItem.CanConcatItems(ASrcItem);
+  if Result then
+    ADestItem.Text := ADestItem.Text + ASrcItem.Text;
+end;
+
+function THCCustomData.MergeItemToNext(const AItemNo: Integer): Boolean;
+begin
+  Result := (AItemNo < Items.Count - 1) and (not Items[AItemNo + 1].ParaFirst)
+    and MergeItemText(Items[AItemNo], Items[AItemNo + 1]);
+end;
+
+function THCCustomData.MergeItemToPrio(const AItemNo: Integer): Boolean;
+begin
+  Result := (AItemNo > 0) and (not Items[AItemNo].ParaFirst)
+    and MergeItemText(Items[AItemNo - 1], Items[AItemNo]);
 end;
 
 function THCCustomData.OffsetInSelect(const AItemNo, AOffset: Integer): Boolean;
@@ -2140,6 +2165,14 @@ begin
     FItems.Delete(0);
 end;
 
+function THCCustomData.CalcContentHeight: Integer;
+begin
+  if FDrawItems.Count > 0 then
+    Result := FDrawItems[DrawItems.Count - 1].Rect.Bottom - FDrawItems[0].Rect.Top
+  else
+    Result := 0;
+end;
+
 function THCCustomData.CalculateLineHeight(const ACanvas: TCanvas;
   const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
 var
@@ -2514,6 +2547,92 @@ begin
     vNode := ANode.AddChild('item');
     FItems[i].ToXml(vNode);
   end;
+end;
+
+function THCCustomData.GetActiveDrawItem: THCCustomDrawItem;
+var
+  vDrawItemNo: Integer;
+begin
+  vDrawItemNo := GetActiveDrawItemNo;
+  if vDrawItemNo < 0 then
+    Result := nil
+  else
+    Result := FDrawItems[vDrawItemNo];
+end;
+
+function THCCustomData.GetActiveDrawItemCoord: TPoint;
+var
+  vItem: THCCustomItem;
+  vDrawItem: THCCustomDrawItem;
+  vPt: TPoint;
+begin
+  Result := Point(0, 0);
+  vPt := Point(0, 0);
+  vDrawItem := GetActiveDrawItem;
+  if Assigned(vDrawItem) then
+  begin
+    Result := vDrawItem.Rect.TopLeft;
+
+    vItem := GetActiveItem;
+    if vItem.StyleNo < THCStyle.Null then
+      vPt := (vItem as THCCustomRectItem).GetActiveDrawItemCoord;
+
+    Result.X := Result.X + vPt.X;
+    Result.Y := Result.Y + vPt.Y;
+  end;
+end;
+
+function THCCustomData.GetActiveDrawItemNo: Integer;
+var
+  i, vItemNo: Integer;
+  vDrawItem: THCCustomDrawItem;
+begin
+  Result := -1;
+  if FSelectInfo.StartItemNo < 0 then  // 没有选择
+
+  else
+  begin
+    if SelectExists then  // 有选中时，当前以选中结束位置的Item为当前Item
+    begin
+      if FSelectInfo.EndItemNo >= 0 then
+        vItemNo := FSelectInfo.EndItemNo
+      else
+        vItemNo := FSelectInfo.StartItemNo;
+    end
+    else
+      vItemNo := FSelectInfo.StartItemNo;
+
+    if FItems[vItemNo].StyleNo < THCStyle.Null then  // RectItem
+      Result := FItems[vItemNo].FirstDItemNo
+    else  // 文本
+    begin
+      for i := FItems[vItemNo].FirstDItemNo to FDrawItems.Count - 1 do
+      begin
+        vDrawItem := FDrawItems[i];
+        if FSelectInfo.StartItemOffset - vDrawItem.CharOffs + 1 <= vDrawItem.CharLen then
+        begin
+          Result := i;
+          Break;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function THCCustomData.GetActiveItem: THCCustomItem;
+var
+  vItemNo: Integer;
+begin
+  vItemNo := GetActiveItemNo;
+  if vItemNo < 0 then
+    Result := nil
+  else
+    Result := FItems[vItemNo];
+end;
+
+function THCCustomData.GetActiveItemNo: Integer;
+begin
+  Result := FSelectInfo.StartItemNo;
 end;
 
 procedure THCCustomData.GetCaretInfo(const AItemNo, AOffset: Integer;

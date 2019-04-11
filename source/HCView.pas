@@ -137,8 +137,6 @@ type
     procedure SetSymmetryMargin(const Value: Boolean);
     procedure DoVerScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
     procedure DoHorScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
-    function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
-    function DoSectionCanEdit(const Sender: TObject): Boolean;
     procedure DoCaretChange;
     procedure DoSectionDataChange(Sender: TObject);
     procedure DoSectionChangeTopLevelData(Sender: TObject);
@@ -157,11 +155,8 @@ type
     procedure DoViewResize;
     /// <summary> 文档"背板"变动(数据无变化，如对称边距，缩放视图) </summary>
     procedure DoMapChanged;
-    procedure DoSectionCreateItem(Sender: TObject);
     procedure DoSectionReadOnlySwitch(Sender: TObject);
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
-    procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData;
-      const AItem: THCCustomItem);
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData;
       const AItem: THCCustomItem);
     procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
@@ -240,6 +235,10 @@ type
     procedure Resize; override;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
     procedure DoChange; virtual;
+    procedure DoSectionCreateItem(Sender: TObject); virtual;
+    function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
+    procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
+    function DoSectionCanEdit(const Sender: TObject): Boolean; virtual;
     procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -320,6 +319,9 @@ type
 
     /// <summary> 删除当前域 </summary>
     function DeleteActiveDomain: Boolean;
+
+    /// <summary> 删除当前Data指定范围内的Item </summary>
+    procedure DeleteActiveDataItems(const AStartNo: Integer; const AEndNo: Integer = -1);
 
     /// <summary> 删除当前节 </summary>
     procedure DeleteActiveSection;
@@ -455,7 +457,7 @@ type
     procedure EndUpdate;
     //
     /// <summary> 返回当前节当前Item </summary>
-    function GetCurItem: THCCustomItem;
+    function GetActiveItem: THCCustomItem;
 
     /// <summary> 返回当前节顶层Item </summary>
     function GetTopLevelItem: THCCustomItem;
@@ -489,7 +491,7 @@ type
     function ActiveSection: THCSection;
 
     /// <summary> 获取当前节顶层Data </summary>
-    function ActiveSectionTopLevelData: THCRichData;
+    function ActiveSectionTopLevelData: THCCustomData;
 
     /// <summary> 指定节在整个胶卷中的Top位置 </summary>
     function GetSectionTopFilm(const ASectionIndex: Integer): Integer;
@@ -1020,6 +1022,14 @@ end;
 function THCView.ActiveSection: THCSection;
 begin
   Result := FSections[FActiveSectionIndex];
+end;
+
+procedure THCView.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+begin
+  if AEndNo < AStartNo then
+    ActiveSection.DeleteActiveDataItems(AStartNo, AStartNo)
+  else
+    ActiveSection.DeleteActiveDataItems(AStartNo, AEndNo);
 end;
 
 function THCView.DeleteActiveDomain: Boolean;
@@ -1581,6 +1591,11 @@ begin
       - Self.VScrollValue;
 end;
 
+function THCView.GetActiveItem: THCCustomItem;
+begin
+  Result := ActiveSection.GetActiveItem;
+end;
+
 function THCView.GetActivePageIndex: Integer;
 var
   i: Integer;
@@ -1590,11 +1605,6 @@ begin
     Result := Result + FSections[i].PageCount;
 
   Result := Result + ActiveSection.ActivePageIndex;
-end;
-
-function THCView.GetCurItem: THCCustomItem;
-begin
-  Result := ActiveSection.GetCurItem;
 end;
 
 function THCView.GetCurParaNo: Integer;
@@ -1836,7 +1846,7 @@ begin
   Result := ActiveSection.ActiveTableSplitCurRow;
 end;
 
-function THCView.ActiveSectionTopLevelData: THCRichData;
+function THCView.ActiveSectionTopLevelData: THCCustomData;
 begin
   Result := ActiveSection.ActiveData.GetTopLevelData;
 end;
@@ -2373,7 +2383,7 @@ procedure THCView.Paste;
     vTopData: THCRichData;
     vBitmap: TBitmap;
   begin
-    vTopData := Self.ActiveSectionTopLevelData;
+    vTopData := Self.ActiveSectionTopLevelData as THCRichData;
     vImageItem := THCImageItem.Create(vTopData);
 
     vBitmap := TBitmap.Create;
@@ -3337,7 +3347,7 @@ end;
 function THCView.Search(const AKeyword: string; const AForward: Boolean = False;
   const AMatchCase: Boolean = False): Boolean;
 var
-  vTopData: THCRichData;
+  vTopData: THCCustomData;
   vStartDrawItemNo, vEndDrawItemNo: Integer;
   vPt: TPoint;
   vStartDrawRect, vEndDrawRect: TRect;
@@ -3926,7 +3936,9 @@ var
   PS: TPaintStruct;}
 begin
   case Message.Msg of
-    WM_LBUTTONDOWN, WM_LBUTTONDBLCLK:
+    WM_LBUTTONDOWN, WM_LBUTTONDBLCLK,
+    WM_RBUTTONDOWN, WM_RBUTTONDBLCLK,
+    WM_MBUTTONDOWN, WM_MBUTTONDBLCLK:
       begin
         if not (csDesigning in ComponentState) and not Focused then
         begin

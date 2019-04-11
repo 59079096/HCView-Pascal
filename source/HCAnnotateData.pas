@@ -602,7 +602,7 @@ end;
 
 function THCAnnotateData.InsertAnnotate(const ATitle, AText: string): Boolean;
 var
-  vTopData: THCRichData;
+  vTopData: THCCustomData;
 begin
   Result := False;
   if not CanEdit then Exit;

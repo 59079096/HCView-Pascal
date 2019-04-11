@@ -689,7 +689,7 @@ end;
 procedure THCViewData.GetCaretInfo(const AItemNo, AOffset: Integer;
   var ACaretInfo: THCCaretInfo);
 var
-  vTopData: THCRichData;
+  vTopData: THCCustomData;
 begin
   inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
 

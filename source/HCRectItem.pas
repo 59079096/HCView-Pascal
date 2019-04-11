@@ -73,11 +73,13 @@ type
     procedure ReAdaptActiveItem; virtual;
     function DeleteSelected: Boolean; virtual;
     function DeleteActiveDomain: Boolean; virtual;
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer); virtual;
     procedure SetActiveItemText(const AText: string); virtual;
     procedure MarkStyleUsed(const AMark: Boolean); virtual;
     procedure SaveSelectToStream(const AStream: TStream); virtual;
     function SaveSelectToText: string; virtual;
     function GetActiveItem: THCCustomItem; virtual;
+    function GetTopLevelItem: THCCustomItem; virtual;
     function GetActiveDrawItem: THCCustomDrawItem; virtual;
     function GetActiveDrawItemCoord: TPoint; virtual;
     /// <summary> 获取指定X位置对应的Offset </summary>
@@ -133,11 +135,12 @@ type
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; virtual;
 
-    /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomRichData类型) </summary>
+    /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomData类型) </summary>
     function GetActiveData: THCCustomData; virtual;
 
-    /// <summary> 返回指定位置处的顶层Data(为松耦合请返回TCustomRichData类型) </summary>
+    /// <summary> 返回指定位置处的顶层Data(为松耦合请返回TCustomData类型) </summary>
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
+    function GetTopLevelData: THCCustomData; virtual;
     procedure TraverseItem(const ATraverse: TItemTraverse); virtual;
     procedure SaveToBitmap(var ABitmap: TBitmap); virtual;
     //
@@ -383,6 +386,10 @@ begin
   Height := AHeight;
 end;
 
+procedure THCCustomRectItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+begin
+end;
+
 function THCCustomRectItem.DeleteActiveDomain: Boolean;
 begin
   Result := False;
@@ -475,9 +482,19 @@ begin
     Result := OffsetInner;
 end;
 
+function THCCustomRectItem.GetTopLevelData: THCCustomData;
+begin
+  Result := nil;
+end;
+
 function THCCustomRectItem.GetTopLevelDataAt(const X, Y: Integer): THCCustomData;
 begin
   Result := nil;
+end;
+
+function THCCustomRectItem.GetTopLevelItem: THCCustomItem;
+begin
+  Result := Self;
 end;
 
 function THCCustomRectItem.GetSelfUndoList: THCUndoList;

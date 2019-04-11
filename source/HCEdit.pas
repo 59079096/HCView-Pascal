@@ -15,7 +15,8 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCViewData,
-  HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCUndo, HCRichData;
+  HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCUndo,
+  HCCustomData, HCRichData;
 
 const
   HC_EDIT_EXT = '.hef';
@@ -120,7 +121,7 @@ type
     /// <summary> 插入指定行列的表格 </summary>
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
     /// <summary> 获取顶层Data </summary>
-    function TopLevelData: THCRichData;
+    function TopLevelData: THCCustomData;
 
     /// <summary> 全选 </summary>
     procedure SelectAll;
@@ -530,7 +531,7 @@ begin
     var
       vTopData: THCRichData;
     begin
-      vTopData := FData.GetTopLevelData;
+      vTopData := FData.GetTopLevelData as THCRichData;
       vTopData.InsertTable(ARowCount, AColCount);
     end);
 end;
@@ -910,7 +911,7 @@ begin
   FHScrollBar.PageSize := FHScrollBar.Width;
 end;
 
-function THCEdit.TopLevelData: THCRichData;
+function THCEdit.TopLevelData: THCCustomData;
 begin
   Result := FData.GetTopLevelData;
 end;

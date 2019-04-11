@@ -90,7 +90,7 @@ var
   vR, vC: Integer;
   vCell: THCTableCell;
 begin
-  vTableItem := AHCView.ActiveSection.ActiveData.GetCurItem as THCTableItem;
+  vTableItem := AHCView.ActiveSection.ActiveData.GetActiveItem as THCTableItem;
 
   if vTableItem.SelectCellRang.StartRow >= 0 then
     vCell := vTableItem.Cells[vTableItem.SelectCellRang.StartRow, vTableItem.SelectCellRang.StartCol]

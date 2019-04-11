@@ -133,7 +133,7 @@ var
   vDateTimePicker: THCDateTimePicker;
   vRadioGroup: THCRadioGroup;
 begin
-  vControlItem := AHCView.ActiveSectionTopLevelData.GetCurItem as THCControlItem;
+  vControlItem := AHCView.ActiveSectionTopLevelData.GetActiveItem as THCControlItem;
 
   chkAutoSize.Checked := vControlItem.AutoSize;
   edtWidth.Text := IntToStr(vControlItem.Width);

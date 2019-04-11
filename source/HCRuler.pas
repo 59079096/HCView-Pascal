@@ -449,7 +449,7 @@ begin
   FCellLeft := 0;
   FCellRight := 0;
   vData := View.ActiveSection.ActiveData;
-  vItem := vData.GetCurItem;
+  vItem := vData.GetActiveItem;
   while (vItem <> nil) and (vItem.StyleNo = THCStyle.Table) do
   begin
     vTable := vItem as THCTableItem;
@@ -480,7 +480,7 @@ begin
     FCellLeft := FCellLeft + vCLeft + vTable.CellHPadding;
 
     vData := vTable.Cells[vRow, vCol].CellData;
-    vItem := vData.GetCurItem;
+    vItem := vData.GetActiveItem;
   end;
 
   FFirstIndent := View.Style.ParaStyles[View.CurParaNo].FirstIndent;
@@ -876,7 +876,7 @@ begin
   FCellBottom := 0;
   vPageDataTop := View.ActiveSection.GetPageDataFmtTop(vPageIndex);
   vData := View.ActiveSection.ActiveData;
-  vItem := vData.GetCurItem;
+  vItem := vData.GetActiveItem;
   while (vItem <> nil) and (vItem.StyleNo = THCStyle.Table) do
   begin
     vTable := vItem as THCTableItem;
@@ -910,7 +910,7 @@ begin
     FCellTop := FCellTop + vRTop + vTable.CellVPadding;
 
     vData := vTable.Cells[vRow, vCol].CellData;
-    vItem := vData.GetCurItem;
+    vItem := vData.GetActiveItem;
   end;
 
   Self.UpdateView;

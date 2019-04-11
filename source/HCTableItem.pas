@@ -205,8 +205,10 @@ type
     procedure DblClick(const X, Y: Integer); override;
     function CoordInSelect(const X, Y: Integer): Boolean; override;
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; override;
+    function GetTopLevelData: THCCustomData; override;
     function GetActiveData: THCCustomData; override;
     function GetActiveItem: THCCustomItem; override;
+    function GetTopLevelItem: THCCustomItem; override;
     function GetActiveDrawItem: THCCustomDrawItem; override;
     function GetActiveDrawItemCoord: TPoint; override;
     function GetHint: string; override;
@@ -218,6 +220,7 @@ type
     procedure ReFormatActiveItem; override;
     procedure ReAdaptActiveItem; override;
     function DeleteActiveDomain: Boolean; override;
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer); override;
     procedure SetActiveItemText(const AText: string); override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
@@ -559,6 +562,21 @@ begin
   end
   else
     inherited DblClick(X, Y);
+end;
+
+procedure THCTableItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+begin
+  if FSelectCellRang.EditCell then  // 在同一单元格中编辑
+  begin
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      var
+        vEditCell: THCTableCell;
+      begin
+        vEditCell := Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol];
+        vEditCell.CellData.DeleteActiveDataItems(AStartNo, AEndNo);
+      end);
+  end;
 end;
 
 function THCTableItem.DeleteActiveDomain: Boolean;
@@ -2629,6 +2647,17 @@ begin
     raise Exception.Create(HCS_EXCEPTION_VOIDSOURCECELL);
 end;
 
+function THCTableItem.GetTopLevelData: THCCustomData;
+var
+  vCell: THCTableCell;
+begin
+  vCell := GetEditCell;
+  if Assigned(vCell) then
+    Result := vCell.CellData.GetTopLevelData
+  else
+    Result := inherited GetTopLevelData;
+end;
+
 function THCTableItem.GetTopLevelDataAt(const X, Y: Integer): THCCustomData;
 var
   vResizeInfo: TResizeInfo;
@@ -2641,6 +2670,17 @@ begin
   vCellPt := GetCellPostion(vRow, vCol);
   Result := (Cells[vRow, vCol].CellData as THCRichData).GetTopLevelDataAt(
     X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+end;
+
+function THCTableItem.GetTopLevelItem: THCCustomItem;
+var
+  vCell: THCTableCell;
+begin
+  vCell := GetEditCell;
+  if Assigned(vCell) then
+    Result := vCell.CellData.GetTopLevelItem
+  else
+    Result := inherited GetTopLevelItem;
 end;
 
 procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
@@ -4500,20 +4540,22 @@ function THCTableItem.GetActiveData: THCCustomData;
 var
   vCell: THCTableCell;
 begin
-  Result := nil;
   vCell := GetEditCell;
-  if vCell <> nil then
-    Result := vCell.CellData.GetTopLevelData;
+  if Assigned(vCell) then
+    Result := vCell.CellData
+  else
+    Result := inherited GetActiveData;
 end;
 
 function THCTableItem.GetActiveDrawItem: THCCustomDrawItem;
 var
   vCellData: THCTableCellData;
 begin
-  Result := nil;
   vCellData := GetActiveData as THCTableCellData;
-  if vCellData <> nil then
-    Result := vCellData.GetTopLevelDrawItem;
+  if Assigned(vCellData) then
+    Result := vCellData.GetTopLevelDrawItem
+  else
+    Result := inherited GetActiveDrawItem;
 end;
 
 function THCTableItem.GetActiveDrawItemCoord: TPoint;
@@ -4536,10 +4578,11 @@ function THCTableItem.GetActiveItem: THCCustomItem;
 var
   vCell: THCTableCell;
 begin
-  Result := Self;
   vCell := GetEditCell;
-  if vCell <> nil then
-    Result := vCell.CellData.GetTopLevelItem;
+  if Assigned(vCell) then
+    Result := vCell.CellData.GetActiveItem
+  else
+    Result := inherited GetActiveItem;
 end;
 
 procedure THCTableItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);

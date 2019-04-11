@@ -88,7 +88,7 @@ var
 begin
   FHCView := AHCView;
   vData := FHCView.ActiveSection.ActiveData;
-  vTableItem := vData.GetCurItem as THCTableItem;
+  vTableItem := vData.GetActiveItem as THCTableItem;
 
   // ±í¸ñ
   edtCellHPadding.Text := IntToStr(vTableItem.CellHPadding);

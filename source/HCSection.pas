@@ -212,7 +212,7 @@ type
     function SelectExists: Boolean;
     procedure SelectAll;
     function GetHint: string;
-    function GetCurItem: THCCustomItem;
+    function GetActiveItem: THCCustomItem;
     function GetTopLevelItem: THCCustomItem;
     function GetTopLevelDrawItem: THCCustomDrawItem;
     function GetActiveDrawItemCoord: TPoint;
@@ -324,6 +324,7 @@ type
     procedure BuildSectionPages(const AStartDrawItemNo: Integer);
     function DeleteSelected: Boolean;
     function DeleteActiveDomain: Boolean;
+    procedure DeleteActiveDataItems(const AStartNo: Integer; const AEndNo: Integer);
     procedure DisSelect;
     function MergeTableSelectCells: Boolean;
     procedure ReFormatActiveParagraph;
@@ -699,6 +700,14 @@ begin
   FPages[0].EndDrawItemNo := 0;
 end;
 
+procedure THCCustomSection.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+begin
+  ActiveDataChangeByAction(function(): Boolean
+    begin
+      FActiveData.DeleteActiveDataItems(AStartNo, AEndNo);
+    end);
+end;
+
 function THCCustomSection.DeleteActiveDomain: Boolean;
 begin
   Result := ActiveDataChangeByAction(function(): Boolean
@@ -1010,6 +1019,11 @@ begin
   Result := FActiveData.GetActiveDrawItemCoord;
 end;
 
+function THCCustomSection.GetActiveItem: THCCustomItem;
+begin
+  Result := FActiveData.GetActiveItem;
+end;
+
 function THCCustomSection.GetTopLevelItem: THCCustomItem;
 begin
   Result := FActiveData.GetTopLevelItem;
@@ -1024,11 +1038,6 @@ end;
 function THCCustomSection.GetContentWidth: Integer;
 begin
   Result := FPageSize.PageWidthPix - FPageSize.PageMarginLeftPix - FPageSize.PageMarginRightPix;
-end;
-
-function THCCustomSection.GetCurItem: THCCustomItem;
-begin
-  Result := FActiveData.GetCurItem;
 end;
 
 function THCCustomSection.GetCurParaNo: Integer;
@@ -1143,9 +1152,7 @@ end;
 
 function THCCustomSection.GetHint: string;
 begin
-  //Result := '';
-  //if FActiveData <> nil then
-    Result := FActiveData.GetTopLevelData.GetHint;
+  Result := (FActiveData.GetTopLevelData as THCRichData).GetHint;
 end;
 
 function THCCustomSection.GetPageIndexByFormat(const AVOffset: Integer): Integer;
@@ -1603,7 +1610,7 @@ end;
 procedure THCCustomSection.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var
-  vOldTopData: THCRichData;
+  vOldTopData: THCCustomData;
   vX, vY, vPageIndex: Integer;
   vNewActiveData: THCSectionData;
   vChangeActiveData: Boolean;
@@ -2680,7 +2687,7 @@ begin
     var
       vHtmlFmt: THCHtmlFormat;
     begin
-      vHtmlFmt := THCHtmlFormat.Create(FActiveData.GetTopLevelData);
+      vHtmlFmt := THCHtmlFormat.Create(FActiveData.GetTopLevelData as THCRichData);
       try
         Result := vHtmlFmt.Parse(AHtmlText);
       finally

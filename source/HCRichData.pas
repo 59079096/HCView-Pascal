@@ -114,9 +114,7 @@ type
     procedure DoItemResized(const AItemNo: Integer);
     function GetHeight: Cardinal; virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
-
-    function CalcContentHeight: Integer;
-
+    procedure DeleteItems(const AStartNo: Integer; const AEndNo: Integer);
     property MouseMoveDrawItemNo: Integer read FMouseMoveDrawItemNo;
   public
     constructor Create(const AStyle: THCStyle); override;
@@ -179,8 +177,7 @@ type
     function BatchInsert: Boolean;
     //
     procedure DblClick(X, Y: Integer);
-    procedure DeleteItems(const AStartNo: Integer; const AEndNo: Integer = -1);
-
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
     /// <summary> 添加Data到当前 </summary>
     /// <param name="ASrcData">源Data</param>
     procedure AddData(const ASrcData: THCCustomData);
@@ -207,10 +204,6 @@ type
     function ActiveTableDeleteCurCol: Boolean;
     function MergeTableSelectCells: Boolean;
 
-    function GetTopLevelItem: THCCustomItem;
-    function GetTopLevelDrawItem: THCCustomDrawItem;
-    function GetActiveDrawItemCoord: TPoint;
-
     /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
     procedure ReAdaptActiveItem;
 
@@ -218,12 +211,6 @@ type
     procedure DisActive;
 
     function GetHint: string;
-
-    /// <summary> 返回当前光标处的顶层Data </summary>
-    function GetTopLevelData: THCRichData;
-
-    /// <summary> 返回指定位置处的顶层Data </summary>
-    function GetTopLevelDataAt(const X, Y: Integer): THCRichData;
 
     property MouseDownItemNo: Integer read FMouseDownItemNo;
     property MouseDownItemOffset: Integer read FMouseDownItemOffset;
@@ -362,42 +349,83 @@ begin
   Style.UpdateInfoReCaret(False);
 end;
 
-procedure THCRichData.DeleteItems(const AStartNo: Integer; const AEndNo: Integer = -1);
+procedure THCRichData.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
 var
-  {vStartNo, }vEndNo, vDelCount: Integer;
+  vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
+  vActiveItem: THCCustomItem;
+  vRectItem: THCCustomRectItem;
+begin
+  if (AStartNo < 0) or (AStartNo > Items.Count - 1) then Exit;
+
+  vActiveItem := Items[AStartNo];
+
+  if (vActiveItem.StyleNo < THCStyle.Null)  // 当前位置是 RectItem
+    and (SelectInfo.StartItemOffset = OffsetInner)  // 在其上输入内容
+  then
+  begin
+    Undo_New;
+
+    vRectItem := vActiveItem as THCCustomRectItem;
+    if vRectItem.MangerUndo then
+      UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+    else
+      UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
+    vRectItem.DeleteActiveDataItems(AStartNo, AEndNo);
+    if vRectItem.SizeChanged then
+    begin
+      GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+      FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+      vRectItem.SizeChanged := False;
+    end
+    else
+      Self.FormatInit;
+  end
+  else
+    DeleteItems(AStartNo, AEndNo)
+end;
+
+procedure THCRichData.DeleteItems(const AStartNo: Integer; const AEndNo: Integer);
+var
+  i, vFormatFirstDrawItemNo, vFormatLastItemNo, vDelCount: Integer;
+  vActiveItem: THCCustomItem;
   vItem: THCCustomItem;
 begin
-  InitializeField;
-  DisSelect;  // 防止删除后原选中ItemNo不存在
+  if not CanEdit then Exit;
+  if AEndNo < AStartNo then Exit;
 
-  // 因目前调用DeleteItems后都是从0开始格式化，所以此处格式化相关代码暂时注释掉
-  {if AStartNo > 0 then  // 从删除的前一个开始格式化
-    vStartNo := AStartNo - 1
-  else
-    vStartNo := 0;}
+  Self.InitializeField;
 
-  if AEndNo < 0 then
-    vEndNo := AStartNo
-  else
-    vEndNo := AEndNo;
+  GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+  FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
-  vDelCount := vEndNo - AStartNo + 1;
-  Items.DeleteRange(AStartNo, vDelCount);
-  if Items.Count = 0 then  // 删除没了
+  vDelCount := AEndNo - AStartNo + 1;
+  Undo_New;
+  for i := AEndNo downto AStartNo do
   begin
-    vItem := CreateDefaultTextItem;
-    vItem.ParaFirst := True;
-    Items.Add(vItem);  // 不使用InsertText，为避免其触发ReFormat时因为没有格式化过，获取不到对应的DrawItem
-  end
-  else  // 删除完了还有
-  if (AStartNo > 0) and (not Items[AStartNo].ParaFirst) then  // 删除位置的Item不是段首，判断是否能合并到前一个
+    UndoAction_DeleteItem(i, 0);
+    Items.Delete(i);
+  end;
+
+  ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
+  Style.UpdateInfoRePaint;
+  Style.UpdateInfoReCaret;
+
+  if AStartNo > 0 then  // 不是从第1个开始删除
+    ReSetSelectAndCaret(AStartNo - 1)
+  else  // 从第一个开始删除
   begin
-    if Items[AStartNo - 1].CanConcatItems(Items[AStartNo]) then
+    if Items.Count = 0 then  // 删除没有了，不用SetEmptyData，因为其无Undo
     begin
-      //vItem := Items[AStartNo - 1];
-      Items[AStartNo - 1].Text := Items[AStartNo - 1].Text + Items[AStartNo].Text;
-      Items.Delete(AStartNo);
+      vItem := CreateDefaultTextItem;
+      vItem.ParaFirst := True;
+      Items.Add(vItem);
+      UndoAction_InsertItem(0, 0);
     end;
+
+    ReSetSelectAndCaret(0);
   end;
 end;
 
@@ -796,7 +824,7 @@ begin
 
   if Items.Count > 0 then  // 页眉中元素激活后切换到正文不高亮
   begin
-    vItem := GetCurItem;
+    vItem := GetActiveItem;
     if vItem <> nil then
       vItem.Active := False;
   end;
@@ -898,48 +926,6 @@ begin
   SetEmptyData;
 end;
 
-function THCRichData.GetTopLevelDrawItem: THCCustomDrawItem;
-var
-  vItem: THCCustomItem;
-begin
-  Result := nil;
-  vItem := GetCurItem;
-  if vItem.StyleNo < THCStyle.Null then
-    Result := (vItem as THCCustomRectItem).GetActiveDrawItem;
-
-  if Result = nil then
-    Result := GetCurDrawItem;
-end;
-
-function THCRichData.GetActiveDrawItemCoord: TPoint;
-var
-  vItem: THCCustomItem;
-  vDrawItem: THCCustomDrawItem;
-  vPt: TPoint;
-begin
-  Result := Point(0, 0);
-  vPt := Point(0, 0);
-  vDrawItem := GetCurDrawItem;
-  if vDrawItem <> nil then
-  begin
-    Result := vDrawItem.Rect.TopLeft;
-
-    vItem := GetCurItem;
-    if vItem.StyleNo < THCStyle.Null then
-      vPt := (vItem as THCCustomRectItem).GetActiveDrawItemCoord;
-
-    Result.X := Result.X + vPt.X;
-    Result.Y := Result.Y + vPt.Y;
-  end;
-end;
-
-function THCRichData.GetTopLevelItem: THCCustomItem;
-begin
-  Result := GetCurItem;
-  if (Result <> nil) and (Result.StyleNo < THCStyle.Null) then
-    Result := (Result as THCCustomRectItem).GetActiveItem;
-end;
-
 function THCRichData.GetHeight: Cardinal;
 begin
   Result := CalcContentHeight;
@@ -951,40 +937,6 @@ begin
     Result := Items[FMouseMoveItemNo].GetHint
   else
     Result := '';
-end;
-
-function THCRichData.GetTopLevelData: THCRichData;
-begin
-  Result := nil;
-  if (SelectInfo.StartItemNo >= 0) and (SelectInfo.EndItemNo < 0) then
-  begin
-    if (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)
-      and (SelectInfo.StartItemOffset = OffsetInner)
-    then
-      Result := (Items[SelectInfo.StartItemNo] as THCCustomRectItem).GetActiveData as THCRichData;
-  end;
-  if Result = nil then
-    Result := Self;
-end;
-
-function THCRichData.GetTopLevelDataAt(const X,
-  Y: Integer): THCRichData;
-var
-  vItemNo, vOffset, vDrawItemNo, vX, vY: Integer;
-  vRestrain: Boolean;
-begin
-  Result := nil;
-  GetItemAt(X, Y, vItemNo, vOffset, vDrawItemNo, vRestrain);
-  if (not vRestrain) and (vItemNo >= 0) then
-  begin
-    if Items[vItemNo].StyleNo < THCStyle.Null then
-    begin
-      CoordToItemOffset(X, Y, vItemNo, vOffset, vX, vY);
-      Result := (Items[vItemNo] as THCCustomRectItem).GetTopLevelDataAt(vX, vY) as THCRichData;
-    end;
-  end;
-  if Result = nil then
-    Result := Self;
 end;
 
 function THCRichData.ActiveTableDeleteCurCol: Boolean;
@@ -1733,14 +1685,6 @@ begin
   Inc(FBatchInsertCount);
 end;
 
-function THCRichData.CalcContentHeight: Integer;
-begin
-  if DrawItems.Count > 0 then
-    Result := DrawItems[DrawItems.Count - 1].Rect.Bottom - DrawItems[0].Rect.Top
-  else
-    Result := 0;
-end;
-
 function THCRichData.CanDeleteItem(const AItemNo: Integer): Boolean;
 begin
   Result := CanEdit;
@@ -2025,14 +1969,12 @@ end;
 function THCRichData.InsertLine(const ALineHeight: Integer): Boolean;
 var
   vItem: THCLineItem;
-  vTopData: THCRichData;
 begin
   Result := False;
 
   if not CanEdit then Exit;
 
-  vTopData := GetTopLevelData;
-  vItem := THCLineItem.Create(vTopData, vTopData.Width, ALineHeight);
+  vItem := THCLineItem.Create(Self, Self.Width, ALineHeight);
 
   Result := InsertItem(vItem);
   InitializeMouseField;  // 201807311101
@@ -2063,7 +2005,7 @@ var
   vCurItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
   Result := False;
-  vCurItemNo := GetCurItemNo;
+  vCurItemNo := GetActiveItemNo;
   if Items[vCurItemNo] is THCTableItem then
   begin
     GetFormatRange(vCurItemNo, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
@@ -2351,7 +2293,7 @@ begin
     Exit;
   end;
 
-  vCurItemNo := GetCurItemNo;
+  vCurItemNo := GetActiveItemNo;
   if Items[vCurItemNo].StyleNo < THCStyle.Null then  // 当前位置是 RectItem
   begin
     if SelectInfo.StartItemOffset = OffsetInner then  // 正在其上
@@ -2445,15 +2387,12 @@ function THCRichData.InsertTable(const ARowCount,
   AColCount: Integer): Boolean;
 var
   vItem: THCCustomItem;
-  vTopData: THCRichData;
 begin
   Result := False;
 
   if not CanEdit then Exit;
 
-  vTopData := GetTopLevelData;
-
-  vItem := THCTableItem.Create(vTopData, ARowCount, AColCount, vTopData.Width);
+  vItem := THCTableItem.Create(Self, ARowCount, AColCount, Self.Width);
   Result := InsertItem(vItem);
   InitializeMouseField;  // 201807311101
 end;
@@ -4096,7 +4035,7 @@ var
         begin
           SelectInfo.StartItemNo := vCurItemNo + 1;
           SelectInfo.StartItemOffset := 0;
-          vCurItem := GetCurItem;
+          vCurItem := GetActiveItem;
           {if vCurItem.StyleNo < THCStyle.RsNull then
             RectItemKeyDown
           else
@@ -4375,7 +4314,7 @@ var
           begin
             SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
             SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
-            vCurItem := GetCurItem;
+            vCurItem := GetActiveItem;
 
             Style.UpdateInfoReStyle;
             BackspaceKeyDown;  // 重新处理
@@ -4567,7 +4506,7 @@ begin
   if Key in [VK_BACK, VK_DELETE, VK_RETURN, VK_TAB] then
     Self.InitializeMouseField;  // 如果Item删除完了，原MouseMove处ItemNo可能不存在了，再MouseMove时清除旧的出错
 
-  vCurItem := GetCurItem;
+  vCurItem := GetActiveItem;
   if not Assigned(vCurItem) then Exit;  // 跨页合并时，合并后并没有当前Item
 
   vSelectExist := SelectExists;
@@ -4628,7 +4567,7 @@ begin
 
   DeleteSelected;
 
-  vCarteItem := GetCurItem;
+  vCarteItem := GetActiveItem;
   if not Assigned(vCarteItem) then Exit;  // 跨页合并时，合并后并没有当前Item
 
   if (vCarteItem.StyleNo < THCStyle.Null)  // 当前位置是 RectItem
@@ -4672,7 +4611,7 @@ procedure THCRichData.KillFocus;
 var
   vItemNo: Integer;
 begin
-  vItemNo := GetCurItemNo;
+  vItemNo := GetActiveItemNo;
   if vItemNo >= 0 then
     Items[vItemNo].KillFocus;
 end;
@@ -4702,7 +4641,7 @@ begin
 
   if not CanEdit then Exit;
 
-  vItemNo := GetCurItemNo;
+  vItemNo := GetActiveItemNo;
   if Items[vItemNo].StyleNo = THCStyle.Table then
   begin
     Undo_New;
@@ -5131,7 +5070,7 @@ begin
   if not CanEdit then Exit;
 
   Self.InitializeField;
-  vActiveItem := GetCurItem;
+  vActiveItem := GetActiveItem;
   if not Assigned(vActiveItem) then Exit;  // 跨页合并时，合并后并没有当前Item
 
   if (vActiveItem.StyleNo < THCStyle.Null)  // 当前位置是 RectItem
@@ -5314,7 +5253,7 @@ begin
   if not CanEdit then Exit;
 
   Self.InitializeField;
-  vActiveItem := GetCurItem;
+  vActiveItem := GetActiveItem;
   if not Assigned(vActiveItem) then Exit;  // 跨页合并时，合并后并没有当前Item
 
   if (vActiveItem.StyleNo < THCStyle.Null)  // 当前位置是 RectItem

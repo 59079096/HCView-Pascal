@@ -15,8 +15,8 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCViewData,
-  HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCUndo,
-  HCCustomData, HCRichData;
+  HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCRectItem,
+  HCUndo, HCCustomData, HCRichData;
 
 const
   HC_EDIT_EXT = '.hef';
@@ -36,6 +36,8 @@ type
     FOnChange: TNotifyEvent;
     FOnCaretChange: TNotifyEvent;
     FOnMouseDown: TMouseEvent;
+    FOnCreateStyleItem: TStyleItemEvent;
+    FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
     //
     function GetDisplayWidth: Integer;
     function GetDisplayHeight: Integer;
@@ -56,9 +58,6 @@ type
     procedure DoCaretChange;
     procedure DoDataCheckUpdateInfo;
     procedure DoChange;
-    procedure UpdateBuffer;
-    procedure BeginUpdate;
-    procedure EndUpdate;
     procedure CalcScrollRang;
     // Imm
     procedure UpdateImmPosition;
@@ -80,6 +79,9 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
+    function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
+    procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
+    procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     // 消息
     /// <summary> 响应Tab键和方向键 </summary>
     procedure WMGetDlgCode(var Message: TWMGetDlgCode); message WM_GETDLGCODE;
@@ -118,6 +120,7 @@ type
     procedure ApplyTextBackColor(const AColor: TColor);
     function InsertItem(const AItem: THCCustomItem): Boolean; overload;
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
+    function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
     /// <summary> 插入指定行列的表格 </summary>
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
     /// <summary> 获取顶层Data </summary>
@@ -129,18 +132,23 @@ type
     procedure LoadFromFile(const AFileName: string);
     procedure SaveToStream(const AStream: TStream);
     procedure LoadFromStream(const AStream: TStream);
-
+    procedure Clear;
     /// <summary> 撤销 </summary>
     procedure Undo;
 
     /// <summary> 重做 </summary>
     procedure Redo;
 
+    procedure UpdateView;
+    procedure BeginUpdate;
+    procedure EndUpdate;
+
     /// <summary> 当前光标处的文本样式 </summary>
     property CurStyleNo: Integer read GetCurStyleNo;
     /// <summary> 当前光标处的段样式 </summary>
     property CurParaNo: Integer read GetCurParaNo;
 
+    property Data: THCViewData read FData;
     property Style: THCStyle read FStyle;
     property Changed: Boolean read FChanged write FChanged;
   published
@@ -232,8 +240,13 @@ begin
   if FStyle.UpdateInfo.RePaint then
   begin
     FStyle.UpdateInfo.RePaint := False;
-    UpdateBuffer;
+    UpdateView;
   end;
+end;
+
+procedure THCEdit.Clear;
+begin
+  FData.Clear;
 end;
 
 procedure THCEdit.Copy;
@@ -287,6 +300,9 @@ begin
   FData := THCViewData.Create(FStyle);
   FData.Width := 200;
   FData.OnGetUndoList := DoGetUndoList;
+  FData.OnCreateItemByStyle := DoDataCreateStyleItem;
+  FData.OnInsertItem := DoDataInsertItem;
+  FData.OnRemoveItem := DoDataRemoveItem;
 
   FDataBmp := TBitmap.Create;
 
@@ -469,6 +485,27 @@ begin
     CheckUpdateInfo;
 end;
 
+function THCEdit.DoDataCreateStyleItem(const AData: THCCustomData;
+  const AStyleNo: Integer): THCCustomItem;
+begin
+  if Assigned(FOnCreateStyleItem) then
+    Result := FOnCreateStyleItem(AData, AStyleNo)
+  else
+    Result := nil;
+end;
+
+procedure THCEdit.DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
+begin
+  if Assigned(FOnInsertItem) then
+    FOnInsertItem(AData, AItem);
+end;
+
+procedure THCEdit.DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
+begin
+  if Assigned(FOnRemoveItem) then
+    FOnRemoveItem(AData, AItem);
+end;
+
 function THCEdit.DoGetUndoList: THCUndoList;
 begin
   Result := FUndoList;
@@ -514,6 +551,11 @@ begin
     Result := Width - FVScrollBar.Width
   else
     Result := Width;
+end;
+
+function THCEdit.InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
+begin
+  Result := FData.InsertDomain(AMouldDomain);
 end;
 
 function THCEdit.InsertItem(const AIndex: Integer;
@@ -933,7 +975,7 @@ begin
   end;
 end;
 
-procedure THCEdit.UpdateBuffer;
+procedure THCEdit.UpdateView;
 var
   i, vDisplayWidth, vDisplayHeight: Integer;
   vPaintInfo: TPaintInfo;

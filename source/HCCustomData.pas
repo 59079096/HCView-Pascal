@@ -42,6 +42,8 @@ type
 
   THCCustomData = class;
 
+  TDataItemNotifyEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
+
   TDrawItemPaintEvent = procedure(const AData: THCCustomData;
     const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -61,6 +63,7 @@ type
     FSelectInfo: TSelectInfo;
     FDrawOptions: TDrawOptions;
     FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
+    FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
     FOnGetUndoList: TGetUndoListEvent;
     FOnCurParaNoChange: TNotifyEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
@@ -405,6 +408,8 @@ type
     property OnDrawItemPaintBefor: TDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
     property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
+    property OnInsertItem: TDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
+    property OnRemoveItem: TDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
   end;
 
 type
@@ -787,6 +792,8 @@ end;
 
 procedure THCCustomData.DoInsertItem(const AItem: THCCustomItem);
 begin
+  if Assigned(FOnInsertItem) then
+    FOnInsertItem(Self, AItem);
 end;
 
 procedure THCCustomData.DoItemAction(const AItemNo, AOffset: Integer;
@@ -796,6 +803,8 @@ end;
 
 procedure THCCustomData.DoRemoveItem(const AItem: THCCustomItem);
 begin
+  if Assigned(FOnRemoveItem) then
+    FOnRemoveItem(Self, AItem);
 end;
 
 procedure THCCustomData.DrawItemPaintAfter(const AData: THCCustomData;

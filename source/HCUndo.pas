@@ -246,7 +246,13 @@ type
     property SectionIndex: Integer read FSectionIndex write FSectionIndex;
   end;
 
-  THCUndoGroupEnd = class(THCUndoGroupBegin);
+  THCUndoGroupEnd = class(THCDataUndo)  // 不继承THCUndoGroupBegin，防止 is判断时认为是THCUndoGroupBegin
+  private
+    FItemNo, FOffset: Integer;
+  public
+    property ItemNo: Integer read FItemNo write FItemNo;
+    property Offset: Integer read FOffset write FOffset;
+  end;
 
   THCUndoEditGroupEnd = class(THCUndoGroupEnd)
   private

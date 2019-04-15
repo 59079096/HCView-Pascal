@@ -458,6 +458,9 @@ type
 
     /// <summary> 结束批量重绘 </summary>
     procedure EndUpdate;
+
+    procedure UndoGroupBegin;
+    procedure UndoGroupEnd;
     //
     /// <summary> 返回当前节当前Item </summary>
     function GetActiveItem: THCCustomItem;
@@ -3645,6 +3648,28 @@ begin
     finally
       FUndoList.Enable := True;
     end;
+  end;
+end;
+
+procedure THCView.UndoGroupBegin;
+var
+  vData: THCRichData;
+begin
+  if FUndoList.Enable then
+  begin
+    vData := ActiveSection.ActiveData;
+    FUndoList.UndoGroupBegin(vData.SelectInfo.StartItemNo, vData.SelectInfo.StartItemOffset);
+  end;
+end;
+
+procedure THCView.UndoGroupEnd;
+var
+  vData: THCRichData;
+begin
+  if FUndoList.Enable then
+  begin
+    vData := ActiveSection.ActiveData;
+    FUndoList.UndoGroupEnd(vData.SelectInfo.StartItemNo, vData.SelectInfo.StartItemOffset);
   end;
 end;
 

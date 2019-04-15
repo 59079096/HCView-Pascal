@@ -162,8 +162,6 @@ type
     procedure DoMapChanged;
     procedure DoSectionReadOnlySwitch(Sender: TObject);
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
-    procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData;
-      const AItem: THCCustomItem);
     procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
       const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoSectionItemResize(const AData: THCCustomData; const AItemNo: Integer);
@@ -242,6 +240,7 @@ type
     procedure DoSectionCreateItem(Sender: TObject); virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
+    procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     function DoSectionCanEdit(const Sender: TObject): Boolean; virtual;
     procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,

@@ -29,7 +29,7 @@ type
 
   THCRichScrollBar = class(THCScrollBar)
   private
-    FAreaMarks: TAreaMarks;
+    FAreaMarks: TAreaMarks;  // 适合固定区域的标记
   protected
     procedure DoDrawThumBefor(const ACanvas: TCanvas; const AThumRect: TRect); override;
   public

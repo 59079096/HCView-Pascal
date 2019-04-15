@@ -33,10 +33,6 @@ type
 
   TStyleItemEvent = function (const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem of object;
   TOnCanEditEvent = function(const Sender: TObject): Boolean of object;
-  TDrawItemPaintContentEvent = procedure(const AData: THCCustomData;
-    const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
-    const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-    const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
   THCViewData = class(THCViewDevData)  // 富文本数据类，可做为其他显示富文本类的基类
   private
@@ -49,7 +45,6 @@ type
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
-    FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
 
     procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
   protected
@@ -62,10 +57,6 @@ type
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect, AClearRect: TRect; const ADrawText: string;
-      const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -125,7 +116,6 @@ type
     property ActiveDomain: THCDomainInfo read FActiveDomain;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
-    property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
   end;
 
 implementation
@@ -459,23 +449,6 @@ begin
         DeleteObject(vDliRGN);
       end;
     end;
-  end;
-end;
-
-procedure THCViewData.DoDrawItemPaintContent(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
-  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
-  ADataScreenBottom: Integer; const ACanvas: TCanvas;
-  const APaintInfo: TPaintInfo);
-begin
-  inherited DoDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect,
-    ADrawText, ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
-    ACanvas, APaintInfo);
-
-  if Assigned(FOnDrawItemPaintContent) then
-  begin
-    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
-      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 

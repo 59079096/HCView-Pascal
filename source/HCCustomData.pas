@@ -40,6 +40,18 @@ type
     property EndItemOffset: Integer read FEndItemOffset write FEndItemOffset;
   end;
 
+  THCCustomData = class;
+
+  TDrawItemPaintEvent = procedure(const AData: THCCustomData;
+    const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+    ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+    const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
+
+  TDrawItemPaintContentEvent = procedure(const AData: THCCustomData;
+    const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
+    const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+    const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
+
   THCCustomData = class(TObject)  // 为支持域，所以不能有太多属性，以免和RichData冲突
   private
     FStyle: THCStyle;
@@ -51,6 +63,8 @@ type
     FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
     FOnGetUndoList: TGetUndoListEvent;
     FOnCurParaNoChange: TNotifyEvent;
+    FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
+    FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     procedure DrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -101,11 +115,6 @@ type
     /// <param name="AFirstItemNo">起始</param>
     /// <param name="ALastItemNo">结束</param>
     procedure GetLineDrawItemRang(var AFirstDrawItemNo, ALastDrawItemNo: Integer); virtual;
-
-    /// <summary> 获取指定DrawItem对应的Text </summary>
-    /// <param name="ADrawItemNo"></param>
-    /// <returns></returns>
-    function GetDrawItemText(const ADrawItemNo: Integer): string;
 
     /// <summary> 返回字符串AText的分散分隔数量和各分隔的起始位置 </summary>
     /// <param name="AText">要计算的字符串</param>
@@ -171,6 +180,11 @@ type
     /// <param name="ARestrain">AItemNo, AOffset是X、Y位置约束后的(此参数为方便单元格Data处理)</param>
     function CoordInSelect(const X, Y, AItemNo, AOffset: Integer;
       const ARestrain: Boolean): Boolean; virtual;
+
+    /// <summary> 获取指定DrawItem对应的Text </summary>
+    /// <param name="ADrawItemNo"></param>
+    /// <returns></returns>
+    function GetDrawItemText(const ADrawItemNo: Integer): string;
 
     /// <summary> 获取DItem中指定偏移处的内容绘制宽度 </summary>
     /// <param name="ADrawItemNo"></param>
@@ -388,6 +402,9 @@ type
     property CaretDrawItemNo: Integer read FCaretDrawItemNo write SetCaretDrawItemNo;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
     property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
+    property OnDrawItemPaintBefor: TDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
+    property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
+    property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
   end;
 
 type
@@ -736,6 +753,11 @@ procedure THCCustomData.DoDrawItemPaintAfter(const AData: THCCustomData;
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
+  if Assigned(FOnDrawItemPaintAfter) then
+  begin
+    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  end;
 end;
 
 procedure THCCustomData.DoDrawItemPaintBefor(const AData: THCCustomData;
@@ -743,6 +765,11 @@ procedure THCCustomData.DoDrawItemPaintBefor(const AData: THCCustomData;
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
+  if Assigned(FOnDrawItemPaintBefor) then
+  begin
+    FOnDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  end;
 end;
 
 procedure THCCustomData.DoDrawItemPaintContent(const AData: THCCustomData;
@@ -751,6 +778,11 @@ procedure THCCustomData.DoDrawItemPaintContent(const AData: THCCustomData;
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 begin
+  if Assigned(FOnDrawItemPaintContent) then
+  begin
+    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
+      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  end;
 end;
 
 procedure THCCustomData.DoInsertItem(const AItem: THCCustomItem);
@@ -1169,7 +1201,6 @@ var
   vDrawItem: THCCustomDrawItem;
 begin
   vDrawItem := FDrawItems[ADrawItemNo];
-  //SetString(Result, PChar(FItems[vDrawItem.ItemNo].Text), vDrawItem.CharLen);
   Result := Copy(FItems[vDrawItem.ItemNo].Text, vDrawItem.CharOffs, vDrawItem.CharLen);
 end;
 

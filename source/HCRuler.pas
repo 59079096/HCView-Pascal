@@ -443,7 +443,7 @@ begin
     Self.MarginRight := View.ActiveSection.PaperMarginRight;
   end;
 
-  Self.ScrollOffset := View.HScrollValue - View.ClientToParent(Point(0, 0), Self.Parent).X + Left;
+  Self.ScrollOffset := View.HScrollBar.Position - View.ClientToParent(Point(0, 0), Self.Parent).X + Left;
 
   FKnots.Clear;
   FCellLeft := 0;
@@ -866,7 +866,7 @@ begin
   Self.MarginLeft := View.ActiveSection.PaperMarginTop;
   Self.MarginRight := View.ActiveSection.PaperMarginBottom;
   vPageIndex := View.ActiveSection.ActivePageIndex;
-  Self.ScrollOffset := View.VScrollValue + ZoomIn(View.GetSectionTopFilm(0)
+  Self.ScrollOffset := View.VScrollBar.Position + ZoomIn(View.GetSectionTopFilm(0)
     - View.ActiveSection.GetPageTopFilm(vPageIndex) + PagePadding)
     - View.ClientToParent(Point(0, 0), Self.Parent).Y + Top;
 

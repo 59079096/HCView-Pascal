@@ -26,11 +26,6 @@ uses
 type
   TInsertProc = reference to function(const AItem: THCCustomItem): Boolean;
 
-  TDrawItemPaintEvent = procedure(const AData: THCCustomData;
-    const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-    const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
-
   TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo: Integer;
     Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
@@ -65,7 +60,6 @@ type
 
     FOnItemResized: TDataItemEvent;
     FOnItemMouseDown, FOnItemMouseUp: TItemMouseEvent;
-    FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
 
     /// <summary> Shift按键按下时鼠标点击，根据按下位置适配选择范围 </summary>
@@ -96,13 +90,6 @@ type
     function IsSelectSeekStart: Boolean;
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
-
-    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
-      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
-      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
     /// <summary> 是否能删除指定的Item(常用于Data层面Items.Delete(i)前判断是否可删除) </summary>
     function CanDeleteItem(const AItemNo: Integer): Boolean; virtual;
@@ -224,8 +211,6 @@ type
     property OnItemResized: TDataItemEvent read FOnItemResized write FOnItemResized;
     property OnItemMouseDown: TItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
-    property OnDrawItemPaintBefor: TDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
-    property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
   end;
 
@@ -844,36 +829,6 @@ begin
   end;
 
   Style.UpdateInfoReCaret;  // 选择起始信息被重置为-1
-end;
-
-procedure THCRichData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-begin
-  inherited DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-
-  if Assigned(FOnDrawItemPaintAfter) then
-  begin
-    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-  end;
-end;
-
-procedure THCRichData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-begin
-  inherited DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-
-  if Assigned(FOnDrawItemPaintBefor) then
-  begin
-    FOnDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
-  end;
 end;
 
 procedure THCRichData.DoItemMouseEnter(const AItemNo: Integer);

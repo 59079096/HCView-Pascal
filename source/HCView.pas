@@ -26,19 +26,23 @@ type
 
   THCDrawAnnotate = class(THCDrawItemAnnotate)  // Data批注信息
   public
-    //Section: TObject;
     Data: THCCustomData;
-    //Item: THCCustomItem;
-    Rect: TRect;
+    Rect: TRect;  // 在批注区绘制时的区域
+  end;
+
+  THCDrawAnnotateDynamic = class(THCDrawAnnotate)
+  public
+    Title, Text: string;
   end;
 
   THCAnnotatePre = class(TObject)  // 管理显示出来的批注
   private
     FDrawRect: TRect;
-    FCount: Integer;
-    FMouseIn: Boolean;
+    FCount: Integer;  // 批注总数
+    FMouseIn, FVisible: Boolean;
     FDrawAnnotates: TObjectList<THCDrawAnnotate>;
     FActiveDrawAnnotateIndex: Integer;
+    // 在批注区引起的需要重绘时触发，如鼠标移入移出批注区域的高亮切换
     FOnUpdateView: TNotifyEvent;
     function GetDrawCount: Integer;
     function GetDrawAnnotateAt(const X, Y: Integer): Integer; overload;
@@ -78,6 +82,7 @@ type
     procedure MouseMove(const X, Y: Integer);
     property DrawCount: Integer read GetDrawCount;
     property DrawAnnotates: TObjectList<THCDrawAnnotate> read FDrawAnnotates;
+    property Visible: Boolean read FVisible write FVisible;
     property Count: Integer read FCount;
     property DrawRect: TRect read FDrawRect;
     property ActiveDrawAnnotateIndex: Integer read FActiveDrawAnnotateIndex;
@@ -208,7 +213,6 @@ type
     procedure _DeleteUnUsedStyle(const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
 
     function GetHScrollValue: Integer;
-    function GetVScrollValue: Integer;
     function GetCurStyleNo: Integer;
     function GetCurParaNo: Integer;
 
@@ -643,11 +647,11 @@ type
     /// <summary> 当前光标所在节的序号 </summary>
     property ActiveSectionIndex: Integer read FActiveSectionIndex write SetActiveSectionIndex;
 
-    /// <summary> 水平滚动条的值 </summary>
-    property HScrollValue: Integer read GetHScrollValue;
+    /// <summary> 水平滚动条 </summary>
+    property HScrollBar: THCScrollBar read FHScrollBar;
 
     /// <summary> 垂直滚动条的值 </summary>
-    property VScrollValue: Integer read GetVScrollValue;
+    property VScrollBar: THCRichScrollBar read FVScrollBar;
     /// <summary> 当前光标处的文本样式 </summary>
     property CurStyleNo: Integer read GetCurStyleNo;
     /// <summary> 当前光标处的段样式 </summary>
@@ -846,7 +850,7 @@ begin
       vHMax := vWidth;
   end;
 
-  if FAnnotatePre.Count > 0 then
+  if FAnnotatePre.Visible then
     vHMax := vHMax + AnnotationWidth;
 
   vVMax := ZoomIn(vVMax + PagePadding);  // 补充最后一页后面的PagePadding
@@ -1184,7 +1188,7 @@ end;
 procedure THCView.DoSectionPaintWholePageAfter(const Sender: TObject; const APageIndex: Integer;
   const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 begin
-  if FAnnotatePre.Count > 0 then  // 当前页有批注，绘制批注
+  if FAnnotatePre.Visible then  // 当前页有批注，绘制批注
     FAnnotatePre.PaintDrawAnnotate(Sender, ARect, ACanvas, APaintInfo);
 
   if Assigned(FOnSectionPaintWholePageAfter) then
@@ -1324,7 +1328,7 @@ end;
 
 procedure THCView.DoAnnotatePreUpdateView(Sender: TObject);
 begin
-  if FAnnotatePre.Count = 0 then
+  if FAnnotatePre.Visible then
   begin
     FStyle.UpdateInfoRePaint;
     DoMapChanged;
@@ -1565,7 +1569,7 @@ begin
 
   // 映射到节页面(白色区域)
   Result.X := ZoomIn(GetSectionDrawLeft(Self.ActiveSectionIndex)
-    + (ActiveSection.GetPageMarginLeft(vPageIndex) + Result.X)) - Self.HScrollValue;
+    + (ActiveSection.GetPageMarginLeft(vPageIndex) + Result.X)) - Self.HScrollBar.Position;
 
   if ActiveSection.ActiveData = ActiveSection.Header then
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
@@ -1573,7 +1577,7 @@ begin
       + ActiveSection.GetHeaderPageDrawTop
       + Result.Y
       - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
-      - Self.VScrollValue
+      - Self.VScrollBar.Position
   else
   if ActiveSection.ActiveData = ActiveSection.Footer then
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
@@ -1581,14 +1585,14 @@ begin
       + ActiveSection.PageHeightPix - ActiveSection.PageMarginBottomPix
       + Result.Y
       - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
-      - Self.VScrollValue
+      - Self.VScrollBar.Position
   else
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
       + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
       + ActiveSection.GetHeaderAreaHeight // 94
       + Result.Y
       - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
-      - Self.VScrollValue;
+      - Self.VScrollBar.Position;
 end;
 
 function THCView.GetActiveItem: THCCustomItem;
@@ -1641,7 +1645,7 @@ end;
 
 function THCView.GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
 begin
-  if FAnnotatePre.Count > 0 then  // 显示批注
+  if FAnnotatePre.Visible then  // 显示批注
     Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix + AnnotationWidth)) div 2, ZoomIn(PagePadding))
   else
     Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix)) div 2, ZoomIn(PagePadding));
@@ -1695,11 +1699,6 @@ end;
 function THCView.GetSymmetryMargin: Boolean;
 begin
   Result := ActiveSection.SymmetryMargin;
-end;
-
-function THCView.GetVScrollValue: Integer;
-begin
-  Result := FVScrollBar.Position;
 end;
 
 function THCView.InsertAnnotate(const ATitle, AText: string): Boolean;
@@ -3040,7 +3039,7 @@ begin
 
   if FAutoZoom then
   begin
-    if FAnnotatePre.Count > 0 then  // 显示批注
+    if FAnnotatePre.Visible then  // 显示批注
       FZoom := (FViewWidth - PagePadding * 2) / (ActiveSection.PageWidthPix + AnnotationWidth)
     else
       FZoom := (FViewWidth - PagePadding * 2) / ActiveSection.PageWidthPix;
@@ -4011,6 +4010,7 @@ begin
   inherited Create;
   FDrawAnnotates := TObjectList<THCDrawAnnotate>.Create;
   FCount := 0;
+  FVisible := False;
   FMouseIn := False;
   FActiveDrawAnnotateIndex := -1;
 end;
@@ -4064,6 +4064,7 @@ end;
 procedure THCAnnotatePre.InsertDataAnnotate(const ADataAnnotate: THCDataAnnotate);
 begin
   Inc(FCount);
+  FVisible := True;
 end;
 
 procedure THCAnnotatePre.MouseDown(const X, Y: Integer);
@@ -4142,7 +4143,11 @@ begin
         if vDrawAnnotate.DrawRect.Top > vTop then
           vTop := vDrawAnnotate.DrawRect.Top;
 
-        vText := vDrawAnnotate.DataAnnotate.Title + ':' + vDrawAnnotate.DataAnnotate.Text;
+        if vDrawAnnotate is THCDrawAnnotateDynamic then
+          vText := (vDrawAnnotate as THCDrawAnnotateDynamic).Title + ':' + (vDrawAnnotate as THCDrawAnnotateDynamic).Text
+        else
+          vText := vDrawAnnotate.DataAnnotate.Title + ':' + vDrawAnnotate.DataAnnotate.Text;
+
         vDrawAnnotate.Rect := Rect(0, 0, AnnotationWidth - 30, 0);
         Windows.DrawTextEx(ACanvas.Handle, PChar(vText), -1, vDrawAnnotate.Rect,
           DT_TOP or DT_LEFT or DT_WORDBREAK or DT_CALCRECT, nil);  // 计算区域
@@ -4200,36 +4205,43 @@ begin
       for i := vFirst to vLast do  // 绘制批注
       begin
         vDrawAnnotate := FDrawAnnotates[i];
-
-        vData := vDrawAnnotate.Data as THCAnnotateData;
-
-        if vDrawAnnotate.DataAnnotate = vData.HotAnnotate then
+        if vDrawAnnotate is THCDrawAnnotateDynamic then
         begin
-          ACanvas.Pen.Style := TPenStyle.psSolid;
-          ACanvas.Pen.Width := 1;
-          ACanvas.Brush.Color := AnnotateBKActiveColor;
-        end
-        else
-        if vDrawAnnotate.DataAnnotate = vData.ActiveAnnotate then
-        begin
-          ACanvas.Pen.Style := TPenStyle.psSolid;
-          ACanvas.Pen.Width := 2;
-          ACanvas.Brush.Color := AnnotateBKActiveColor;
-        end
-        else
-        begin
+          vText := (vDrawAnnotate as THCDrawAnnotateDynamic).Title + ':' + (vDrawAnnotate as THCDrawAnnotateDynamic).Text;
           ACanvas.Pen.Style := TPenStyle.psDot;
           ACanvas.Pen.Width := 1;
           ACanvas.Brush.Color := AnnotateBKColor;
+        end
+        else
+        begin
+          vText := vDrawAnnotate.DataAnnotate.Title + ':' + vDrawAnnotate.DataAnnotate.Text;
+          vData := vDrawAnnotate.Data as THCAnnotateData;
+
+          if vDrawAnnotate.DataAnnotate = vData.HotAnnotate then
+          begin
+            ACanvas.Pen.Style := TPenStyle.psSolid;
+            ACanvas.Pen.Width := 1;
+            ACanvas.Brush.Color := AnnotateBKActiveColor;
+          end
+          else
+          if vDrawAnnotate.DataAnnotate = vData.ActiveAnnotate then
+          begin
+            ACanvas.Pen.Style := TPenStyle.psSolid;
+            ACanvas.Pen.Width := 2;
+            ACanvas.Brush.Color := AnnotateBKActiveColor;
+          end
+          else
+          begin
+            ACanvas.Pen.Style := TPenStyle.psDot;
+            ACanvas.Pen.Width := 1;
+            ACanvas.Brush.Color := AnnotateBKColor;
+          end;
         end;
 
         if APaintInfo.Print then
           ACanvas.Brush.Style := bsClear;
 
         ACanvas.RoundRect(vDrawAnnotate.Rect, 5, 5);  // 填充批注区域
-
-        // 绘制批注文本
-        vText := vDrawAnnotate.DataAnnotate.Title + ':' + vDrawAnnotate.DataAnnotate.Text;
         vTextRect := vDrawAnnotate.Rect;
         vTextRect.Inflate(-5, -5);
         DrawTextEx(ACanvas.Handle, PChar(IntToStr(i) + vText), -1, vTextRect, DT_VCENTER or DT_LEFT or DT_WORDBREAK, nil);

@@ -4,40 +4,21 @@ interface
 
 uses
   Windows, Classes, Controls, Graphics, SysUtils, Generics.Collections, Messages,
-  HCScrollBar, HCRichScrollBar, HCTableCell, HCStyle, HCItem;
+  HCScrollBar, HCRichScrollBar, HCTableCell, HCStyle, HCItem, HCCommon;
 
 type
-  TGridColumn = class;
-
-  THCColumnPaintEvent = procedure(const AColumn: TGridColumn;
+  THCColumnPaintEvent = procedure(const ACell: THCTableCell;
     const ACanvas: TCanvas; const ARect: TRect) of object;
 
-  TGridColumn = class(THCTableCell)
-  private
-    FOnPaintBackground: THCColumnPaintEvent;
-  public
-    procedure PaintTo(const ACanvas: TCanvas; const ALeft, ATop, AWidth, AHeight: Integer;
-      const APaintInfo: TPaintInfo);
-    property OnPaintBackground: THCColumnPaintEvent read FOnPaintBackground write FOnPaintBackground;
-  end;
-
-  THCRowColumnPaintBackground = procedure(Sender: TObject; const AColumn: TGridColumn;
-    const ACanvas: TCanvas; const ARect: TRect) of object;
-
-  TGridRow = class(TObjectList<TGridColumn>)
+  TGridRow = class(TObjectList<THCTableCell>)
   strict private
     FHeight: Integer;
-    FOnColumnPaintBackground: THCRowColumnPaintBackground;
-    procedure DoColumnPaintBackground(const AColumn: TGridColumn;
-      const ACanvas: TCanvas; const ARect: TRect);
-  protected
-    procedure Notify(const AColumn: TGridColumn; Action: TCollectionNotification); override;
+    FAutoHeight: Boolean;
   public
     constructor Create(const AStyle: THCStyle; const AColCount: Integer); virtual;
     destructor Destroy; override;
     property Height: Integer read FHeight write FHeight;
-    /// <summary> 行中有列绘制背景 </summary>
-    property OnColumnPaintBackground: THCRowColumnPaintBackground read FOnColumnPaintBackground write FOnColumnPaintBackground;
+    property AutoHeight: Boolean read FAutoHeight write FAutoHeight;
   end;
 
   THCSelectInfo = class(TObject)
@@ -61,14 +42,20 @@ type
   strict private
     FStyle: THCStyle;
     FBitmap: TBitmap;
+    FCaret: THCCaret;
     FHScrollBar: THCScrollBar;
     FVScrollBar: THCRichScrollBar;
-    FActiveCell: TGridColumn;
+    FActiveCell: THCTableCell;
     FRows: TObjectList<TGridRow>;
     FColWidths: TList<Integer>;
     FColDefaultWidth, FViewWidth, FViewHeight,
-    FDispFirstRow, FDispLastRow, FDispFirstCol, FDispLastCol: Integer;
-    FOnVerScroll, FOnHorScroll: TNotifyEvent;
+    FDispFirstRow, FDispLastRow, FDispFirstCol, FDispLastCol,
+    FUpdateCount: Integer;
+    FBorderWidth,  // 边框宽度
+    FCellHPadding,  // 单元格内容水平偏移
+    FCellVPadding   // 单元格内容垂直偏移(不能大于最低的DrawItem高度，否则会影响跨页)
+      : Byte;  // 单元格数据和单元格边框的距离
+    FOnVerScroll, FOnHorScroll, FOnCaretChange: TNotifyEvent;
     FSelectInfo: THCSelectInfo;
     FOnPaintBackground: THCGridPaintEvent;
     FOnCellPaintBackground: THCColumnPaintEvent;
@@ -76,25 +63,40 @@ type
       const ScrollPos: Integer);
     procedure DoVerScroll(Sender: TObject; ScrollCode: TScrollCode;
       const ScrollPos: Integer);
-    function GetCell(const ARow, ACol: Integer): TGridColumn;
+    function GetCell(const ARow, ACol: Integer): THCTableCell;
     function GetRowAt(const X, Y: Integer): TGridRow;
     function GetRowIndexAt(const X, Y: Integer): Integer;
     function GetColIndexAt(const X, Y: Integer): Integer;
     procedure GetCellIndex(const X, Y: Integer; var ARow, ACol: Integer);
-    function GetCellAt(const X, Y: Integer): TGridColumn;
+    function GetCellAt(const X, Y: Integer): THCTableCell;
+    procedure GetDestCell(const ARow, ACol: Cardinal; var ADestRow, ADestCol: Integer);
+    procedure GetSourceCell(const ARow, ACol: Cardinal; var ASrcRow, ASrcCol: Integer);
+    //
     function GetHorOffset: Integer;
     function GetVerOffset: Integer;
-
+    procedure SetBorderWidth(const Value: Byte);
+    procedure SetCellHPadding(const Value: Byte);
+    procedure SetCellVPadding(const Value: Byte);
     procedure GetViewWidth;
     procedure GetViewHeight;
     procedure CalcDisplayCellRange;
     procedure CalcScrollRang;
     function GetViewRect: TRect;
-    procedure PaintTo(const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+    function GetActiveCellRect: TRect;
+    function GetCellRect(const ARow, ACol: Integer): TRect;
     procedure UpdateView; overload;
     procedure UpdateView(const ARect: TRect); overload;
+    procedure DoCaretChange;
+    /// <summary> 重新获取光标位置 </summary>
+    procedure ReBuildCaret;
+    procedure CheckUpdateInfo;
+    //
+    procedure PaintTo(const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+    // Imm
+    procedure UpdateImmPosition;
   protected
     procedure WndProc(var Message: TMessage); override;
+    procedure CreateWnd; override;
     procedure Resize; override;
     function DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
@@ -108,22 +110,29 @@ type
     procedure KeyPress(var Key: Char); override;
 
     procedure Paint; override;
-    /// <summary> 有行添加到Rows管理器 </summary>
-    procedure DoRowNotify(Sender: TObject; const ARow: TGridRow;
-      Action: TCollectionNotification);
-
+    procedure DoMapChanged;
+    procedure FormatRow(const ARow: Integer);
+    procedure CalcRowCellHeight(const ARow: Integer);
+    procedure Format;
     /// <summary> 单元格绘制背景 </summary>
-    procedure DoCellPaintBackground(Sender: TObject; const AColumn: TGridColumn;
+    procedure DoCellPaintBackground(Sender: TObject; const ACell: THCTableCell;
       const ACanvas: TCanvas; const ARect: TRect);
   public
-    constructor Create(AOwner: TComponent); overload; override;
-    constructor Create(AOwner: TComponent; const ARowCount, AColCount: Integer); overload;
+    constructor Create(AOwner: TComponent); override;
+    constructor CreateEx(AOwner: TComponent; const ARowCount, AColCount: Integer);
     destructor Destroy; override;
     function ContentHeight: Integer;
     function ContentWidth: Integer;
-    property Cell[const Row, Col: Integer]: TGridColumn read GetCell;
+    /// <summary> 开始批量处理 </summary>
+    procedure BeginUpdate;
+    /// <summary> 结束批量处理 </summary>
+    procedure EndUpdate;
+    property Cells[const Row, Col: Integer]: THCTableCell read GetCell;
     property HorOffset: Integer read GetHorOffset;
     property VerOffset: Integer read GetVerOffset;
+    property BorderWidth: Byte read FBorderWidth write SetBorderWidth;
+    property CellHPadding: Byte read FCellHPadding write SetCellHPadding;
+    property CellVPadding: Byte read FCellVPadding write SetCellVPadding;
     property OnPaintBackground: THCGridPaintEvent read FOnPaintBackground write FOnPaintBackground;
     property OnCellPaintBackground: THCColumnPaintEvent read FOnCellPaintBackground write FOnCellPaintBackground;
     /// <summary> 垂直滚动条滚动时触发 </summary>
@@ -131,6 +140,9 @@ type
 
     /// <summary> 水平滚动条滚动时触发 </summary>
     property OnHorScroll: TNotifyEvent read FOnHorScroll write FOnHorScroll;
+
+    /// <summary> 光标位置改变时触发 </summary>
+    property OnCaretChange: TNotifyEvent read FOnCaretChange write FOnCaretChange;
   end;
 
   THCGridView = class(THCCustomGridView)
@@ -141,6 +153,9 @@ type
 
 implementation
 
+uses
+  Math;
+
 { THCCustomGridView }
 
 constructor THCCustomGridView.Create(AOwner: TComponent);
@@ -148,19 +163,23 @@ begin
   inherited Create(AOwner);
 
   FBitmap := TBitmap.Create;
-  Self.Color := clRed;
+  Self.Color := clWhite;
+  FUpdateCount := 0;
   FColDefaultWidth := 50;
   FActiveCell := nil;
   FDispFirstRow := -1;
   FDispLastRow := -1;
   FDispFirstCol := -1;
   FDispLastCol := -1;
+  FBorderWidth := 1;
+  FCellHPadding := 2;
+  FCellVPadding := 2;
 
   FStyle := THCStyle.CreateEx(True, True);
+  FStyle.ShowParaLastMark := False;
   //FStyle.OnInvalidateRect := DoStyleInvalidateRect;
 
   FRows := TObjectList<TGridRow>.Create;
-  FRows.OnNotify := DoRowNotify;
   FColWidths := TList<Integer>.Create;
   FSelectInfo := THCSelectInfo.Create;
   FSelectInfo.Initilaze;
@@ -175,77 +194,7 @@ begin
   FVScrollBar.Parent := Self;
 end;
 
-procedure THCCustomGridView.CalcDisplayCellRange;
-var
-  vPos, i: Integer;
-begin
-  FDispFirstRow := -1;
-  FDispLastRow := -1;
-  FDispFirstCol := -1;
-  FDispLastCol := -1;
-
-  vPos := 0;
-  for i := 0 to FRows.Count - 1 do
-  begin
-    if (FDispFirstRow < 0) and (vPos + FRows[i].Height - 1 > FVScrollBar.Position) then
-      FDispFirstRow := i;
-
-    if vPos - FVScrollBar.Position >= Self.Height then
-    begin
-      FDispLastRow := i;
-      Break;
-    end;
-
-    vPos := vPos + FRows[i].Height - 1;
-  end;
-
-  if FDispLastRow < 0 then
-    FDispLastRow := FRows.Count - 1;
-
-  vPos := 0;
-  for i := 0 to FColWidths.Count - 1 do
-  begin
-    if (FDispFirstCol < 0) and (vPos + FColWidths[i] - 1 > FHScrollBar.Position) then
-      FDispFirstCol := i;
-
-    if vPos - FHScrollBar.Position >= Self.Width then
-    begin
-      FDispLastCol := i;
-      Break;
-    end;
-
-    vPos := vPos + FColWidths[i] - 1;
-  end;
-
-  if FDispLastCol < 0 then
-    FDispLastCol := FColWidths.Count - 1;
-end;
-
-procedure THCCustomGridView.CalcScrollRang;
-begin
-  FVScrollBar.Max := ContentHeight;
-  FHScrollBar.Max := ContentWidth;
-end;
-
-function THCCustomGridView.ContentHeight: Integer;
-var
-  i: Integer;
-begin
-  Result := 1;
-  for i := 0 to FRows.Count - 1 do
-    Result := Result + FRows[i].Height - 1;
-end;
-
-function THCCustomGridView.ContentWidth: Integer;
-var
-  i: Integer;
-begin
-  Result := 1;
-  for i := 0 to FColWidths.Count - 1 do
-    Result := Result + FColWidths[i] - 1;
-end;
-
-constructor THCCustomGridView.Create(AOwner: TComponent; const ARowCount,
+constructor THCCustomGridView.CreateEx(AOwner: TComponent; const ARowCount,
   AColCount: Integer);
 var
   i: Integer;
@@ -261,6 +210,142 @@ begin
 
   for i := 0 to AColCount - 1 do
     FColWidths.Add(FColDefaultWidth);
+
+  Format;
+end;
+
+procedure THCCustomGridView.CreateWnd;
+begin
+  inherited CreateWnd;
+  if not (csDesigning in ComponentState) then
+  begin
+    if Assigned(FCaret) then
+      FreeAndNil(FCaret);
+
+    FCaret := THCCaret.Create(Handle);
+  end;
+end;
+
+procedure THCCustomGridView.BeginUpdate;
+begin
+  Inc(FUpdateCount);
+end;
+
+procedure THCCustomGridView.CalcDisplayCellRange;
+var
+  vPos, i: Integer;
+begin
+  FDispFirstRow := -1;
+  FDispLastRow := -1;
+  FDispFirstCol := -1;
+  FDispLastCol := -1;
+
+  vPos := 0;
+  for i := 0 to FRows.Count - 1 do
+  begin
+    vPos := vPos + FBorderWidth + FRows[i].Height;
+    if (FDispFirstRow < 0) and (vPos > FVScrollBar.Position) then  // 行底部能显示(不含底部边框)
+      FDispFirstRow := i;
+
+    if vPos + FBorderWidth - FVScrollBar.Position >= Self.Height then
+    begin
+      FDispLastRow := i;
+      Break;
+    end;
+  end;
+
+  if FDispLastRow < 0 then
+    FDispLastRow := FRows.Count - 1;
+
+  vPos := 0;
+  for i := 0 to FColWidths.Count - 1 do
+  begin
+    vPos := vPos + FBorderWidth + FColWidths[i];
+    if (FDispFirstCol < 0) and (vPos > FHScrollBar.Position) then
+      FDispFirstCol := i;
+
+    if vPos + FBorderWidth - FHScrollBar.Position >= Self.Width then
+    begin
+      FDispLastCol := i;
+      Break;
+    end;
+  end;
+
+  if FDispLastCol < 0 then
+    FDispLastCol := FColWidths.Count - 1;
+end;
+
+procedure THCCustomGridView.CalcRowCellHeight(const ARow: Integer);
+var
+  vNorHeightMax: Integer;
+  vC: Integer;
+  vCell: THCTableCell;
+begin
+  vNorHeightMax := 0;
+  for vC := 0 to FColWidths.Count - 1 do
+  begin
+    vCell := FRows[ARow][vC];
+    if Assigned(vCell.CellData) and (vCell.RowSpan = 0) then
+      vNorHeightMax := Max(vNorHeightMax, vCell.CellData.Height);
+  end;
+
+  vNorHeightMax := vNorHeightMax + FCellVPadding + FCellVPadding;
+  for vC := 0 to FColWidths.Count - 1 do
+    FRows[ARow][vC].Height := vNorHeightMax;
+
+  if FRows[ARow].AutoHeight then
+    FRows[ARow].Height := vNorHeightMax
+  else  // 拖动改变了行高度
+  begin
+    if vNorHeightMax > FRows[ARow].Height then  // 拖动高度失效
+    begin
+      FRows[ARow].AutoHeight := True;
+      FRows[ARow].Height := vNorHeightMax;
+    end;
+  end;
+end;
+
+procedure THCCustomGridView.CalcScrollRang;
+begin
+  FVScrollBar.Max := ContentHeight;
+  FHScrollBar.Max := ContentWidth;
+end;
+
+procedure THCCustomGridView.CheckUpdateInfo;
+begin
+  if FUpdateCount > 0 then Exit;
+
+  if Assigned(FCaret) and FStyle.UpdateInfo.ReCaret then
+  begin
+    ReBuildCaret;
+    FStyle.UpdateInfo.ReCaret := False;
+
+    UpdateImmPosition;
+  end;
+
+  if FStyle.UpdateInfo.RePaint then
+  begin
+    FStyle.UpdateInfo.RePaint := False;
+    UpdateView;
+  end;
+end;
+
+function THCCustomGridView.ContentHeight: Integer;
+var
+  i: Integer;
+begin
+  Result := FBorderWidth;
+  for i := 0 to FRows.Count - 1 do
+    Result := Result + FRows[i].Height + FBorderWidth;
+end;
+
+function THCCustomGridView.ContentWidth: Integer;
+var
+  i: Integer;
+begin
+  Result := FBorderWidth;
+  for i := 0 to FColWidths.Count - 1 do
+    Result := Result + FColWidths[i] + FBorderWidth;
 end;
 
 destructor THCCustomGridView.Destroy;
@@ -272,22 +357,40 @@ begin
   FreeAndNil(FHScrollBar);
   FreeAndNil(FVScrollBar);
   FreeAndNil(FStyle);
+  FreeAndNil(FCaret);
   inherited Destroy;
 end;
 
+procedure THCCustomGridView.DoCaretChange;
+begin
+  if Assigned(FOnCaretChange) then
+    FOnCaretChange(Self);
+end;
+
 procedure THCCustomGridView.DoCellPaintBackground(Sender: TObject;
-  const AColumn: TGridColumn; const ACanvas: TCanvas; const ARect: TRect);
+  const ACell: THCTableCell; const ACanvas: TCanvas; const ARect: TRect);
 begin
   if Assigned(FOnCellPaintBackground) then
-    FOnCellPaintBackground(AColumn, ACanvas, ARect);
+    FOnCellPaintBackground(ACell, ACanvas, ARect);
 end;
 
 procedure THCCustomGridView.DoHorScroll(Sender: TObject;
   ScrollCode: TScrollCode; const ScrollPos: Integer);
 begin
-  UpdateView;
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret(False);
+  CheckUpdateInfo;
   if Assigned(FOnHorScroll) then
     FOnHorScroll(Self);
+end;
+
+procedure THCCustomGridView.DoMapChanged;
+begin
+  if FUpdateCount = 0 then
+  begin
+    CalcScrollRang;
+    CheckUpdateInfo;
+  end;
 end;
 
 function THCCustomGridView.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
@@ -301,29 +404,67 @@ begin
   Result := True;
 end;
 
-procedure THCCustomGridView.DoRowNotify(Sender: TObject; const ARow: TGridRow;
-  Action: TCollectionNotification);
-begin
-  if Action = cnAdded then
-    ARow.OnColumnPaintBackground := DoCellPaintBackground;
-end;
-
 procedure THCCustomGridView.DoVerScroll(Sender: TObject;
   ScrollCode: TScrollCode; const ScrollPos: Integer);
 begin
-  UpdateView;
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret(False);
+  CheckUpdateInfo;
   if Assigned(FOnVerScroll) then
     FOnVerScroll(Self);
 end;
 
-function THCCustomGridView.GetCell(const ARow, ACol: Integer): TGridColumn;
+procedure THCCustomGridView.EndUpdate;
+begin
+  if FUpdateCount > 0 then
+    Dec(FUpdateCount);
+
+  DoMapChanged;
+end;
+
+procedure THCCustomGridView.Format;
+var
+  vR: Integer;
+begin
+  for vR := 0 to FRows.Count - 1 do
+  begin
+    FormatRow(vR);
+    CalcRowCellHeight(vR);
+  end;
+
+  //CalcMergeRowHeightFrom(0);
+end;
+
+procedure THCCustomGridView.FormatRow(const ARow: Integer);
+var
+  vC: Integer;
+  vCell: THCTableCell;
+begin
+  for vC := 0 to FColWidths.Count - 1 do
+  begin
+    vCell := FRows[ARow][vC];
+    vCell.Width := FColWidths[vC];
+    if Assigned(vCell.CellData) then
+    begin
+      vCell.CellData.Width := vCell.Width - FCellHPadding - FCellHPadding;
+      vCell.CellData.ReFormat;
+    end;
+  end;
+end;
+
+function THCCustomGridView.GetActiveCellRect: TRect;
+begin
+  Result := GetCellRect(FSelectInfo.StartRow, FSelectInfo.StartCol);
+end;
+
+function THCCustomGridView.GetCell(const ARow, ACol: Integer): THCTableCell;
 begin
   Result := FRows[ARow][ACol];
 end;
 
-function THCCustomGridView.GetCellAt(const X, Y: Integer): TGridColumn;
+function THCCustomGridView.GetCellAt(const X, Y: Integer): THCTableCell;
 var
-  i, vRow, vCol: Integer;
+  vRow, vCol: Integer;
 begin
   Result := nil;
 
@@ -343,13 +484,41 @@ begin
   ACol := GetColIndexAt(X, Y);
 end;
 
+function THCCustomGridView.GetCellRect(const ARow, ACol: Integer): TRect;
+var
+  i, vBorderHalf, vRow, vCol: Integer;
+begin
+  GetDestCell(ARow, ACol, vRow, vCol);
+
+  vBorderHalf := FBorderWidth div 2;
+
+  Result.Top := 0;
+  for i := 0 to vRow - 1 do
+    Result.Top := Result.Top + FBorderWidth + FRows[i].Height;
+
+  Result.Top := Result.Top + vBorderHalf - FVScrollBar.Position;
+
+  Result.Left := 0;
+  for i := 0 to vCol - 1 do
+    Result.Left := Result.Left + FBorderWidth + FColWidths[i];
+
+  Result.Left := Result.Left + vBorderHalf - FHScrollBar.Position;
+
+  Result.Right := Result.Left + FColWidths[vCol];
+
+  if FRows[vRow][vCol].RowSpan = 0 then
+    Result.Bottom := Result.Top + FRows[vRow].Height
+  else
+    Result.Bottom := Result.Top + FRows[vRow][vCol].Height;
+end;
+
 function THCCustomGridView.GetColIndexAt(const X, Y: Integer): Integer;
 var
   i, vLeft: Integer;
 begin
   Result := -1;
 
-  vLeft := 0;
+  vLeft := FBorderWidth - FHScrollBar.Position;
   for i := 0 to FColWidths.Count - 1 do
   begin
     if (X > vLeft) and (X < vLeft + FColWidths[i]) then
@@ -358,7 +527,22 @@ begin
       Break;
     end;
 
-    vLeft := vLeft + FColWidths[i] - 1;
+    vLeft := vLeft + FColWidths[i] + FBorderWidth;
+  end;
+end;
+
+procedure THCCustomGridView.GetDestCell(const ARow, ACol: Cardinal;
+  var ADestRow, ADestCol: Integer);
+begin
+  if Cells[ARow, ACol].CellData <> nil then
+  begin
+    ADestRow := ARow;
+    ADestCol := ACol;
+  end
+  else
+  begin
+    ADestRow := ARow + Cells[ARow, ACol].RowSpan;
+    ADestCol := ACol + Cells[ARow, ACol].ColSpan;
   end;
 end;
 
@@ -383,7 +567,7 @@ var
 begin
   Result := -1;
 
-  vTop := 0;
+  vTop := FBorderWidth - FVScrollBar.Position;
   for i := 0 to FRows.Count - 1 do
   begin
     if (Y > vTop) and (Y < vTop + FRows[i].Height) then
@@ -392,8 +576,20 @@ begin
       Break;
     end;
 
-    vTop := vTop + FRows[i].Height - 1;
+    vTop := vTop + FRows[i].Height + FBorderWidth;
   end;
+end;
+
+procedure THCCustomGridView.GetSourceCell(const ARow, ACol: Cardinal;
+  var ASrcRow, ASrcCol: Integer);
+begin
+  if Cells[ARow, ACol].CellData <> nil then
+  begin
+    ASrcRow := ARow + FRows[ARow][ACol].RowSpan;
+    ASrcCol := ACol + FRows[ARow][ACol].ColSpan;
+  end
+  else  // 源单元格不能获取源单元格
+    raise Exception.Create(HCS_EXCEPTION_VOIDSOURCECELL);
 end;
 
 function THCCustomGridView.GetVerOffset: Integer;
@@ -433,7 +629,12 @@ end;
 procedure THCCustomGridView.KeyPress(var Key: Char);
 begin
   if Assigned(FActiveCell) then
+  begin
     FActiveCell.CellData.KeyPress(Key);
+    FormatRow(FSelectInfo.StartRow);
+    CalcRowCellHeight(FSelectInfo.StartRow);
+    DoMapChanged;
+  end;
 
   inherited KeyPress(Key);
 end;
@@ -450,10 +651,10 @@ procedure THCCustomGridView.MouseDown(Button: TMouseButton; Shift: TShiftState;
   X, Y: Integer);
 var
   vRow, vCol: Integer;
+  vRect: TRect;
 begin
   inherited MouseDown(Button, Shift, X, Y);
 
-  FActiveCell := nil;
   FSelectInfo.InitilazeEnd;
   GetCellIndex(X, Y, vRow, vCol);
   if (vRow <> FSelectInfo.StartRow) or (vCol <> FSelectInfo.StartCol) then
@@ -461,6 +662,16 @@ begin
     FSelectInfo.SetStart(vRow, vCol);
     FActiveCell := GetCellAt(X, Y);
   end;
+
+  if Assigned(FActiveCell) then
+  begin
+    vRect := GetActiveCellRect;
+    FActiveCell.CellData.MouseDown(Button, Shift, X - FCellHPadding - vRect.Left, Y - FCellVPadding - vRect.Top);
+  end
+  else
+    FStyle.UpdateInfoReCaret;
+
+  CheckUpdateInfo;
 end;
 
 procedure THCCustomGridView.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -485,9 +696,29 @@ end;
 
 procedure THCCustomGridView.PaintTo(const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
+
+  function CreatExtPen: HPen;
+  var
+    APenParams: TLogBrush;
+  const
+    PenTypes: array[Boolean] of Integer = (PS_COSMETIC, PS_GEOMETRIC);
+    //PenStyles: array[psSolid..psInsideFrame] of Word =
+    //  (PS_SOLID, PS_DASH, PS_DOT, PS_DASHDOT, PS_DASHDOTDOT, PS_NULL, PS_SOLID);
+  begin
+    APenParams.lbStyle := BS_SOLID;
+    APenParams.lbColor := ACanvas.Pen.Color;
+    APenParams.lbHatch := 0;
+    Result := ExtCreatePen(PenTypes[FBorderWidth <> 1] or PS_ENDCAP_SQUARE,
+      FBorderWidth, APenParams, 0, nil);
+  end;
+
 var
   vRect: TRect;
-  vR, vC, vLeft, vTop, vPaintLeft: Integer;
+  vR, vC, vLeft, vTop, vRight, vBottom, vPaintLeft, vBorderHalf: Integer;
+  vCell: THCTableCell;
+  //vExtPen: ^TExtLogPen;
+  vExtPen: HPEN;
+  vOldPen: HGDIOBJ;
 begin
   vRect := GetViewRect;
   if Assigned(FOnPaintBackground) then
@@ -499,31 +730,112 @@ begin
   end;
   //
   ACanvas.Pen.Color := clBlack;
-  vPaintLeft := -FHScrollBar.Position;
-  vTop := -FVScrollBar.Position;
+  ACanvas.Pen.Width := FBorderWidth;
+  if GetObjectType(ACanvas.Pen.Handle) = OBJ_EXTPEN then
+  begin
+    vExtPen := ACanvas.Pen.Handle;
+    //vBottom := GetObject(ACanvas.Pen.Handle, 0, nil);
+    //GetObject(ACanvas.Pen.Handle, vBottom, vExtPen);
+  end
+  else
+    vExtPen := CreatExtPen;  // 因为默认的画笔没有线帽的控制，新增支持线帽的画笔
 
+  vBorderHalf := FBorderWidth div 2;
+  vTop := 0;
   for vR := 0 to FDispFirstRow - 1 do
-    vTop := vTop + FRows[vR].Height - 1;
+    vTop := vTop + FBorderWidth + FRows[vR].Height;
 
+  vTop := vTop + vBorderHalf - FVScrollBar.Position;
+
+  vPaintLeft := 0;
   for vC := 0 to FDispFirstCol - 1 do
-    vPaintLeft := vPaintLeft + FColWidths[vC] - 1;
+    vPaintLeft := vPaintLeft + FBorderWidth + FColWidths[vC];
+
+  vPaintLeft := vPaintLeft + vBorderHalf - FHScrollBar.Position;
 
   vLeft := vPaintLeft;
   for vR := FDispFirstRow to FDispLastRow do
   begin
     for vC := FDispFirstCol to FDispLastCol do
     begin
-      Cell[vR, vC].PaintTo(ACanvas, vLeft, vTop, FColWidths[vC], FRows[vR].Height,
-        APaintInfo);
-      //ACanvas.TextOut(vLeft + 2, vTop + 2, IntToStr(vC));
-      vLeft := vLeft + FColWidths[vC] - 1;
+      vCell := Cells[vR, vC];
+      if Assigned(vCell.CellData) then
+      begin
+        if vCell.ColSpan = 0 then
+          vRight := vLeft + FBorderWidth + FColWidths[vC]
+        else
+          vRight := vLeft + FBorderWidth + vCell.Width;
+
+        if vCell.RowSpan = 0 then
+          vBottom := vTop + FBorderWidth + FRows[vR].Height
+        else
+          vBottom := vTop + FBorderWidth + vCell.Height;
+
+        vRect := Rect(vLeft + vBorderHalf, vTop + vBorderHalf, vRight, vBottom);
+        if Assigned(FOnCellPaintBackground) then  // 绘制自定义背景
+          FOnCellPaintBackground(vCell, ACanvas, vRect);
+        // 绘制内容
+        vCell.CellData.PaintData(vLeft + vBorderHalf + FCellHPadding,
+          vTop + vBorderHalf + FCellVPadding,
+          vTop + vBorderHalf + vCell.Height - FCellVPadding,
+          0, Self.Height,
+          0, 0, vCell.CellData.DrawItems.Count - 1, ACanvas, APaintInfo);
+        // 绘制边框
+        vOldPen := SelectObject(ACanvas.Handle, vExtPen);
+        ACanvas.MoveTo(vLeft, vTop);
+        ACanvas.LineTo(vRight, vTop);
+        ACanvas.LineTo(vRight, vBottom);
+        ACanvas.LineTo(vLeft, vBottom);
+        ACanvas.LineTo(vLeft, vTop);
+        SelectObject(ACanvas.Handle, vOldPen);
+      end;
+
+      vLeft := vLeft + FBorderWidth + FColWidths[vC];
     end;
 
-    ACanvas.TextOut(0, vTop, IntToStr(vR));
-
-    vTop := vTop + FRows[vR].Height - 1;
+    vTop := vTop + FBorderWidth + FRows[vR].Height;
     vLeft := vPaintLeft;
   end;
+
+  DeleteObject(vExtPen);
+end;
+
+procedure THCCustomGridView.ReBuildCaret;
+var
+  vCaretInfo: THCCaretInfo;
+  vRect: TRect;
+begin
+  if not Assigned(FCaret) then Exit;
+
+  if (not Self.Focused)
+    or (not Assigned(FActiveCell))
+    or ((not FStyle.UpdateInfo.Draging) and FActiveCell.CellData.SelectExists)
+  then
+  begin
+    FCaret.Hide;
+    Exit;
+  end;
+
+  vCaretInfo.X := 0;
+  vCaretInfo.Y := 0;
+  vCaretInfo.Height := 0;
+  vCaretInfo.Visible := True;
+
+  FActiveCell.CellData.GetCaretInfoCur(vCaretInfo);
+
+  if not vCaretInfo.Visible then
+  begin
+    FCaret.Hide;
+    Exit;
+  end;
+
+  vRect := GetActiveCellRect;
+
+  FCaret.X := vRect.Left + FCellHPadding + vCaretInfo.X;
+  FCaret.Y := vRect.Top + FCellVPadding + vCaretInfo.Y;
+  FCaret.Height := vCaretInfo.Height;
+  FCaret.Show;
+  DoCaretChange;
 end;
 
 procedure THCCustomGridView.Resize;
@@ -538,8 +850,42 @@ begin
 
   FHScrollBar.Top := Height - FHScrollBar.Height;
   FHScrollBar.Width := Width - FVScrollBar.Width;
-  CalcScrollRang;
-  UpdateView;
+  DoMapChanged;
+end;
+
+procedure THCCustomGridView.SetBorderWidth(const Value: Byte);
+begin
+  if FBorderWidth <> Value then
+  begin
+    FBorderWidth := Value;
+    Format;
+    DoMapChanged;
+  end;
+end;
+
+procedure THCCustomGridView.SetCellHPadding(const Value: Byte);
+begin
+  if FCellHPadding <> Value then
+  begin
+    FCellHPadding := Value;
+    Format;
+    DoMapChanged;
+  end;
+end;
+
+procedure THCCustomGridView.SetCellVPadding(const Value: Byte);
+begin
+  if FCellVPadding <> Value then
+  begin
+    FCellVPadding := Value;
+    Format;
+    DoMapChanged;
+  end;
+end;
+
+procedure THCCustomGridView.UpdateImmPosition;
+begin
+
 end;
 
 procedure THCCustomGridView.UpdateView(const ARect: TRect);
@@ -581,7 +927,6 @@ end;
 
 procedure THCCustomGridView.WndProc(var Message: TMessage);
 begin
-  inherited WndProc(Message);
   case Message.Msg of
     WM_LBUTTONDOWN, WM_LBUTTONDBLCLK,
     WM_RBUTTONDOWN, WM_RBUTTONDBLCLK,
@@ -591,6 +936,8 @@ begin
           Self.SetFocus;
       end;
   end;
+
+  inherited WndProc(Message);
 end;
 
 { TGridRow }
@@ -598,61 +945,22 @@ end;
 constructor TGridRow.Create(const AStyle: THCStyle; const AColCount: Integer);
 var
   i: Integer;
-  vColumn: TGridColumn;
+  vCell: THCTableCell;
 begin
   inherited Create(True);
 
-  FHeight := 25;
+  FAutoHeight := True;
+  FHeight := 0;
   for i := 0 to AColCount - 1 do
   begin
-    vColumn := TGridColumn.Create(AStyle);
-    Self.Add(vColumn);
+    vCell := THCTableCell.Create(AStyle);
+    Self.Add(vCell);
   end;
 end;
 
 destructor TGridRow.Destroy;
 begin
   inherited Destroy;
-end;
-
-procedure TGridRow.DoColumnPaintBackground(const AColumn: TGridColumn;
-  const ACanvas: TCanvas; const ARect: TRect);
-begin
-  if Assigned(FOnColumnPaintBackground) then
-    FOnColumnPaintBackground(Self, AColumn, ACanvas, ARect);
-end;
-
-procedure TGridRow.Notify(const AColumn: TGridColumn;
-  Action: TCollectionNotification);
-begin
-  inherited Notify(AColumn, Action);
-
-  if Action = cnAdded then
-    AColumn.OnPaintBackground := DoColumnPaintBackground;
-end;
-
-{ TGridColumn }
-
-procedure TGridColumn.PaintTo(const ACanvas: TCanvas; const ALeft,
-  ATop, AWidth, AHeight: Integer; const APaintInfo: TPaintInfo);
-var
-  vRect: TRect;
-begin
-  if Assigned(Self.CellData) then
-  begin
-    vRect := Bounds(ALeft, ATop, AWidth, AHeight);
-    if Assigned(FOnPaintBackground) then
-      FOnPaintBackground(Self, ACanvas, vRect);
-
-    Self.CellData.PaintData(ALeft, ATop, ATop + AHeight, ATop, ATop + AHeight,
-      0, 0, Self.CellData.DrawItems.Count - 1, ACanvas, APaintInfo);
-
-    ACanvas.MoveTo(vRect.Left, vRect.Top);
-    ACanvas.LineTo(vRect.Right - 1, vRect.Top);
-    ACanvas.LineTo(vRect.Right - 1, vRect.Bottom - 1);
-    ACanvas.LineTo(vRect.Left, vRect.Bottom - 1);
-    ACanvas.LineTo(vRect.Left, vRect.Top);
-  end;
 end;
 
 { THCSelectInfo }

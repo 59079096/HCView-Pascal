@@ -375,7 +375,6 @@ end;
 procedure THCRichData.DeleteItems(const AStartNo: Integer; const AEndNo: Integer);
 var
   i, vFormatFirstDrawItemNo, vFormatLastItemNo, vDelCount: Integer;
-  vActiveItem: THCCustomItem;
   vItem: THCCustomItem;
 begin
   if not CanEdit then Exit;
@@ -2372,7 +2371,6 @@ var
     begin
       if vTextItem.CanAccept(SelectInfo.StartItemOffset, hiaInsertChar) then  // TextItem此偏移位置可接受输入
       begin
-
         if SelectInfo.StartItemOffset = 0 then  // 在TextItem最前面插入
         begin
           UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
@@ -4137,7 +4135,7 @@ var
       else
       if SelectInfo.StartItemNo <> 0 then  // 不是第1个Item最前面删除
       begin
-        vCurItemNo := SelectInfo.StartItemNo;
+        //vCurItemNo := SelectInfo.StartItemNo;
         if vCurItem.ParaFirst then  // 是段起始Item
         begin
           vLen := Items[SelectInfo.StartItemNo - 1].Length;
@@ -4456,7 +4454,7 @@ var
   {$ENDREGION}
 
 begin
-  if not CanEdit then Exit;
+  if IsKeyDownEdit(Key) and (not CanEdit) then Exit;
 
   if Key in [VK_BACK, VK_DELETE, VK_RETURN, VK_TAB] then
     Self.InitializeMouseField;  // 如果Item删除完了，原MouseMove处ItemNo可能不存在了，再MouseMove时清除旧的出错

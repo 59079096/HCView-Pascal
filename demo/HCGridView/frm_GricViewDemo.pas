@@ -31,11 +31,10 @@ procedure TForm9.DoGridCellPaintBackground(const AColumn: THCTableCell;
 begin
   if (ARect.Left + FGridView.HorOffset > 250) then
   //if (ARect.Top + FGridView.VerOffset > 250) then
-    ACanvas.Brush.Color := clYellow
-  else
-    ACanvas.Brush.Color := FGridView.Color;
-//
-  ACanvas.FillRect(ARect);
+  begin
+    ACanvas.Brush.Color := clYellow;
+    ACanvas.FillRect(ARect);
+  end;
 end;
 
 procedure TForm9.FormCreate(Sender: TObject);

@@ -127,7 +127,7 @@ type
       FOnSectionPaintWholePageBefor, FOnSectionPaintWholePageAfter: TSectionPagePaintEvent;
     FOnPaintViewBefor, FOnPaintViewAfter: TPaintEvent;
 
-    FOnChange, FOnChangedSwitch, FOnZoomChanged,
+    FOnChange, FOnChangeSwitch, FOnZoomChange,
     FOnViewResize  // 视图大小发生变化
       : TNotifyEvent;
 
@@ -750,10 +750,10 @@ type
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
 
     /// <summary> 文档Change状态切换时触发 </summary>
-    property OnChangedSwitch: TNotifyEvent read FOnChangedSwitch write FOnChangedSwitch;
+    property OnChangedSwitch: TNotifyEvent read FOnChangeSwitch write FOnChangeSwitch;
 
     /// <summary> 文档Zoom缩放变化后触发 </summary>
-    property OnZoomChanged: TNotifyEvent read FOnZoomChanged write FOnZoomChanged;
+    property OnZoomChanged: TNotifyEvent read FOnZoomChange write FOnZoomChange;
 
     /// <summary> 窗口重绘开始时触发 </summary>
     property OnPaintViewBefor: TPaintEvent read FOnPaintViewBefor write FOnPaintViewBefor;
@@ -863,8 +863,6 @@ begin
 end;
 
 procedure THCView.CheckUpdateInfo;
-var
-  vCaretChange: Boolean;
 begin
   if FUpdateCount > 0 then Exit;
 
@@ -874,23 +872,17 @@ begin
   if (FCaret <> nil) and FStyle.UpdateInfo.ReCaret then  // 先处理光标，因为可能光标处有些需要高亮重绘
   begin
     ReBuildCaret;
-    vCaretChange := True;
     FStyle.UpdateInfo.ReCaret := False;
     FStyle.UpdateInfo.ReStyle := False;
     FStyle.UpdateInfo.ReScroll := False;
     UpdateImmPosition;
-  end
-  else
-    vCaretChange := False;
+  end;
 
   if FStyle.UpdateInfo.RePaint then
   begin
     FStyle.UpdateInfo.RePaint := False;
     UpdateView;
   end;
-
-  if vCaretChange then
-    DoCaretChange;
 end;
 
 procedure THCView.Clear;
@@ -1945,7 +1937,7 @@ end;
 
 procedure THCView.KeyUp(var Key: Word; Shift: TShiftState);
 begin
-  inherited;
+  inherited KeyUp(Key, Shift);
   ActiveSection.KeyUp(Key, Shift);
 end;
 
@@ -2175,7 +2167,7 @@ begin
 
   vSectionDrawLeft := GetSectionDrawLeft(FActiveSectionIndex);
 
-//  if FAnnotatePre.DrawCount > 0 then  // 有批注被绘制
+  if FAnnotatePre.DrawCount > 0 then  // 有批注被绘制
 //  begin
 //    //if (X + HScrollValue > vSectionDrawLeft + FSections[FActiveSectionIndex].PageWidthPix)
 //    //  and (X + HScrollValue < vSectionDrawLeft + FSections[FActiveSectionIndex].PageWidthPix + AnnotationWidth)
@@ -2925,9 +2917,9 @@ procedure THCView.ReBuildCaret;
 var
   vCaretInfo: THCCaretInfo;
 begin
-  if FCaret = nil then Exit;
+  if not Assigned(FCaret) then Exit;
 
-  if (not Self.Focused) or ((not Style.UpdateInfo.Draging) and ActiveSection.SelectExists) then
+  if (not Self.Focused) or ((not FStyle.UpdateInfo.Draging) and ActiveSection.SelectExists) then
   begin
     FCaret.Hide;
     Exit;
@@ -3447,8 +3439,8 @@ begin
   if FIsChanged <> Value then
   begin
     FIsChanged := Value;
-    if Assigned(FOnChangedSwitch) then
-      FOnChangedSwitch(Self);
+    if Assigned(FOnChangeSwitch) then
+      FOnChangeSwitch(Self);
   end;
 end;
 
@@ -3581,8 +3573,8 @@ begin
     FZoom := vValue;
     FStyle.UpdateInfoRePaint;
     FStyle.UpdateInfoReCaret(False);
-    if Assigned(FOnZoomChanged) then
-      FOnZoomChanged(Self);
+    if Assigned(FOnZoomChange) then
+      FOnZoomChange(Self);
 
     DoMapChanged;
     DoViewResize;
@@ -3855,7 +3847,7 @@ begin
   {if ActiveSection.SelectInfo.StartItemOffset > 1 then  // 告诉输入法根据当前位置词条更新备选
   begin
     if GetCurItem.StyleNo < 0 then Exit;
-    
+
     vS := GetCurItem.GetTextPart(ActiveSection.SelectInfo.StartItemOffset - 1, 2);  // 返回光标前2个字符
     if vS <> '' then
     begin

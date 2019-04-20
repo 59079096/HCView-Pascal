@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  Printers, Clipbrd, HCRuler;
+  Printers, Clipbrd, HCRuler, System.Actions, System.ImageList;
 
 type
   TfrmHCViewDemo = class(TForm)

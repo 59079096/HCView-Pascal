@@ -178,6 +178,8 @@ type
   function SwapBytes(AValue: Word): Word;
   function IsKeyPressWant(const AKey: Char): Boolean;
   function IsKeyDownWant(const AKey: Word): Boolean;
+  function IsKeyDownEdit(const AKey: Word): Boolean;  // 引起内容变化的KeyDown
+  function IsDirectionKey(const AKey: Word): Boolean;
 
   /// <summary> 效率更高的返回字符在字符串位置函数 </summary>
   function PosCharHC(const AChar: Char; const AStr: string{; const Offset: Integer = 1}): Integer;
@@ -341,6 +343,16 @@ function IsKeyDownWant(const AKey: Word): Boolean;
 begin
   Result := AKey in [VK_BACK, VK_DELETE, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_RETURN,
     VK_HOME, VK_END, VK_TAB];
+end;
+
+function IsKeyDownEdit(const AKey: Word): Boolean;
+begin
+  Result := AKey in [VK_BACK, VK_DELETE, VK_RETURN, VK_TAB];
+end;
+
+function IsDirectionKey(const AKey: Word): Boolean;
+begin
+  Result := AKey in [VK_LEFT, VK_UP, VK_RIGHT, VK_DOWN];
 end;
 
 function PosCharHC(const AChar: Char; const AStr: string{; const Offset: Integer = 1}): Integer;

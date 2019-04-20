@@ -29,6 +29,7 @@ type
     property SectionIndex: Integer read FSectionIndex write FSectionIndex;
     property PageIndex: Integer read FPageIndex write FPageIndex;
     property PageDataFmtTop: Integer read FPageDataFmtTop write FPageDataFmtTop;
+    //property HeaderAreaHeight: Integer read FHeaderAreaHeight write FHeaderAreaHeight;
   end;
 
   TSectionPagePaintEvent = procedure(const Sender: TObject; const APageIndex: Integer;
@@ -1472,7 +1473,7 @@ procedure THCCustomSection.KeyDown(var Key: Word; Shift: TShiftState);
 var
   vKey: Word;
 begin
-  if not FActiveData.CanEdit then Exit;
+  if IsKeyDownEdit(Key) and (not FActiveData.CanEdit) then Exit;
 
   if FActiveData.KeyDownFloatItem(Key, Shift) then  // FloatItem使用了按键
   begin
@@ -1482,15 +1483,14 @@ begin
 
   if IsKeyDownWant(Key) then
   begin
-    vKey := Key;
     case Key of
       VK_BACK, VK_DELETE, VK_RETURN, VK_TAB:
         begin
+          vKey := Key;
           ActiveDataChangeByAction(function(): Boolean
             begin
               FActiveData.KeyDown(vKey, Shift);
             end);
-
           Key := vKey;
         end;
 
@@ -1994,7 +1994,7 @@ var
   {$ENDREGION}
 
 var
-  vX, vY: Integer;
+  vX, vY, vDCState: Integer;
   vPaintRegion: HRGN;
   vClipBoxRect: TRect;
 begin
@@ -2077,9 +2077,15 @@ begin
 
   if Assigned(FOnPaintWholePageBefor) then  // 公开页面绘制前事件
   begin
-    FOnPaintWholePageBefor(Self, APageIndex,
-      Rect(vPageDrawLeft, vPageDrawTop, vPageDrawRight, vPageDrawBottom),
-      ACanvas, APaintInfo);
+    vDCState := Windows.SaveDC(ACanvas.Handle);
+    try
+      FOnPaintWholePageBefor(Self, APageIndex,
+        Rect(vPageDrawLeft, vPageDrawTop, vPageDrawRight, vPageDrawBottom),
+        ACanvas, APaintInfo);
+    finally
+      Windows.RestoreDC(ACanvas.Handle, vDCState);
+      ACanvas.Refresh;
+    end;
   end;
 
   {$REGION ' 绘制页眉 '}
@@ -2207,9 +2213,15 @@ begin
 
   if Assigned(FOnPaintWholePageAfter) then  // 公开页面绘制后事件
   begin
-    FOnPaintWholePageAfter(Self, APageIndex,
-      Rect(vPageDrawLeft, vPageDrawTop, vPageDrawRight, vPageDrawBottom),
-      ACanvas, APaintInfo);
+    vDCState := Windows.SaveDC(ACanvas.Handle);
+    try
+      FOnPaintWholePageAfter(Self, APageIndex,
+        Rect(vPageDrawLeft, vPageDrawTop, vPageDrawRight, vPageDrawBottom),
+        ACanvas, APaintInfo);
+    finally
+      Windows.RestoreDC(ACanvas.Handle, vDCState);
+      ACanvas.Refresh;
+    end;
   end;
 end;
 

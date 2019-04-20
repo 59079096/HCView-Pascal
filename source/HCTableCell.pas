@@ -17,6 +17,60 @@ uses
   Classes, Graphics, HCStyle, HCCustomData, HCTableCellData, HCItem, HCCommon, HCXml;
 
 type
+  TTableSite = (
+    tsOutside,  // 表格外面
+    tsCell,  // 单元格中
+    tsBorderLeft,{只有第一列使用此元素}
+    tsBorderTop,  {只有第一行使用此元素}
+    tsBorderRight,  // 第X列右边
+    tsBorderBottom  // 第X行下边
+  );
+
+  //PResizeInfo = ^TResizeInfo;
+  TResizeInfo = record  // 缩放信息
+    TableSite: TTableSite;
+    DestX, DestY: Integer;
+  end;
+
+  TOutsideInfo = record  // 表格外面信息
+    Row: Integer;  // 外面位置处对应的行
+    Leftside: Boolean;  // True：左边 False：右边
+  end;
+
+  TSelectCellRang = class
+  strict private
+    FStartRow,  // 选中起始行
+    FStartCol,  // 选中起始列
+    FEndRow,    // 选中结束行
+    FEndCol     // 选中结束列
+      : Integer;
+  public
+    constructor Create;
+
+    /// <summary> 初始化字段和变量 </summary>
+    procedure Initialize;
+
+    procedure InitilazeEnd;
+    procedure SetStart(const ARow, ACol: Integer);
+    procedure SetEnd(const ARow, ACol: Integer);
+
+    /// <summary> 在同一单元中编辑 </summary>
+    function EditCell: Boolean;
+
+    /// <summary> 选中在同一行 </summary>
+    function SameRow: Boolean;
+
+    /// <summary> 选中在同一列 </summary>
+    function SameCol: Boolean;
+
+    /// <summary> 选中1-n个单元格 </summary>
+    function SelectExists: Boolean;
+    property StartRow: Integer read FStartRow write FStartRow;
+    property StartCol: Integer read FStartCol write FStartCol;
+    property EndRow: Integer read FEndRow write FEndRow;
+    property EndCol: Integer read FEndCol write FEndCol;
+  end;
+
   /// <summary> 垂直对齐方式：上、居中、下) </summary>
   THCAlignVert = (cavTop, cavCenter, cavBottom);
 
@@ -91,7 +145,7 @@ begin
   FCellData := THCTableCellData.Create(AStyle);
   FAlignVert := cavTop;
   FBorderSides := [cbsLeft, cbsTop, cbsRight, cbsBottom];
-  FBackgroundColor := AStyle.BackgroudColor;
+  FBackgroundColor := HCTransparentColor;
   FRowSpan := 0;
   FColSpan := 0;
 end;
@@ -270,6 +324,59 @@ begin
 
   if Assigned(FCellData) then  // 存数据
     FCellData.ToXml(ANode.AddChild('items'));
+end;
+
+{ TSelectCellRang }
+
+constructor TSelectCellRang.Create;
+begin
+  Initialize;
+end;
+
+function TSelectCellRang.EditCell: Boolean;
+begin
+   Result := (FStartRow >= 0) and (FEndRow < 0);  // 这样比SameRow和SameCol更快捷？
+end;
+
+procedure TSelectCellRang.Initialize;
+begin
+  FStartRow := -1;
+  FStartCol := -1;
+  FEndRow := -1;
+  FEndCol := -1;
+end;
+
+procedure TSelectCellRang.InitilazeEnd;
+begin
+  FEndRow := -1;
+  FEndCol := -1;
+end;
+
+function TSelectCellRang.SameCol: Boolean;
+begin
+  Result := (FStartCol >= 0) and (FStartCol = FEndCol);
+end;
+
+function TSelectCellRang.SameRow: Boolean;
+begin
+  Result := (FStartRow >= 0) and (FStartRow = FEndRow);
+end;
+
+function TSelectCellRang.SelectExists: Boolean;
+begin
+  Result := (FEndRow >= 0) or (FEndCol >= 0);  // 暂时没有用到此方法
+end;
+
+procedure TSelectCellRang.SetEnd(const ARow, ACol: Integer);
+begin
+  FEndRow := ARow;
+  FEndCol := ACol;
+end;
+
+procedure TSelectCellRang.SetStart(const ARow, ACol: Integer);
+begin
+  FStartRow := ARow;
+  FStartCol := ACol;
 end;
 
 end.

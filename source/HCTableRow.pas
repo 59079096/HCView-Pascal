@@ -41,7 +41,7 @@ type
   protected
     function GetCols(const Index: Integer): THCTableCell;
 
-    property Items[Index: Integer]: Pointer read GetItems write SetItems; default;
+    property Items[Index: Integer]: Pointer read GetItems write SetItems;
   public
     constructor Create(const AStyle: THCStyle; const AColCount: Integer);
     destructor Destroy; override;
@@ -61,7 +61,7 @@ type
     property ColCount: Integer read FColCount write SetColCount;
     //property List: PCellDataList read FList;
     //
-    property Cols[const Index: Integer]: THCTableCell read GetCols;
+    property Cols[const Index: Integer]: THCTableCell read GetCols; default;
 
     /// <summary> 当前行中所有没有发生合并单元格的高度(含CellVPadding * 2因为会受有合并列的影响，所以>=数据高度) </summary>
     property Height: Integer read FHeight write SetHeight;
@@ -70,6 +70,8 @@ type
     /// <summary>因跨页向下整体偏移的量</summary>
     property FmtOffset: Integer read FFmtOffset write FFmtOffset;
   end;
+
+  TRowAddEvent = procedure(const ARow: THCTableRow) of object;
 
 implementation
 

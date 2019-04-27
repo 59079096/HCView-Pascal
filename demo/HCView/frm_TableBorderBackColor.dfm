@@ -3,8 +3,8 @@ object frmBorderBackColor: TfrmBorderBackColor
   Top = 0
   BorderStyle = bsToolWindow
   Caption = #36793#26694#21450#32972#26223#33394
-  ClientHeight = 176
-  ClientWidth = 321
+  ClientHeight = 202
+  ClientWidth = 323
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -31,7 +31,7 @@ object frmBorderBackColor: TfrmBorderBackColor
   end
   object lbl2: TLabel
     Left = 58
-    Top = 83
+    Top = 123
     Width = 36
     Height = 13
     Caption = #32972#26223#33394
@@ -83,7 +83,7 @@ object frmBorderBackColor: TfrmBorderBackColor
   end
   object cbbBackColor: TColorBox
     Left = 100
-    Top = 80
+    Top = 120
     Width = 81
     Height = 22
     DefaultColorColor = clNone
@@ -95,11 +95,27 @@ object frmBorderBackColor: TfrmBorderBackColor
   end
   object btnOk: TButton
     Left = 117
-    Top = 136
+    Top = 162
     Width = 75
     Height = 25
     Caption = #30830#23450
     TabOrder = 6
     OnClick = btnOkClick
+  end
+  object chkLTRB: TCheckBox
+    Left = 92
+    Top = 81
+    Width = 112
+    Height = 17
+    Caption = #24038#19978'->'#21491#19979#26012#32447
+    TabOrder = 7
+  end
+  object chkRTLB: TCheckBox
+    Left = 210
+    Top = 81
+    Width = 103
+    Height = 17
+    Caption = #21491#19978'->'#24038#19979#26012#32447
+    TabOrder = 8
   end
 end

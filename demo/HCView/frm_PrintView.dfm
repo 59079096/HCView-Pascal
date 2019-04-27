@@ -160,6 +160,14 @@ object frmPrintView: TfrmPrintView
         AutoSize = False
         Caption = 'lblPageCount'
       end
+      object lbl4: TLabel
+        Left = 184
+        Top = 13
+        Width = 26
+        Height = 13
+        AutoSize = False
+        Caption = #32553#25918
+      end
       object edtPageNo: TEdit
         Left = 15
         Top = 10
@@ -171,9 +179,9 @@ object frmPrintView: TfrmPrintView
         OnKeyPress = edtPageNoKeyPress
       end
       object cbbZoom: TComboBox
-        Left = 160
+        Left = 212
         Top = 10
-        Width = 76
+        Width = 53
         Height = 21
         Style = csDropDownList
         ItemIndex = 2

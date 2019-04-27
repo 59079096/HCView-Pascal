@@ -997,7 +997,7 @@ begin
           Self.Padding.Top,     // 当前页数据要绘制到的Top
           Self.Padding.Top + FData.Height,  // 当前页数据要绘制的Bottom
           Self.Padding.Top,     // 界面呈现当前页数据的Top位置
-          Self.Height,  // 界面呈现当前页数据Bottom位置
+          Self.Height - FHScrollBar.Height,  // 界面呈现当前页数据Bottom位置
           FVScrollBar.Position,  // 指定从哪个位置开始的数据绘制到页数据起始位置
           FDataBmp.Canvas,
           vPaintInfo);

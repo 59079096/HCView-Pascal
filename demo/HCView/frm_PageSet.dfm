@@ -14,6 +14,8 @@ object frmPageSet: TfrmPageSet
   Font.Style = []
   OldCreateOrder = False
   Position = poOwnerFormCenter
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
   object lbl1: TLabel
@@ -172,13 +174,6 @@ object frmPageSet: TfrmPageSet
     Style = csDropDownList
     TabOrder = 7
     OnChange = cbbPaperChange
-    Items.Strings = (
-      #33258#23450#20041
-      'A3'
-      'A4'
-      'A5'
-      'B5'
-      '16K')
   end
   object chkShowLineNo: TCheckBox
     Left = 34
@@ -199,7 +194,7 @@ object frmPageSet: TfrmPageSet
   object chkShowUnderLine: TCheckBox
     Left = 34
     Top = 235
-    Width = 142
+    Width = 85
     Height = 17
     Caption = #26174#31034#19979#21010#32447
     TabOrder = 10

@@ -18,12 +18,14 @@ type
     btnOk: TButton;
     lbl1: TLabel;
     lbl2: TLabel;
+    chkLTRB: TCheckBox;
+    chkRTLB: TCheckBox;
     procedure btnOkClick(Sender: TObject);
   private
     { Private declarations }
   public
     { Public declarations }
-    procedure SetHCView(const AHCView: THCView);
+    procedure SetView(const AHCView: THCView);
   end;
 
 implementation
@@ -38,7 +40,7 @@ begin
   Self.ModalResult := mrOk;
 end;
 
-procedure TfrmBorderBackColor.SetHCView(const AHCView: THCView);
+procedure TfrmBorderBackColor.SetView(const AHCView: THCView);
 var
   vBorderSides: TBorderSides;
   vTableItem: THCTableItem;
@@ -72,6 +74,16 @@ var
     else
       Exclude(vBorderSides, cbsBottom);
 
+    if chkLTRB.Checked then
+      Include(vBorderSides, cbsLTRB)
+    else
+      Exclude(vBorderSides, cbsLTRB);
+
+    if chkRTLB.Checked then
+      Include(vBorderSides, cbsRTLB)
+    else
+      Exclude(vBorderSides, cbsRTLB);
+
     vTableItem.Cells[ARow, ACol].BorderSides := vBorderSides;
   end;
 
@@ -104,6 +116,8 @@ begin
   chkTop.Checked := cbsTop in vBorderSides;
   chkRight.Checked := cbsRight in vBorderSides;
   chkBottom.Checked := cbsBottom in vBorderSides;
+  chkLTRB.Checked := cbsLTRB in vBorderSides;
+  chkRTLB.Checked := cbsRTLB in vBorderSides;
 
   Self.ShowModal;
   if Self.ModalResult = mrOk then

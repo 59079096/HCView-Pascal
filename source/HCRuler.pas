@@ -690,7 +690,7 @@ begin
 
   // ======== 左缩进+首行缩进整体控制块 ========
   vLeft := GradLeft + MarginLeftWidth + ZoomIn(FCellLeft + MillimeterToPixX(FLeftIndent));  // 正文刻度起始位置，0刻度的位置
-  ACanvas.Brush.Color := $D5D1D0;
+  ACanvas.Brush.Color := Self.Color;
   ACanvas.Pen.Color := GradLineColor;
   FLeftFirstIndentRect := Rect(vLeft - 4, GradRectBottom, vLeft + 5, Height);
   ACanvas.Rectangle(FLeftFirstIndentRect);
@@ -882,9 +882,9 @@ begin
     vTable := vItem as THCTableItem;
     vTable.GetEditCell(vRow, vCol);
     if vData is THCSectionData then
-      vRTop := vRTop + vData.DrawItems[vTable.FirstDItemNo].Rect.Top + LineSpaceMin div 2 - vPageDataTop
+      vRTop := vRTop + vData.DrawItems[vTable.FirstDItemNo].Rect.Top + View.Style.LineSpaceMin div 2 - vPageDataTop
     else
-      vRTop := vRTop + vData.DrawItems[vTable.FirstDItemNo].Rect.Top + LineSpaceMin div 2;
+      vRTop := vRTop + vData.DrawItems[vTable.FirstDItemNo].Rect.Top + View.Style.LineSpaceMin div 2;
 
     FKnots.Clear;
     vRBottom := vRTop + vTable.BorderWidth;

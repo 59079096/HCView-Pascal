@@ -640,7 +640,7 @@ var
     vRect.Left := APos.X;
     vRect.Top := APos.Y;
     vRect.Right := vRect.Left + vRectItem.Width;
-    vRect.Bottom := vRect.Top + vRectItem.Height + LineSpaceMin;  // 带上行间距
+    vRect.Bottom := vRect.Top + vRectItem.Height + Style.LineSpaceMin;  // 带上行间距
     NewDrawItem(AItemNo, AOffset, 1, vRect, vParaFirst, vLineFirst);
 
     vRemainderWidth := AFmtRight - vRect.Right;  // 放入后的剩余量

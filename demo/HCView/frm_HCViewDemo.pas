@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  Printers, Clipbrd, HCRuler, System.Actions, System.ImageList;
+  Printers, Clipbrd, HCRuler;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -88,8 +88,8 @@ type
     mniN11: TMenuItem;
     mniN16: TMenuItem;
     mniInsertTable: TMenuItem;
-    btn4: TToolButton;
-    btn5: TToolButton;
+    btnUndo: TToolButton;
+    btnRedo: TToolButton;
     mniEdit1: TMenuItem;
     mniLSFix: TMenuItem;
     mniN19: TMenuItem;
@@ -167,8 +167,8 @@ type
     procedure mniN4Click(Sender: TObject);
     procedure mniMergeClick(Sender: TObject);
     procedure mniInsertTableClick(Sender: TObject);
-    procedure btn4Click(Sender: TObject);
-    procedure btn5Click(Sender: TObject);
+    procedure btnUndoClick(Sender: TObject);
+    procedure btnRedoClick(Sender: TObject);
     procedure mniEdit1Click(Sender: TObject);
     procedure mniLSFixClick(Sender: TObject);
     procedure mniN19Click(Sender: TObject);
@@ -520,12 +520,12 @@ begin
   frmSearchAndReplace.ShowSearch;
 end;
 
-procedure TfrmHCViewDemo.btn4Click(Sender: TObject);
+procedure TfrmHCViewDemo.btnUndoClick(Sender: TObject);
 begin
   FHCView.Undo;
 end;
 
-procedure TfrmHCViewDemo.btn5Click(Sender: TObject);
+procedure TfrmHCViewDemo.btnRedoClick(Sender: TObject);
 begin
   FHCView.Redo;
 end;
@@ -725,7 +725,7 @@ begin
         vDlg.FileName := vDlg.FileName + vExt;
 
       case vDlg.FilterIndex of
-        1: FHCView.SaveToPDF(vDlg.FileName);  // .pdf
+        1: FHCView.SaveToPDF(vDlg.FileName);
         2: FHCView.SaveToHtml(vDlg.FileName, False);
       end;
     end;
@@ -820,7 +820,7 @@ var
 begin
   vFrmParagraph := TfrmParagraph.Create(Self);
   try
-    vFrmParagraph.SetHCView(FHCView);
+    vFrmParagraph.SetView(FHCView);
   finally
     FreeAndNil(vFrmParagraph);
   end;
@@ -961,7 +961,7 @@ var
 begin
   vFrmPrintView := TfrmPrintView.Create(Self);
   try
-    vFrmPrintView.SetHCView(FHCView);
+    vFrmPrintView.SetView(FHCView);
   finally
     FreeAndNil(vFrmPrintView);
   end;
@@ -973,7 +973,7 @@ var
 begin
   vFrmBorderBackColor := TfrmBorderBackColor.Create(Self);
   try
-    vFrmBorderBackColor.SetHCView(FHCView);
+    vFrmBorderBackColor.SetView(FHCView);
   finally
     FreeAndNil(vFrmBorderBackColor);
   end;
@@ -1025,7 +1025,7 @@ var
 begin
   vFrmPageSet := TFrmPageSet.Create(Self);
   try
-    vFrmPageSet.SetHCView(FHCView);
+    vFrmPageSet.SetView(FHCView);
   finally
     FreeAndNil(vFrmPageSet);
   end;
@@ -1091,7 +1091,7 @@ var
 begin
   vFrmControlItemProperty := TfrmControlItemProperty.Create(nil);
   try
-    vFrmControlItemProperty.SetHCView(FHCView);
+    vFrmControlItemProperty.SetView(FHCView);
   finally
     FreeAndNil(vFrmControlItemProperty);
   end;
@@ -1159,7 +1159,7 @@ var
 begin
   vFrmTableProperty := TFrmTableProperty.Create(Self);
   try
-    vFrmTableProperty.SetHCView(FHCView);
+    vFrmTableProperty.SetView(FHCView);
   finally
     FreeAndNil(vFrmTableProperty);
   end;
@@ -1277,16 +1277,31 @@ begin
   begin
     vDlg := TSaveDialog.Create(Self);
     try
-      vDlg.Filter := '文件|*' + HC_EXT;
+      vDlg.Filter := '支持的文件|*' + HC_EXT + '; *.xml; *.docx|HCView (*.hcf)|*' + HC_EXT + '|HCView xml (*.xml)|*.xml|Word 2007 Document (*.docx)|*.docx';
       vDlg.Execute;
       if vDlg.FileName <> '' then
       begin
-        if ExtractFileExt(vDlg.FileName) <> HC_EXT then
-          vDlg.FileName := vDlg.FileName + HC_EXT;
+        case vDlg.FilterIndex of
+          0:
+            begin
+              if ExtractFileExt(vDlg.FileName) <> HC_EXT then
+                vDlg.FileName := vDlg.FileName + HC_EXT;
 
-        FHCView.SaveToFile(vDlg.FileName);
-        FHCView.IsChanged := False;
-        Result := True;
+              FHCView.SaveToFile(vDlg.FileName);
+              FHCView.IsChanged := False;
+              Result := True;
+            end;
+
+          1:
+            begin
+              if LowerCase(ExtractFileExt(vDlg.FileName)) <> '.xml' then
+                vDlg.FileName := vDlg.FileName + '.xml';
+
+              FHCView.SaveToXml(vDlg.FileName, TEncoding.Unicode);
+              FHCView.IsChanged := False;
+              Result := True;
+            end;
+        end;
       end;
     finally
       vDlg.Free;

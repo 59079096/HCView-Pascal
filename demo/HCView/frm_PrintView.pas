@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, Dialogs,
-  ExtCtrls, StdCtrls, Printers, HCView, HCSection, HCItem, ComCtrls, Buttons;
+  ExtCtrls, StdCtrls, Printers, HCView, HCGridView, HCSection, HCItem, ComCtrls, Buttons;
 
 type
   TfrmPrintView = class(TForm)
@@ -25,6 +25,7 @@ type
     ud1: TUpDown;
     edtPrintPageNos: TEdit;
     cbbZoom: TComboBox;
+    lbl4: TLabel;
     procedure btnPrintClick(Sender: TObject);
     procedure pbPagePaint(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -53,7 +54,8 @@ type
     procedure UpdateView;
   public
     { Public declarations }
-    procedure SetHCView(const AHCView: THCView);
+    procedure SetView(const AHCView: THCView);
+    procedure SetGridView(const AHCGridView: THCGridView);
   end;
 
 implementation
@@ -395,7 +397,39 @@ begin
   pbPage.Invalidate;
 end;
 
-procedure TfrmPrintView.SetHCView(const AHCView: THCView);
+procedure TfrmPrintView.SetGridView(const AHCGridView: THCGridView);
+begin
+  FHCView := THCView.Create(nil);
+  try
+    scrlbrPage.Min := 0;
+
+    AHCGridView.CloneToHCView(FHCView);
+    if FHCView.PageCount > 1 then
+      scrlbrPage.Max := FHCView.PageCount - 1
+    else
+      scrlbrPage.Visible := False;
+
+    FPageIndex := 0;
+    edtPageNo.Text := IntToStr(FPageIndex + 1);
+    lblPageCount.Caption := '/ ' + IntToStr(FHCView.PageCount);
+
+    Self.ShowModal;
+    if Self.ModalResult = mrOk then
+    begin
+
+    end;
+
+    if FTooltipHandle <> 0 then
+    begin
+      DestroyWindow(FTooltipHandle);
+      FTooltipHandle := 0;
+    end;
+  finally
+    FreeAndNil(FHCView);
+  end;
+end;
+
+procedure TfrmPrintView.SetView(const AHCView: THCView);
 begin
   FHCView := AHCView;
   scrlbrPage.Min := 0;

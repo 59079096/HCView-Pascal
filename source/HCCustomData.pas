@@ -902,7 +902,7 @@ function THCCustomData.GetDrawItemLineSpace(const ADrawNo: Integer): Integer;
 var
   vCanvas: TCanvas;
 begin
-  Result := LineSpaceMin;
+  Result := FStyle.LineSpaceMin;
 
   if GetDrawItemStyle(ADrawNo) >= THCStyle.Null then
   begin
@@ -1493,7 +1493,7 @@ begin
   end;
 
   if GetDrawItemStyle(vMaxDrawItemNo) < THCStyle.Null then
-    Result := LineSpaceMin
+    Result := FStyle.LineSpaceMin
   else
     Result := GetDrawItemLineSpace(vMaxDrawItemNo) - vMaxItemHi;  // 根据最高的DrawItem取行间距
 end;
@@ -2263,7 +2263,7 @@ begin
 
         pls200: Result := Result * 2;
 
-        plsFix: Result := Result + LineSpaceMin;
+        plsFix: Result := Result + FStyle.LineSpaceMin;
       end;
     end;
   end
@@ -2281,7 +2281,7 @@ begin
 
       pls200: Result := Result + vTextMetric.tmExternalLeading + vTextMetric.tmHeight + vTextMetric.tmExternalLeading;
 
-      plsFix: Result := Result + LineSpaceMin;
+      plsFix: Result := Result + FStyle.LineSpaceMin;
     end;
   end;
 end;

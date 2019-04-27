@@ -241,6 +241,8 @@ type
 
     function InsertText(const AText: string): Boolean;
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
+    function InsertImage(const AFile: string): Boolean;
+    function InsertGifImage(const AFile: string): Boolean;
     function InsertLine(const ALineHeight: Integer): Boolean;
     function InsertItem(const AItem: THCCustomItem): Boolean; overload;
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
@@ -1385,6 +1387,22 @@ begin
   Result := ActiveDataChangeByAction(function(): Boolean
     begin
       Result := FActiveData.InsertDomain(AMouldDomain);
+    end);
+end;
+
+function THCCustomSection.InsertGifImage(const AFile: string): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.InsertGifImage(AFile);
+    end);
+end;
+
+function THCCustomSection.InsertImage(const AFile: string): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.InsertImage(AFile);
     end);
 end;
 
@@ -2622,7 +2640,6 @@ end;
 procedure THCCustomSection.SetPaperHeight(const Value: Single);
 begin
   FPageSize.PaperHeight := Value;
-  FPageSize.PaperSize := DMPAPER_USER;
 end;
 
 procedure THCCustomSection.SetPaperMarginBottom(const Value: Single);
@@ -2653,7 +2670,6 @@ end;
 procedure THCCustomSection.SetPaperWidth(const Value: Single);
 begin
   FPageSize.PaperWidth := Value;
-  FPageSize.PaperSize := DMPAPER_USER;
 end;
 
 procedure THCCustomSection.SetReadOnly(const Value: Boolean);
@@ -2830,6 +2846,7 @@ begin
   inherited Create;
   FSectionIndex := -1;
   FPageIndex := -1;
+  FPageDataFmtTop := 0;
 end;
 
 end.

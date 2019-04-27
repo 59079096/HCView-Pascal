@@ -231,7 +231,7 @@ procedure THCTableCell.PaintData(const ADataDrawLeft, ADataDrawTop,
 var
   vTop: Integer;
 begin
-  if FCellData <> nil then
+  if Assigned(FCellData) then
   begin
     case FAlignVert of
       cavTop: vTop := ADataDrawTop;

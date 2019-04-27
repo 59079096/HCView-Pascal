@@ -177,6 +177,8 @@ type
 
     /// <summary> 在光标处插入指定行列的表格 </summary>
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
+    function InsertImage(const AFile: string): Boolean;
+    function InsertGifImage(const AFile: string): Boolean;
 
     /// <summary> 在光标处插入直线 </summary>
     function InsertLine(const ALineHeight: Integer): Boolean;
@@ -1147,14 +1149,16 @@ var
     i, vParaNo: Integer;
   begin
     if GetItemStyle(AItemNo) < THCStyle.Null then  // 当前是RectItem
-      (Items[AItemNo] as THCCustomRectItem).ApplySelectParaStyle(Self.Style, AMatchStyle);
-
-    GetParaItemRang(AItemNo, vFirstNo, vLastNo);
-    vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
-    if GetItemParaStyle(vFirstNo) <> vParaNo then
+      (Items[AItemNo] as THCCustomRectItem).ApplySelectParaStyle(Self.Style, AMatchStyle)
+    else
     begin
-      for i := vFirstNo to vLastNo do
-        Items[i].ParaNo := vParaNo;
+      GetParaItemRang(AItemNo, vFirstNo, vLastNo);
+      vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
+      if GetItemParaStyle(vFirstNo) <> vParaNo then
+      begin
+        for i := vFirstNo to vLastNo do
+          Items[i].ParaNo := vParaNo;
+      end;
     end;
   end;
 
@@ -1686,6 +1690,37 @@ begin
   KeyDown(vKey, []);
   InitializeMouseField;  // 201807311101
   Result := True;
+end;
+
+function THCRichData.InsertGifImage(const AFile: string): Boolean;
+var
+  vTopData: THCCustomData;
+  vGifItem: THCGifItem;
+begin
+  Result := False;
+  if not CanEdit then Exit;
+
+  vTopData := Self.GetTopLevelData;
+  vGifItem := THCGifItem.Create(vTopData);
+  vGifItem.LoadFromFile(AFile);
+  Result := InsertItem(vGifItem);
+  InitializeMouseField;
+end;
+
+function THCRichData.InsertImage(const AFile: string): Boolean;
+var
+  vTopData: THCRichData;
+  vImageItem: THCImageItem;
+begin
+  Result := False;
+  if not CanEdit then Exit;
+
+  vTopData := Self.GetTopLevelData as THCRichData;
+  vImageItem := THCImageItem.Create(vTopData);
+  vImageItem.LoadFromBmpFile(AFile);
+  vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
+  Result := InsertItem(vImageItem);
+  InitializeMouseField;
 end;
 
 function THCRichData.InsertItem(const AIndex: Integer;
@@ -2346,7 +2381,8 @@ begin
 
   if not CanEdit then Exit;
 
-  vItem := THCTableItem.Create(Self, ARowCount, AColCount, Self.Width);
+  vItem := THCTableItem.Create(Self, ARowCount, AColCount,
+    (Self.GetTopLevelData as THCRichData).Width);
   Result := InsertItem(vItem);
   InitializeMouseField;  // 201807311101
 end;

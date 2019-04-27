@@ -41,6 +41,7 @@ type
     FTempCanvas: TCanvas;
     /// <summary> 记录最近一次格式化的样式 </summary>
     FTempStyleNo: Integer;
+    FLineSpaceMin: Byte;  // 行间距最小值
     FSelColor: TColor;
     FBackgroudColor: TColor;
     FTextStyles: TObjectList<THCTextStyle>;
@@ -113,6 +114,7 @@ type
     property ParaStyles: TObjectList<THCParaStyle> read FParaStyles write FParaStyles;
     property BackgroudColor: TColor read FBackgroudColor write FBackgroudColor;
     property SelColor: TColor read FSelColor write FSelColor;
+    property LineSpaceMin: Byte read FLineSpaceMin write FLineSpaceMin;
     property TempStyleNo: Integer read FTempStyleNo;
     /// <summary> 临时Canvas，请使用ApplyTempStyle修改其属性避免根据FTempStyleNo判断不需要重新设置时其属性和FTempStyleNo并不对应 </summary>
     property TempCanvas: TCanvas read FTempCanvas;
@@ -167,6 +169,7 @@ begin
   FTempStyleNo := THCStyle.Null;
   FBackgroudColor := $00FFFFFF;
   FSelColor := clSkyBlue;
+  FLineSpaceMin := 8;
   FShowParaLastMark := True;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;

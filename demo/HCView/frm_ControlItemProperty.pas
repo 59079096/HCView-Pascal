@@ -53,7 +53,7 @@ type
     { Private declarations }
   public
     { Public declarations }
-    procedure SetHCView(const AHCView: THCView);
+    procedure SetView(const AHCView: THCView);
   end;
 
 implementation
@@ -124,7 +124,7 @@ begin
     edtRadioValue.Text := lstRadioItem.Items[lstRadioItem.ItemIndex];
 end;
 
-procedure TfrmControlItemProperty.SetHCView(const AHCView: THCView);
+procedure TfrmControlItemProperty.SetView(const AHCView: THCView);
 var
   i: Integer;
   vControlItem: THCControlItem;

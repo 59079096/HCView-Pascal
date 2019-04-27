@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, ComCtrls, HCView;
+  Dialogs, StdCtrls, ExtCtrls, ComCtrls, HCView, HCGridView;
 
 type
   TfrmParagraph = class(TForm)
@@ -32,7 +32,8 @@ type
     { Private declarations }
   public
     { Public declarations }
-    procedure SetHCView(const AHCView: THCView);
+    procedure SetView(const AHCView: THCView);
+    procedure SetGridView(const AGridView: THCGridView);
   end;
 
 implementation
@@ -53,7 +54,63 @@ begin
     Key := #0
 end;
 
-procedure TfrmParagraph.SetHCView(const AHCView: THCView);
+procedure TfrmParagraph.SetGridView(const AGridView: THCGridView);
+var
+  vParaStyle: THCParaStyle;
+  vFirstIndent, vLeftIndent, vRightIndent: Integer;
+  vReformatPara: Boolean;
+begin
+  vParaStyle := AGridView.Style.ParaStyles[AGridView.CurParaNo];
+
+  cbbSpaceMode.ItemIndex := Ord(vParaStyle.LineSpaceMode);
+  cbbAlignHorz.ItemIndex := Ord(vParaStyle.AlignHorz);
+  cbbAlignVert.ItemIndex := Ord(vParaStyle.AlignVert);
+  clrbxBG.Color := vParaStyle.BackColor;
+  edtFirstIndent.Text := FormatFloat('0.#', vParaStyle.FirstIndent);
+  edtLeftIndent.Text := FormatFloat('0.#', vParaStyle.LeftIndent);
+  edtRightIndent.Text := FormatFloat('0.#', vParaStyle.RightIndent);
+
+  Self.ShowModal;
+  if Self.ModalResult = mrOk then
+  begin
+    AGridView.BeginUpdate;
+    try
+      AGridView.ApplyParaLineSpace(TParaLineSpaceMode(cbbSpaceMode.ItemIndex));
+      AGridView.ApplyParaAlignHorz(TParaAlignHorz(cbbAlignHorz.ItemIndex));
+      AGridView.ApplyParaAlignVert(TParaAlignVert(cbbAlignVert.ItemIndex));
+      AGridView.ApplyParaBackColor(clrbxBG.Color);
+      vFirstIndent := StrToIntDef(edtFirstIndent.Text, 0);
+      vLeftIndent := StrToIntDef(edtLeftIndent.Text, 0);
+      vRightIndent := StrToIntDef(edtRightIndent.Text, 0);
+
+      vReformatPara := False;
+      if vParaStyle.FirstIndent <> vFirstIndent then
+      begin
+        AGridView.ApplyParaFirstIndent(vFirstIndent);
+        vReformatPara := True;
+      end;
+
+      if vParaStyle.LeftIndent <> vLeftIndent then
+      begin
+        AGridView.ApplyParaLeftIndent(vLeftIndent);
+        vReformatPara := True;
+      end;
+
+      if vParaStyle.RightIndent <> vRightIndent then
+      begin
+        AGridView.ApplyParaRightIndent(vRightIndent);
+        vReformatPara := True;
+      end;
+
+      if vReformatPara then
+        AGridView.ReFormatActiveParagraph;
+    finally
+      AGridView.EndUpdate;
+    end;
+  end;
+end;
+
+procedure TfrmParagraph.SetView(const AHCView: THCView);
 var
   vParaStyle: THCParaStyle;
   vFirstIndent, vLeftIndent, vRightIndent: Integer;

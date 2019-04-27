@@ -66,19 +66,19 @@ object frmHCViewDemo: TfrmHCViewDemo
       ImageIndex = 6
       Style = tbsSeparator
     end
-    object btn4: TToolButton
+    object btnUndo: TToolButton
       Left = 104
       Top = 0
-      Caption = 'btn4'
+      Caption = 'btnUndo'
       ImageIndex = 18
-      OnClick = btn4Click
+      OnClick = btnUndoClick
     end
-    object btn5: TToolButton
+    object btnRedo: TToolButton
       Left = 128
       Top = 0
-      Caption = 'btn5'
+      Caption = 'btnRedo'
       ImageIndex = 19
-      OnClick = btn5Click
+      OnClick = btnRedoClick
     end
     object cbbZoom: TComboBox
       Left = 152
@@ -349,7 +349,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011D002100080010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011D0021001C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000008000000001002000000000000080
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1442,7 +1442,7 @@ object frmHCViewDemo: TfrmHCViewDemo
         Caption = #25171#21360
         ImageIndex = 8
         object mniN46: TMenuItem
-          Caption = #30452#25509#25171#21360
+          Caption = #24555#36895#25171#21360
           OnClick = mniN46Click
         end
         object mniN42: TMenuItem

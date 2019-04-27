@@ -14,7 +14,7 @@ unit HCXml;
 interface
 
 uses
-  Classes, Windows, Graphics, XMLDoc, XMLIntf;
+  Classes, Windows, Graphics, XMLDoc, XMLIntf, SysUtils;
 
 type
   IHCXMLDocument = IXMLDocument;
@@ -23,6 +23,7 @@ type
 
   THCXMLDocument = TXMLDocument;
 
+  function GetEncodingName(const AEncoding: TEncoding): string;
   function GetColorXmlRGB(const AColor: TColor): string;
   function GetXmlRGBColor(const AColorStr: string): TColor;
   //function GetColorHtmlRGB(const AColor: TColor): string;
@@ -34,7 +35,15 @@ type
 implementation
 
 uses
-  SysUtils, EncdDecd, HCCommon;
+  EncdDecd, HCCommon;
+
+function GetEncodingName(const AEncoding: TEncoding): string;
+begin
+  if AEncoding = TEncoding.UTF8 then
+    Result := 'UTF-8'
+  else
+    Result := 'Unicode';
+end;
 
 function StreamToBase64(const AStream: TStream): string;
 var

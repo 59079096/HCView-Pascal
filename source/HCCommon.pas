@@ -30,6 +30,7 @@ const
   HCS_EXCEPTION_TIMERRESOURCEOUTOF = HC_EXCEPTION + '安装计时器的资源不足！';
 
   HC_EXT = '.hcf';
+  HC_GRIDEXT = '.hcg';
   HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++, 4:HTML5
 
   {1.3 支持浮动对象保存和读取(未处理向下兼容)
@@ -51,7 +52,7 @@ const
   HC_FileVersionInt = 24;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
-  LineSpaceMin = 8;  // 行间距最小值
+  DefaultColWidth = 50;
   PagePadding = 20;  // 节页面显示时之间的间距
   PMSLineHeight = 24;  // 书写范围线的长度
   AnnotationWidth = 200;  // 批注显示区域宽度
@@ -181,6 +182,8 @@ type
   function IsKeyDownEdit(const AKey: Word): Boolean;  // 引起内容变化的KeyDown
   function IsDirectionKey(const AKey: Word): Boolean;
 
+  function CreatExtPen(const APen: TPen): HPEN;
+
   /// <summary> 效率更高的返回字符在字符串位置函数 </summary>
   function PosCharHC(const AChar: Char; const AStr: string{; const Offset: Integer = 1}): Integer;
 
@@ -252,6 +255,21 @@ begin
   end;
 end;
 {$ENDIF}
+
+function CreatExtPen(const APen: TPen): HPEN;
+var
+  APenParams: TLogBrush;
+const
+  PenTypes: array[Boolean] of Integer = (PS_COSMETIC, PS_GEOMETRIC);
+  //PenStyles: array[psSolid..psInsideFrame] of Word =
+  //  (PS_SOLID, PS_DASH, PS_DOT, PS_DASHDOT, PS_DASHDOTDOT, PS_NULL, PS_SOLID);
+begin
+  APenParams.lbStyle := BS_SOLID;
+  APenParams.lbColor := APen.Color;
+  APenParams.lbHatch := 0;
+  Result := ExtCreatePen(PenTypes[APen.Width <> 1] or PS_ENDCAP_SQUARE,
+    APen.Width, APenParams, 0, nil);
+end;
 
 function SwapBytes(AValue: Word): Word;
 begin

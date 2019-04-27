@@ -36,6 +36,8 @@ type
     constructor Create;
     procedure SaveToStream(const AStream: TStream);
     procedure LoadToStream(const AStream: TStream; const AFileVersion: Word);
+    function PageContentWidthPix: Integer;
+    function PageContentHeightPix: Integer;
     // ж╫уе
     property PaperSize: Integer read FPaperSize write SetPaperSize;
     property PaperWidth: Single read FPaperWidth write SetPaperWidth;
@@ -127,6 +129,16 @@ begin
 
   AStream.ReadBuffer(vSize, SizeOf(FPaperMarginBottom));
   PaperMarginBottom := vSize;
+end;
+
+function THCPageSize.PageContentHeightPix: Integer;
+begin
+  Result := FPageHeightPix - FPageMarginTopPix - FPageMarginBottomPix;
+end;
+
+function THCPageSize.PageContentWidthPix: Integer;
+begin
+  Result := FPageWidthPix - FPageMarginLeftPix - FPageMarginRightPix;
 end;
 
 procedure THCPageSize.SaveToStream(const AStream: TStream);

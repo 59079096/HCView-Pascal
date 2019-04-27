@@ -501,6 +501,9 @@ function THCCustomRectItem.GetSelfUndoList: THCUndoList;
 var
   vItemAction: THCItemSelfUndoAction;
 begin
+  Result := nil;
+  if not Assigned(FOnGetMainUndoList) then Exit;
+
   Result := FOnGetMainUndoList;
   if Assigned(Result) and Result.Enable and (Result.Last.Actions.Last is THCItemSelfUndoAction) then
   begin

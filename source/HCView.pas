@@ -61,7 +61,7 @@ type
     /// <param name="ACanvas"></param>
     /// <param name="APaintInfo"></param>
     procedure PaintDrawAnnotate(const Sender: TObject; const APageRect: TRect;
-      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo); virtual;
 
     /// <summary> 有批注插入 </summary>
     procedure InsertDataAnnotate(const ADataAnnotate: THCDataAnnotate);
@@ -340,6 +340,8 @@ type
 
     /// <summary> 插入指定行列的表格 </summary>
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
+    function InsertImage(const AFile: string): Boolean;
+    function InsertGifImage(const AFile: string): Boolean;
 
     /// <summary> 插入水平线 </summary>
     function InsertLine(const ALineHeight: Integer): Boolean;
@@ -1713,6 +1715,26 @@ end;
 function THCView.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 begin
   Result := ActiveSection.InsertFloatItem(AFloatItem);
+end;
+
+function THCView.InsertGifImage(const AFile: string): Boolean;
+begin
+  Self.BeginUpdate;
+  try
+    Result := ActiveSection.InsertGifImage(AFile);
+  finally
+    Self.EndUpdate;
+  end;
+end;
+
+function THCView.InsertImage(const AFile: string): Boolean;
+begin
+  Self.BeginUpdate;
+  try
+    Result := ActiveSection.InsertImage(AFile);
+  finally
+    Self.EndUpdate;
+  end;
 end;
 
 function THCView.InsertItem(const AIndex: Integer;
@@ -3186,7 +3208,7 @@ begin
 
     //vPDF.UseUniscribe := True;
 
-    vDPI := Screen.PixelsPerInch;
+    vDPI := PixelsPerInchX;
     vPDF.ScreenLogPixels := vDPI;
 
     vPaintInfo := TSectionPaintInfo.Create;
@@ -3289,15 +3311,6 @@ begin
 end;
 
 procedure THCView.SaveToXml(const AFileName: string; const AEncoding: TEncoding);
-
-  function GetEncodingName: string;
-  begin
-    if AEncoding = TEncoding.UTF8 then
-      Result := 'UTF-8'
-    else
-      Result := 'Unicode';
-  end;
-
 var
   vXml: IHCXMLDocument;
   vNode: IHCXMLNode;
@@ -3308,7 +3321,7 @@ begin
   vXml := THCXMLDocument.Create(nil);
   vXml.Active := True;
   vXml.Version := '1.0';
-  vXml.Encoding := GetEncodingName;
+  vXml.Encoding := GetEncodingName(AEncoding);
 
   vXml.DocumentElement := vXml.CreateNode('HCView');
   vXml.DocumentElement.Attributes['EXT'] := HC_EXT;
@@ -4131,6 +4144,7 @@ begin
     //正文中的批注
     vVOffset := APageRect.Top + vHeaderAreaHeight - APaintInfo.PageDataFmtTop;
     vTop := APaintInfo.PageDataFmtTop + vVOffset;
+
     vBottom := vTop + vSection.PageHeightPix - vHeaderAreaHeight - vSection.PageMarginBottomPix;
 
     for i := 0 to FDrawAnnotates.Count - 1 do  // 找本页的起始和结束批注

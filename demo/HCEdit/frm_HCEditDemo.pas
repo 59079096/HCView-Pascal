@@ -195,7 +195,7 @@ begin
     begin
       if vOpenDlg.FileName <> '' then
       begin
-        vTopData := FHCEdit.TopLevelData;
+        vTopData := FHCEdit.TopLevelData as THCRichData;
         vImageItem := THCImageItem.Create(vTopData);
         vImageItem.LoadFromBmpFile(vOpenDlg.FileName);
         vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);

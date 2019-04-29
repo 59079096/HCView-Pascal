@@ -16,7 +16,7 @@ interface
 {$I HCView.inc}
 
 uses
-  Windows, Controls, Classes, Graphics, HCStyle;
+  Windows, Controls, Classes, Graphics;
 
 const
   HC_TEXTMAXSIZE = 4294967295;
@@ -53,7 +53,6 @@ const
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
-  PagePadding = 20;  // 节页面显示时之间的间距
   PMSLineHeight = 24;  // 书写范围线的长度
   AnnotationWidth = 200;  // 批注显示区域宽度
   AnnotateBKColor = $00D5D5FF;
@@ -71,17 +70,12 @@ type
   THCProcedure = reference to procedure();
   THCFunction = reference to function(): Boolean;
 
-  TPageOrientation = (cpoPortrait, cpoLandscape);  // 纸张方向：纵像、横向
+  TPaperOrientation = (cpoPortrait, cpoLandscape);  // 纸张方向：纵像、横向
 
   TExpressArea = (ceaNone, ceaLeft, ceaTop, ceaRight, ceaBottom);  // 公式的区域，仅适用于上下左右格式的
 
   TBorderSide = (cbsLeft, cbsTop, cbsRight, cbsBottom, cbsLTRB, cbsRTLB);
   TBorderSides = set of TBorderSide;
-
-  THCViewModel = (
-    vmPage,  // 页面视图，显示页眉、页脚
-    vmWeb  // Web视图，不显示页眉、页脚
-  );
 
   TSectionArea = (saHeader, saPage, saFooter);  // 当前激活的是文档哪一部分
   TSectionAreas = set of TSectionArea;  // 保存时存哪几部分内容

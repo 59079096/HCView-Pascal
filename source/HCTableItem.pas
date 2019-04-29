@@ -96,7 +96,10 @@ type
     /// <summary> 获取当前表格格式化高度 </summary>
     /// <returns></returns>
     function GetFormatHeight: Integer;
-
+    /// <summary> 获取行中最高单元格高度，并设置为行中其他单元格的高度和行高 </summary>
+    procedure CalcRowCellHeight(const ARow: Integer);
+    /// <summary> 计算有合并的单元格高度影响到的行高度 </summary>
+    procedure CalcMergeRowHeightFrom(const ARow: Integer);
     function SrcCellDataTopDistanceToDest(const ASrcRow, ADestRow: Integer): Integer;
 
     /// <summary> 返回指定单元格相对表格的起始位置坐标(如果被合并返回合并到单元格的坐标) </summary>
@@ -199,7 +202,8 @@ type
 
     function GetRowCount: Integer;
     function GetColCount: Integer;
-
+    procedure CheckFixColSafe(const ACol: Integer);
+    procedure CheckFixRowSafe(const ARow: Integer);
     /// <summary> 获取指定行列范围实际对应的行列范围 </summary>
     /// <param name="AStartRow"></param>
     /// <param name="AStartCol"></param>
@@ -287,10 +291,6 @@ type
 
     /// <summary> 计算行中单元格宽度并格式化行 </summary>
     procedure FormatRow(const ARow: Cardinal);
-    /// <summary> 获取行中最高单元格高度，并设置为行中其他单元格的高度和行高 </summary>
-    procedure CalcRowCellHeight(const ARow: Integer);
-    /// <summary> 计算有合并的单元格高度影响到的行高度 </summary>
-    procedure CalcMergeRowHeightFrom(const ARow: Integer);
 
     function GetColSpanWidth(const ARow, ACol: Integer): Integer;
 
@@ -620,13 +620,7 @@ begin
   end;
 
   FColWidths.Delete(ACol);
-
-  if FFixCol + FFixColCount - 1 >= ACol then
-  begin
-    FFixCol := -1;
-    FFixColCount := 0;
-  end;
-
+  CheckFixColSafe(ACol);
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
   Self.SizeChanged := True;
@@ -688,13 +682,7 @@ begin
   end;
 
   FRows.Delete(ARow);
-
-  if FFixRow + FFixRowCount - 1 >= ARow then
-  begin
-    FFixRow := -1;
-    FFixRowCount := 0;
-  end;
-
+  CheckFixRowSafe(ARow);
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
   Self.SizeChanged := True;
@@ -2074,7 +2062,7 @@ begin
                 Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vPt.X);
 
                 FColWidths[vUpCol] := FColWidths[vUpCol] + vPt.X;  // 当前列变化
-                {右侧的减少
+                {右侧的减少，可实现拖动不改变表格整体宽度
                 if vUpCol < FColWidths.Count - 1 then  // 右侧的弥补变化
                   FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vPt.X;}
               end;
@@ -2100,7 +2088,7 @@ begin
               Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vPt.X);
 
               FColWidths[vUpCol] := FColWidths[vUpCol] + vPt.X;  // 当前列变化
-              {右侧的增加
+              {右侧的增加，可实现拖动不改变表格整体宽度
               if vUpCol < FColWidths.Count - 1 then  // 右侧的弥补变化
                 FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vPt.X;}
             end;
@@ -2719,17 +2707,6 @@ begin
 
   if FRows[ARow][ACol].ColSpan < 0 then
     ADestCol := ADestCol + FRows[ARow][ACol].ColSpan;
-
-//  if Cells[ARow, ACol].CellData <> nil then
-//  begin
-//    ADestRow := ARow;
-//    ADestCol := ACol;
-//  end
-//  else
-//  begin
-//    ADestRow := ARow + Cells[ARow, ACol].RowSpan;
-//    ADestCol := ACol + Cells[ARow, ACol].ColSpan;
-//  end;
 end;
 
 procedure THCTableItem.GetEditCell(var ARow, ACol: Integer);
@@ -3542,6 +3519,24 @@ begin
     Result := vStartDestCol <= vEndDestCol;}
 end;
 
+procedure THCTableItem.CheckFixColSafe(const ACol: Integer);
+begin
+  if FFixCol + FFixColCount - 1 >= ACol then
+  begin
+    FFixCol := -1;
+    FFixColCount := 0;
+  end;
+end;
+
+procedure THCTableItem.CheckFixRowSafe(const ARow: Integer);
+begin
+  if FFixRow + FFixRowCount - 1 >= ARow then
+  begin
+    FFixRow := -1;
+    FFixRowCount := 0;
+  end;
+end;
+
 procedure THCTableItem.CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
   ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartRow: Integer;
   var ABreakRow, AFmtOffset, ACellMaxInc: Integer);
@@ -3747,7 +3742,7 @@ begin
     vRowBreakSeat := vRowBreakSeat - ADrawItemRectTop + 1;  // 起始为x，截断为y，截断处高度是x-y+1
     {$ENDREGION}
 
-    if (FFixRow >= 0) and (ABreakRow > FFixRow + FFixRowCount - 1) then
+    if (FFixRow >= 0) and (ABreakRow > FFixRow + FFixRowCount - 1) then  // 分页行超过固定行
     begin
       vFixHeight := GetFixRowHeight;
       ACellMaxInc := ACellMaxInc + vFixHeight;

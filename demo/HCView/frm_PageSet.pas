@@ -147,7 +147,7 @@ begin
 
   chkSymmetryMargin.Checked := AHCGridView.SymmetryMargin;
 
-  if AHCGridView.PageOrientation = TPageOrientation.cpoPortrait then
+  if AHCGridView.PaperOrientation = TPaperOrientation.cpoPortrait then
     cbbPageOrientation.ItemIndex := 0
   else
     cbbPageOrientation.ItemIndex := 1;
@@ -188,9 +188,9 @@ begin
       AHCGridView.SymmetryMargin := chkSymmetryMargin.Checked;
 
       if cbbPageOrientation.ItemIndex = 0 then
-        AHCGridView.PageOrientation := TPageOrientation.cpoPortrait
+        AHCGridView.PaperOrientation := TPaperOrientation.cpoPortrait
       else
-        AHCGridView.PageOrientation := TPageOrientation.cpoLandscape;
+        AHCGridView.PaperOrientation := TPaperOrientation.cpoLandscape;
 
       AHCGridView.PageNoVisible := chkPageNoVisible.Checked;
       AHCGridView.Style.ShowParaLastMark := chkParaLastMark.Checked;
@@ -221,7 +221,7 @@ begin
 
   chkSymmetryMargin.Checked := AHCView.ActiveSection.SymmetryMargin;
 
-  if AHCView.ActiveSection.PageOrientation = TPageOrientation.cpoPortrait then
+  if AHCView.ActiveSection.PaperOrientation = TPaperOrientation.cpoPortrait then
     cbbPageOrientation.ItemIndex := 0
   else
     cbbPageOrientation.ItemIndex := 1;
@@ -259,9 +259,9 @@ begin
       AHCView.ActiveSection.SymmetryMargin := chkSymmetryMargin.Checked;
 
       if cbbPageOrientation.ItemIndex = 0 then
-        AHCView.ActiveSection.PageOrientation := TPageOrientation.cpoPortrait
+        AHCView.ActiveSection.PaperOrientation := TPaperOrientation.cpoPortrait
       else
-        AHCView.ActiveSection.PageOrientation := TPageOrientation.cpoLandscape;
+        AHCView.ActiveSection.PaperOrientation := TPaperOrientation.cpoLandscape;
 
       AHCView.ActiveSection.PageNoVisible := chkPageNoVisible.Checked;
       AHCView.Style.ShowParaLastMark := chkParaLastMark.Checked;

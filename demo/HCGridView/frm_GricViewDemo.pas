@@ -290,12 +290,12 @@ procedure TForm9.DoGridCellPaintBK(const Sender: TObject;
   const ACell: THCTableCell; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo; var ADrawDefault: Boolean);
 begin
-  if (ARect.Left + FGridView.HorOffset > 250) then
-  //if (ARect.Top + FGridView.VerOffset > 250) then
-  begin
-    ACanvas.Brush.Color := clYellow;
-    ACanvas.FillRect(ARect);
-  end;
+//  if (ARect.Left + FGridView.HorOffset > 250) then
+//  //if (ARect.Top + FGridView.VerOffset > 250) then
+//  begin
+//    ACanvas.Brush.Color := clYellow;
+//    ACanvas.FillRect(ARect);
+//  end;
 end;
 
 procedure TForm9.FormCreate(Sender: TObject);
@@ -313,6 +313,7 @@ end;
 
 procedure TForm9.mniMergeClick(Sender: TObject);
 begin
+  //FGridView.MergeTableSelectCells;
   FGridView.MergeSelectCells;
 end;
 
@@ -386,6 +387,7 @@ var
   vTopData: THCCustomData;
   vFractionItem: THCFractionItem;
 begin
+  //vTopData := FGridView.ActiveSectionTopLevelData;
   vTopData := FGridView.TopLevelData;
   if Assigned(vTopData) then
   begin
@@ -399,6 +401,7 @@ var
   vTopData: THCCustomData;
   vExpressItem: THCExpressItem;
 begin
+  //vTopData := FGridView.ActiveSectionTopLevelData;
   vTopData := FGridView.TopLevelData;
   if Assigned(vTopData) then
   begin
@@ -413,6 +416,7 @@ var
   vTopData: THCCustomData;
   vSupSubScriptItem: THCSupSubScriptItem;
 begin
+  //vTopData := FGridView.ActiveSectionTopLevelData;
   vTopData := FGridView.TopLevelData;
   if Assigned(vTopData) then
   begin
@@ -433,6 +437,7 @@ var
   vS: string;
 begin
   vS := InputBox('文本框', '文本', 'HC-' + FormatDateTime('YYYYMMDD', Now));
+  //vTopData := FGridView.ActiveSectionTopLevelData;
   vTopData := FGridView.TopLevelData;
   if Assigned(vTopData) then
   begin
@@ -448,6 +453,7 @@ var
   vS: string;
 begin
   vS := InputBox('文本框', '文本', 'HCView使用了DelphiZXingQRCode二维码控件');
+  //vTopData := FGridView.ActiveSectionTopLevelData;
   vTopData := FGridView.TopLevelData;
   if Assigned(vTopData) then
   begin
@@ -461,6 +467,7 @@ var
   vTopData: THCCustomData;
   vTextItem: THCTextItem;
 begin
+  //vTopData := FGridView.ActiveSectionTopLevelData;
   vTopData := FGridView.TopLevelData;
   if Assigned(vTopData) then
   begin
@@ -476,7 +483,8 @@ var
   vTopData: THCViewData;
   vFrmAnnotate: TfrmAnnotate;
 begin
-  vTopData := FGridView.TopLevelData as THCViewData;
+  //vTopData := FGridView.ActiveSectionTopLevelData as THCViewData;
+  vTopData := FGridView.TopLevelData as THCViewData;;
   if Assigned(vTopData) then
   begin
     if not vTopData.SelectExists then Exit;
@@ -553,6 +561,7 @@ var
   vTopData: THCCustomData;
   vHCRadioGroup: THCRadioGroup;
 begin
+  //vTopData := FGridView.ActiveSectionTopLevelData;
   vTopData := FGridView.TopLevelData;
   if Assigned(vTopData) then
   begin
@@ -638,6 +647,7 @@ begin
   vS := '勾选框';
   if InputQuery('勾选框', '文本', vS) then
   begin
+    //vTopData := FGridView.ActiveSectionTopLevelData;
     vTopData := FGridView.TopLevelData;
     if Assigned(vTopData) then
     begin
@@ -656,6 +666,7 @@ begin
   vS := '默认值';
   if InputQuery('下拉框', '文本内容', vS) then
   begin
+     //vTopData := FGridView.ActiveSectionTopLevelData;
     vTopData := FGridView.TopLevelData;
     if Assigned(vTopData) then
     begin
@@ -692,6 +703,7 @@ var
   vTopData: THCCustomData;
   vHCDateTimePicker: THCDateTimePicker;
 begin
+  //vTopData := FGridView.ActiveSectionTopLevelData;
   vTopData := FGridView.TopLevelData;
   if Assigned(vTopData) then
   begin
@@ -702,11 +714,13 @@ end;
 
 procedure TForm9.mniDeleteCurColClick(Sender: TObject);
 begin
+  //FGridView.ActiveTableDeleteCurCol;
   FGridView.DeleteCurCol;
 end;
 
 procedure TForm9.mniDeleteCurRowClick(Sender: TObject);
 begin
+  //FGridView.ActiveTableDeleteCurRow;
   FGridView.DeleteCurRow;
 end;
 
@@ -719,6 +733,7 @@ begin
   vS := '文本';
   if InputQuery('文本框', '文本内容', vS) then
   begin
+    //vTopData := FGridView.ActiveSectionTopLevelData;
     vTopData := FGridView.TopLevelData;
     if Assigned(vTopData) then
     begin
@@ -782,21 +797,25 @@ end;
 
 procedure TForm9.mniInsertColLeftClick(Sender: TObject);
 begin
+  //FGridView.ActiveTableInsertColBefor(1);
   FGridView.InsertColBefor(1);
 end;
 
 procedure TForm9.mniInsertColRightClick(Sender: TObject);
 begin
+  //FGridView.ActiveTableInsertColAfter(1);
   FGridView.InsertColAfter(1);
 end;
 
 procedure TForm9.mniInsertRowBottomClick(Sender: TObject);
 begin
+  //FGridView.ActiveTableInsertRowAfter(1);
   FGridView.InsertRowAfter(1);
 end;
 
 procedure TForm9.mniInsertRowTopClick(Sender: TObject);
 begin
+  //FGridView.ActiveTableInsertRowBefor(1);
   FGridView.InsertRowBefor(1);
 end;
 

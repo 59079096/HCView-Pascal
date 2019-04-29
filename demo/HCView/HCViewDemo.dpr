@@ -1,6 +1,7 @@
 program HCViewDemo;
 
 uses
+  EMemLeaks,
   Forms,
   frm_HCViewDemo in 'frm_HCViewDemo.pas' {frmHCViewDemo},
   frm_InsertTable in 'frm_InsertTable.pas' {frmInsertTable},

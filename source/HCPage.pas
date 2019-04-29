@@ -17,43 +17,41 @@ uses
   Windows, Classes, HCCommon, HCUnitConversion;
 
 type
-  THCPageSize = class(TObject)
+  THCPaper = class(TObject)
   private
-    FPaperSize: Integer;  // 纸张大小如A4、B5等
-    FPaperWidth, FPaperHeight: Single;  // 纸张宽、高（单位mm）
-    FPageWidthPix, FPageHeightPix: Integer;  // 页面大小
-    FPaperMarginTop, FPaperMarginLeft, FPaperMarginRight, FPaperMarginBottom: Single;  // 纸张边距（单位mm）
-    FPageMarginTopPix, FPageMarginLeftPix, FPageMarginRightPix, FPageMarginBottomPix: Integer;  // 页边距
+    FSize: Integer;  // 纸张大小如A4、B5等
+    FWidth, FHeight: Single;  // 纸张宽、高（单位mm）
+    FWidthPix, FHeightPix: Integer;  // 页面大小
+    FMarginTop, FMarginLeft, FMarginRight, FMarginBottom: Single;  // 纸张边距（单位mm）
+    FMarginTopPix, FMarginLeftPix, FMarginRightPix, FMarginBottomPix: Integer;  // 页边距
   protected
-    procedure SetPaperSize(const Value: Integer);
-    procedure SetPaperWidth(const Value: Single);
-    procedure SetPaperHeight(const Value: Single);
-    procedure SetPaperMarginTop(const Value: Single);
-    procedure SetPaperMarginLeft(const Value: Single);
-    procedure SetPaperMarginRight(const Value: Single);
-    procedure SetPaperMarginBottom(const Value: Single);
+    procedure SetSize(const Value: Integer);
+    procedure SetWidth(const Value: Single);
+    procedure SetHeight(const Value: Single);
+    procedure SetMarginTop(const Value: Single);
+    procedure SetMarginLeft(const Value: Single);
+    procedure SetMarginRight(const Value: Single);
+    procedure SetMarginBottom(const Value: Single);
   public
     constructor Create;
     procedure SaveToStream(const AStream: TStream);
     procedure LoadToStream(const AStream: TStream; const AFileVersion: Word);
-    function PageContentWidthPix: Integer;
-    function PageContentHeightPix: Integer;
     // 纸张
-    property PaperSize: Integer read FPaperSize write SetPaperSize;
-    property PaperWidth: Single read FPaperWidth write SetPaperWidth;
-    property PaperHeight: Single read FPaperHeight write SetPaperHeight;
-    property PaperMarginTop: Single read FPaperMarginTop write SetPaperMarginTop;
-    property PaperMarginLeft: Single read FPaperMarginLeft write SetPaperMarginLeft;
-    property PaperMarginRight: Single read FPaperMarginRight write SetPaperMarginRight;
-    property PaperMarginBottom: Single read FPaperMarginBottom write SetPaperMarginBottom;
+    property Size: Integer read FSize write SetSize;
+    property Width: Single read FWidth write SetWidth;
+    property Height: Single read FHeight write SetHeight;
+    property MarginTop: Single read FMarginTop write SetMarginTop;
+    property MarginLeft: Single read FMarginLeft write SetMarginLeft;
+    property MarginRight: Single read FMarginRight write SetMarginRight;
+    property MarginBottom: Single read FMarginBottom write SetMarginBottom;
     /// <summary> 页宽(含页左右边距) </summary>
-    property PageWidthPix: Integer read FPageWidthPix;
+    property WidthPix: Integer read FWidthPix;
     /// <summary> 页高(含页眉、页脚) </summary>
-    property PageHeightPix: Integer read FPageHeightPix;
-    property PageMarginTopPix: Integer read FPageMarginTopPix;
-    property PageMarginLeftPix: Integer read FPageMarginLeftPix;
-    property PageMarginRightPix: Integer read FPageMarginRightPix;
-    property PageMarginBottomPix: Integer read FPageMarginBottomPix;
+    property HeightPix: Integer read FHeightPix;
+    property MarginTopPix: Integer read FMarginTopPix;
+    property MarginLeftPix: Integer read FMarginLeftPix;
+    property MarginRightPix: Integer read FMarginRightPix;
+    property MarginBottomPix: Integer read FMarginBottomPix;
   end;
 
   THCPage = class(TPersistent)
@@ -84,24 +82,26 @@ type
 
 implementation
 
-{ THCPageSize }
+{ THCPaper }
 
-constructor THCPageSize.Create;
+constructor THCPaper.Create;
 begin
-  PaperMarginLeft := 25;
-  PaperMarginTop := 25;
-  PaperMarginRight := 20;
-  PaperMarginBottom := 20;
-  PaperSize := DMPAPER_A4;  // 默认A4 210 297
+  MarginLeft := 25;
+  MarginTop := 25;
+  MarginRight := 20;
+  MarginBottom := 20;
+  FSize := DMPAPER_A4;  // 默认A4 210 297
+  Width := 210;
+  Height := 297;
 end;
 
-procedure THCPageSize.SetPaperWidth(const Value: Single);
+procedure THCPaper.SetWidth(const Value: Single);
 begin
-  FPaperWidth := Value;
-  FPageWidthPix := MillimeterToPixX(FPaperWidth);
+  FWidth := Value;
+  FWidthPix := MillimeterToPixX(FWidth);
 end;
 
-procedure THCPageSize.LoadToStream(const AStream: TStream; const AFileVersion: Word);
+procedure THCPaper.LoadToStream(const AStream: TStream; const AFileVersion: Word);
 var
   vPaperSize: Integer;
   vSize: Single;
@@ -110,51 +110,41 @@ begin
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
 
   AStream.ReadBuffer(vPaperSize, SizeOf(vPaperSize));
-  PaperSize := vPaperSize;
+  FSize := vPaperSize;
 
-  AStream.ReadBuffer(vSize, SizeOf(FPaperWidth));
-  PaperWidth := vSize;
+  AStream.ReadBuffer(vSize, SizeOf(FWidth));
+  Width := vSize;
 
-  AStream.ReadBuffer(vSize, SizeOf(FPaperHeight));
-  PaperHeight := vSize;
+  AStream.ReadBuffer(vSize, SizeOf(FHeight));
+  Height := vSize;
 
-  AStream.ReadBuffer(vSize, SizeOf(FPaperMarginLeft));
-  PaperMarginLeft := vSize;
+  AStream.ReadBuffer(vSize, SizeOf(FMarginLeft));
+  MarginLeft := vSize;
 
-  AStream.ReadBuffer(vSize, SizeOf(FPaperMarginTop));
-  PaperMarginTop := vSize;
+  AStream.ReadBuffer(vSize, SizeOf(FMarginTop));
+  MarginTop := vSize;
 
-  AStream.ReadBuffer(vSize, SizeOf(FPaperMarginRight));
-  PaperMarginRight := vSize;
+  AStream.ReadBuffer(vSize, SizeOf(FMarginRight));
+  MarginRight := vSize;
 
-  AStream.ReadBuffer(vSize, SizeOf(FPaperMarginBottom));
-  PaperMarginBottom := vSize;
+  AStream.ReadBuffer(vSize, SizeOf(FMarginBottom));
+  MarginBottom := vSize;
 end;
 
-function THCPageSize.PageContentHeightPix: Integer;
-begin
-  Result := FPageHeightPix - FPageMarginTopPix - FPageMarginBottomPix;
-end;
-
-function THCPageSize.PageContentWidthPix: Integer;
-begin
-  Result := FPageWidthPix - FPageMarginLeftPix - FPageMarginRightPix;
-end;
-
-procedure THCPageSize.SaveToStream(const AStream: TStream);
+procedure THCPaper.SaveToStream(const AStream: TStream);
 var
   vBegPos, vEndPos: Int64;
 begin
   vBegPos := AStream.Position;
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位
   //
-  AStream.WriteBuffer(FPaperSize, SizeOf(FPaperSize));
-  AStream.WriteBuffer(FPaperWidth, SizeOf(FPaperWidth));
-  AStream.WriteBuffer(FPaperHeight, SizeOf(FPaperHeight));
-  AStream.WriteBuffer(FPaperMarginLeft, SizeOf(FPaperMarginLeft));
-  AStream.WriteBuffer(FPaperMarginTop, SizeOf(FPaperMarginTop));
-  AStream.WriteBuffer(FPaperMarginRight, SizeOf(FPaperMarginRight));
-  AStream.WriteBuffer(FPaperMarginBottom, SizeOf(FPaperMarginBottom));
+  AStream.WriteBuffer(FSize, SizeOf(FSize));
+  AStream.WriteBuffer(FWidth, SizeOf(FWidth));
+  AStream.WriteBuffer(FHeight, SizeOf(FHeight));
+  AStream.WriteBuffer(FMarginLeft, SizeOf(FMarginLeft));
+  AStream.WriteBuffer(FMarginTop, SizeOf(FMarginTop));
+  AStream.WriteBuffer(FMarginRight, SizeOf(FMarginRight));
+  AStream.WriteBuffer(FMarginBottom, SizeOf(FMarginBottom));
   //
   vEndPos := AStream.Position;
   AStream.Position := vBegPos;
@@ -163,49 +153,40 @@ begin
   AStream.Position := vEndPos;
 end;
 
-procedure THCPageSize.SetPaperHeight(const Value: Single);
+procedure THCPaper.SetHeight(const Value: Single);
 begin
-  FPaperHeight := Value;
-  FPageHeightPix := MillimeterToPixY(FPaperHeight);
+  FHeight := Value;
+  FHeightPix := MillimeterToPixY(FHeight);
 end;
 
-procedure THCPageSize.SetPaperMarginBottom(const Value: Single);
+procedure THCPaper.SetMarginBottom(const Value: Single);
 begin
-  FPaperMarginBottom := Value;
-  FPageMarginBottomPix := MillimeterToPixY(FPaperMarginBottom);
+  FMarginBottom := Value;
+  FMarginBottomPix := MillimeterToPixY(FMarginBottom);
 end;
 
-procedure THCPageSize.SetPaperMarginLeft(const Value: Single);
+procedure THCPaper.SetMarginLeft(const Value: Single);
 begin
-  FPaperMarginLeft := Value;
-  FPageMarginLeftPix := MillimeterToPixX(FPaperMarginLeft);
+  FMarginLeft := Value;
+  FMarginLeftPix := MillimeterToPixX(FMarginLeft);
 end;
 
-procedure THCPageSize.SetPaperMarginRight(const Value: Single);
+procedure THCPaper.SetMarginRight(const Value: Single);
 begin
-  FPaperMarginRight := Value;
-  FPageMarginRightPix := MillimeterToPixX(FPaperMarginRight);
+  FMarginRight := Value;
+  FMarginRightPix := MillimeterToPixX(FMarginRight);
 end;
 
-procedure THCPageSize.SetPaperMarginTop(const Value: Single);
+procedure THCPaper.SetMarginTop(const Value: Single);
 begin
-  FPaperMarginTop := Value;
-  FPageMarginTopPix := MillimeterToPixY(FPaperMarginTop);
+  FMarginTop := Value;
+  FMarginTopPix := MillimeterToPixY(FMarginTop);
 end;
 
-procedure THCPageSize.SetPaperSize(const Value: Integer);
+procedure THCPaper.SetSize(const Value: Integer);
 begin
-  if FPaperSize <> Value then
-  begin
-    FPaperSize := Value;
-    case FPaperSize of
-      DMPAPER_A4:
-        begin
-          PaperWidth := 210;
-          PaperHeight := 297;
-        end;
-    end;
-  end;
+  if FSize <> Value then
+    FSize := Value;
 end;
 
 { THCPage }

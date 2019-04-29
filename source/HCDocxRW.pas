@@ -1360,7 +1360,7 @@ begin
       FHCView.Sections[0].PaperMarginRight := TwipToMillimeter(Single(vXmlNode.Attributes['w:right']));
       FHCView.Sections[0].PaperMarginBottom := TwipToMillimeter(Single(vXmlNode.Attributes['w:bottom']));
 
-      FHCView.Sections[0].PageOrientation := TPageOrientation.cpoPortrait;  // TPageOrientation.cpoLandscape;
+      FHCView.Sections[0].PaperOrientation := TPaperOrientation.cpoPortrait;  // TPageOrientation.cpoLandscape;
       FHCView.Sections[0].ResetMargin;
     end;
 

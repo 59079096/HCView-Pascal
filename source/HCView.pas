@@ -105,6 +105,7 @@ type
     FViewWidth, FViewHeight,
     FDisplayFirstSection, FDisplayLastSection: Integer;
     FUpdateCount: Cardinal;
+    FPagePadding: Byte;
     FZoom: Single;
     FAutoZoom,  // 自动缩放
     FIsChanged: Boolean;  // 是否发生了改变
@@ -112,7 +113,6 @@ type
     FAnnotatePre: THCAnnotatePre;  // 批注管理
 
     FViewModel: THCViewModel;  // 界面显示模式：页面、Web
-    FPageScrollModel: THCPageScrollModel;  // 页面滚动显示模式：纵向、横向
     FCaret: THCCaret;
     FOnMouseDown, FOnMouseUp: TMouseEvent;
     FOnCaretChange, FOnVerScroll, FOnHorScroll, FOnSectionCreateItem,
@@ -124,7 +124,7 @@ type
     FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent;
 
     FOnSectionPaintHeader, FOnSectionPaintFooter, FOnSectionPaintPage,
-      FOnSectionPaintWholePageBefor, FOnSectionPaintWholePageAfter: TSectionPagePaintEvent;
+      FOnSectionPaintPaperBefor, FOnSectionPaintPaperAfter: TSectionPaintEvent;
     FOnPaintViewBefor, FOnPaintViewAfter: TPaintEvent;
 
     FOnChange, FOnChangeSwitch, FOnZoomChange,
@@ -181,9 +181,9 @@ type
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionPaintPage(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintWholePageBefor(const Sender: TObject; const APageIndex: Integer;
+    procedure DoSectionPaintPaperBefor(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintWholePageAfter(const Sender: TObject; const APageIndex: Integer;
+    procedure DoSectionPaintPaperAfter(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionDrawItemAnnotate(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
@@ -226,7 +226,10 @@ type
     function GetReadOnly: Boolean;
     procedure SetReadOnly(const Value: Boolean);
     procedure SetPageNoFormat(const Value: string);
-
+    procedure SetViewModel(const Value: THCViewModel);
+    procedure SetActiveSectionIndex(const Value: Integer);
+    procedure SetIsChanged(const Value: Boolean);
+    procedure SetPagePadding(const Value: Byte);
     procedure AutoScrollTimer(const AStart: Boolean);
     // Imm
     procedure UpdateImmPosition;
@@ -294,12 +297,6 @@ type
 
     /// <summary> 是否由滚动条位置变化引起的更新 </summary>
     procedure CheckUpdateInfo;
-    //
-    procedure SetPageScrollModel(const Value: THCPageScrollModel);
-    procedure SetViewModel(const Value: THCViewModel);
-    procedure SetActiveSectionIndex(const Value: Integer);
-    //
-    procedure SetIsChanged(const Value: Boolean);
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
@@ -678,7 +675,7 @@ type
 
     /// <summary> 当前文档是否有变化 </summary>
     property IsChanged: Boolean read FIsChanged write SetIsChanged;
-
+    property PagePadding: Byte read FPagePadding write SetPagePadding;
     property AnnotatePre: THCAnnotatePre read FAnnotatePre;
 
     property ViewWidth: Integer read FViewWidth;
@@ -701,25 +698,22 @@ type
     property OnSectionDrawItemPaintAfter: TSectionDrawItemPaintEvent read FOnSectionDrawItemPaintAfter write FOnSectionDrawItemPaintAfter;
 
     /// <summary> 节页眉绘制时触发 </summary>
-    property OnSectionPaintHeader: TSectionPagePaintEvent read FOnSectionPaintHeader write FOnSectionPaintHeader;
+    property OnSectionPaintHeader: TSectionPaintEvent read FOnSectionPaintHeader write FOnSectionPaintHeader;
 
     /// <summary> 节页脚绘制时触发 </summary>
-    property OnSectionPaintFooter: TSectionPagePaintEvent read FOnSectionPaintFooter write FOnSectionPaintFooter;
+    property OnSectionPaintFooter: TSectionPaintEvent read FOnSectionPaintFooter write FOnSectionPaintFooter;
 
     /// <summary> 节页面绘制时触发 </summary>
-    property OnSectionPaintPage: TSectionPagePaintEvent read FOnSectionPaintPage write FOnSectionPaintPage;
+    property OnSectionPaintPage: TSectionPaintEvent read FOnSectionPaintPage write FOnSectionPaintPage;
 
     /// <summary> 节整页绘制前触发 </summary>
-    property OnSectionPaintWholePageBefor: TSectionPagePaintEvent read FOnSectionPaintWholePageBefor write FOnSectionPaintWholePageBefor;
+    property OnSectionPaintPaperBefor: TSectionPaintEvent read FOnSectionPaintPaperBefor write FOnSectionPaintPaperBefor;
 
     /// <summary> 节整页绘制后触发 </summary>
-    property OnSectionPaintWholePageAfter: TSectionPagePaintEvent read FOnSectionPaintWholePageAfter write FOnSectionPaintWholePageAfter;
+    property OnSectionPaintPaperAfter: TSectionPaintEvent read FOnSectionPaintPaperAfter write FOnSectionPaintPaperAfter;
 
     /// <summary> 节只读属性有变化时触发 </summary>
     property OnSectionReadOnlySwitch: TNotifyEvent read FOnSectionReadOnlySwitch write FOnSectionReadOnlySwitch;
-
-    /// <summary> 页面滚动显示模式：纵向、横向 </summary>
-    property PageScrollModel: THCPageScrollModel read FPageScrollModel write SetPageScrollModel;
 
     /// <summary> 界面显示模式：页面、Web </summary>
     property ViewModel: THCViewModel read FViewModel write SetViewModel;
@@ -843,22 +837,39 @@ var
   i, vWidth, vVMax, vHMax: Integer;
 begin
   vVMax := 0;
-  vHMax := FSections[0].PageWidthPix;
-  for i := 0 to FSections.Count - 1 do  //  计算节垂直总和，以及节中最宽的页宽度
+
+  if FViewModel = hvmFilm then
   begin
-    vVMax := vVMax + FSections[i].GetFilmHeight;
+    vHMax := FSections[0].PaperWidthPix;
+    for i := 0 to FSections.Count - 1 do  //  计算节垂直总和，以及节中最宽的页宽度
+    begin
+      vVMax := vVMax + FSections[i].GetFilmHeight;
 
-    vWidth := FSections[i].PageWidthPix;
+      vWidth := FSections[i].PaperWidthPix;
 
-    if vWidth > vHMax then
-      vHMax := vWidth;
+      if vWidth > vHMax then
+        vHMax := vWidth;
+    end;
+  end
+  else
+  begin
+    vHMax := FSections[0].GetPageWidth;
+    for i := 0 to FSections.Count - 1 do  //  计算节垂直总和，以及节中最宽的页宽度
+    begin
+      vVMax := vVMax + FSections[i].GetFilmHeight;
+
+      vWidth := FSections[i].GetPageWidth;
+
+      if vWidth > vHMax then
+        vHMax := vWidth;
+    end;
   end;
 
   if FAnnotatePre.Visible then
     vHMax := vHMax + AnnotationWidth;
 
-  vVMax := ZoomIn(vVMax + PagePadding);  // 补充最后一页后面的PagePadding
-  vHMax := ZoomIn(vHMax + PagePadding + PagePadding);
+  vVMax := ZoomIn(vVMax + FPagePadding);  // 补充最后一页后面的PagePadding
+  vHMax := ZoomIn(vHMax + FPagePadding + FPagePadding);
 
   FVScrollBar.Max := vVMax;
   FHScrollBar.Max := vHMax;
@@ -975,8 +986,8 @@ begin
   FIsChanged := False;
   FZoom := 1;
   FAutoZoom := False;
-  FViewModel := vmPage;
-  FPageScrollModel := psmVertical;  //psmHorizontal;
+  FViewModel := hvmFilm;
+  FPagePadding := 20;
 
   FDataBmp := TBitmap.Create;
   FStyle := THCStyle.CreateEx(True, True);
@@ -1124,10 +1135,10 @@ begin
   end
   else
   begin
-    if FPageScrollModel = psmVertical then
-      FVScrollBar.Position := FVScrollBar.Position - WheelDelta
+    if ssCtrl in Shift then
+      FHScrollBar.Position := FHScrollBar.Position - WheelDelta
     else
-      FHScrollBar.Position := FHScrollBar.Position - WheelDelta;
+      FVScrollBar.Position := FVScrollBar.Position - WheelDelta;
   end;
   Result := True;
 end;
@@ -1181,25 +1192,25 @@ begin
     FOnSectionPaintHeader(Sender, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoSectionPaintWholePageAfter(const Sender: TObject; const APageIndex: Integer;
+procedure THCView.DoSectionPaintPaperAfter(const Sender: TObject; const APageIndex: Integer;
   const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 begin
   if FAnnotatePre.Visible then  // 当前页有批注，绘制批注
     FAnnotatePre.PaintDrawAnnotate(Sender, ARect, ACanvas, APaintInfo);
 
-  if Assigned(FOnSectionPaintWholePageAfter) then
-    FOnSectionPaintWholePageAfter(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+  if Assigned(FOnSectionPaintPaperAfter) then
+    FOnSectionPaintPaperAfter(Sender, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoSectionPaintWholePageBefor(const Sender: TObject;
+procedure THCView.DoSectionPaintPaperBefor(const Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 begin
   if APaintInfo.Print and (FAnnotatePre.DrawCount > 0) then  // 打印是单面绘制，所以每一页前清除
     FAnnotatePre.ClearDrawAnnotate;
 
-  if Assigned(FOnSectionPaintWholePageBefor) then
-    FOnSectionPaintWholePageBefor(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+  if Assigned(FOnSectionPaintPaperBefor) then
+    FOnSectionPaintPaperBefor(Sender, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
 procedure THCView.DoSectionReadOnlySwitch(Sender: TObject);
@@ -1578,7 +1589,7 @@ begin
   if ActiveSection.ActiveData = ActiveSection.Footer then
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
       + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
-      + ActiveSection.PageHeightPix - ActiveSection.PageMarginBottomPix
+      + ActiveSection.PaperHeightPix - ActiveSection.PaperMarginBottomPix
       + Result.Y
       - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
       - Self.VScrollBar.Position
@@ -1627,13 +1638,14 @@ begin
   for i := 0 to FSections.Count - 1 do
   begin
     vY := vY + FSections[i].GetFilmHeight;
+
     if vY > Y then
     begin
       ASectionIndex := i;
       Break;
     end;
   end;
-  if (ASectionIndex < 0) and (vY + PagePadding >= Y) then  // 最后一页后面的Padding
+  if (ASectionIndex < 0) and (vY + FPagePadding >= Y) then  // 最后一页后面的Padding
     ASectionIndex := FSections.Count - 1;
 
   Assert(ASectionIndex >= 0, '没有获取到正确的节序号！');
@@ -1641,10 +1653,16 @@ end;
 
 function THCView.GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
 begin
-  if FAnnotatePre.Visible then  // 显示批注
-    Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix + AnnotationWidth)) div 2, ZoomIn(PagePadding))
+  if FViewModel = THCViewModel.hvmFilm then
+  begin
+    if FAnnotatePre.Visible then  // 显示批注
+      Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PaperWidthPix + AnnotationWidth)) div 2, ZoomIn(FPagePadding))
+    else
+      Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PaperWidthPix)) div 2, ZoomIn(FPagePadding));
+  end
   else
-    Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PageWidthPix)) div 2, ZoomIn(PagePadding));
+    Result := 0;
+
   Result := ZoomOut(Result);
 end;
 
@@ -2191,8 +2209,8 @@ begin
 
   if FAnnotatePre.DrawCount > 0 then  // 有批注被绘制
 //  begin
-//    //if (X + HScrollValue > vSectionDrawLeft + FSections[FActiveSectionIndex].PageWidthPix)
-//    //  and (X + HScrollValue < vSectionDrawLeft + FSections[FActiveSectionIndex].PageWidthPix + AnnotationWidth)
+//    //if (X + HScrollValue > vSectionDrawLeft + FSections[FActiveSectionIndex].PaperWidthPix)
+//    //  and (X + HScrollValue < vSectionDrawLeft + FSections[FActiveSectionIndex].PaperWidthPix + AnnotationWidth)
 //    if PtInRect(FAnnotatePre.DrawRect, Point(X, Y)) then  // 点在批注区域中
 //    begin
       FAnnotatePre.MouseDown(ZoomOut(X), ZoomOut(Y));
@@ -2320,8 +2338,8 @@ begin
   Result.OnPaintHeader := DoSectionPaintHeader;
   Result.OnPaintFooter := DoSectionPaintFooter;
   Result.OnPaintPage := DoSectionPaintPage;
-  Result.OnPaintWholePageBefor := DoSectionPaintWholePageBefor;
-  Result.OnPaintWholePageAfter := DoSectionPaintWholePageAfter;
+  Result.OnPaintPaperBefor := DoSectionPaintPaperBefor;
+  Result.OnPaintPaperAfter := DoSectionPaintPaperAfter;
   Result.OnInsertAnnotate := DoSectionInsertAnnotate;
   Result.OnRemoveAnnotate := DoSectionRemoveAnnotate;
   Result.OnDrawItemAnnotate := DoSectionDrawItemAnnotate;
@@ -2607,19 +2625,19 @@ begin
 
             if FSections[vSectionIndex].PageData.DataAnnotates.Count > 0 then
             begin
-              vPaintInfo.ScaleX := vPrintWidth / (FSections[vSectionIndex].PageWidthPix + AnnotationWidth);
-              vPaintInfo.ScaleY := vPrintHeight / (FSections[vSectionIndex].PageHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
-              vPaintInfo.Zoom := FSections[vSectionIndex].PageWidthPix / (FSections[vSectionIndex].PageWidthPix + AnnotationWidth);
+              vPaintInfo.ScaleX := vPrintWidth / (FSections[vSectionIndex].PaperWidthPix + AnnotationWidth);
+              vPaintInfo.ScaleY := vPrintHeight / (FSections[vSectionIndex].PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
+              vPaintInfo.Zoom := FSections[vSectionIndex].PaperWidthPix / (FSections[vSectionIndex].PaperWidthPix + AnnotationWidth);
             end
             else
             begin
-              vPaintInfo.ScaleX := vPrintWidth / FSections[vSectionIndex].PageWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-              vPaintInfo.ScaleY := vPrintHeight / FSections[vSectionIndex].PageHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+              vPaintInfo.ScaleX := vPrintWidth / FSections[vSectionIndex].PaperWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
+              vPaintInfo.ScaleY := vPrintHeight / FSections[vSectionIndex].PaperHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
               vPaintInfo.Zoom := 1;
             end;
 
-            vPaintInfo.WindowWidth := vPrintWidth;  // FSections[vStartSection].PageWidthPix;
-            vPaintInfo.WindowHeight := vPrintHeight;  // FSections[vStartSection].PageHeightPix;
+            vPaintInfo.WindowWidth := vPrintWidth;  // FSections[vStartSection].PaperWidthPix;
+            vPaintInfo.WindowHeight := vPrintHeight;  // FSections[vStartSection].PaperHeightPix;
 
             vPrintOffsetX := Round(vPrintOffsetX / vPaintInfo.ScaleX);
             vPrintOffsetY := Round(vPrintOffsetY / vPaintInfo.ScaleY);
@@ -2694,19 +2712,19 @@ begin
 
     if Self.ActiveSection.PageData.DataAnnotates.Count > 0 then
     begin
-      vPaintInfo.ScaleX := vPrintWidth / (Self.ActiveSection.PageWidthPix + AnnotationWidth);
-      vPaintInfo.ScaleY := vPrintHeight / (Self.ActiveSection.PageHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
-      vPaintInfo.Zoom := Self.ActiveSection.PageWidthPix / (Self.ActiveSection.PageWidthPix + AnnotationWidth);
+      vPaintInfo.ScaleX := vPrintWidth / (Self.ActiveSection.PaperWidthPix + AnnotationWidth);
+      vPaintInfo.ScaleY := vPrintHeight / (Self.ActiveSection.PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
+      vPaintInfo.Zoom := Self.ActiveSection.PaperWidthPix / (Self.ActiveSection.PaperWidthPix + AnnotationWidth);
     end
     else
     begin
-      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PageWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PageHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PaperWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
+      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PaperHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
       vPaintInfo.Zoom := 1;
     end;
 
-    vPaintInfo.WindowWidth := vPrintWidth;  // FSections[vStartSection].PageWidthPix;
-    vPaintInfo.WindowHeight := vPrintHeight;  // FSections[vStartSection].PageHeightPix;
+    vPaintInfo.WindowWidth := vPrintWidth;  // FSections[vStartSection].PaperWidthPix;
+    vPaintInfo.WindowHeight := vPrintHeight;  // FSections[vStartSection].PaperHeightPix;
 
     vPrintOffsetX := Round(vPrintOffsetX / vPaintInfo.ScaleX);
     vPrintOffsetY := Round(vPrintOffsetY / vPaintInfo.ScaleY);
@@ -2742,19 +2760,19 @@ begin
           if APrintHeader then  // 打印页眉
             vRect := Bounds(vPrintOffsetX + vMarginLeft,
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight,  // 页眉下边
-              Self.ActiveSection.PageWidthPix - vMarginLeft - vMarginRight, vPt.Y)
+              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight, vPt.Y)
           else  // 不打印页眉
             vRect := Bounds(vPrintOffsetX + vMarginLeft, vPrintOffsetY,
-              Self.ActiveSection.PageWidthPix - vMarginLeft - vMarginRight,
+              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
               Self.ActiveSection.GetHeaderAreaHeight + vPt.Y);
           vPrintCanvas.FillRect(vRect);
 
           if not APrintFooter then  // 不打印页脚
           begin
             vRect := Bounds(vPrintOffsetX + vMarginLeft,
-              vPrintOffsetY + Self.ActiveSection.PageHeightPix - Self.ActiveSection.PageMarginBottomPix,
-              Self.ActiveSection.PageWidthPix - vMarginLeft - vMarginRight,
-              Self.ActiveSection.PageMarginBottomPix);
+              vPrintOffsetY + Self.ActiveSection.PaperHeightPix - Self.ActiveSection.PaperMarginBottomPix,
+              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
+              Self.ActiveSection.PaperMarginBottomPix);
 
             vPrintCanvas.FillRect(vRect);
           end;
@@ -2806,19 +2824,19 @@ begin
 
     if Self.ActiveSection.PageData.DataAnnotates.Count > 0 then
     begin
-      vPaintInfo.ScaleX := vPrintWidth / (Self.ActiveSection.PageWidthPix + AnnotationWidth);
-      vPaintInfo.ScaleY := vPrintHeight / (Self.ActiveSection.PageHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
-      vPaintInfo.Zoom := Self.ActiveSection.PageWidthPix / (Self.ActiveSection.PageWidthPix + AnnotationWidth);
+      vPaintInfo.ScaleX := vPrintWidth / (Self.ActiveSection.PaperWidthPix + AnnotationWidth);
+      vPaintInfo.ScaleY := vPrintHeight / (Self.ActiveSection.PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
+      vPaintInfo.Zoom := Self.ActiveSection.PaperWidthPix / (Self.ActiveSection.PaperWidthPix + AnnotationWidth);
     end
     else
     begin
-      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PageWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PageHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PaperWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
+      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PaperHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
       vPaintInfo.Zoom := 1;
     end;
 
-    vPaintInfo.WindowWidth := vPrintWidth;  // FSections[vStartSection].PageWidthPix;
-    vPaintInfo.WindowHeight := vPrintHeight;  // FSections[vStartSection].PageHeightPix;
+    vPaintInfo.WindowWidth := vPrintWidth;  // FSections[vStartSection].PaperWidthPix;
+    vPaintInfo.WindowHeight := vPrintHeight;  // FSections[vStartSection].PaperHeightPix;
 
     vPrintOffsetX := Round(vPrintOffsetX / vPaintInfo.ScaleX);
     vPrintOffsetY := Round(vPrintOffsetY / vPaintInfo.ScaleY);
@@ -2856,10 +2874,10 @@ begin
           if APrintHeader then  // 打印页眉
             vRect := Bounds(vPrintOffsetX + vMarginLeft,
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight,  // 页眉下边
-              Self.ActiveSection.PageWidthPix - vMarginLeft - vMarginRight, vPt.Y)
+              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight, vPt.Y)
           else  // 不打印页眉
             vRect := Bounds(vPrintOffsetX + vMarginLeft, vPrintOffsetY,
-              Self.ActiveSection.PageWidthPix - vMarginLeft - vMarginRight,
+              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
               Self.ActiveSection.GetHeaderAreaHeight + vPt.Y);
           vPrintCanvas.FillRect(vRect);
 
@@ -2878,7 +2896,7 @@ begin
             vPrintOffsetX + vMarginLeft +
               vData.GetDrawItemOffsetWidth(vDrawItemNo, AEndOffset - vData.DrawItems[vDrawItemNo].CharOffs + 1),
             vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y,
-            vPrintOffsetX + Self.ActiveSection.PageWidthPix - vMarginRight,
+            vPrintOffsetX + Self.ActiveSection.PaperWidthPix - vMarginRight,
             vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height);
           vPrintCanvas.FillRect(vRect);
 
@@ -2886,8 +2904,8 @@ begin
           begin
             vRect := Rect(vPrintOffsetX + vMarginLeft,
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
-              vPrintOffsetX + Self.ActiveSection.PageWidthPix - vMarginRight,
-              vPrintOffsetY + Self.ActiveSection.PageHeightPix);
+              vPrintOffsetX + Self.ActiveSection.PaperWidthPix - vMarginRight,
+              vPrintOffsetY + Self.ActiveSection.PaperHeightPix);
 
             vPrintCanvas.FillRect(vRect);
           end
@@ -2895,8 +2913,8 @@ begin
           begin
             vRect := Rect(vPrintOffsetX + vMarginLeft,
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
-              vPrintOffsetX + Self.ActiveSection.PageWidthPix - vMarginRight,
-              vPrintOffsetY + Self.ActiveSection.PageHeightPix - Self.ActiveSection.PageMarginBottomPix);
+              vPrintOffsetX + Self.ActiveSection.PaperWidthPix - vMarginRight,
+              vPrintOffsetY + Self.ActiveSection.PaperHeightPix - Self.ActiveSection.PaperMarginBottomPix);
           end;
         finally
           vPaintInfo.RestoreCanvasScale(vPrintCanvas, vScaleInfo);
@@ -2983,16 +3001,16 @@ begin
     if FCaret.Height < FViewHeight then
     begin
       if FCaret.Y < 0 then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - PagePadding
+        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - FPagePadding
       else
-      if FCaret.Y + FCaret.Height + PagePadding > FViewHeight then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + PagePadding - FViewHeight;
+      if FCaret.Y + FCaret.Height + FPagePadding > FViewHeight then
+        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + FPagePadding - FViewHeight;
 
       if FCaret.X < 0 then
-        FHScrollBar.Position := FHScrollBar.Position + FCaret.X - PagePadding
+        FHScrollBar.Position := FHScrollBar.Position + FCaret.X - FPagePadding
       else
-      if FCaret.X + PagePadding > FViewWidth then
-        FHScrollBar.Position := FHScrollBar.Position + FCaret.X + PagePadding - FViewWidth;
+      if FCaret.X + FPagePadding > FViewWidth then
+        FHScrollBar.Position := FHScrollBar.Position + FCaret.X + FPagePadding - FViewWidth;
     end;
   end;
 
@@ -3056,9 +3074,9 @@ begin
   if FAutoZoom then
   begin
     if FAnnotatePre.Visible then  // 显示批注
-      FZoom := (FViewWidth - PagePadding * 2) / (ActiveSection.PageWidthPix + AnnotationWidth)
+      FZoom := (FViewWidth - FPagePadding * 2) / (ActiveSection.PaperWidthPix + AnnotationWidth)
     else
-      FZoom := (FViewWidth - PagePadding * 2) / ActiveSection.PageWidthPix;
+      FZoom := (FViewWidth - FPagePadding * 2) / ActiveSection.PaperWidthPix;
   end;
 
   CalcScrollRang;
@@ -3235,8 +3253,8 @@ begin
           end;
 
           vPaintInfo.PageIndex := j;
-          vPaintInfo.WindowWidth := FSections[i].PageWidthPix;
-          vPaintInfo.WindowHeight := FSections[i].PageHeightPix;
+          vPaintInfo.WindowWidth := FSections[i].PaperWidthPix;
+          vPaintInfo.WindowHeight := FSections[i].PaperHeightPix;
 
           FSections[i].PaintPage(j, 0, 0, vPDF.VCLCanvas, vPaintInfo);
         end;
@@ -3466,11 +3484,21 @@ begin
   end;
 end;
 
-procedure THCView.SetPageScrollModel(const Value: THCPageScrollModel);
+procedure THCView.SetPagePadding(const Value: Byte);
+var
+  i: Integer;
 begin
-  if FViewModel = vmWeb then Exit;
-  if FPageScrollModel <> Value then
-    FPageScrollModel := Value;
+  if FPagePadding <> Value then
+  begin
+    FPagePadding := Value;
+    for i := 0 to FSections.Count - 1 do
+      FSections[i].PagePadding := FPagePadding;
+
+    FStyle.UpdateInfoRePaint;
+    FStyle.UpdateInfoReCaret(False);
+    DoMapChanged;
+    DoViewResize;
+  end;
 end;
 
 procedure THCView.SetPrintBySectionInfo(const ASectionIndex: Integer);
@@ -3498,7 +3526,7 @@ begin
           vPDMode^.dmFields := vPDMode^.dmFields or DM_PAPERSIZE or DM_PAPERLENGTH or DM_PAPERWIDTH;
         end;
 
-        if FSections[ASectionIndex].PageOrientation = TPageOrientation.cpoPortrait then
+        if FSections[ASectionIndex].PaperOrientation = TPaperOrientation.cpoPortrait then
           vPDMode^.dmOrientation := DMORIENT_PORTRAIT
         else
           vPDMode^.dmOrientation := DMORIENT_LANDSCAPE;
@@ -3563,10 +3591,21 @@ begin
 end;
 
 procedure THCView.SetViewModel(const Value: THCViewModel);
+var
+  i: Integer;
 begin
-  if FPageScrollModel = psmHorizontal then Exit; // 水平滚动不能切换模式
   if FViewModel <> Value then
+  begin
     FViewModel := Value;
+
+    for i := 0 to FSections.Count - 1 do
+      FSections[i].ViewModel := Value;
+
+    if Value = hvmFilm then
+      PagePadding := 20
+    else
+      PagePadding := 0;
+  end;
 end;
 
 procedure THCView.SetZoom(const Value: Single);
@@ -3702,55 +3741,63 @@ procedure THCView.UpdateView(const ARect: TRect);
     vFirstPage := -1;
     vLastPage := -1;
     vPos := 0;
-    if FPageScrollModel = psmVertical then
+
+    for i := 0 to FSections.Count - 1 do
     begin
-      for i := 0 to FSections.Count - 1 do
+      for j := 0 to FSections[i].PageCount - 1 do
       begin
-        for j := 0 to FSections[i].PageCount - 1 do
+        if FSections[i].ViewModel = hvmFilm then
+          vPos := vPos + ZoomIn(FPagePadding + FSections[i].PaperHeightPix)
+        else
+          vPos := vPos + ZoomIn(FPagePadding + FSections[i].GetPageHeight);
+
+        if vPos > FVScrollBar.Position then
         begin
-          vPos := vPos + ZoomIn(PagePadding + FSections[i].PageHeightPix);
-          if vPos > FVScrollBar.Position then
-          begin
-            vFirstPage := j;
-            Break;
-          end;
-        end;
-        if vFirstPage >= 0 then
-        begin
-          FDisplayFirstSection := i;
-          FSections[FDisplayFirstSection].DisplayFirstPageIndex := vFirstPage;
+          vFirstPage := j;
           Break;
         end;
       end;
-      if FDisplayFirstSection >= 0 then
+      if vFirstPage >= 0 then
       begin
-        vY := FVScrollBar.Position + FViewHeight;
-        for i := FDisplayFirstSection to FSections.Count - 1 do
+        FDisplayFirstSection := i;
+        FSections[FDisplayFirstSection].DisplayFirstPageIndex := vFirstPage;
+        Break;
+      end;
+    end;
+    if FDisplayFirstSection >= 0 then
+    begin
+      vY := FVScrollBar.Position + FViewHeight;
+      for i := FDisplayFirstSection to FSections.Count - 1 do
+      begin
+        for j := vFirstPage to FSections[i].PageCount - 1 do
         begin
-          for j := vFirstPage to FSections[i].PageCount - 1 do
+          if vPos < vY then
           begin
-            if vPos < vY then
-              vPos := vPos + ZoomIn(PagePadding + FSections[i].PageHeightPix)
+            if FSections[i].ViewModel = hvmFilm then
+              vPos := vPos + ZoomIn(FPagePadding + FSections[i].PaperHeightPix)
             else
-            begin
-              vLastPage := j;
-              Break;
-            end;
-          end;
-          if vLastPage >= 0 then
+              vPos := vPos + ZoomIn(FPagePadding + FSections[i].GetPageHeight);
+          end
+          else
           begin
-            FDisplayLastSection := i;
-            FSections[FDisplayLastSection].DisplayLastPageIndex := vLastPage;
+            vLastPage := j;
             Break;
           end;
         end;
-        if FDisplayLastSection < 0 then  // 没有找到结束页，赋值为最后一节最后一页
+        if vLastPage >= 0 then
         begin
-          FDisplayLastSection := FSections.Count - 1;
-          FSections[FDisplayLastSection].DisplayLastPageIndex := FSections[FDisplayLastSection].PageCount - 1;
+          FDisplayLastSection := i;
+          FSections[FDisplayLastSection].DisplayLastPageIndex := vLastPage;
+          Break;
         end;
       end;
+      if FDisplayLastSection < 0 then  // 没有找到结束页，赋值为最后一节最后一页
+      begin
+        FDisplayLastSection := FSections.Count - 1;
+        FSections[FDisplayLastSection].DisplayLastPageIndex := FSections[FDisplayLastSection].PageCount - 1;
+      end;
     end;
+
     if (FDisplayFirstSection < 0) or (FDisplayLastSection < 0) then
       raise Exception.Create('异常：获取当前显示起始页和结束页失败！')
     else
@@ -3777,8 +3824,13 @@ begin
       IntersectClipRect(FDataBmp.Canvas.Handle, ARect.Left, ARect.Top, ARect.Right, ARect.Bottom);
 
       // 控件背景
-      FDataBmp.Canvas.Brush.Color := Self.Color;// $00E7BE9F;
+      if FViewModel = hvmFilm then
+        FDataBmp.Canvas.Brush.Color := Self.Color
+      else
+        FDataBmp.Canvas.Brush.Color := FStyle.BackgroudColor;
+
       FDataBmp.Canvas.FillRect(Rect(0, 0, FDataBmp.Width, FDataBmp.Height));
+
       // 因基于此计算当前页面数据起始结束，所以不能用ARect代替
       CalcDisplaySectionAndPage;  // 计算当前范围内可显示的起始节、页和结束节、页
 
@@ -3787,6 +3839,7 @@ begin
         vPaintInfo.ScaleX := FZoom;
         vPaintInfo.ScaleY := FZoom;
         vPaintInfo.Zoom := FZoom;
+        vPaintInfo.ViewModel := FViewModel;
         vPaintInfo.WindowWidth := FViewWidth;
         vPaintInfo.WindowHeight := FViewHeight;
 
@@ -4144,8 +4197,7 @@ begin
     //正文中的批注
     vVOffset := APageRect.Top + vHeaderAreaHeight - APaintInfo.PageDataFmtTop;
     vTop := APaintInfo.PageDataFmtTop + vVOffset;
-
-    vBottom := vTop + vSection.PageHeightPix - vHeaderAreaHeight - vSection.PageMarginBottomPix;
+    vBottom := vTop + vSection.PaperHeightPix - vHeaderAreaHeight - vSection.PaperMarginBottomPix;
 
     for i := 0 to FDrawAnnotates.Count - 1 do  // 找本页的起始和结束批注
     begin

@@ -491,20 +491,20 @@ begin
     vPaintInfo.Print := True;
     vPaintInfo.SectionIndex := vSection;
 
-    FDrawWidth := Round(FHCView.Sections[vSection].PageWidthPix * vZoom);
-    FDrawHeight := Round(FHCView.Sections[vSection].PageHeightPix * vZoom);
+    FDrawWidth := Round(FHCView.Sections[vSection].PaperWidthPix * vZoom);
+    FDrawHeight := Round(FHCView.Sections[vSection].PaperHeightPix * vZoom);
 
     FDrawTop := Max((pbPage.Height - FDrawHeight) div 2, 0);
     FDrawLeft := Max((pbPage.Width - FDrawWidth) div 2, 0);
 
-    //vBL := FHCView.Sections[vSection].PageHeightPix / FHCView.Sections[vSection].PageWidthPix;  // ×Ýºá±È
+    //vBL := FHCView.Sections[vSection].PageHeightPix / FHCView.Sections[vSection].PaperWidthPix;  // ×Ýºá±È
 
     vPaintInfo.WindowWidth := FDrawWidth;
     vPaintInfo.WindowHeight := FDrawHeight;
 
     if FHCView.Sections[vSection].PageData.DataAnnotates.Count > 0 then
     begin
-      vPaintInfo.Zoom := vZoom * FHCView.Sections[vSection].PageWidthPix / (FHCView.Sections[vSection].PageWidthPix + AnnotationWidth);
+      vPaintInfo.Zoom := vZoom * FHCView.Sections[vSection].PaperWidthPix / (FHCView.Sections[vSection].PaperWidthPix + AnnotationWidth);
       vPaintInfo.ScaleX := vPaintInfo.Zoom;
       vPaintInfo.ScaleY := vPaintInfo.Zoom;
     end

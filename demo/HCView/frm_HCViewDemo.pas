@@ -128,6 +128,9 @@ type
     btnRightIndent: TToolButton;
     mniModAnnotate: TMenuItem;
     mniDelAnnotate: TMenuItem;
+    mniN18: TMenuItem;
+    mniViewFilm: TMenuItem;
+    mniViewPage: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -200,6 +203,8 @@ type
     procedure mniExploreClick(Sender: TObject);
     procedure mniModAnnotateClick(Sender: TObject);
     procedure mniDelAnnotateClick(Sender: TObject);
+    procedure mniViewFilmClick(Sender: TObject);
+    procedure mniViewPageClick(Sender: TObject);
   private
     { Private declarations }
     FHRuler: THCHorizontalRuler;
@@ -354,6 +359,7 @@ end;
 procedure TfrmHCViewDemo.DoActivePageChange(Sender: TObject);
 begin
   FHRuler.Reset;
+  FVRuler.Reset;
 end;
 
 procedure TfrmHCViewDemo.DoCaretChange(Sender: TObject);
@@ -1163,6 +1169,20 @@ begin
   finally
     FreeAndNil(vFrmTableProperty);
   end;
+end;
+
+procedure TfrmHCViewDemo.mniViewFilmClick(Sender: TObject);
+begin
+  FHCView.ViewModel := THCViewModel.hvmFilm;
+  FHRuler.Visible := True;
+  FVRuler.Visible := True;
+end;
+
+procedure TfrmHCViewDemo.mniViewPageClick(Sender: TObject);
+begin
+  FHCView.ViewModel := THCViewModel.hvmPage;
+  FHRuler.Visible := False;
+  FVRuler.Visible := False;
 end;
 
 procedure TfrmHCViewDemo.pmLineSpacePopup(Sender: TObject);

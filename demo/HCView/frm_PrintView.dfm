@@ -153,7 +153,7 @@ object frmPrintView: TfrmPrintView
       BevelOuter = bvNone
       TabOrder = 1
       object lblPageCount: TLabel
-        Left = 65
+        Left = 86
         Top = 13
         Width = 63
         Height = 13
@@ -161,7 +161,7 @@ object frmPrintView: TfrmPrintView
         Caption = 'lblPageCount'
       end
       object lbl4: TLabel
-        Left = 184
+        Left = 173
         Top = 13
         Width = 26
         Height = 13
@@ -169,7 +169,7 @@ object frmPrintView: TfrmPrintView
         Caption = #32553#25918
       end
       object edtPageNo: TEdit
-        Left = 15
+        Left = 36
         Top = 10
         Width = 44
         Height = 21
@@ -179,7 +179,7 @@ object frmPrintView: TfrmPrintView
         OnKeyPress = edtPageNoKeyPress
       end
       object cbbZoom: TComboBox
-        Left = 212
+        Left = 201
         Top = 10
         Width = 53
         Height = 21

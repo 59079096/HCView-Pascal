@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, HCView, HCTableItem, ComCtrls, StdCtrls, ExtCtrls, Vcl.Buttons;
+  Dialogs, HCView, HCTableItem, ComCtrls, StdCtrls, ExtCtrls, Buttons;
 
 type
   TfrmTableProperty = class(TForm)

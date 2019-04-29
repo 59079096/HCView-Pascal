@@ -34,10 +34,11 @@ type
     /// <summary> 是否对称边距 </summary>
     FSymmetryMargin: Boolean;
     FPageNoVisible: Boolean;  // 是否显示页码
-    FPageSize: THCPageSize;
-    FPageOrientation: TPageOrientation;
+    FPaper: THCPaper;
+    FPaperOrientation: TPaperOrientation;
     FStyle: THCStyle;
     FCaret: THCCaret;
+    FHeader, FFooter: THCViewData;
     FData: THCGridData;
     FTable: THCTableItem;
     FUndoList: THCUndoList;
@@ -153,7 +154,7 @@ type
     procedure SetPaperMarginLeft(const Value: Single);
     procedure SetPaperMarginRight(const Value: Single);
     procedure SetPaperMarginBottom(const Value: Single);
-    procedure SetPageOrientation(const Value: TPageOrientation);
+    procedure SetPaperOrientation(const Value: TPaperOrientation);
   public
     constructor Create(AOwner: TComponent); override;
     constructor CreateEx(AOwner: TComponent; const ARowCount, AColCount: Integer);
@@ -280,7 +281,7 @@ type
     property PaperMarginLeft: Single read GetPaperMarginLeft write SetPaperMarginLeft;
     property PaperMarginRight: Single read GetPaperMarginRight write SetPaperMarginRight;
     property PaperMarginBottom: Single read GetPaperMarginBottom write SetPaperMarginBottom;
-    property PageOrientation: TPageOrientation read FPageOrientation write SetPageOrientation;
+    property PaperOrientation: TPaperOrientation read FPaperOrientation write SetPaperOrientation;
     //
 //    property PageWidthPix: Integer read GetPageWidthPix;
 //    property PageHeightPix: Integer read GetPageHeightPix;
@@ -347,8 +348,8 @@ begin
   FPageNoVisible := True;
   FPageNoFormat := '%d/%d';
   FSymmetryMargin := True;  // 对称页边距 debug
-  FPageSize := THCPageSize.Create;
-  FPageOrientation := TPageOrientation.cpoPortrait;
+  FPaper := THCPaper.Create;
+  FPaperOrientation := TPaperOrientation.cpoPortrait;
   FBitmap := TBitmap.Create;
   Self.Color := clWhite;
   FUpdateCount := 0;
@@ -450,15 +451,15 @@ procedure THCCustomGridView.ApplyParaLeftIndent(const AIndent: Single);
 begin
   ChangeByAction(function(): Boolean
     var
-      vContentWidth: Single;
+      vPageWidth: Single;
     begin
       if AIndent < 0 then
         FData.ApplyParaLeftIndent(0)
       else
       begin
-        vContentWidth := FPageSize.PaperWidth - FPageSize.PaperMarginLeft - FPageSize.PaperMarginRight;
-        if AIndent > vContentWidth - 5 then
-          FData.ApplyParaLeftIndent(vContentWidth - 5)
+        vPageWidth := FPaper.Width - FPaper.MarginLeft - FPaper.MarginRight;
+        if AIndent > vPageWidth - 5 then
+          FData.ApplyParaLeftIndent(vPageWidth - 5)
         else
           FData.ApplyParaLeftIndent(AIndent);
       end;
@@ -467,7 +468,7 @@ end;
 
 procedure THCCustomGridView.ApplyParaLeftIndent(const Add: Boolean);
 var
-  vIndent, vContentWidth: Single;
+  vIndent, vPageWidth: Single;
 begin
   ChangeByAction(function(): Boolean
     begin
@@ -480,9 +481,9 @@ begin
         FData.ApplyParaLeftIndent(0)
       else
       begin
-        vContentWidth := FPageSize.PaperWidth - FPageSize.PaperMarginLeft - FPageSize.PaperMarginRight;
-        if vIndent > vContentWidth - 5 then
-          FData.ApplyParaLeftIndent(vContentWidth - 5)
+        vPageWidth := FPaper.Width - FPaper.MarginLeft - FPaper.MarginRight;
+        if vIndent > vPageWidth - 5 then
+          FData.ApplyParaLeftIndent(vPageWidth - 5)
         else
           FData.ApplyParaLeftIndent(vIndent);
       end;
@@ -601,15 +602,15 @@ begin
     AHCView.PageNoFormat := FPageNoFormat;
     with AHCView.ActiveSection do
     begin
-      PaperSize := FPageSize.PaperSize;
-      PaperWidth := FPageSize.PaperWidth;
-      PaperHeight := FPageSize.PaperHeight;
-      PaperMarginLeft := FPageSize.PaperMarginLeft;
-      PaperMarginTop := FPageSize.PaperMarginTop;
-      PaperMarginRight := FPageSize.PaperMarginRight;
-      PaperMarginBottom := FPageSize.PaperMarginBottom;
+      PaperSize := FPaper.Size;
+      PaperWidth := FPaper.Width;
+      PaperHeight := FPaper.Height;
+      PaperMarginLeft := FPaper.MarginLeft;
+      PaperMarginTop := FPaper.MarginTop;
+      PaperMarginRight := FPaper.MarginRight;
+      PaperMarginBottom := FPaper.MarginBottom;
       PageNoVisible := FPageNoVisible;
-      PageOrientation := FPageOrientation;
+      PaperOrientation := FPaperOrientation;
       SymmetryMargin := FSymmetryMargin;
 
       InsertStream(vStream, FStyle, HC_FileVersionInt);
@@ -657,7 +658,7 @@ begin
   FreeAndNil(FVScrollBar);
   FreeAndNil(FStyle);
   FreeAndNil(FCaret);
-  FreeAndNil(FPageSize);
+  FreeAndNil(FPaper);
   FreeAndNil(FAnnotatePre);
 
   inherited Destroy;
@@ -886,37 +887,37 @@ end;
 
 function THCCustomGridView.GetPaperHeight: Single;
 begin
-  Result := FPageSize.PaperHeight;
+  Result := FPaper.Height;
 end;
 
 function THCCustomGridView.GetPaperMarginBottom: Single;
 begin
-  Result := FPageSize.PaperMarginBottom;
+  Result := FPaper.MarginBottom;
 end;
 
 function THCCustomGridView.GetPaperMarginLeft: Single;
 begin
-  Result := FPageSize.PaperMarginLeft;
+  Result := FPaper.MarginLeft;
 end;
 
 function THCCustomGridView.GetPaperMarginRight: Single;
 begin
-  Result := FPageSize.PaperMarginRight;
+  Result := FPaper.MarginRight;
 end;
 
 function THCCustomGridView.GetPaperMarginTop: Single;
 begin
-  Result := FPageSize.PaperMarginTop;
+  Result := FPaper.MarginTop;
 end;
 
 function THCCustomGridView.GetPaperSize: Integer;
 begin
-  Result := FPageSize.PaperSize;
+  Result := FPaper.Size;
 end;
 
 function THCCustomGridView.GetPaperWidth: Single;
 begin
-  Result := FPageSize.PaperWidth;
+  Result := FPaper.Width;
 end;
 
 function THCCustomGridView.GetVerOffset: Integer;
@@ -1231,7 +1232,7 @@ procedure THCCustomGridView.PaintTo(const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 var
   vRect: TRect;
-  i, vTop, vH, vContentWidth, vContentHeight, vBs, vYs: Integer;
+  i, vTop, vH, vPageWidth, vPageHeight, vBs, vYs: Integer;
   vLeft: Integer absolute vTop;
 begin
   if APaintInfo.Print and (FAnnotatePre.DrawCount > 0) then  // 打印是单面绘制，所以每一页前清除
@@ -1271,12 +1272,12 @@ begin
   if not APaintInfo.Print then  // 非打印时绘制页面边界
   begin
     // 垂直边界
-    vContentHeight := FPageSize.PageContentHeightPix;
-    vBs := (FVScrollBar.Position + FViewHeight) div vContentHeight;
-    vYs := (FVScrollBar.Position + FViewHeight) mod vContentHeight;
+    vPageHeight := FPaper.HeightPix - FPaper.MarginTopPix - FPaper.MarginBottomPix;
+    vBs := (FVScrollBar.Position + FViewHeight) div vPageHeight;
+    vYs := (FVScrollBar.Position + FViewHeight) mod vPageHeight;
 
     vTop := FViewHeight - vYs;
-    ACanvas.Pen.Color := clRed;
+    ACanvas.Pen.Color := clGray;
     ACanvas.Pen.Style := psDashDotDot;
     if vTop > 0 then
     begin
@@ -1286,7 +1287,7 @@ begin
 
     for i := vBs downto 2 do
     begin
-      vTop := vTop - vContentHeight;
+      vTop := vTop - vPageHeight;
       if vTop < 0 then
         Break;
 
@@ -1295,9 +1296,9 @@ begin
     end;
 
     // 水平边界
-    vContentWidth := FPageSize.PageContentWidthPix;
-    vBs := (FHScrollBar.Position + FViewWidth) div vContentWidth;
-    vYs := (FHScrollBar.Position + FViewWidth) mod vContentWidth;
+    vPageWidth := FPaper.WidthPix - FPaper.MarginLeftPix - FPaper.MarginRightPix;
+    vBs := (FHScrollBar.Position + FViewWidth) div vPageWidth;
+    vYs := (FHScrollBar.Position + FViewWidth) mod vPageWidth;
 
     vLeft := FViewWidth - vYs;
     if vLeft > 0 then
@@ -1308,7 +1309,7 @@ begin
 
     for i := vBs downto 2 do
     begin
-      vLeft := vLeft - vContentWidth;
+      vLeft := vLeft - vPageWidth;
       if vLeft < 0 then
         Break;
 
@@ -1577,53 +1578,53 @@ begin
   end;
 end;
 
-procedure THCCustomGridView.SetPageOrientation(const Value: TPageOrientation);
+procedure THCCustomGridView.SetPaperOrientation(const Value: TPaperOrientation);
 var
   vfW: Single;
 begin
-  if FPageOrientation <> Value then
+  if FPaperOrientation <> Value then
   begin
-    FPageOrientation := Value;
+    FPaperOrientation := Value;
 
-    vfW := FPageSize.PaperWidth;
-    FPageSize.PaperWidth := FPageSize.PaperHeight;
-    FPageSize.PaperHeight := vfW;
+    vfW := FPaper.Width;
+    FPaper.Width := FPaper.Height;
+    FPaper.Height := vfW;
   end;
 end;
 
 procedure THCCustomGridView.SetPaperHeight(const Value: Single);
 begin
-  FPageSize.PaperHeight := Value;
+  FPaper.Height := Value;
 end;
 
 procedure THCCustomGridView.SetPaperMarginBottom(const Value: Single);
 begin
-  FPageSize.PaperMarginBottom := Value;
+  FPaper.MarginBottom := Value;
 end;
 
 procedure THCCustomGridView.SetPaperMarginLeft(const Value: Single);
 begin
-  FPageSize.PaperMarginLeft := Value;
+  FPaper.MarginLeft := Value;
 end;
 
 procedure THCCustomGridView.SetPaperMarginRight(const Value: Single);
 begin
-  FPageSize.PaperMarginRight := Value;
+  FPaper.MarginRight := Value;
 end;
 
 procedure THCCustomGridView.SetPaperMarginTop(const Value: Single);
 begin
-  FPageSize.PaperMarginTop := Value;
+  FPaper.MarginTop := Value;
 end;
 
 procedure THCCustomGridView.SetPaperSize(const Value: Integer);
 begin
-  FPageSize.PaperSize := Value;
+  FPaper.Size := Value;
 end;
 
 procedure THCCustomGridView.SetPaperWidth(const Value: Single);
 begin
-  FPageSize.PaperWidth := Value;
+  FPaper.Width := Value;
 end;
 
 procedure THCCustomGridView.SetZoom(const Value: Single);

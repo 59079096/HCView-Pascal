@@ -349,7 +349,7 @@ object frmHCViewDemo: TfrmHCViewDemo
     Left = 64
     Top = 56
     Bitmap = {
-      494C01011D0021001C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01011D002100040010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000008000000001002000000000000080
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -1589,6 +1589,17 @@ object frmHCViewDemo: TfrmHCViewDemo
       object mniN17: TMenuItem
         Caption = #22495
         OnClick = mniN17Click
+      end
+    end
+    object mniN18: TMenuItem
+      Caption = #35270#22270
+      object mniViewFilm: TMenuItem
+        Caption = #33014#21367
+        OnClick = mniViewFilmClick
+      end
+      object mniViewPage: TMenuItem
+        Caption = #39029#38754
+        OnClick = mniViewPageClick
       end
     end
   end

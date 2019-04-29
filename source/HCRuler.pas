@@ -40,6 +40,7 @@ type
     GradRectTop, GradRectBottom,
     ScrollOffset
       : Integer;
+    PagePadding: Byte;
     GradFontColor, GradLineColor: TColor;
     procedure Resize; override;
     procedure Paint;
@@ -429,9 +430,11 @@ var
 begin
   inherited DoViewResize(Sender);
   Self.ViewWidth := View.ViewWidth;
+
   Self.PaperWidth := View.ActiveSection.PaperWidth;
 
   vCol := View.ActiveSection.ActivePageIndex;
+  Self.PagePadding := View.ActiveSection.PagePadding;
   if View.ActiveSection.SymmetryMargin and Odd(vCol) then
   begin
     Self.MarginLeft := View.ActiveSection.PaperMarginRight;
@@ -862,13 +865,17 @@ var
 begin
   inherited DoViewResize(Sender);
   Self.ViewWidth := View.ViewHeight;
-  Self.PaperWidth := View.ActiveSection.PaperHeight;
-  Self.MarginLeft := View.ActiveSection.PaperMarginTop;
-  Self.MarginRight := View.ActiveSection.PaperMarginBottom;
-  vPageIndex := View.ActiveSection.ActivePageIndex;
-  Self.ScrollOffset := View.VScrollBar.Position + ZoomIn(View.GetSectionTopFilm(0)
-    - View.ActiveSection.GetPageTopFilm(vPageIndex) + PagePadding)
-    - View.ClientToParent(Point(0, 0), Self.Parent).Y + Top;
+  with View.ActiveSection do
+  begin
+    Self.PagePadding := PagePadding;
+    Self.PaperWidth := PaperHeight;
+    Self.MarginLeft := PaperMarginTop;
+    Self.MarginRight := PaperMarginBottom;
+    vPageIndex := ActivePageIndex;
+    Self.ScrollOffset := View.VScrollBar.Position + ZoomIn(View.GetSectionTopFilm(0)
+      - GetPageTopFilm(vPageIndex) + PagePadding)
+      - View.ClientToParent(Point(0, 0), Self.Parent).Y + Top;
+  end;
 
   FKnots.Clear;
   vRTop := 0;

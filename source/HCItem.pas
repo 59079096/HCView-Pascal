@@ -25,6 +25,13 @@ type
     ViewportExt: TSize;
   end;
 
+  THCViewModel = (
+    /// <summary> 胶卷视图，显示页眉、页脚 </summary>
+    hvmFilm,
+    /// <summary> Page视图，不显示页眉、页脚 </summary>
+    hvmPage
+  );
+
   TItemOptions = set of (ioParaFirst, ioSelectPart, ioSelectComplate);
 
   THCItemAction = (hiaRemove, hiaInsertChar, hiaBackDeleteChar, hiaDeleteChar);
@@ -36,6 +43,7 @@ type
   TPaintInfo = class(TObject)  // 绘制时的信息，用于给外部事件增加更多的信息
   private
     FPrint: Boolean;
+    FViewModel: THCViewModel;
     FTopItems: TObjectList<THCCustomItem>;
     FWindowWidth, FWindowHeight: Integer;
     FScaleX, FScaleY,  // 目标画布和显示器画布dpi比例(打印机dpi和显示器dpi不一致时的缩放比例)
@@ -54,6 +62,9 @@ type
     procedure DrawNoScaleLine(const ACanvas: TCanvas; const APoints: array of TPoint);
 
     property Print: Boolean read FPrint write FPrint;
+
+    /// <summary> 界面显示模式：页面、Web </summary>
+    property ViewModel: THCViewModel read FViewModel write FViewModel;
 
     /// <summary> 只管理不负责释放 </summary>
     property TopItems: TObjectList<THCCustomItem> read FTopItems;
@@ -440,6 +451,7 @@ begin
   FScaleX := 1;
   FScaleY := 1;
   FZoom := 1;
+  FViewModel := hvmFilm;
 end;
 
 destructor TPaintInfo.Destroy;

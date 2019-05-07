@@ -111,6 +111,8 @@ type
 
 implementation
 
+{$I HCView.inc}
+
 uses
   HCRectItem, HCDrawItem, HCCommon;
 
@@ -896,7 +898,9 @@ begin
 
     if vText = '' then  // 空item(肯定是空行)
     begin
+      {$IFDEF CHECKNULLITEM}
       Assert(vItem.ParaFirst, HCS_EXCEPTION_NULLTEXT);
+      {$ENDIF}
       vRect.Left := APos.X;
       vRect.Top := APos.Y;
       vRect.Right := vRect.Left;
@@ -1121,8 +1125,8 @@ begin
     FFormatHeightChange := (DrawItems[AFirstDrawItemNo].Rect.Top <> FFormatStartTop)  // 段格式化后，高度的增量
                         or (DrawItems[vLastDrawItemNo].Rect.Bottom <> FFormatEndBottom);
 
-  if FFormatHeightChange or FFormatDrawItemCountChange or (AExtraItemCount <> 0) then
-  begin
+  if FFormatHeightChange or (AExtraItemCount <> 0) or FFormatDrawItemCountChange then
+  begin                            {FFormatDrawItemCountChange能被前两者代表吗？}
     FFormatChange := True;
     vLastItemNo := -1;
     for i := vLastDrawItemNo + 1 to DrawItems.Count - 1 do  // 从格式化变动段的下一段开始

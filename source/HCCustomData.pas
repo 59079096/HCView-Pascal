@@ -2154,8 +2154,10 @@ begin
         end
         else  // 空行
         begin
+          {$IFDEF CHECKNULLITEM}
           if not vItem.ParaFirst then  // 不是段空行
             raise Exception.Create(HCS_EXCEPTION_NULLTEXT);
+          {$ENDIF}
         end;
       end;
 

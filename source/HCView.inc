@@ -6,6 +6,7 @@
 {$ENDIF}
 
 {~$DEFINE BMPIMAGEITEM}  // ImageItem的Image使用Bitmap类型
+{$DEFINE CHECKNULLITEM}  // 检查非空行的空Item并抛出异常
 
 {$IFDEF VER210} { Borland Delphi 14 2010}
   {$DEFINE DELPHI2010}

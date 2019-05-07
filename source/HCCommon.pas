@@ -254,10 +254,10 @@ var
   APenParams: TLogBrush;
 const
   PenTypes: array[Boolean] of Integer = (PS_COSMETIC, PS_GEOMETRIC);
-  //PenStyles: array[psSolid..psInsideFrame] of Word =
-  //  (PS_SOLID, PS_DASH, PS_DOT, PS_DASHDOT, PS_DASHDOTDOT, PS_NULL, PS_SOLID);
+  PenStyles: array[psSolid..psInsideFrame] of Word =
+    (PS_SOLID, PS_DASH, PS_DOT, PS_DASHDOT, PS_DASHDOTDOT, PS_NULL, PS_SOLID);
 begin
-  APenParams.lbStyle := BS_SOLID;
+  APenParams.lbStyle := PenStyles[APen.Style];
   APenParams.lbColor := APen.Color;
   APenParams.lbHatch := 0;
   Result := ExtCreatePen(PenTypes[APen.Width <> 1] or PS_ENDCAP_SQUARE,

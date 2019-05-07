@@ -17,12 +17,19 @@ uses
   Windows, Classes, Controls, Graphics, SysUtils, Generics.Collections, Messages,
   HCScrollBar, HCRichScrollBar, HCViewData, HCTableItem, HCTableRow, HCTableCell,
   HCTableCellData, HCStyle, HCItem, HCRectItem, HCCommon, HCUndo, HCPage, HCParaStyle,
-  HCTextStyle, HCUnitConversion, HCView, HCCustomData, HCAnnotateData, HCSection;
+  HCTextStyle, HCUnitConversion, HCView, HCCustomData, HCAnnotateData, HCSection,
+  HCSectionData, HCXml;
 
 type
-  THCGridData = class(THCViewData)
+  THCGridData = class(THCPageData)
   public
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
+    /// <summary> 设置光标位置到指定的Item指定位置 </summary>
+    /// <param name="AItemNo">指定ItemNo</param>
+    /// <param name="AOffset">指定位置</param>
+    /// <param name="ANextWhenMid">如果此位置前后的DrawItem正好分行，True：后一个DrawItem前面，False：前一个后面</param>
+    procedure ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
+      const ANextWhenMid: Boolean = False); override;
   end;
 
   THCGridPaintEvent = procedure(const ACanvas: TCanvas; const ARect: TRect) of object;
@@ -38,14 +45,18 @@ type
     FPaperOrientation: TPaperOrientation;
     FStyle: THCStyle;
     FCaret: THCCaret;
-    FHeader, FFooter: THCViewData;
-    FData: THCGridData;
+    FHeader: THCHeaderData;
+    FFooter: THCFooterData;
+    FPage: THCGridData;
     FTable: THCTableItem;
     FUndoList: THCUndoList;
     FHScrollBar: THCScrollBar;
     FVScrollBar: THCRichScrollBar;
     FAnnotatePre: THCAnnotatePre;  // 批注管理
-    FViewWidth, FViewHeight, FUpdateCount: Integer;
+    FViewWidth, FViewHeight, FUpdateCount,
+    FHeaderOffset  // 页眉顶部偏移
+      : Integer;
+
     FZoom: Single;
     FIsChanged: Boolean;
     FOnVerScroll, FOnHorScroll, FOnCaretChange, FOnChange, FOnChangeSwitch,
@@ -91,6 +102,12 @@ type
     /// <summary> 删除不使用的文本样式 </summary>
     procedure _DeleteUnUsedStyle;
     //
+    procedure SaveAsSection(const AStream: TStream;
+      const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
+    procedure LoadAsSection(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word);
+    procedure SectionsToXml(const ANode: IHCXMLNode);
+    procedure SectionsParseXml(const ANode: IHCXMLNode);
     procedure PaintTo(const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     function ChangeByAction(const AFunction: THCFunction): Boolean;
   protected
@@ -161,7 +178,12 @@ type
     destructor Destroy; override;
     function ContentHeight: Integer;
     function ContentWidth: Integer;
-    procedure Reformat;
+    /// <summary> 节页面正文区域高度，即页面除页眉、页脚后净高 </summary>
+    function GetPageHeight: Integer;
+    function GetPageWidth: Integer;
+    function GetHeaderAreaHeight: Integer;
+    procedure FormatData;
+    procedure ReFormatActiveItem;
     procedure ReFormatActiveParagraph;
     procedure ReSetRowCol(const ARowCount, AColCount: Cardinal);
     /// <summary> 放大视图 </summary>
@@ -174,6 +196,8 @@ type
     /// <summary> 结束批量处理 </summary>
     procedure EndUpdate;
     procedure DisSelect;
+    /// <summary> 全部清空(清除各节页眉、页脚、页面的Item及DrawItem) </summary>
+    procedure Clear;
     function MergeSelectCells: Boolean;
     function DeleteCurCol: Boolean;
     function DeleteCurRow: Boolean;
@@ -265,7 +289,24 @@ type
     /// <summary> 重做 </summary>
     procedure Redo;
 
-    procedure Print;
+    // 打印
+    /// <summary> 使用默认打印机打印所有页 </summary>
+    /// <returns>打印结果</returns>
+    function Print: TPrintResult; overload;
+
+    /// <summary> 使用指定的打印机打印所有页 </summary>
+    /// <param name="APrinter">指定打印机</param>
+    /// <param name="ACopies">打印份数</param>
+    /// <returns>打印结果</returns>
+    function Print(const APrinter: string; const ACopies: Integer = 1): TPrintResult; overload;
+
+    /// <summary> 使用指定的打印机打印指定页 </summary>
+    /// <param name="APrinter">指定打印机</param>
+    /// <param name="ACopies">打印份数</param>
+    /// <param name="APages">要打印的页序号数组</param>
+    /// <returns>打印结果</returns>
+    function Print(const APrinter: string; const ACopies: Integer;
+      const APages: array of Integer): TPrintResult; overload;
 
     procedure ResetMargin;
 
@@ -299,6 +340,11 @@ type
     property VerOffset: Integer read GetVerOffset;
     property Style: THCStyle read FStyle;
     property AnnotatePre: THCAnnotatePre read FAnnotatePre;
+
+    property Header: THCHeaderData read FHeader;
+    property Footer: THCFooterData read FFooter;
+    property Page: THCGridData read FPage;
+
     /// <summary> 当前光标处的文本样式 </summary>
     property CurStyleNo: Integer read GetCurStyleNo;
     /// <summary> 当前光标处的段样式 </summary>
@@ -331,12 +377,13 @@ type
   public
     property Color;
     property OnMouseWheel;
+    property PopupMenu;
   end;
 
 implementation
 
 uses
-  Math, Imm, HCXml;
+  Math, Imm;
 
 { THCCustomGridView }
 
@@ -347,6 +394,7 @@ begin
   FFileName := '';
   FPageNoVisible := True;
   FPageNoFormat := '%d/%d';
+  FHeaderOffset := 20;
   FSymmetryMargin := True;  // 对称页边距 debug
   FPaper := THCPaper.Create;
   FPaperOrientation := TPaperOrientation.cpoPortrait;
@@ -369,21 +417,27 @@ begin
   FStyle.LineSpaceMin := 0;
   //FStyle.OnInvalidateRect := DoStyleInvalidateRect;
 
-  FData := THCGridData.Create(FStyle);
-  FData.Width := DefaultColWidth;
-  FData.OnRemoveAnnotate := DoDataRemoveAnnotate;
-  FData.OnInsertAnnotate := DoDataInsertAnnotate;
-  FData.OnDrawItemAnnotate := DoDataDrawItemAnnotate;
+  FPage := THCGridData.Create(FStyle);
+  FPage.Width := FPaper.WidthPix;
+  FPage.OnRemoveAnnotate := DoDataRemoveAnnotate;
+  FPage.OnInsertAnnotate := DoDataInsertAnnotate;
+  FPage.OnDrawItemAnnotate := DoDataDrawItemAnnotate;
 
-  FTable := THCTableItem.Create(FData, 1, 1, DefaultColWidth);
+  FTable := THCTableItem.Create(FPage, 1, 1, FPage.Width);
   FTable.ParaFirst := True;
   FTable.OnCellPaintData := DoCellPaintData;
 
-  FData.Items[0] := FTable;
-  FData.Width := DefaultColWidth;
-  FData.ReFormat;
+  FPage.Items[0] := FTable;
+  FPage.Width := FPage.Width;
+  FPage.ReFormat;
   //FTable.FormatToDrawItem(FData, 0);
 
+  FHeader := THCHeaderData.Create(FStyle);
+  //SetDataProperty(FHeader);
+
+  FFooter := THCFooterData.Create(FStyle);
+  //SetDataProperty(FFooter);
+  //
   FHScrollBar := THCScrollBar.Create(Self);
   FHScrollBar.OnScroll := DoHorScroll;
   FHScrollBar.Parent := Self;
@@ -419,7 +473,7 @@ procedure THCCustomGridView.ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ApplyParaAlignHorz(AAlign);
+      FPage.ApplyParaAlignHorz(AAlign);
     end);
 end;
 
@@ -427,7 +481,7 @@ procedure THCCustomGridView.ApplyParaAlignVert(const AAlign: TParaAlignVert);
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ApplyParaAlignVert(AAlign);
+      FPage.ApplyParaAlignVert(AAlign);
     end);
 end;
 
@@ -435,7 +489,7 @@ procedure THCCustomGridView.ApplyParaBackColor(const AColor: TColor);
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ApplyParaBackColor(AColor);
+      FPage.ApplyParaBackColor(AColor);
     end);
 end;
 
@@ -443,7 +497,7 @@ procedure THCCustomGridView.ApplyParaFirstIndent(const AIndent: Single);
 begin
   ChangeByAction(function(): Boolean
   begin
-    FData.ApplyParaFirstIndent(AIndent);
+    FPage.ApplyParaFirstIndent(AIndent);
   end);
 end;
 
@@ -454,14 +508,14 @@ begin
       vPageWidth: Single;
     begin
       if AIndent < 0 then
-        FData.ApplyParaLeftIndent(0)
+        FPage.ApplyParaLeftIndent(0)
       else
       begin
         vPageWidth := FPaper.Width - FPaper.MarginLeft - FPaper.MarginRight;
         if AIndent > vPageWidth - 5 then
-          FData.ApplyParaLeftIndent(vPageWidth - 5)
+          FPage.ApplyParaLeftIndent(vPageWidth - 5)
         else
-          FData.ApplyParaLeftIndent(AIndent);
+          FPage.ApplyParaLeftIndent(AIndent);
       end;
     end);
 end;
@@ -478,14 +532,14 @@ begin
         vIndent := FStyle.ParaStyles[CurParaNo].LeftIndent - PixXToMillimeter(TabCharWidth);
 
       if vIndent < 0 then
-        FData.ApplyParaLeftIndent(0)
+        FPage.ApplyParaLeftIndent(0)
       else
       begin
         vPageWidth := FPaper.Width - FPaper.MarginLeft - FPaper.MarginRight;
         if vIndent > vPageWidth - 5 then
-          FData.ApplyParaLeftIndent(vPageWidth - 5)
+          FPage.ApplyParaLeftIndent(vPageWidth - 5)
         else
-          FData.ApplyParaLeftIndent(vIndent);
+          FPage.ApplyParaLeftIndent(vIndent);
       end;
     end);
 end;
@@ -495,7 +549,7 @@ procedure THCCustomGridView.ApplyParaLineSpace(
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ApplyParaLineSpace(ASpaceMode);
+      FPage.ApplyParaLineSpace(ASpaceMode);
     end);
 end;
 
@@ -503,7 +557,7 @@ procedure THCCustomGridView.ApplyParaRightIndent(const AIndent: Single);
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ApplyParaRightIndent(AIndent);
+      FPage.ApplyParaRightIndent(AIndent);
     end);
 end;
 
@@ -511,7 +565,7 @@ procedure THCCustomGridView.ApplyTextBackColor(const AColor: TColor);
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ApplyTextBackColor(AColor);
+      FPage.ApplyTextBackColor(AColor);
     end);
 end;
 
@@ -519,7 +573,7 @@ procedure THCCustomGridView.ApplyTextColor(const AColor: TColor);
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ApplyTextColor(AColor);
+      FPage.ApplyTextColor(AColor);
     end);
 end;
 
@@ -527,7 +581,7 @@ procedure THCCustomGridView.ApplyTextFontName(const AFontName: TFontName);
 begin
   ChangeByAction(function(): Boolean
   begin
-    FData.ApplyTextFontName(AFontName);
+    FPage.ApplyTextFontName(AFontName);
   end);
 end;
 
@@ -535,7 +589,7 @@ procedure THCCustomGridView.ApplyTextFontSize(const AFontSize: Single);
 begin
   ChangeByAction(function(): Boolean
   begin
-    FData.ApplyTextFontSize(AFontSize);
+    FPage.ApplyTextFontSize(AFontSize);
   end);
 end;
 
@@ -543,7 +597,7 @@ procedure THCCustomGridView.ApplyTextStyle(const AFontStyle: THCFontStyle);
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ApplyTextStyle(AFontStyle);
+      FPage.ApplyTextStyle(AFontStyle);
     end);
 end;
 
@@ -561,9 +615,9 @@ end;
 function THCCustomGridView.ChangeByAction(
   const AFunction: THCFunction): Boolean;
 begin
-  if not FData.CanEdit then Exit(False);
-  if (FData.SelectInfo.StartItemNo < 0)
-    or (FData.SelectInfo.StartItemOffset <> OffsetInner)
+  if not FPage.CanEdit then Exit(False);
+  if (FPage.SelectInfo.StartItemNo < 0)
+    or (FPage.SelectInfo.StartItemOffset <> OffsetInner)
   then
     Exit(False);
 
@@ -591,30 +645,37 @@ begin
   end;
 end;
 
+procedure THCCustomGridView.Clear;
+begin
+  FStyle.Initialize;  // 先清样式，防止Data初始化为EmptyData时空Item样式赋值为CurStyleNo
+  FUndoList.SaveState;
+  try
+    FUndoList.Enable := False;
+    FHeader.Clear;
+    FFooter.Clear;
+    FPage.Clear;
+    FUndoList.Clear;
+  finally
+    FUndoList.RestoreState;
+  end;
+  FHScrollBar.Position := 0;
+  FVScrollBar.Position := 0;
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret;
+  DoMapChanged;
+end;
+
 procedure THCCustomGridView.CloneToHCView(const AHCView: THCView);
 var
   vStream: TMemoryStream;
 begin
   vStream := TMemoryStream.Create;
   try
-    FData.SaveToStream(vStream);
+    Self.SaveToStream(vStream);
     vStream.Position := 0;
-    AHCView.PageNoFormat := FPageNoFormat;
-    with AHCView.ActiveSection do
-    begin
-      PaperSize := FPaper.Size;
-      PaperWidth := FPaper.Width;
-      PaperHeight := FPaper.Height;
-      PaperMarginLeft := FPaper.MarginLeft;
-      PaperMarginTop := FPaper.MarginTop;
-      PaperMarginRight := FPaper.MarginRight;
-      PaperMarginBottom := FPaper.MarginBottom;
-      PageNoVisible := FPageNoVisible;
-      PaperOrientation := FPaperOrientation;
-      SymmetryMargin := FSymmetryMargin;
-
-      InsertStream(vStream, FStyle, HC_FileVersionInt);
-    end;
+    AHCView.LoadFromStream(vStream);
+    AHCView.Style.LineSpaceMin := 0;
+    AHCView.FormatData;
   finally
     FreeAndNil(vStream);
   end;
@@ -622,12 +683,12 @@ end;
 
 function THCCustomGridView.ContentHeight: Integer;
 begin
-  Result := FData.Height;
+  Result := FPage.Height;
 end;
 
 function THCCustomGridView.ContentWidth: Integer;
 begin
-  Result := FData.Width;
+  Result := FPage.Width;
 
   if FAnnotatePre.Visible then
     Result := Result + AnnotationWidth;
@@ -637,7 +698,7 @@ function THCCustomGridView.DeleteCurCol: Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.ActiveTableDeleteCurCol;
+      Result := FPage.ActiveTableDeleteCurCol;
     end);
 end;
 
@@ -645,14 +706,16 @@ function THCCustomGridView.DeleteCurRow: Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.ActiveTableDeleteCurRow;
+      Result := FPage.ActiveTableDeleteCurRow;
     end);
 end;
 
 destructor THCCustomGridView.Destroy;
 begin
   //FreeAndNil(FTable);
-  FreeAndNil(FData);
+  FreeAndNil(FPage);
+  FreeAndNil(FHeader);
+  FreeAndNil(FFooter);
   FreeAndNil(FBitmap);
   FreeAndNil(FHScrollBar);
   FreeAndNil(FVScrollBar);
@@ -666,7 +729,7 @@ end;
 
 procedure THCCustomGridView.DisSelect;
 begin
-  FData.DisSelect;
+  FPage.DisSelect;
 end;
 
 procedure THCCustomGridView.DoAnnotatePreUpdateView(Sender: TObject);
@@ -800,7 +863,7 @@ begin
   FHScrollBar.Position := (Sender as THCUndoEditGroupEnd).HScrollPos;
   FVScrollBar.Position := (Sender as THCUndoEditGroupEnd).VScrollPos;
 
-  FData.Redo(Sender);
+  FPage.Redo(Sender);
 end;
 
 procedure THCCustomGridView.DoSaveStreamAfter(const AStream: TStream);
@@ -816,7 +879,7 @@ begin
   FHScrollBar.Position := (Sender as THCUndoEditGroupBegin).HScrollPos;
   FVScrollBar.Position := (Sender as THCUndoEditGroupBegin).VScrollPos;
 
-  FData.Undo(Sender);
+  FPage.Undo(Sender);
 end;
 
 function THCCustomGridView.DoUndoGroupBegin(const AItemNo,
@@ -825,7 +888,7 @@ begin
   Result := THCUndoEditGroupBegin.Create;
   (Result as THCUndoEditGroupBegin).HScrollPos := FHScrollBar.Position;
   (Result as THCUndoEditGroupBegin).VScrollPos := FVScrollBar.Position;
-  Result.Data := FData;
+  Result.Data := FPage;
   Result.CaretDrawItemNo := -1;
 end;
 
@@ -835,7 +898,7 @@ begin
   Result := THCUndoEditGroupEnd.Create;
   (Result as THCUndoEditGroupEnd).HScrollPos := FHScrollBar.Position;
   (Result as THCUndoEditGroupEnd).VScrollPos := FVScrollBar.Position;
-  Result.Data := FData;
+  Result.Data := FPage;
   Result.CaretDrawItemNo := -1;
 end;
 
@@ -844,7 +907,7 @@ begin
   Result := THCEditUndo.Create;
   (Result as THCEditUndo).HScrollPos := FHScrollBar.Position;
   (Result as THCEditUndo).VScrollPos := FVScrollBar.Position;
-  Result.Data := FData;
+  Result.Data := FPage;
 end;
 
 procedure THCCustomGridView.DoVerScroll(Sender: TObject;
@@ -865,6 +928,15 @@ begin
   DoMapChanged;
 end;
 
+procedure THCCustomGridView.FormatData;
+begin
+  FHeader.ReFormat;
+  FFooter.ReFormat;
+
+  FPage.DisSelect;
+  FPage.ReFormat;
+end;
+
 function THCCustomGridView.GetCellPaintBK: THCCellPaintEvent;
 begin
   Result := FTable.OnCellPaintBK;
@@ -872,17 +944,34 @@ end;
 
 function THCCustomGridView.GetCurParaNo: Integer;
 begin
-  Result := FData.CurParaNo;
+  Result := FPage.CurParaNo;
 end;
 
 function THCCustomGridView.GetCurStyleNo: Integer;
 begin
-  Result := FData.CurStyleNo;
+  Result := FPage.CurStyleNo;
+end;
+
+function THCCustomGridView.GetHeaderAreaHeight: Integer;
+begin
+  Result := FHeaderOffset + FHeader.Height;
+  if Result < FPaper.MarginTopPix then
+    Result := FPaper.MarginTopPix;
 end;
 
 function THCCustomGridView.GetHorOffset: Integer;
 begin
   Result := FHScrollBar.Position;
+end;
+
+function THCCustomGridView.GetPageHeight: Integer;
+begin
+  Result := FPaper.HeightPix - GetHeaderAreaHeight - FPaper.MarginBottomPix;
+end;
+
+function THCCustomGridView.GetPageWidth: Integer;
+begin
+  Result := FPaper.WidthPix - FPaper.MarginLeftPix - FPaper.MarginRightPix;
 end;
 
 function THCCustomGridView.GetPaperHeight: Single;
@@ -950,7 +1039,7 @@ function THCCustomGridView.InsertColAfter(const ACount: Byte): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.TableInsertColAfter(ACount);
+      Result := FPage.TableInsertColAfter(ACount);
     end);
 end;
 
@@ -958,7 +1047,7 @@ function THCCustomGridView.InsertColBefor(const ACount: Byte): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.TableInsertColBefor(ACount);
+      Result := FPage.TableInsertColBefor(ACount);
     end);
 end;
 
@@ -966,7 +1055,7 @@ function THCCustomGridView.InsertGifImage(const AFile: string): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      FData.InsertGifImage(AFile);
+      FPage.InsertGifImage(AFile);
     end);
 end;
 
@@ -974,7 +1063,7 @@ function THCCustomGridView.InsertImage(const AFile: string): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      FData.InsertImage(AFile);
+      FPage.InsertImage(AFile);
     end);
 end;
 
@@ -982,7 +1071,7 @@ function THCCustomGridView.InsertItem(const AItem: THCCustomItem): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.InsertItem(AItem);
+      Result := FPage.InsertItem(AItem);
     end);
 end;
 
@@ -991,7 +1080,7 @@ function THCCustomGridView.InsertItem(const AIndex: Integer;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.InsertItem(AIndex, AItem);
+      Result := FPage.InsertItem(AIndex, AItem);
     end);
 end;
 
@@ -999,7 +1088,7 @@ function THCCustomGridView.InsertLine(const ALineHeight: Integer): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.InsertLine(ALineHeight);
+      Result := FPage.InsertLine(ALineHeight);
     end);
 end;
 
@@ -1007,7 +1096,7 @@ function THCCustomGridView.InsertRowAfter(const ACount: Byte): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.TableInsertRowAfter(ACount);
+      Result := FPage.TableInsertRowAfter(ACount);
     end);
 end;
 
@@ -1015,7 +1104,7 @@ function THCCustomGridView.InsertRowBefor(const ACount: Byte): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.TableInsertRowBefor(ACount);
+      Result := FPage.TableInsertRowBefor(ACount);
     end);
 end;
 
@@ -1024,7 +1113,7 @@ function THCCustomGridView.InsertTable(const ARowCount,
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      Result := FData.InsertTable(ARowCount, AColCount);
+      Result := FPage.InsertTable(ARowCount, AColCount);
     end);
 end;
 
@@ -1033,7 +1122,7 @@ var
   vOldKey: Word;
 begin
   inherited KeyDown(Key, Shift);
-  if IsKeyDownEdit(Key) and (not FData.CanEdit) then Exit;
+  if IsKeyDownEdit(Key) and (not FPage.CanEdit) then Exit;
 
   if IsKeyDownWant(Key) then
   begin
@@ -1043,14 +1132,14 @@ begin
           vOldKey := Key;
           ChangeByAction(function(): Boolean
             begin
-              FData.KeyDown(vOldKey, Shift);
+              FPage.KeyDown(vOldKey, Shift);
             end);
           Key := vOldKey;
         end;
 
       VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
         begin
-          FData.KeyDown(Key, Shift);
+          FPage.KeyDown(Key, Shift);
           //SetActivePageIndex(GetPageIndexByCurrent);  // 方向键可能移动到了其他页
           CheckUpdateInfo;
         end;
@@ -1063,17 +1152,66 @@ var
   vOldKey: Char;
 begin
   inherited KeyPress(Key);
-  if not FData.CanEdit then Exit;
+  if not FPage.CanEdit then Exit;
 
   if IsKeyPressWant(Key) then
   begin
     vOldKey := Key;
     ChangeByAction(function (): Boolean
       begin
-        FData.KeyPress(vOldKey);
+        FPage.KeyPress(vOldKey);
       end);
     Key := vOldKey;
   end;
+end;
+
+procedure THCCustomGridView.LoadAsSection(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vDataSize: Int64;
+  vArea: Boolean;
+  vLoadParts: TSectionAreas;
+begin
+  AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
+
+  AStream.ReadBuffer(FSymmetryMargin, SizeOf(FSymmetryMargin));  // 是否对称页边距
+
+  if AFileVersion > 11 then
+  begin
+    AStream.ReadBuffer(FPaperOrientation, SizeOf(FPaperOrientation));  // 纸张方向
+    AStream.ReadBuffer(FPageNoVisible, SizeOf(FPageNoVisible));  // 是否显示页码
+  end;
+
+  FPaper.LoadToStream(AStream, AFileVersion);  // 页面参数
+  FPage.Width := GetPageWidth;
+
+  // 文档都有哪些部件的数据
+  vLoadParts := [];
+  AStream.ReadBuffer(vArea, SizeOf(vArea));
+  if vArea then
+    vLoadParts := vLoadParts + [saHeader];
+  AStream.ReadBuffer(vArea, SizeOf(vArea));
+  if vArea then
+    vLoadParts := vLoadParts + [saFooter];
+  AStream.ReadBuffer(vArea, SizeOf(vArea));
+  if vArea then
+    vLoadParts := vLoadParts + [saPage];
+
+  if saHeader in vLoadParts then
+  begin
+    AStream.ReadBuffer(FHeaderOffset, SizeOf(FHeaderOffset));
+    FHeader.Width := FPage.Width;
+    FHeader.LoadFromStream(AStream, FStyle, AFileVersion);
+  end;
+
+  if saFooter in vLoadParts then
+  begin
+    FFooter.Width := FPage.Width;
+    FFooter.LoadFromStream(AStream, FStyle, AFileVersion);
+  end;
+
+  if saPage in vLoadParts then
+    FPage.LoadFromStream(AStream, FStyle, AFileVersion);
 end;
 
 procedure THCCustomGridView.LoadFromFile(const AFileName: string);
@@ -1093,7 +1231,7 @@ procedure THCCustomGridView.LoadFromStream(const AStream: TStream);
 var
   vFileExt: string;
   vVersion: Word;
-  vLang: Byte;
+  vLang, vByte: Byte;
 begin
   Self.BeginUpdate;
   try
@@ -1102,8 +1240,8 @@ begin
     FUndoList.SaveState;
     try
       FUndoList.Enable := False;
+      Self.Clear;
 
-      FData.Clear;
       AStream.Position := 0;
       _LoadFileFormatAndVersion(AStream, vFileExt, vVersion, vLang);  // 文件格式和版本
       if vFileExt <> HC_EXT then
@@ -1115,8 +1253,14 @@ begin
 
       DoLoadStreamBefor(AStream, vVersion);  // 触发加载前事件
       FStyle.LoadFromStream(AStream, vVersion);
-      FData.LoadFromStream(AStream, FStyle, vVersion);
+
+      AStream.ReadBuffer(vByte, 1);  // 节数量
+
+      LoadAsSection(AStream, FStyle, vVersion);
+      //FData.LoadFromStream(AStream, FStyle, vVersion);
       DoLoadStreamAfter(AStream, vVersion);
+
+      FormatData;
       DoMapChanged;
     finally
       FUndoList.RestoreState;
@@ -1141,13 +1285,13 @@ begin
     FUndoList.SaveState;
     try
       FUndoList.Enable := False;
-      //FData.Clear;
+      Self.Clear;
 
       vXml := THCXMLDocument.Create(nil);
       vXml.LoadFromFile(AFileName);
       if vXml.DocumentElement.LocalName = 'HCGridView' then
       begin
-        if vXml.DocumentElement.Attributes['EXT'] <> HC_GRIDEXT then Exit;
+        if vXml.DocumentElement.Attributes['EXT'] <> HC_EXT then Exit;
 
         vVersion := vXml.DocumentElement.Attributes['ver'];
         vLang := vXml.DocumentElement.Attributes['lang'];
@@ -1158,12 +1302,12 @@ begin
           if vNode.NodeName = 'style' then
             FStyle.ParseXml(vNode)
           else
-          if vNode.NodeName = 'data' then
-            FData.ParseXml(vNode);
+          if vNode.NodeName = 'sections' then
+            SectionsParseXml(vNode.ChildNodes[0]);
         end;
 
+        FormatData;
         DoMapChanged;
-        //DoViewResize;
       end;
     finally
       FUndoList.RestoreState;
@@ -1175,7 +1319,7 @@ end;
 
 function THCCustomGridView.MergeSelectCells: Boolean;
 begin
-  Result := FData.MergeTableSelectCells;
+  Result := FPage.MergeTableSelectCells;
   DoDataChanged(Self);
 end;
 
@@ -1186,7 +1330,7 @@ begin
   if FAnnotatePre.DrawCount > 0 then  // 有批注被绘制
     FAnnotatePre.MouseDown(ZoomOut(X), ZoomOut(Y));
 
-  FData.MouseDown(Button, Shift, X + FHScrollBar.Position, Y + FVScrollBar.Position);
+  FPage.MouseDown(Button, Shift, X + FHScrollBar.Position, Y + FVScrollBar.Position);
   CheckUpdateInfo;
 end;
 
@@ -1195,7 +1339,7 @@ begin
   inherited MouseMove(Shift, X, Y);
 
   GCursor := crDefault;
-  FData.MouseMove(Shift, X + FHScrollBar.Position, Y + FVScrollBar.Position);
+  FPage.MouseMove(Shift, X + FHScrollBar.Position, Y + FVScrollBar.Position);
   if FStyle.UpdateInfo.Selecting then
     FStyle.UpdateInfoReCaret;
 
@@ -1211,7 +1355,7 @@ procedure THCCustomGridView.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited MouseUp(Button, Shift, X, Y);;
-  FData.MouseUp(Button, Shift, X + FHScrollBar.Position, Y + FVScrollBar.Position);
+  FPage.MouseUp(Button, Shift, X + FHScrollBar.Position, Y + FVScrollBar.Position);
   CheckUpdateInfo;
 
   FStyle.UpdateInfo.Selecting := False;
@@ -1249,30 +1393,13 @@ begin
 
   //OffsetRect(vRect, -FHScrollBar.Position, -FVScrollBar.Position);
   //FTable.PaintTo(FStyle, vRect, 0, FTable.Height, 0, FViewHeight, ACanvas, APaintInfo);
-  FData.PaintData(-FHScrollBar.Position, -FVScrollBar.Position,
-    FData.Height, 0, FViewHeight, 0, ACanvas, APaintInfo);
-
-  if FTable.FixRow >= 0 then  // 标题行有跨页的情况，所以需要单独处理，不像标题列只要Left<0就可以绘制了
-  begin
-    vTop := FTable.Rows[FTable.FixRow].FmtOffset;
-    for i := 0 to FTable.FixRow - 1 do
-      vTop := vTop + FTable.Rows[i].Height + FTable.Rows[i].FmtOffset;
-
-    if vTop - FVScrollBar.Position < 0 then
-    begin
-      FTable.PaintFixRows(-FHScrollBar.Position, 0, FViewHeight, ACanvas, APaintInfo);
-      // 因为不像表格跨页的情况会有1像素偏移，需要补充标题行提示横线
-      vTop := FTable.GetFixRowHeight;
-      ACanvas.Pen.Color := clBlack;
-      ACanvas.MoveTo(0, vTop);
-      ACanvas.LineTo(FData.Width, vTop);
-    end;
-  end;
+  FPage.PaintData(-FHScrollBar.Position, -FVScrollBar.Position,
+    FPage.Height, 0, FViewHeight, 0, ACanvas, APaintInfo);
 
   if not APaintInfo.Print then  // 非打印时绘制页面边界
   begin
     // 垂直边界
-    vPageHeight := FPaper.HeightPix - FPaper.MarginTopPix - FPaper.MarginBottomPix;
+    vPageHeight := GetPageHeight;
     vBs := (FVScrollBar.Position + FViewHeight) div vPageHeight;
     vYs := (FVScrollBar.Position + FViewHeight) mod vPageHeight;
 
@@ -1320,19 +1447,57 @@ begin
 
   if FAnnotatePre.Visible then  // 当前页有批注，绘制批注
     FAnnotatePre.PaintDrawAnnotate(Self, vRect, ACanvas, APaintInfo);
+
+  if FTable.FixRow >= 0 then  // 标题行有跨页的情况，所以需要单独处理，不像标题列只要Left<0就可以绘制了
+  begin
+    vTop := FTable.Rows[FTable.FixRow].FmtOffset;
+    for i := 0 to FTable.FixRow - 1 do
+      vTop := vTop + FTable.Rows[i].Height + FTable.Rows[i].FmtOffset;
+
+    if vTop - FVScrollBar.Position < 0 then
+    begin
+      FTable.PaintFixRows(-FHScrollBar.Position, 0, FViewHeight, ACanvas, APaintInfo);
+      // 因为不像表格跨页的情况会有1像素偏移，需要补充标题行提示横线
+      vTop := FTable.GetFixRowHeight;
+      ACanvas.Pen.Color := clBlack;
+      ACanvas.Pen.Width := FTable.BorderWidth + 2;
+      ACanvas.MoveTo(0, vTop);
+      ACanvas.LineTo(FPage.Width, vTop);
+    end;
+  end;
 end;
 
-procedure THCCustomGridView.Print;
+function THCCustomGridView.Print(const APrinter: string;
+  const ACopies: Integer): TPrintResult;
 var
   vHCView: THCView;
 begin
   vHCView := THCView.Create(nil);
   try
     CloneToHCView(vHCView);
-    vHCView.Print;
+    vHCView.Print(APrinter, ACopies);
   finally
     FreeAndNil(vHCView);
   end;
+end;
+
+function THCCustomGridView.Print(const APrinter: string; const ACopies: Integer;
+  const APages: array of Integer): TPrintResult;
+var
+  vHCView: THCView;
+begin
+  vHCView := THCView.Create(nil);
+  try
+    CloneToHCView(vHCView);
+    vHCView.Print(APrinter, ACopies, APages);
+  finally
+    FreeAndNil(vHCView);
+  end;
+end;
+
+function THCCustomGridView.Print: TPrintResult;
+begin
+  Result := Print('');
 end;
 
 procedure THCCustomGridView.ReBuildCaret;
@@ -1352,7 +1517,7 @@ begin
     Exit;
   end;
 
-  if (not FStyle.UpdateInfo.Draging) and FData.SelectExists then
+  if (not FStyle.UpdateInfo.Draging) and FPage.SelectExists then
   begin
     FCaret.Hide;
     Exit;
@@ -1363,7 +1528,7 @@ begin
   vCaretInfo.Height := 0;
   vCaretInfo.Visible := True;
 
-  FData.GetCaretInfoCur(vCaretInfo);  // FTable.GetCaretInfo(vCaretInfo);
+  FPage.GetCaretInfoCur(vCaretInfo);  // FTable.GetCaretInfo(vCaretInfo);
 
   if not vCaretInfo.Visible then
   begin
@@ -1398,29 +1563,41 @@ begin
   end;
 end;
 
-procedure THCCustomGridView.Reformat;
+procedure THCCustomGridView.ReFormatActiveItem;
 begin
-  FData.ReFormat;
+  ChangeByAction(function(): Boolean
+    begin
+      FPage.ReFormatActiveItem;
+    end);
 end;
 
 procedure THCCustomGridView.ReFormatActiveParagraph;
 begin
   ChangeByAction(function(): Boolean
     begin
-      FData.ReFormatActiveParagraph;
+      FPage.ReFormatActiveParagraph;
     end);
 end;
 
 procedure THCCustomGridView.ResetMargin;
 begin
+  FPage.Width := GetPageWidth;
+
+  FHeader.Width := FPage.Width;
+  FFooter.Width := FPage.Width;
+
+  FormatData;
+  FStyle.UpdateInfoRePaint;
+  FStyle.UpdateInfoReCaret(False);
+
   DoChange;
 end;
 
 procedure THCCustomGridView.ReSetRowCol(const ARowCount, AColCount: Cardinal);
 begin
   FTable.ReSetRowCol(ARowCount, AColCount);
-  FData.Width := FTable.GetFormatWidth;
-  FData.ReFormat;
+  FPage.Width := FTable.GetFormatWidth;
+  FPage.ReFormat;
   FStyle.UpdateInfoReCaret;
   DoMapChanged;
 end;
@@ -1444,6 +1621,53 @@ begin
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo;
+end;
+
+procedure THCCustomGridView.SaveAsSection(const AStream: TStream;
+  const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
+var
+  vBegPos, vEndPos: Int64;
+  vArea: Boolean;
+begin
+  vBegPos := AStream.Position;
+  AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位，便于越过
+  //
+  if ASaveParts <> [] then
+  begin
+    AStream.WriteBuffer(FSymmetryMargin, SizeOf(FSymmetryMargin));  // 是否对称页边距
+
+    AStream.WriteBuffer(FPaperOrientation, SizeOf(FPaperOrientation));  // 纸张方向
+    AStream.WriteBuffer(FPageNoVisible, SizeOf(FPageNoVisible));  // 是否显示页码
+
+    FPaper.SaveToStream(AStream);  // 页面参数
+
+    vArea := saHeader in ASaveParts;  // 存页眉
+    AStream.WriteBuffer(vArea, SizeOf(vArea));
+
+    vArea := saFooter in ASaveParts;  // 存页脚
+    AStream.WriteBuffer(vArea, SizeOf(vArea));
+
+    vArea := saPage in ASaveParts;  // 存页面
+    AStream.WriteBuffer(vArea, SizeOf(vArea));
+
+    if saHeader in ASaveParts then  // 存页眉
+    begin
+      AStream.WriteBuffer(FHeaderOffset, SizeOf(FHeaderOffset));
+      FHeader.SaveToStream(AStream);
+    end;
+
+    if saFooter in ASaveParts then  // 存页脚
+      FFooter.SaveToStream(AStream);
+
+    if saPage in ASaveParts then  // 存页面
+      FPage.SaveToStream(AStream);
+  end;
+  //
+  vEndPos := AStream.Position;
+  AStream.Position := vBegPos;
+  vBegPos := vEndPos - vBegPos - SizeOf(vBegPos);
+  AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 当前节数据大小
+  AStream.Position := vEndPos;
 end;
 
 procedure THCCustomGridView.SaveToFile(const AFileName: string;
@@ -1486,7 +1710,7 @@ begin
     vHtmlTexts.Add('</head>');
 
     vHtmlTexts.Add('<body>');
-    vHtmlTexts.Add(FData.ToHtml(vPath));
+    vHtmlTexts.Add(FPage.ToHtml(vPath));
 
     vHtmlTexts.Add('</body>');
     vHtmlTexts.Add('</html>');
@@ -1523,7 +1747,10 @@ begin
     _DeleteUnUsedStyle;  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
 
   FStyle.SaveToStream(AStream);
-  FData.SaveToStream(AStream);
+
+  vByte := 1;  // 节数量
+  AStream.WriteBuffer(vByte, 1);
+  SaveAsSection(AStream);  // 节数据
   DoSaveStreamAfter(AStream);
 end;
 
@@ -1541,17 +1768,113 @@ begin
   vXml.Encoding := GetEncodingName(AEncoding);
 
   vXml.DocumentElement := vXml.CreateNode('HCGridView');
-  vXml.DocumentElement.Attributes['EXT'] := HC_GRIDEXT;
+  vXml.DocumentElement.Attributes['EXT'] := HC_EXT;
   vXml.DocumentElement.Attributes['ver'] := HC_FileVersion;
   vXml.DocumentElement.Attributes['lang'] := HC_PROGRAMLANGUAGE;
 
   vNode := vXml.DocumentElement.AddChild('style');
   FStyle.ToXml(vNode);  // 样式表
 
-  vNode := vXml.DocumentElement.AddChild('data');
-  FData.ToXml(vNode);
+  vNode := vXml.DocumentElement.AddChild('sections');
+  vNode.Attributes['count'] := 1;  // 节数量
+
+  SectionsToXml(vNode.AddChild('sc'));
 
   vXml.SaveToFile(AFileName);
+end;
+
+procedure THCCustomGridView.SectionsParseXml(const ANode: IHCXMLNode);
+
+  procedure GetXmlPaper_;
+  var
+    vsPaper: TStringList;
+  begin
+    vsPaper := TStringList.Create;
+    try
+      vsPaper.Delimiter := ',';
+      vsPaper.DelimitedText := ANode.Attributes['pagesize'];
+      FPaper.Size := StrToInt(vsPaper[0]);  // 纸张大小
+      FPaper.Width := StrToFloat(vsPaper[1]);  // 纸张宽度
+      FPaper.Height := StrToFloat(vsPaper[2]);  // 纸张高度
+    finally
+      FreeAndNil(vsPaper);
+    end;
+  end;
+
+  procedure GetXmlPaperMargin_;
+  var
+    vsMargin: TStringList;
+  begin
+    vsMargin := TStringList.Create;
+    try
+      vsMargin.Delimiter := ',';
+      vsMargin.DelimitedText := ANode.Attributes['margin'];  // 边距
+      FPaper.MarginLeft := StrToInt(vsMargin[0]);
+      FPaper.MarginTop := StrToFloat(vsMargin[1]);
+      FPaper.MarginRight := StrToFloat(vsMargin[2]);
+      FPaper.MarginBottom := StrToFloat(vsMargin[3]);
+    finally
+      FreeAndNil(vsMargin);
+    end;
+  end;
+
+var
+  i: Integer;
+begin
+  FSymmetryMargin := ANode.Attributes['symmargin'];  // 是否对称页边距
+  FPaperOrientation := TPaperOrientation(ANode.Attributes['ori']);  // 纸张方向
+
+  FPageNoVisible := ANode.Attributes['pagenovisible'];  // 是否对称页边距
+  GetXmlPaper_;
+  GetXmlPaperMargin_;
+
+  for i := 0 to ANode.ChildNodes.Count - 1 do
+  begin
+    if ANode.ChildNodes[i].NodeName = 'header' then
+    begin
+      FHeaderOffset := ANode.ChildNodes[i].Attributes['offset'];
+      FHeader.ParseXml(ANode.ChildNodes[i]);
+    end
+    else
+    if ANode.ChildNodes[i].NodeName = 'footer' then
+      FFooter.ParseXml(ANode.ChildNodes[i])
+    else
+    if ANode.ChildNodes[i].NodeName = 'page' then
+      FPage.ParseXml(ANode.ChildNodes[i]);
+  end;
+end;
+
+procedure THCCustomGridView.SectionsToXml(const ANode: IHCXMLNode);
+var
+  vNode: IHCXMLNode;
+begin
+  ANode.Attributes['symmargin'] := FSymmetryMargin; // 是否对称页边距
+  ANode.Attributes['ori'] := Ord(FPaperOrientation);  // 纸张方向
+  ANode.Attributes['pagenovisible'] := FPageNoVisible;  // 是否显示页码
+
+  ANode.Attributes['pagesize'] :=  // 纸张大小
+    IntToStr(FPaper.Size)
+    + ',' + FormatFloat('0.#', FPaper.Width)
+    + ',' + FormatFloat('0.#', FPaper.Height) ;
+
+  ANode.Attributes['margin'] :=  // 边距
+    FormatFloat('0.#', FPaper.MarginLeft) + ','
+    + FormatFloat('0.#', FPaper.MarginTop) + ','
+    + FormatFloat('0.#', FPaper.MarginRight) + ','
+    + FormatFloat('0.#', FPaper.MarginBottom);
+
+  // 存页眉
+  vNode := ANode.AddChild('header');
+  vNode.Attributes['offset'] := FHeaderOffset;
+  FHeader.ToXml(vNode);
+
+  // 存页脚
+  vNode := ANode.AddChild('footer');
+  FFooter.ToXml(vNode);
+
+  // 存页面
+  vNode := ANode.AddChild('page');
+  FPage.ToXml(vNode);
 end;
 
 procedure THCCustomGridView.SetCellPaintBK(const Value: THCCellPaintEvent);
@@ -1654,8 +1977,8 @@ end;
 
 function THCCustomGridView.TopLevelData: THCCustomData;
 begin
-  Result := FData.GetTopLevelData;
-  if Result = FData then
+  Result := FPage.GetTopLevelData;
+  if Result = FPage then
     Result := nil;
 end;
 
@@ -1764,7 +2087,7 @@ begin
           begin
             ChangeByAction(function(): Boolean
               begin
-                FData.InsertText(vS);
+                FPage.InsertText(vS);
               end);
           end;
         end;
@@ -1831,7 +2154,7 @@ begin
     FStyle.ParaStyles[i].TempNo := THCStyle.Null;
   end;
 
-  FData.MarkStyleUsed(True);
+  FPage.MarkStyleUsed(True);
 
   vUnCount := 0;
   for i := 0 to FStyle.TextStyles.Count - 1 do
@@ -1851,7 +2174,7 @@ begin
       Inc(vUnCount);
   end;
 
-  FData.MarkStyleUsed(False);
+  FPage.MarkStyleUsed(False);
 
   for i := FStyle.TextStyles.Count - 1 downto 0 do
   begin
@@ -1875,6 +2198,12 @@ begin
     ACaretInfo.Visible := False
   else
     inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
+end;
+
+procedure THCGridData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
+  const ANextWhenMid: Boolean);
+begin
+  inherited ReSetSelectAndCaret(0, OffsetInner);
 end;
 
 end.

@@ -332,6 +332,7 @@ type
     function IsFixRow(const ARow: Integer): Boolean;
     function IsFixCol(const ACol: Integer): Boolean;
     function GetFixRowHeight: Integer;
+    function GetFixColWidth: Integer;
     function GetFixColLeft: Integer;
 
     property Cells[const ARow, ACol: Integer]: THCTableCell read GetCells;
@@ -1642,6 +1643,15 @@ begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
 
   AStream.ReadBuffer(FBorderVisible, SizeOf(FBorderVisible));
+
+//  if AFileVersion > 24 then  // 固定行数、列数信息
+//  begin
+//    AStream.ReadBuffer(FFixRow, SizeOf(FFixRow));
+//    AStream.ReadBuffer(FFixRowCount, SizeOf(FFixRowCount));
+//    AStream.ReadBuffer(FFixCol, SizeOf(FFixCol));
+//    AStream.ReadBuffer(FFixColCount, SizeOf(FFixColCount));
+//  end;
+
   AStream.ReadBuffer(vR, SizeOf(vR));  // 行数
   AStream.ReadBuffer(vC, SizeOf(vC));  // 列数
   { 创建行、列 }
@@ -2187,6 +2197,14 @@ var
   vExtPen: HPEN;
   vOldPen: HGDIOBJ;
 begin
+  vCellTop := Max(ATop, ATableDrawTop) + FBorderWidth;
+  for vR := 0 to FFixRow + FFixRowCount - 1 do
+    vCellTop := vCellTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidth;
+
+  vRect := Bounds(ALeft, vCellTop, GetFixColWidth, ABottom - vCellTop);
+  ACanvas.Brush.Color := clBtnFace;
+  ACanvas.FillRect(vRect);
+
   vBorderOffs := FBorderWidth div 2;
   vCellTop := ATableDrawTop + FBorderWidth;
 
@@ -2194,7 +2212,7 @@ begin
   begin
     vCellTop := vCellTop + FRows[vR].FmtOffset;
     vCellBottom := vCellTop + FRows[vR].Height;
-    if vCellBottom < ATop then
+    if (vCellBottom < ATop) or (vR < FFixRow + FFixRowCount) then
     begin
       vCellTop := vCellBottom + FBorderWidth;
       Continue;
@@ -2209,9 +2227,6 @@ begin
 
       if vRect.Bottom > ABottom then
         vRect.Bottom := ABottom;
-
-      ACanvas.Brush.Color := clBtnFace;
-      ACanvas.FillRect(vRect);
 
       FRows[vR][vC].PaintData(vCellLeft + FCellHPadding, vCellTop + FCellVPadding,
         vCellBottom, ATop, ABottom, 0, ACanvas, APaintInfo);
@@ -2297,22 +2312,34 @@ end;
 procedure THCTableItem.PaintFixRows(const ALeft, ATop, ABottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
-  vR, vTop, vH: Integer;
+  vR, vC, vTop, vH: Integer;
   vRect: TRect;
 begin
+  vRect := Bounds(ALeft, ATop, Width, GetFixRowHeight);
+  ACanvas.Brush.Color := clBtnFace;
+  ACanvas.FillRect(vRect);
+
   vTop := ATop;
   for vR := FFixRow to FFixRow + FFixRowCount - 1 do
   begin
-    vH := FRows[vR].Height + FBorderWidth + FBorderWidth;
+    vH := 0;  // 行中未发生合并的最高单元格
+    for vC := 0 to FRows[vR].ColCount - 1 do  // 得到行中未发生合并Data内容最高的单元格高度
+    begin
+      if (FRows[vR][vC].CellData <> nil)  // 不是被合并的单元格
+        and (FRows[vR][vC].RowSpan >= 0)  // 不是行合并的行单元格
+      then
+        vH := Max(vH, FRows[vR][vC].CellData.Height);
+    end;
+    vH := FCellVPadding + vH + FCellVPadding;  // 增加上下边距
+    vH := Max(vH, FRows[vR].Height) + FBorderWidth + FBorderWidth;
+
     vRect := Bounds(ALeft, vTop, Width, vH);
     if vRect.Top >= ABottom then
       Break;
 
-    ACanvas.Brush.Color := clBtnFace;
-    ACanvas.FillRect(vRect);
     PaintRow(vR, vRect.Left, vRect.Top, vRect.Bottom, ACanvas, APaintInfo);
 
-    vTop := vTop + vH - FBorderWidth;
+    vTop := vTop + FBorderWidth + FRows[vR].Height;
   end;
 end;
 
@@ -2623,6 +2650,20 @@ begin
   begin
     Result := FBorderWidth;
     for vC := 0 to FFixCol - 1 do
+      Result := Result + FColWidths[vC] + FBorderWidth;
+  end;
+end;
+
+function THCTableItem.GetFixColWidth: Integer;
+var
+  vC: Integer;
+begin
+  if FFixCol < 0 then
+    Result := 0
+  else
+  begin
+    Result := FBorderWidth;
+    for vC := FFixCol to FFixCol + FFixColCount - 1 do
       Result := Result + FColWidths[vC] + FBorderWidth;
   end;
 end;
@@ -3879,6 +3920,13 @@ begin
   inherited SaveToStream(AStream, AStart, AEnd);
 
   AStream.WriteBuffer(FBorderVisible, SizeOf(FBorderVisible));
+
+  // 固定行数、列数信息
+//  AStream.WriteBuffer(FFixRow, SizeOf(FFixRow));
+//  AStream.WriteBuffer(FFixRowCount, SizeOf(FFixRowCount));
+//  AStream.WriteBuffer(FFixCol, SizeOf(FFixCol));
+//  AStream.WriteBuffer(FFixColCount, SizeOf(FFixColCount));
+
   AStream.WriteBuffer(FRows.Count, SizeOf(FRows.Count));  // 行数
   AStream.WriteBuffer(FColWidths.Count, SizeOf(FColWidths.Count));  // 列数
 
@@ -4713,7 +4761,7 @@ begin
             else
             begin
               vData.ApplySelectParaStyle(AMatchStyle);
-              Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemChange;
+              Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
             end;
           end;
         end;
@@ -4723,7 +4771,7 @@ begin
     begin
       vData := GetEditCell.CellData;
       vData.ApplySelectParaStyle(AMatchStyle);
-      Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemChange;
+      Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
     end;
 
     FLastChangeFormated := not Self.SizeChanged;
@@ -4741,7 +4789,7 @@ begin
   begin
     vData := GetEditCell.CellData;
     vData.ApplySelectTextStyle(AMatchStyle);
-    Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemChange;
+    Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
   end
   else
   if FSelectCellRang.StartRow >= 0 then  // 有选择起始行
@@ -4766,7 +4814,7 @@ begin
           else
           begin
             vData.ApplySelectTextStyle(AMatchStyle);
-            Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemChange;
+            Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
           end;
         end;
       end;

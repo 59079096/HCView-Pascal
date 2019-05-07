@@ -30,7 +30,6 @@ const
   HCS_EXCEPTION_TIMERRESOURCEOUTOF = HC_EXCEPTION + '安装计时器的资源不足！';
 
   HC_EXT = '.hcf';
-  HC_GRIDEXT = '.hcg';
   HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++, 4:HTML5
 
   {1.3 支持浮动对象保存和读取(未处理向下兼容)

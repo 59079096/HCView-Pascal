@@ -1,8 +1,8 @@
-object Form9: TForm9
+object frmGridViewDemo: TfrmGridViewDemo
   Left = 0
   Top = 0
-  Caption = 'Form9'
-  ClientHeight = 446
+  Caption = 'HCGridView Demo'
+  ClientHeight = 486
   ClientWidth = 891
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -109,7 +109,7 @@ object Form9: TForm9
       Left = 223
       Top = 0
       Width = 65
-      Height = 22
+      Height = 21
       Style = csDropDownList
       DropDownCount = 20
       TabOrder = 1
@@ -133,6 +133,7 @@ object Form9: TForm9
       ItemIndex = 10
       TabOrder = 2
       Text = #20116#21495
+      OnChange = cbbFontSizeChange
       Items.Strings = (
         #21021#21495
         #23567#21021
@@ -313,8 +314,8 @@ object Form9: TForm9
       Top = 0
       Hint = #34892#38388#36317
       Caption = 'btnLineSpace'
+      DropdownMenu = pmLineSpace
       ImageIndex = 17
-      PopupMenu = pmLineSpace
       Style = tbsDropDown
     end
   end
@@ -537,17 +538,16 @@ object Form9: TForm9
       end
       object mniBorder: TMenuItem
         Caption = #36793#26694#21450#32972#26223
-      end
-      object mniDisBorder: TMenuItem
-        Caption = #26174#31034'/'#38544#34255#36793#26694
+        OnClick = mniBorderClick
       end
       object mniTableProperty: TMenuItem
         Caption = #23646#24615
+        OnClick = mniTablePropertyClick
       end
     end
-    object mniN26: TMenuItem
+    object mniPara: TMenuItem
       Caption = #27573#33853
-      OnClick = mniN26Click
+      OnClick = mniParaClick
     end
     object mniControlItem: TMenuItem
       Caption = #23646#24615

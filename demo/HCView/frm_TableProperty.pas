@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, HCView, HCTableItem, ComCtrls, StdCtrls, ExtCtrls, Buttons;
+  Dialogs, HCView, HCGridView, HCTableItem, ComCtrls, StdCtrls, ExtCtrls, Buttons;
 
 type
   TfrmTableProperty = class(TForm)
@@ -55,12 +55,16 @@ type
   private
     { Private declarations }
     FReFormt: Boolean;
-    FHCView: THCView;
+    FView: THCView;
+    FGridView: THCGridView;
     FTableItem: THCTableItem;
     FFixRowFirst, FFixRowLast, FFixColFirst, FFixColLast: Integer;
+    procedure GetTableProperty;
+    procedure SetTableProperty;
   public
     { Public declarations }
-    procedure SetView(const AHCView: THCView);
+    procedure SetView(const AView: THCView);
+    procedure SetGridView(const AGridView: THCGridView);
   end;
 
 implementation
@@ -78,7 +82,10 @@ var
 begin
   vFrmBorderBackColor := TfrmBorderBackColor.Create(Self);
   try
-    vFrmBorderBackColor.SetView(FHCView);
+    if Assigned(FView) then
+      vFrmBorderBackColor.SetView(FView)
+    else
+      vFrmBorderBackColor.SetGridView(FGridView);
   finally
     FreeAndNil(vFrmBorderBackColor);
   end;
@@ -195,17 +202,11 @@ begin
   FReFormt := False;
 end;
 
-procedure TfrmTableProperty.SetView(const AHCView: THCView);
+procedure TfrmTableProperty.GetTableProperty;
 var
-  vR, vC, viValue{, vRowAlignIndex}: Integer;
+  vR, vC, viValue: Integer;
   vCell: THCTableCell;
-  vData: THCRichData;
-  vAlignVert: THCAlignVert;
 begin
-  FHCView := AHCView;
-  vData := FHCView.ActiveSection.ActiveData;
-  FTableItem := vData.GetActiveItem as THCTableItem;
-
   // 表格
   edtCellHPadding.Text := IntToStr(FTableItem.CellHPadding);
   edtCellVPadding.Text := IntToStr(FTableItem.CellVPadding);
@@ -273,115 +274,103 @@ begin
     else
     begin
       vCell := FTableItem.GetEditCell;
-
       tsCell.Caption := '单元格(' + IntToStr(FTableItem.SelectCellRang.StartRow + 1) + ','
         + IntToStr(FTableItem.SelectCellRang.StartCol + 1) + ')';
+
+      cbbCellAlignVert.ItemIndex := Ord(vCell.AlignVert);
+
+      btnCellLeftBorder.Down := TBorderSide.cbsLeft in vCell.BorderSides;
+      btnCellTopBorder.Down := TBorderSide.cbsTop in vCell.BorderSides;
+      btnCellRightBorder.Down := TBorderSide.cbsRight in vCell.BorderSides;
+      btnCellBottomBorder.Down := TBorderSide.cbsBottom in vCell.BorderSides;
+      btnCellLTRBBorder.Down := TBorderSide.cbsLTRB in vCell.BorderSides;
+      btnCellRTLBBorder.Down := TBorderSide.cbsRTLB in vCell.BorderSides;
     end;
-
-    cbbCellAlignVert.ItemIndex := Ord(vAlignVert);
-
-    btnCellLeftBorder.Down := TBorderSide.cbsLeft in vCell.BorderSides;
-    btnCellTopBorder.Down := TBorderSide.cbsTop in vCell.BorderSides;
-    btnCellRightBorder.Down := TBorderSide.cbsRight in vCell.BorderSides;
-    btnCellBottomBorder.Down := TBorderSide.cbsBottom in vCell.BorderSides;
-    btnCellLTRBBorder.Down := TBorderSide.cbsLTRB in vCell.BorderSides;
-    btnCellRTLBBorder.Down := TBorderSide.cbsRTLB in vCell.BorderSides;
   end
   else
     tsCell.TabVisible := False;
+end;
 
-  //
+procedure TfrmTableProperty.SetGridView(const AGridView: THCGridView);
+begin
+  FView := nil;
+  FGridView := AGridView;
+  FTableItem := AGridView.Page.GetActiveItem as THCTableItem;
+
+  GetTableProperty;
+
   Self.ShowModal;
   if Self.ModalResult = mrOk then
   begin
-    FHCView.BeginUpdate;
+    FGridView.BeginUpdate;
     try
-      // 表格
-      FTableItem.CellHPadding := StrToIntDef(edtCellHPadding.Text, 5);
-      FTableItem.CellVPadding := StrToIntDef(edtCellVPadding.Text, 0);
-      FTableItem.BorderWidth := StrToIntDef(edtBorderWidth.Text, 1);
-      FTableItem.BorderVisible := chkBorderVisible.Checked;
+      SetTableProperty;
 
-      if FFixRowFirst > 0 then
-      begin
-        FTableItem.FixRow := FFixRowFirst - 1;
-        FTableItem.FixRowCount := FFixRowLast - FFixRowFirst + 1;
-      end
-      else
-      begin
-        FTableItem.FixRow := -1;
-        FTableItem.FixRowCount := 0;
-      end;
+      if FReFormt then
+        FGridView.ReFormatActiveItem;
 
-      if FFixColFirst > 0 then
-      begin
-        FTableItem.FixCol := FFixColFirst - 1;
-        FTableItem.FixColCount := FFixColLast - FFixColFirst + 1;
-      end
-      else
-      begin
-        FTableItem.FixCol := -1;
-        FTableItem.FixColCount := 0;
-      end;
+      FGridView.Style.UpdateInfoRePaint;
+    finally
+      FGridView.EndUpdate;
+    end;
+  end;
+end;
 
-      // 行
-      if (FTableItem.SelectCellRang.StartRow >= 0) and (TryStrToInt(edtRowHeight.Text, viValue)) then
+procedure TfrmTableProperty.SetTableProperty;
+var
+  vR, vC, viValue: Integer;
+  vCell: THCTableCell;
+begin
+  // 表格
+  FTableItem.CellHPadding := StrToIntDef(edtCellHPadding.Text, 5);
+  FTableItem.CellVPadding := StrToIntDef(edtCellVPadding.Text, 0);
+  FTableItem.BorderWidth := StrToIntDef(edtBorderWidth.Text, 1);
+  FTableItem.BorderVisible := chkBorderVisible.Checked;
+
+  if FFixRowFirst > 0 then
+  begin
+    FTableItem.FixRow := FFixRowFirst - 1;
+    FTableItem.FixRowCount := FFixRowLast - FFixRowFirst + 1;
+  end
+  else
+  begin
+    FTableItem.FixRow := -1;
+    FTableItem.FixRowCount := 0;
+  end;
+
+  if FFixColFirst > 0 then
+  begin
+    FTableItem.FixCol := FFixColFirst - 1;
+    FTableItem.FixColCount := FFixColLast - FFixColFirst + 1;
+  end
+  else
+  begin
+    FTableItem.FixCol := -1;
+    FTableItem.FixColCount := 0;
+  end;
+
+  // 行
+  if (FTableItem.SelectCellRang.StartRow >= 0) and (TryStrToInt(edtRowHeight.Text, viValue)) then
+  begin
+    if FTableItem.SelectCellRang.EndRow > 0 then  // 有选中多行
+    begin
+      for vR := FTableItem.SelectCellRang.StartRow to FTableItem.SelectCellRang.EndRow do
+        FTableItem.Rows[vR].Height := viValue;  // 行高
+    end
+    else  // 只选中一行
+      FTableItem.Rows[FTableItem.SelectCellRang.StartRow].Height := viValue;  // 行高
+  end;
+
+  // 单元格
+  if (FTableItem.SelectCellRang.StartRow >= 0) and (FTableItem.SelectCellRang.StartCol >= 0) then
+  begin
+    if FTableItem.SelectCellRang.EndCol > 0 then  // 有选中多个单元格
+    begin
+      for vR := FTableItem.SelectCellRang.StartRow to FTableItem.SelectCellRang.EndRow do
       begin
-        if FTableItem.SelectCellRang.EndRow > 0 then  // 有选中多行
+        for vC := FTableItem.SelectCellRang.StartCol to FTableItem.SelectCellRang.EndCol do
         begin
-          for vR := FTableItem.SelectCellRang.StartRow to FTableItem.SelectCellRang.EndRow do
-            FTableItem.Rows[vR].Height := viValue;  // 行高
-        end
-        else  // 只选中一行
-          FTableItem.Rows[FTableItem.SelectCellRang.StartRow].Height := viValue;  // 行高
-      end;
-
-      // 单元格
-      if (FTableItem.SelectCellRang.StartRow >= 0) and (FTableItem.SelectCellRang.StartCol >= 0) then
-      begin
-        if FTableItem.SelectCellRang.EndCol > 0 then  // 有选中多个单元格
-        begin
-          for vR := FTableItem.SelectCellRang.StartRow to FTableItem.SelectCellRang.EndRow do
-          begin
-            for vC := FTableItem.SelectCellRang.StartCol to FTableItem.SelectCellRang.EndCol do
-            begin
-              vCell := FTableItem.Cells[vR, vC];
-              vCell.AlignVert := THCAlignVert(cbbCellAlignVert.ItemIndex);
-
-              if btnCellLeftBorder.Down then
-                vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsLeft]
-              else
-                vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsLeft];
-
-              if btnCellTopBorder.Down then
-                vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsTop]
-              else
-                vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsTop];
-
-              if btnCellRightBorder.Down then
-                vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsRight]
-              else
-                vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsRight];
-
-              if btnCellBottomBorder.Down then
-                vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsBottom]
-              else
-                vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsBottom];
-
-              if btnCellLTRBBorder.Down then
-                vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsLTRB]
-              else
-                vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsLTRB];
-
-              if btnCellRTLBBorder.Down then
-                vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsRTLB]
-              else
-                vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsRTLB];
-            end;
-          end;
-        end
-        else
-        begin
+          vCell := FTableItem.Cells[vR, vC];
           vCell.AlignVert := THCAlignVert(cbbCellAlignVert.ItemIndex);
 
           if btnCellLeftBorder.Down then
@@ -415,13 +404,67 @@ begin
             vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsRTLB];
         end;
       end;
+    end
+    else  // 仅在一个单元中
+    begin
+      vCell := FTableItem.GetEditCell;
+      vCell.AlignVert := THCAlignVert(cbbCellAlignVert.ItemIndex);
+
+      if btnCellLeftBorder.Down then
+        vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsLeft]
+      else
+        vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsLeft];
+
+      if btnCellTopBorder.Down then
+        vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsTop]
+      else
+        vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsTop];
+
+      if btnCellRightBorder.Down then
+        vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsRight]
+      else
+        vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsRight];
+
+      if btnCellBottomBorder.Down then
+        vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsBottom]
+      else
+        vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsBottom];
+
+      if btnCellLTRBBorder.Down then
+        vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsLTRB]
+      else
+        vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsLTRB];
+
+      if btnCellRTLBBorder.Down then
+        vCell.BorderSides := vCell.BorderSides + [TBorderSide.cbsRTLB]
+      else
+        vCell.BorderSides := vCell.BorderSides - [TBorderSide.cbsRTLB];
+    end;
+  end;
+end;
+
+procedure TfrmTableProperty.SetView(const AView: THCView);
+begin
+  FGridView := nil;
+  FView := AView;
+
+  FTableItem := FView.ActiveSection.ActiveData.GetActiveItem as THCTableItem;
+
+  GetTableProperty;
+
+  Self.ShowModal;
+  if Self.ModalResult = mrOk then
+  begin
+    FView.BeginUpdate;
+    try
+      SetTableProperty;
 
       if FReFormt then
-        FHCView.ActiveSection.ReFormatActiveItem;
+        FView.ActiveSection.ReFormatActiveItem;
 
-      FHCView.Style.UpdateInfoRePaint;
+      FView.Style.UpdateInfoRePaint;
     finally
-      FHCView.EndUpdate;
+      FView.EndUpdate;
     end;
   end;
 end;

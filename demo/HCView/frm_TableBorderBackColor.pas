@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, HCView, HCTableItem, StdCtrls, ExtCtrls;
+  Dialogs, HCView, HCGridView, HCTableItem, StdCtrls, ExtCtrls;
 
 type
   TfrmBorderBackColor = class(TForm)
@@ -23,9 +23,13 @@ type
     procedure btnOkClick(Sender: TObject);
   private
     { Private declarations }
+    FTableItem: THCTableItem;
+    procedure GetTableProperty;
+    procedure SetTableProperty;
   public
     { Public declarations }
-    procedure SetView(const AHCView: THCView);
+    procedure SetView(const AView: THCView);
+    procedure SetGridView(const AGridView: THCGridView);
   end;
 
 implementation
@@ -40,19 +44,58 @@ begin
   Self.ModalResult := mrOk;
 end;
 
-procedure TfrmBorderBackColor.SetView(const AHCView: THCView);
+procedure TfrmBorderBackColor.GetTableProperty;
+var
+  vCell: THCTableCell;
+  vBorderSides: TBorderSides;
+begin
+  if FTableItem.SelectCellRang.StartRow >= 0 then
+    vCell := FTableItem.Cells[FTableItem.SelectCellRang.StartRow, FTableItem.SelectCellRang.StartCol]
+  else
+    vCell := FTableItem.Cells[0, 0];
+
+  cbbBackColor.Selected := vCell.BackgroundColor;
+
+  vBorderSides := vCell.BorderSides;
+  chkLeft.Checked := cbsLeft in vBorderSides;
+  chkTop.Checked := cbsTop in vBorderSides;
+  chkRight.Checked := cbsRight in vBorderSides;
+  chkBottom.Checked := cbsBottom in vBorderSides;
+  chkLTRB.Checked := cbsLTRB in vBorderSides;
+  chkRTLB.Checked := cbsRTLB in vBorderSides;
+end;
+
+procedure TfrmBorderBackColor.SetGridView(const AGridView: THCGridView);
+begin
+  FTableItem := AGridView.Page.GetActiveItem as THCTableItem;
+  GetTableProperty;
+
+  Self.ShowModal;
+  if Self.ModalResult = mrOk then
+  begin
+    AGridView.BeginUpdate;
+    try
+      SetTableProperty;
+
+      AGridView.Style.UpdateInfoRePaint;
+    finally
+      AGridView.EndUpdate;
+    end;
+  end;
+end;
+
+procedure TfrmBorderBackColor.SetTableProperty;
 var
   vBorderSides: TBorderSides;
-  vTableItem: THCTableItem;
 
   procedure SetCellBorderBackColor(const ARow, ACol: Integer);
   begin
     if cbbBackColor.Selected = HCTransparentColor then
-      vTableItem.Cells[ARow, ACol].BackgroundColor := HCTransparentColor  //cbbBackColor.NoneColorColor
+      FTableItem.Cells[ARow, ACol].BackgroundColor := HCTransparentColor  //cbbBackColor.NoneColorColor
     else
-      vTableItem.Cells[ARow, ACol].BackgroundColor := cbbBackColor.Selected;
+      FTableItem.Cells[ARow, ACol].BackgroundColor := cbbBackColor.Selected;
 
-    vBorderSides := vTableItem.Cells[ARow, ACol].BorderSides;
+    vBorderSides := FTableItem.Cells[ARow, ACol].BorderSides;
 
     if chkLeft.Checked then
       Include(vBorderSides, cbsLeft)
@@ -84,70 +127,60 @@ var
     else
       Exclude(vBorderSides, cbsRTLB);
 
-    vTableItem.Cells[ARow, ACol].BorderSides := vBorderSides;
+    FTableItem.Cells[ARow, ACol].BorderSides := vBorderSides;
   end;
 
   procedure ApplyAllTable;
   var
     vR, vC: Integer;
   begin
-    for vR := 0 to vTableItem.RowCount - 1 do
+    for vR := 0 to FTableItem.RowCount - 1 do
     begin
-      for vC := 0 to vTableItem.ColCount - 1 do
+      for vC := 0 to FTableItem.ColCount - 1 do
         SetCellBorderBackColor(vR, vC);
     end;
   end;
 
 var
   vR, vC: Integer;
-  vCell: THCTableCell;
 begin
-  vTableItem := AHCView.ActiveSection.ActiveData.GetActiveItem as THCTableItem;
-
-  if vTableItem.SelectCellRang.StartRow >= 0 then
-    vCell := vTableItem.Cells[vTableItem.SelectCellRang.StartRow, vTableItem.SelectCellRang.StartCol]
+  if cbbRang.ItemIndex = 0 then  // 单元格
+  begin
+    if FTableItem.SelectCellRang.EditCell then  // 在同一个单元格编辑
+      SetCellBorderBackColor(FTableItem.SelectCellRang.StartRow, FTableItem.SelectCellRang.StartCol)
+    else  // 多选或一个也没选
+    begin
+      if FTableItem.SelectCellRang.StartRow >= 0 then  // 多选
+      begin
+        for vR := FTableItem.SelectCellRang.StartRow to FTableItem.SelectCellRang.EndRow do
+        begin
+          for vC := FTableItem.SelectCellRang.StartCol to FTableItem.SelectCellRang.EndCol do
+            SetCellBorderBackColor(vR, vC);
+        end;
+      end
+      else  // 一个也没选，按整个表格处理
+        ApplyAllTable;
+    end;
+  end
   else
-    vCell := vTableItem.Cells[0, 0];
+    ApplyAllTable;  // 整个表格
+end;
 
-  cbbBackColor.Selected := vCell.BackgroundColor;
-
-  vBorderSides := vCell.BorderSides;
-  chkLeft.Checked := cbsLeft in vBorderSides;
-  chkTop.Checked := cbsTop in vBorderSides;
-  chkRight.Checked := cbsRight in vBorderSides;
-  chkBottom.Checked := cbsBottom in vBorderSides;
-  chkLTRB.Checked := cbsLTRB in vBorderSides;
-  chkRTLB.Checked := cbsRTLB in vBorderSides;
+procedure TfrmBorderBackColor.SetView(const AView: THCView);
+begin
+  FTableItem := AView.ActiveSection.ActiveData.GetActiveItem as THCTableItem;
+  GetTableProperty;
 
   Self.ShowModal;
   if Self.ModalResult = mrOk then
   begin
-    AHCView.BeginUpdate;
+    AView.BeginUpdate;
     try
-      if cbbRang.ItemIndex = 0 then  // 单元格
-      begin
-        if vTableItem.SelectCellRang.EditCell then  // 在同一个单元格编辑
-          SetCellBorderBackColor(vTableItem.SelectCellRang.StartRow, vTableItem.SelectCellRang.StartCol)
-        else  // 多选或一个也没选
-        begin
-          if vTableItem.SelectCellRang.StartRow >= 0 then  // 多选
-          begin
-            for vR := vTableItem.SelectCellRang.StartRow to vTableItem.SelectCellRang.EndRow do
-            begin
-              for vC := vTableItem.SelectCellRang.StartCol to vTableItem.SelectCellRang.EndCol do
-                SetCellBorderBackColor(vR, vC);
-            end;
-          end
-          else  // 一个也没选，按整个表格处理
-            ApplyAllTable;
-        end;
-      end
-      else
-        ApplyAllTable;  // 整个表格
+      SetTableProperty;
 
-      AHCView.Style.UpdateInfoRePaint;
+      AView.Style.UpdateInfoRePaint;
     finally
-      AHCView.EndUpdate;
+      AView.EndUpdate;
     end;
   end;
 end;

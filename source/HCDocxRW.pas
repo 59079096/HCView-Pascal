@@ -1340,7 +1340,7 @@ begin
   vXml.LoadFromStream(vPackageFile.Stream);
   if vXml.DocumentElement.NamespaceURI <> HCDOCX_Main then Exit;
 
-  vData := FHCView.ActiveSection.PageData;
+  vData := FHCView.ActiveSection.Page;
 
   vBodyNode := vXml.DocumentElement.ChildNodes.FindNode('w:body');
   if not Assigned(vBodyNode) then Exit;
@@ -2402,7 +2402,7 @@ begin
 
   vXmlNode := vXml.DocumentElement.AddChild('w:body');
 
-  vData := FHCView.Sections[0].PageData;
+  vData := FHCView.Sections[0].Page;
   if not vData.IsEmptyData then
     WriteData_(vData, vXmlNode);
   // w:sectPr

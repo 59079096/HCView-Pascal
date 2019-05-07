@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  Printers, Clipbrd, HCRuler;
+  Printers, Clipbrd, HCRuler, System.Actions, System.ImageList;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -72,7 +72,7 @@ type
     mniDeleteCurRow: TMenuItem;
     mniDeleteCurCol: TMenuItem;
     mniN25: TMenuItem;
-    mniN26: TMenuItem;
+    mniPara: TMenuItem;
     mniN27: TMenuItem;
     mniN28: TMenuItem;
     mniN29: TMenuItem;
@@ -156,7 +156,7 @@ type
     procedure mniInsertColRightClick(Sender: TObject);
     procedure mniDeleteCurRowClick(Sender: TObject);
     procedure mniDeleteCurColClick(Sender: TObject);
-    procedure mniN26Click(Sender: TObject);
+    procedure mniParaClick(Sender: TObject);
     procedure mniSaveAsClick(Sender: TObject);
     procedure mniSaveClick(Sender: TObject);
     procedure mniOpenClick(Sender: TObject);
@@ -238,7 +238,7 @@ uses
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
   HCDateTimePicker, HCSupSubScriptItem, HCRadioGroup, frm_Paragraph, frm_TableProperty,
   frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_Annotate,
-  frm_TableBorderBackColor;
+  frm_TableBorderBackColor, CFBalloonHint;
 
 {$R *.dfm}
 
@@ -820,7 +820,7 @@ begin
   FHCView.InsertItem(vQRCode);
 end;
 
-procedure TfrmHCViewDemo.mniN26Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniParaClick(Sender: TObject);
 var
   vFrmParagraph: TfrmParagraph;
 begin
@@ -1156,7 +1156,8 @@ end;
 
 procedure TfrmHCViewDemo.mniSaveClick(Sender: TObject);
 begin
-  SaveFile;
+  if SaveFile then
+    BalloonMessage('±£´æ³É¹¦£¡');
 end;
 
 procedure TfrmHCViewDemo.mniTablePropertyClick(Sender: TObject);

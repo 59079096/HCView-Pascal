@@ -8,7 +8,7 @@ uses
   HCGridView, HCTableCell, HCItem, HCCommon, HCCustomData;
 
 type
-  TForm9 = class(TForm)
+  TfrmGridViewDemo = class(TForm)
     mmMain: TMainMenu;
     mniN1: TMenuItem;
     mniMerge: TMenuItem;
@@ -46,9 +46,8 @@ type
     mni9: TMenuItem;
     mniN25: TMenuItem;
     mniBorder: TMenuItem;
-    mniDisBorder: TMenuItem;
     mniTableProperty: TMenuItem;
-    mniN26: TMenuItem;
+    mniPara: TMenuItem;
     mniControlItem: TMenuItem;
     mniModAnnotate: TMenuItem;
     mniDelAnnotate: TMenuItem;
@@ -132,7 +131,7 @@ type
     procedure mniCutClick(Sender: TObject);
     procedure mniN6Click(Sender: TObject);
     procedure mniPasteClick(Sender: TObject);
-    procedure mniN26Click(Sender: TObject);
+    procedure mniParaClick(Sender: TObject);
     procedure mniControlItemClick(Sender: TObject);
     procedure cbbFontChange(Sender: TObject);
     procedure btnBoldClick(Sender: TObject);
@@ -165,6 +164,9 @@ type
     procedure mniN21Click(Sender: TObject);
     procedure mniN22Click(Sender: TObject);
     procedure mniN23Click(Sender: TObject);
+    procedure cbbFontSizeChange(Sender: TObject);
+    procedure mniBorderClick(Sender: TObject);
+    procedure mniTablePropertyClick(Sender: TObject);
   private
     { Private declarations }
     FGridView: THCGridView;
@@ -178,19 +180,20 @@ type
   end;
 
 var
-  Form9: TForm9;
+  frmGridViewDemo: TfrmGridViewDemo;
 
 implementation
 
 uses
   Printers, HCTextStyle, HCParaStyle, HCViewData, HCFractionItem, HCExpressItem,
   HCSupSubScriptItem, HCCheckBoxItem, HCEditItem, HCComboboxItem, HCDateTimePicker,
-  HCRadioGroup, HCBarCodeItem, HCQRCodeItem, HCTextItem, frm_Annotate,
-  frm_PrintView, frm_Paragraph, frm_ControlItemProperty, frm_InsertTable, frm_PageSet;
+  HCRadioGroup, HCBarCodeItem, HCQRCodeItem, HCTextItem, frm_Annotate, frm_TableProperty,
+  frm_TableBorderBackColor, frm_PrintView, frm_Paragraph, frm_ControlItemProperty,
+  frm_InsertTable, frm_PageSet, CFBalloonHint;
 
 {$R *.dfm}
 
-procedure TForm9.btnAlignLeftClick(Sender: TObject);
+procedure TfrmGridViewDemo.btnAlignLeftClick(Sender: TObject);
 begin
   case (Sender as TToolButton).Tag of
     0: FGridView.ApplyParaAlignHorz(TParaAlignHorz.pahLeft);
@@ -203,7 +206,7 @@ begin
   end;
 end;
 
-procedure TForm9.btnBoldClick(Sender: TObject);
+procedure TfrmGridViewDemo.btnBoldClick(Sender: TObject);
 begin
   case (Sender as TToolButton).Tag of
     0: FGridView.ApplyTextStyle(THCFontStyle.tsBold);
@@ -215,67 +218,56 @@ begin
   end;
 end;
 
-procedure TForm9.btnprintClick(Sender: TObject);
+procedure TfrmGridViewDemo.btnprintClick(Sender: TObject);
 var
   vPrintDlg: TPrintDialog;
-  vStream: TMemoryStream;
 begin
-//  vPrintDlg := TPrintDialog.Create(nil);
-//  try
-//    if vPrintDlg.Execute then
-//    begin
-//      vStream := TMemoryStream.Create;
-//      try
-//        FGridView.SaveToStream(vStream);
-//
-//        vHCView := THCView.Create(nil);
-//        try
-//          vStream.Position := 0;
-//          vHCView.ActiveSection.InsertStream(vStream, FGridView.Style, HC_FileVersionInt);
-//          vPrintDlg.MaxPage := vHCView.PageCount;
-//          vHCView.Print(Printer.Printers[Printer.PrinterIndex]);
-//        finally
-//          FreeAndNil(vHCView);
-//        end;
-//      finally
-//        FreeAndNil(vStream);
-//      end;
-//    end;
-//  finally
-//    FreeAndNil(vPrintDlg);
-//  end;
+  vPrintDlg := TPrintDialog.Create(nil);
+  try
+    if vPrintDlg.Execute then
+      FGridView.Print(Printer.Printers[Printer.PrinterIndex]);
+  finally
+    FreeAndNil(vPrintDlg);
+  end;
 end;
 
-procedure TForm9.btnRedoClick(Sender: TObject);
+procedure TfrmGridViewDemo.btnRedoClick(Sender: TObject);
 begin
   FGridView.Redo;
 end;
 
-procedure TForm9.btnUndoClick(Sender: TObject);
+procedure TfrmGridViewDemo.btnUndoClick(Sender: TObject);
 begin
   FGridView.Undo;
 end;
 
-procedure TForm9.cbbBackColorChange(Sender: TObject);
+procedure TfrmGridViewDemo.cbbBackColorChange(Sender: TObject);
 begin
   FGridView.ApplyTextBackColor(cbbBackColor.Selected);
 end;
 
-procedure TForm9.cbbFontChange(Sender: TObject);
+procedure TfrmGridViewDemo.cbbFontChange(Sender: TObject);
 begin
   FGridView.ApplyTextFontName(cbbFont.Text);
   if not FGridView.Focused then
     FGridView.SetFocus;
 end;
 
-procedure TForm9.cbbFontColorChange(Sender: TObject);
+procedure TfrmGridViewDemo.cbbFontColorChange(Sender: TObject);
 begin
   FGridView.ApplyTextColor(cbbFontColor.Selected);
   if not FGridView.Focused then
     FGridView.SetFocus;
 end;
 
-procedure TForm9.DoComboboxPopupItem(Sender: TObject);
+procedure TfrmGridViewDemo.cbbFontSizeChange(Sender: TObject);
+begin
+  FGridView.ApplyTextFontSize(GetFontSize(cbbFontSize.Text));
+  if not FGridView.Focused then
+    FGridView.SetFocus;
+end;
+
+procedure TfrmGridViewDemo.DoComboboxPopupItem(Sender: TObject);
 begin
   if Sender is THCComboboxItem then
   begin
@@ -286,7 +278,7 @@ begin
   end;
 end;
 
-procedure TForm9.DoGridCellPaintBK(const Sender: TObject;
+procedure TfrmGridViewDemo.DoGridCellPaintBK(const Sender: TObject;
   const ACell: THCTableCell; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo; var ADrawDefault: Boolean);
 begin
@@ -298,26 +290,27 @@ begin
 //  end;
 end;
 
-procedure TForm9.FormCreate(Sender: TObject);
+procedure TfrmGridViewDemo.FormCreate(Sender: TObject);
 begin
   FGridView := THCGridView.CreateEx(nil, 80, 12);
   //FGridView.OnCellPaintBK := DoGridCellPaintBK;
   FGridView.Align := alClient;
   FGridView.Parent := Self;
+  FGridView.PopupMenu := pmGridView;
 end;
 
-procedure TForm9.FormDestroy(Sender: TObject);
+procedure TfrmGridViewDemo.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(FGridView);
 end;
 
-procedure TForm9.mniMergeClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniMergeClick(Sender: TObject);
 begin
   //FGridView.MergeTableSelectCells;
   FGridView.MergeSelectCells;
 end;
 
-procedure TForm9.mniNewClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniNewClick(Sender: TObject);
 var
   vFrmInsertTable: TfrmInsertTable;
 begin
@@ -334,21 +327,21 @@ begin
   end;
 end;
 
-procedure TForm9.mniOpenClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniOpenClick(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
   vExt: string;
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
-    vOpenDlg.Filter := '支持的文件|*' + HC_GRIDEXT + '; *.xml; *.xlsx|HCGridView (*.hcg)|*' + HC_GRIDEXT + '|HCGridView xml (*.xml)|*.xml|Excel 2007 Document (*.xlsx)|*.xlsx';
+    vOpenDlg.Filter := '支持的文件|*' + HC_EXT + '; *.xml; *.xlsx|HCGridView (*.hcf)|*' + HC_EXT + '|HCGridView xml (*.xml)|*.xml|Excel 2007 Document (*.xlsx)|*.xlsx';
     if vOpenDlg.Execute then
     begin
       if vOpenDlg.FileName <> '' then
       begin
         Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
         vExt := LowerCase(ExtractFileExt(vOpenDlg.FileName)); // 后缀
-        if vExt = HC_GRIDEXT then
+        if vExt = HC_EXT then
           FGridView.LoadFromFile(vOpenDlg.FileName)
         else
         if vExt = '.xml' then
@@ -362,7 +355,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN12Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN12Click(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
 begin
@@ -382,7 +375,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN14Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN14Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vFractionItem: THCFractionItem;
@@ -396,7 +389,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN15Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN15Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vExpressItem: THCExpressItem;
@@ -411,7 +404,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN17Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN17Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vSupSubScriptItem: THCSupSubScriptItem;
@@ -425,12 +418,12 @@ begin
   end;
 end;
 
-procedure TForm9.mniN18Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN18Click(Sender: TObject);
 begin
   FGridView.InsertLine(1);
 end;
 
-procedure TForm9.mniN20Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN20Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vHCBarCode: THCBarCodeItem;
@@ -446,7 +439,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN21Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN21Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vQRCode: THCQRCodeItem;
@@ -462,7 +455,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN22Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN22Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vTextItem: THCTextItem;
@@ -478,7 +471,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN23Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN23Click(Sender: TObject);
 var
   vTopData: THCViewData;
   vFrmAnnotate: TfrmAnnotate;
@@ -500,7 +493,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN24Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN24Click(Sender: TObject);
 var
   vFrmInsertTable: TfrmInsertTable;
 begin
@@ -517,7 +510,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN26Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniParaClick(Sender: TObject);
 var
   vFrmParagraph: TfrmParagraph;
 begin
@@ -529,7 +522,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniN4Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN4Click(Sender: TObject);
 var
   vFrmPrintView: TfrmPrintView;
 begin
@@ -541,22 +534,22 @@ begin
   end;
 end;
 
-procedure TForm9.mniN5Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN5Click(Sender: TObject);
 begin
   FGridView.Print;
 end;
 
-procedure TForm9.mniN6Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniN6Click(Sender: TObject);
 begin
 //  FGridView.Copy;
 end;
 
-procedure TForm9.mniPasteClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniPasteClick(Sender: TObject);
 begin
 //  FGridView.Paste;
 end;
 
-procedure TForm9.mniRadioGroup1Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniRadioGroup1Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vHCRadioGroup: THCRadioGroup;
@@ -573,12 +566,25 @@ begin
   end;
 end;
 
-procedure TForm9.mniSaveClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniSaveClick(Sender: TObject);
 begin
-  SaveFile;
+  if SaveFile then
+    BalloonMessage('保存成功！');
 end;
 
-procedure TForm9.N2Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniTablePropertyClick(Sender: TObject);
+var
+  vFrmTableProperty: TFrmTableProperty;
+begin
+  vFrmTableProperty := TFrmTableProperty.Create(Self);
+  try
+    vFrmTableProperty.SetGridView(FGridView);
+  finally
+    FreeAndNil(vFrmTableProperty);
+  end;
+end;
+
+procedure TfrmGridViewDemo.N2Click(Sender: TObject);
 var
   vFrmPageSet: TFrmPageSet;
 begin
@@ -590,7 +596,7 @@ begin
   end;
 end;
 
-function TForm9.SaveFile: Boolean;
+function TfrmGridViewDemo.SaveFile: Boolean;
 var
   vDlg: TSaveDialog;
 begin
@@ -606,15 +612,15 @@ begin
   begin
     vDlg := TSaveDialog.Create(Self);
     try
-      vDlg.Filter := '支持的文件|*' + HC_GRIDEXT + '; *.xml; *.xlsx|HCGridView (*.hcg)|*' + HC_GRIDEXT + '|HCGridView xml (*.xml)|*.xml|Excel 2007 Document (*.xlsx)|*.xlsx';
+      vDlg.Filter := '支持的文件|*' + HC_EXT + '; *.xml; *.xlsx|HCGridView (*.hcf)|*' + HC_EXT + '|HCGridView xml (*.xml)|*.xml|Excel 2007 Document (*.xlsx)|*.xlsx';
       vDlg.Execute;
       if vDlg.FileName <> '' then
       begin
         case vDlg.FilterIndex of
           0:
             begin
-              if ExtractFileExt(vDlg.FileName) <> HC_GRIDEXT then
-                vDlg.FileName := vDlg.FileName + HC_GRIDEXT;
+              if ExtractFileExt(vDlg.FileName) <> HC_EXT then
+                vDlg.FileName := vDlg.FileName + HC_EXT;
 
               FGridView.SaveToFile(vDlg.FileName, True);
               FGridView.IsChanged := False;
@@ -638,7 +644,19 @@ begin
   end;
 end;
 
-procedure TForm9.mniCheckBox1Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniBorderClick(Sender: TObject);
+var
+  vFrmBorderBackColor: TfrmBorderBackColor;
+begin
+  vFrmBorderBackColor := TfrmBorderBackColor.Create(Self);
+  try
+    vFrmBorderBackColor.SetGridView(FGridView);
+  finally
+    FreeAndNil(vFrmBorderBackColor);
+  end;
+end;
+
+procedure TfrmGridViewDemo.mniCheckBox1Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vCheckBox: THCCheckBoxItem;
@@ -657,7 +675,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniCombobox1Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniCombobox1Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vCombobox: THCComboboxItem;
@@ -681,7 +699,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniControlItemClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniControlItemClick(Sender: TObject);
 var
   vFrmControlItemProperty: TfrmControlItemProperty;
 begin
@@ -693,12 +711,12 @@ begin
 //  end;
 end;
 
-procedure TForm9.mniCutClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniCutClick(Sender: TObject);
 begin
 //  FGridView.Cut;
 end;
 
-procedure TForm9.mniDateTimePicker1Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniDateTimePicker1Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vHCDateTimePicker: THCDateTimePicker;
@@ -712,19 +730,19 @@ begin
   end;
 end;
 
-procedure TForm9.mniDeleteCurColClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniDeleteCurColClick(Sender: TObject);
 begin
   //FGridView.ActiveTableDeleteCurCol;
   FGridView.DeleteCurCol;
 end;
 
-procedure TForm9.mniDeleteCurRowClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniDeleteCurRowClick(Sender: TObject);
 begin
   //FGridView.ActiveTableDeleteCurRow;
   FGridView.DeleteCurRow;
 end;
 
-procedure TForm9.mniEdit1Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniEdit1Click(Sender: TObject);
 var
   vTopData: THCCustomData;
   vEdit: THCEditItem;
@@ -743,7 +761,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniExploreClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniExploreClick(Sender: TObject);
 var
   vDlg: TSaveDialog;
   vExt: string;
@@ -775,7 +793,7 @@ begin
   end;
 end;
 
-procedure TForm9.mnigif1Click(Sender: TObject);
+procedure TfrmGridViewDemo.mnigif1Click(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
 begin
@@ -795,31 +813,31 @@ begin
   end;
 end;
 
-procedure TForm9.mniInsertColLeftClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniInsertColLeftClick(Sender: TObject);
 begin
   //FGridView.ActiveTableInsertColBefor(1);
   FGridView.InsertColBefor(1);
 end;
 
-procedure TForm9.mniInsertColRightClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniInsertColRightClick(Sender: TObject);
 begin
   //FGridView.ActiveTableInsertColAfter(1);
   FGridView.InsertColAfter(1);
 end;
 
-procedure TForm9.mniInsertRowBottomClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniInsertRowBottomClick(Sender: TObject);
 begin
   //FGridView.ActiveTableInsertRowAfter(1);
   FGridView.InsertRowAfter(1);
 end;
 
-procedure TForm9.mniInsertRowTopClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniInsertRowTopClick(Sender: TObject);
 begin
   //FGridView.ActiveTableInsertRowBefor(1);
   FGridView.InsertRowBefor(1);
 end;
 
-procedure TForm9.mniLS100Click(Sender: TObject);
+procedure TfrmGridViewDemo.mniLS100Click(Sender: TObject);
 begin
   if Sender is TMenuItem then
   begin
@@ -832,7 +850,7 @@ begin
   end;
 end;
 
-procedure TForm9.mniLSFixClick(Sender: TObject);
+procedure TfrmGridViewDemo.mniLSFixClick(Sender: TObject);
 var
   vsLineSpace: string;
   vSpace: Integer;

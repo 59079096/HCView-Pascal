@@ -379,7 +379,7 @@ type
     property HeaderOffset: Integer read FHeaderOffset write SetHeaderOffset;
     property Header: THCHeaderData read FHeader;
     property Footer: THCFooterData read FFooter;
-    property PageData: THCPageData read FPage;
+    property Page: THCPageData read FPage;
     property CurStyleNo: Integer read GetCurStyleNo;
     property CurParaNo: Integer read GetCurParaNo;
 
@@ -956,7 +956,7 @@ procedure THCCustomSection.FormatData;
 begin
   FActiveData.DisSelect;  // 先清选中，防止格式化后选中位置不存在
   FHeader.ReFormat;
-  Footer.ReFormat;
+  FFooter.ReFormat;
   FPage.ReFormat;
 end;
 
@@ -1473,7 +1473,7 @@ begin
 
   Result := AFunction;  // 处理变动
 
-  if FActiveData.FormatHeightChange or FActiveData.FormatDrawItemChange then  // 数据高度变化了
+  if FActiveData.FormatHeightChange or FActiveData.FormatDrawItemCountChange then  // 数据高度变化了
   begin
     if FActiveData = FPage then
       BuildSectionPages(FActiveData.FormatStartDrawItemNo)

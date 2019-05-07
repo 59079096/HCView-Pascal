@@ -39,7 +39,7 @@
 				<MainSource>MainSource</MainSource>
 			</DelphiCompile>
 			<DCCReference Include="frm_GricViewDemo.pas">
-				<Form>Form9</Form>
+				<Form>frmGridViewDemo</Form>
 			</DCCReference>
 			<DCCReference Include="..\HCView\frm_PrintView.pas">
 				<Form>frmPrintView</Form>
@@ -58,6 +58,12 @@
 			</DCCReference>
 			<DCCReference Include="..\HCView\frm_Annotate.pas">
 				<Form>frmAnnotate</Form>
+			</DCCReference>
+			<DCCReference Include="..\HCView\frm_TableBorderBackColor.pas">
+				<Form>frmBorderBackColor</Form>
+			</DCCReference>
+			<DCCReference Include="..\HCView\frm_TableProperty.pas">
+				<Form>frmTableProperty</Form>
 			</DCCReference>
 			<BuildConfiguration Include="Base">
 				<Key>Base</Key>

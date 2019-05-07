@@ -297,7 +297,7 @@ begin
     LoadFromRtfStream(AStream);
     FData.SaveToStream(vMS);
     AHCView.ActiveSection.Clear;
-    AHCView.ActiveSection.ActiveData := AHCView.ActiveSection.PageData;
+    AHCView.ActiveSection.ActiveData := AHCView.ActiveSection.Page;
     vMS.Position := 0;
     AHCView.ActiveSection.InsertStream(vMS, FStyle, HC_FileVersionInt)
   finally

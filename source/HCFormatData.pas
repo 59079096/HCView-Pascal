@@ -35,7 +35,7 @@ type
     FFormatEndBottom,
     FLastFormatParaNo: Integer;
     /// <summary> 数量变化影响分页各页对应的起始结束DrawItemNo需要重新格式化 </summary>
-    FFormatDrawItemChange,
+    FFormatDrawItemCountChange,
     FFormatHeightChange: Boolean;
     procedure FormatRange(const AStartDrawItemNo, ALastItemNo: Integer);
 
@@ -63,7 +63,7 @@ type
     /// <param name="AOffset">指定位置</param>
     /// <param name="ANextWhenMid">如果此位置前后的DrawItem正好分行，True：后一个DrawItem前面，False：前一个后面</param>
     procedure ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
-      const ANextWhenMid: Boolean = False); overload;
+      const ANextWhenMid: Boolean = False); overload; virtual;
 
     /// <summary> 当前Item对应的格式化起始Item和结束Item(段最后一个Item) </summary>
     /// <param name="AFirstItemNo">起始ItemNo</param>
@@ -101,8 +101,8 @@ type
     procedure EndFormat(const AReformat: Boolean = True);
     property Width: Cardinal read FWidth write FWidth;
     property FormatStartDrawItemNo: Integer read FFormatStartDrawItemNo;
-    property FormatHeightChange: Boolean read FFormatHeightChange write FFormatHeightChange;
-    property FormatDrawItemChange: Boolean read FFormatDrawItemChange write FFormatDrawItemChange;
+    property FormatHeightChange: Boolean read FFormatHeightChange;
+    property FormatDrawItemCountChange: Boolean read FFormatDrawItemCountChange;
   end;
 
 implementation
@@ -263,7 +263,7 @@ end;
 procedure THCFormatData.FormatInit;
 begin
   FFormatHeightChange := False;
-  FFormatDrawItemChange := False;
+  FFormatDrawItemCountChange := False;
   FFormatStartTop := 0;
   FFormatEndBottom := 0;
   FFormatStartDrawItemNo := -1;
@@ -1104,9 +1104,9 @@ begin
   else
     vLastItemNo := ALastItemNo;
 
-  vDrawItemCount := DrawItems.Count;
+  vDrawItemCount := DrawItems.Count;  // 格式化前的DrawItem数量
   FormatRange(AFirstDrawItemNo, vLastItemNo);  // 格式化指定范围内的Item
-  FFormatDrawItemChange := DrawItems.Count <> vDrawItemCount;
+  FFormatDrawItemCountChange := DrawItems.Count <> vDrawItemCount;  // 格式化前后DrawItem数量有变化
 
   // 计算格式化后段的底部位置变化
   vLastDrawItemNo := GetItemLastDrawItemNo(vLastItemNo);
@@ -1121,7 +1121,7 @@ begin
     vLastItemNo := -1;
     for i := vLastDrawItemNo + 1 to DrawItems.Count - 1 do  // 从格式化变动段的下一段开始
     begin
-      if AExtraItemCount <> 0 then  // 将ItemNo的增量传递给后面的DrawItem
+      if (AExtraItemCount <> 0) or FFormatDrawItemCountChange then  // 将ItemNo的增量传递给后面的DrawItem
       begin
         // 处理格式化后面各DrawItem对应的ItemNo偏移
         DrawItems[i].ItemNo := DrawItems[i].ItemNo + AExtraItemCount;

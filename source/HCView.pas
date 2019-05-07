@@ -1697,17 +1697,17 @@ end;
 
 function THCView.GetShowLineActiveMark: Boolean;
 begin
-  Result := FSections[0].PageData.ShowLineActiveMark;
+  Result := FSections[0].Page.ShowLineActiveMark;
 end;
 
 function THCView.GetShowLineNo: Boolean;
 begin
-  Result := FSections[0].PageData.ShowLineNo;
+  Result := FSections[0].Page.ShowLineNo;
 end;
 
 function THCView.GetShowUnderLine: Boolean;
 begin
-  Result := FSections[0].PageData.ShowUnderLine;
+  Result := FSections[0].Page.ShowUnderLine;
 end;
 
 function THCView.GetSymmetryMargin: Boolean;
@@ -1818,7 +1818,7 @@ begin
               // 不循环，只插入第一节的正文
               vSection.LoadFromStream(AStream, vStyle, AFileVersion);
               vDataStream.Clear;
-              vSection.PageData.SaveToStream(vDataStream);
+              vSection.Page.SaveToStream(vDataStream);
               vDataStream.Position := 0;
               vDataStream.ReadBuffer(vShowUnderLine, SizeOf(vShowUnderLine));
               vResult := ActiveSection.InsertStream(vDataStream, vStyle, AFileVersion);  // 只插入第一节的数据
@@ -2051,8 +2051,8 @@ begin
     FUndoList.SaveState;
     try
       FUndoList.Enable := False;
-
       Self.Clear;
+
       AStream.Position := 0;
       DoLoadFromStream(AStream, FStyle, procedure(const AFileVersion: Word)
         var
@@ -2623,7 +2623,7 @@ begin
             vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);  // 4961
             vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);  // 7016
 
-            if FSections[vSectionIndex].PageData.DataAnnotates.Count > 0 then
+            if FSections[vSectionIndex].Page.DataAnnotates.Count > 0 then
             begin
               vPaintInfo.ScaleX := vPrintWidth / (FSections[vSectionIndex].PaperWidthPix + AnnotationWidth);
               vPaintInfo.ScaleY := vPrintHeight / (FSections[vSectionIndex].PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
@@ -2710,7 +2710,7 @@ begin
     vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);
     vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);
 
-    if Self.ActiveSection.PageData.DataAnnotates.Count > 0 then
+    if Self.ActiveSection.Page.DataAnnotates.Count > 0 then
     begin
       vPaintInfo.ScaleX := vPrintWidth / (Self.ActiveSection.PaperWidthPix + AnnotationWidth);
       vPaintInfo.ScaleY := vPrintHeight / (Self.ActiveSection.PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
@@ -2740,7 +2740,7 @@ begin
           Self.ActiveSection.PaintPage(Self.ActiveSection.ActivePageIndex,
             vPrintOffsetX, vPrintOffsetY, vPrintCanvas, vPaintInfo);
 
-          if Self.ActiveSection.ActiveData = Self.ActiveSection.PageData then
+          if Self.ActiveSection.ActiveData = Self.ActiveSection.Page then
           begin
             vPt := Self.ActiveSection.GetActiveDrawItemCoord;
             vPt.Y := vPt.Y - ActiveSection.GetPageDataFmtTop(Self.ActiveSection.ActivePageIndex);
@@ -2822,7 +2822,7 @@ begin
     vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);
     vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);
 
-    if Self.ActiveSection.PageData.DataAnnotates.Count > 0 then
+    if Self.ActiveSection.Page.DataAnnotates.Count > 0 then
     begin
       vPaintInfo.ScaleX := vPrintWidth / (Self.ActiveSection.PaperWidthPix + AnnotationWidth);
       vPaintInfo.ScaleY := vPrintHeight / (Self.ActiveSection.PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
@@ -2852,7 +2852,7 @@ begin
           Self.ActiveSection.PaintPage(Self.ActiveSection.ActivePageIndex,
             vPrintOffsetX, vPrintOffsetY, vPrintCanvas, vPaintInfo);
 
-          if Self.ActiveSection.ActiveData = Self.ActiveSection.PageData then
+          if Self.ActiveSection.ActiveData = Self.ActiveSection.Page then
           begin
             vData := Self.ActiveSection.ActiveData;
             vDrawItemNo := vData.GetDrawItemNoByOffset(AStartItemNo, AStartOffset);
@@ -3553,7 +3553,7 @@ var
   i: Integer;
 begin
   for i := 0 to FSections.Count - 1 do
-    FSections[i].PageData.ShowLineActiveMark := Value;
+    FSections[i].Page.ShowLineActiveMark := Value;
 
   UpdateView;
 end;
@@ -3563,7 +3563,7 @@ var
   i: Integer;
 begin
   for i := 0 to FSections.Count - 1 do
-    FSections[i].PageData.ShowLineNo := Value;
+    FSections[i].Page.ShowLineNo := Value;
 
   UpdateView;
 end;
@@ -3573,7 +3573,7 @@ var
   i: Integer;
 begin
   for i := 0 to FSections.Count - 1 do
-    FSections[i].PageData.ShowUnderLine := Value;
+    FSections[i].Page.ShowUnderLine := Value;
 
   UpdateView;
 end;

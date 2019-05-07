@@ -34,9 +34,12 @@ type
     FFormatStartTop,
     FFormatEndBottom,
     FLastFormatParaNo: Integer;
-    /// <summary> 数量变化影响分页各页对应的起始结束DrawItemNo需要重新格式化 </summary>
-    FFormatDrawItemCountChange,
+    /// <summary> 当次格式化DrawItem数量是否发生变化 </summary>
+    FFormatDrawItemCountChange: Boolean;
+    /// <summary> 当次格式化Data高度是否发生变化 </summary>
     FFormatHeightChange: Boolean;
+    /// <summary> 多次格式化是否有变动，外部由此决定是否重新计算分页起始结束DrawItemNo </summary>
+    FFormatChange: Boolean;
     procedure FormatRange(const AStartDrawItemNo, ALastItemNo: Integer);
 
     procedure CalcItemFormatHeigh(const AItem: THCCustomItem);
@@ -103,6 +106,7 @@ type
     property FormatStartDrawItemNo: Integer read FFormatStartDrawItemNo;
     property FormatHeightChange: Boolean read FFormatHeightChange;
     property FormatDrawItemCountChange: Boolean read FFormatDrawItemCountChange;
+    property FormatChange: Boolean read FFormatChange write FFormatChange;
   end;
 
 implementation
@@ -142,6 +146,7 @@ constructor THCFormatData.Create(const AStyle: THCStyle);
 begin
   inherited Create(AStyle);
   FFormatCount := 0;
+  FFormatChange := False;
   FormatInit;
 end;
 
@@ -1116,8 +1121,9 @@ begin
     FFormatHeightChange := (DrawItems[AFirstDrawItemNo].Rect.Top <> FFormatStartTop)  // 段格式化后，高度的增量
                         or (DrawItems[vLastDrawItemNo].Rect.Bottom <> FFormatEndBottom);
 
-  if FFormatHeightChange or (AExtraItemCount <> 0) then
+  if FFormatHeightChange or FFormatDrawItemCountChange or (AExtraItemCount <> 0) then
   begin
+    FFormatChange := True;
     vLastItemNo := -1;
     for i := vLastDrawItemNo + 1 to DrawItems.Count - 1 do  // 从格式化变动段的下一段开始
     begin

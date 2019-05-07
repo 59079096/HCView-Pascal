@@ -429,6 +429,11 @@ var
           begin
             if Result > 0 then
               Dec(Result);
+          end
+          else
+          begin
+            if Result < Items.Count - 1 then
+              Inc(Result);
           end;
         end;
 

@@ -2647,7 +2647,7 @@ begin
           try
             vPaintInfo.PageIndex := APages[i];
 
-            FSections[vSectionIndex].PaintPage(APages[i], vPrintOffsetX, vPrintOffsetY,
+            FSections[vSectionIndex].PaintPaper(APages[i], vPrintOffsetX, vPrintOffsetY,
               vPrintCanvas, vPaintInfo);
 
             if i < High(APages) then
@@ -2737,7 +2737,7 @@ begin
 
         vScaleInfo := vPaintInfo.ScaleCanvas(vPrintCanvas);
         try
-          Self.ActiveSection.PaintPage(Self.ActiveSection.ActivePageIndex,
+          Self.ActiveSection.PaintPaper(Self.ActiveSection.ActivePageIndex,
             vPrintOffsetX, vPrintOffsetY, vPrintCanvas, vPaintInfo);
 
           if Self.ActiveSection.ActiveData = Self.ActiveSection.Page then
@@ -2849,7 +2849,7 @@ begin
 
         vScaleInfo := vPaintInfo.ScaleCanvas(vPrintCanvas);
         try
-          Self.ActiveSection.PaintPage(Self.ActiveSection.ActivePageIndex,
+          Self.ActiveSection.PaintPaper(Self.ActiveSection.ActivePageIndex,
             vPrintOffsetX, vPrintOffsetY, vPrintCanvas, vPaintInfo);
 
           if Self.ActiveSection.ActiveData = Self.ActiveSection.Page then
@@ -3256,7 +3256,7 @@ begin
           vPaintInfo.WindowWidth := FSections[i].PaperWidthPix;
           vPaintInfo.WindowHeight := FSections[i].PaperHeightPix;
 
-          FSections[i].PaintPage(j, 0, 0, vPDF.VCLCanvas, vPaintInfo);
+          FSections[i].PaintPaper(j, 0, 0, vPDF.VCLCanvas, vPaintInfo);
         end;
       end;
     finally
@@ -3856,7 +3856,7 @@ begin
             vPaintInfo.SectionIndex := i;
 
             vOffsetY := ZoomOut(FVScrollBar.Position) - GetSectionTopFilm(i);  // 转为原始Y向偏移
-            FSections[i].PaintDisplayPage(GetSectionDrawLeft(i) - ZoomOut(FHScrollBar.Position),  // 原始X向偏移
+            FSections[i].PaintDisplayPaper(GetSectionDrawLeft(i) - ZoomOut(FHScrollBar.Position),  // 原始X向偏移
               vOffsetY, FDataBmp.Canvas, vPaintInfo);
           end;
 

@@ -3970,6 +3970,9 @@ var
           if vCurItem.Length = 0 then  // 当前是空行
           begin
             FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+            Undo_New;
+            UndoAction_DeleteItem(vCurItemNo, 0);
             Items.Delete(vCurItemNo);
             ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - 1, -1);
           end
@@ -4210,7 +4213,23 @@ var
 
             ReSetSelectAndCaret(SelectInfo.StartItemNo - 1, vLen);
           end
-          else  // 段起始且不能和上一个合并
+          else  // 段前删除且段第一个Item不能和上一段最后Item合并
+          if (Items[SelectInfo.StartItemNo - 1].StyleNo > THCStyle.Null)
+            and (Items[SelectInfo.StartItemNo - 1].Text = '')  // 上一段是空段
+          then
+          begin
+            vFormatFirstDrawItemNo := GetFormatFirstDrawItem(SelectInfo.StartItemNo - 1, vLen);
+            FormatPrepare(vFormatFirstDrawItemNo, SelectInfo.StartItemNo);
+
+            Undo_New;
+            UndoAction_DeleteItem(SelectInfo.StartItemNo - 1, 0);
+            Items.Delete(SelectInfo.StartItemNo - 1);
+
+            ReFormatData(vFormatFirstDrawItemNo, SelectInfo.StartItemNo - 1, -1);
+
+            ReSetSelectAndCaret(SelectInfo.StartItemNo - 1, 0);
+          end
+          else
           begin
             if vCurItem.Length = 0 then  // 已经没有内容了(不是第1个Item，说明是空行)
             begin
@@ -4225,7 +4244,7 @@ var
 
               ReSetSelectAndCaret(SelectInfo.StartItemNo - 1);
             end
-            else  // 段前删除且段第一个Item不能和上一段最后Item合并
+            else  // 段前删除且段第一个Item不能和上一段最后Item合并，上一段不是空行
             begin
               vFormatFirstDrawItemNo := GetFormatFirstDrawItem(SelectInfo.StartItemNo - 1, GetItemOffsetAfter(SelectInfo.StartItemNo - 1));
               vFormatLastItemNo := GetParaLastItemNo(SelectInfo.StartItemNo);

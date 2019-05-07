@@ -226,7 +226,7 @@ type
     /// <summary> 直接设置当前TextItem的Text值 </summary>
     procedure SetActiveItemText(const AText: string);
 
-    procedure PaintDisplayPage(const AFilmOffsetX, AFilmOffsetY: Integer;
+    procedure PaintDisplayPaper(const AFilmOffsetX, AFilmOffsetY: Integer;
       const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 
     procedure KeyPress(var Key: Char);
@@ -292,7 +292,7 @@ type
     /// <param name="ALeft">绘制X偏移</param>
     /// <param name="ATop">绘制Y偏移</param>
     /// <param name="ACanvas"></param>
-    procedure PaintPage(const APageIndex, ALeft, ATop: Integer;
+    procedure PaintPaper(const APageIndex, ALeft, ATop: Integer;
       const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure Clear; virtual;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -1473,8 +1473,10 @@ begin
 
   Result := AFunction;  // 处理变动
 
-  if FActiveData.FormatHeightChange or FActiveData.FormatDrawItemCountChange then  // 数据高度变化了
+  if FActiveData.FormatChange then  // 数据高度变化了
   begin
+    FActiveData.FormatChange := False;
+
     if FActiveData = FPage then
       BuildSectionPages(FActiveData.FormatStartDrawItemNo)
     else
@@ -1912,7 +1914,7 @@ begin
   end;
 end;
 
-procedure THCCustomSection.PaintDisplayPage(const AFilmOffsetX, AFilmOffsetY: Integer;
+procedure THCCustomSection.PaintDisplayPaper(const AFilmOffsetX, AFilmOffsetY: Integer;
   const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 var
   i, vPaperDrawTop, vPaperFilmTop: Integer;
@@ -1928,11 +1930,11 @@ begin
       vPaperFilmTop := GetPageTop(i);
 
     vPaperDrawTop := vPaperFilmTop - AFilmOffsetY;  // 映射到当前页面为原点的屏显起始位置(可为负数)
-    PaintPage(i, AFilmOffsetX, vPaperDrawTop, ACanvas, APaintInfo);
+    PaintPaper(i, AFilmOffsetX, vPaperDrawTop, ACanvas, APaintInfo);
   end;
 end;
 
-procedure THCCustomSection.PaintPage(const APageIndex, ALeft, ATop: Integer;
+procedure THCCustomSection.PaintPaper(const APageIndex, ALeft, ATop: Integer;
   const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 var
   vHeaderAreaHeight, vMarginLeft, vMarginRight,
@@ -1989,7 +1991,7 @@ var
   {$ENDREGION}
 
   {$REGION ' 绘制页面数据 '}
-  procedure PaintPageData;
+  procedure PaintPage;
   var
     vDCState: Integer;
   begin
@@ -2231,7 +2233,7 @@ begin
       APaintInfo.GetScaleY(Min(vPageDrawBottom, vPageDataScreenBottom)) + 1);
     try
       SelectClipRgn(ACanvas.Handle, vPaintRegion);  // 设置绘制有效区域
-      PaintPageData;
+      PaintPage;
     finally
       DeleteObject(vPaintRegion);
     end;

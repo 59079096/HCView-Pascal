@@ -207,9 +207,6 @@ type
     procedure GetSectionByCrood(const X, Y: Integer; var ASectionIndex: Integer);
     procedure SetZoom(const Value: Single);
 
-    /// <summary> 删除不使用的文本样式 </summary>
-    procedure _DeleteUnUsedStyle(const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
-
     function GetHScrollValue: Integer;
     function GetCurStyleNo: Integer;
     function GetCurParaNo: Integer;
@@ -301,6 +298,10 @@ type
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+
+    /// <summary> 删除不使用的文本样式 </summary>
+    class procedure DeleteUnUsedStyle(const AStyle: THCStyle;
+      const ASections: TObjectList<THCSection>; const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
 
     /// <summary> 重设当前节纸张边距 </summary>
     procedure ResetActiveSectionMargin;
@@ -932,7 +933,7 @@ begin
     try
       _SaveFileFormatAndVersion(vStream);  // 保存文件格式和版本
       DoCopyDataBefor(vStream);  // 通知保存事件
-      _DeleteUnUsedStyle;  // 保存已使用的样式
+      //DeleteUnUsedStyle(FStyle, FSections);  // 删除不使用的样式 大文档有点耗时
       FStyle.SaveToStream(vStream);
       Self.ActiveSectionTopLevelData.SaveSelectToStream(vStream);
       vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
@@ -947,7 +948,7 @@ begin
     finally
       vStream.Free;
     end;
-    
+
     Clipboard.Open;
     try
       Clipboard.Clear;
@@ -1066,6 +1067,59 @@ end;
 procedure THCView.DeleteSelected;
 begin
   ActiveSection.DeleteSelected;
+end;
+
+class procedure THCView.DeleteUnUsedStyle(const AStyle: THCStyle;
+  const ASections: TObjectList<THCSection>; const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
+var
+  i, vUnCount: Integer;
+begin
+  for i := 0 to AStyle.TextStyles.Count - 1 do
+  begin
+    AStyle.TextStyles[i].CheckSaveUsed := False;
+    AStyle.TextStyles[i].TempNo := THCStyle.Null;
+  end;
+  for i := 0 to AStyle.ParaStyles.Count - 1 do
+  begin
+    AStyle.ParaStyles[i].CheckSaveUsed := False;
+    AStyle.ParaStyles[i].TempNo := THCStyle.Null;
+  end;
+
+  for i := 0 to ASections.Count - 1 do
+    ASections[i].MarkStyleUsed(True, AAreas);
+
+  vUnCount := 0;
+  for i := 0 to AStyle.TextStyles.Count - 1 do
+  begin
+    if AStyle.TextStyles[i].CheckSaveUsed then
+      AStyle.TextStyles[i].TempNo := i - vUnCount
+    else
+      Inc(vUnCount);
+  end;
+
+  vUnCount := 0;
+  for i := 0 to AStyle.ParaStyles.Count - 1 do
+  begin
+    if AStyle.ParaStyles[i].CheckSaveUsed then
+      AStyle.ParaStyles[i].TempNo := i - vUnCount
+    else
+      Inc(vUnCount);
+  end;
+
+  for i := 0 to ASections.Count - 1 do
+    ASections[i].MarkStyleUsed(False);
+
+  for i := AStyle.TextStyles.Count - 1 downto 0 do
+  begin
+    if not AStyle.TextStyles[i].CheckSaveUsed then
+      AStyle.TextStyles.Delete(i);
+  end;
+
+  for i := AStyle.ParaStyles.Count - 1 downto 0 do
+  begin
+    if not AStyle.ParaStyles[i].CheckSaveUsed then
+      AStyle.ParaStyles.Delete(i);
+  end;
 end;
 
 destructor THCView.Destroy;
@@ -2040,9 +2094,6 @@ begin
 end;
 
 procedure THCView.LoadFromStream(const AStream: TStream);
-var
-  vByte: Byte;
-  vSection: THCSection;
 begin
   Self.BeginUpdate;
   try
@@ -2057,6 +2108,8 @@ begin
       DoLoadFromStream(AStream, FStyle, procedure(const AFileVersion: Word)
         var
           i: Integer;
+          vByte: Byte;
+          vSection: THCSection;
         begin
           AStream.ReadBuffer(vByte, 1);  // 节数量
           // 各节数据
@@ -3089,58 +3142,6 @@ begin
   DoViewResize;
 end;
 
-procedure THCView._DeleteUnUsedStyle(const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
-var
-  i, vUnCount: Integer;
-begin
-  for i := 0 to FStyle.TextStyles.Count - 1 do
-  begin
-    FStyle.TextStyles[i].CheckSaveUsed := False;
-    FStyle.TextStyles[i].TempNo := THCStyle.Null;
-  end;
-  for i := 0 to FStyle.ParaStyles.Count - 1 do
-  begin
-    FStyle.ParaStyles[i].CheckSaveUsed := False;
-    FStyle.ParaStyles[i].TempNo := THCStyle.Null;
-  end;
-
-  for i := 0 to FSections.Count - 1 do
-    FSections[i].MarkStyleUsed(True, AAreas);
-
-  vUnCount := 0;
-  for i := 0 to FStyle.TextStyles.Count - 1 do
-  begin
-    if FStyle.TextStyles[i].CheckSaveUsed then
-      FStyle.TextStyles[i].TempNo := i - vUnCount
-    else
-      Inc(vUnCount);
-  end;
-
-  vUnCount := 0;
-  for i := 0 to FStyle.ParaStyles.Count - 1 do
-  begin
-    if FStyle.ParaStyles[i].CheckSaveUsed then
-      FStyle.ParaStyles[i].TempNo := i - vUnCount
-    else
-      Inc(vUnCount);
-  end;
-
-  for i := 0 to FSections.Count - 1 do
-    FSections[i].MarkStyleUsed(False);
-
-  for i := FStyle.TextStyles.Count - 1 downto 0 do
-  begin
-    if not FStyle.TextStyles[i].CheckSaveUsed then
-      FStyle.TextStyles.Delete(i);
-  end;
-
-  for i := FStyle.ParaStyles.Count - 1 downto 0 do
-  begin
-    if not FStyle.ParaStyles[i].CheckSaveUsed then
-      FStyle.ParaStyles.Delete(i);
-  end;
-end;
-
 procedure THCView.SaveToDocumentFile(const AFileName, AExt: string);
 begin
   HCViewSaveToDocumentFile(Self, AFileName, AExt);
@@ -3164,7 +3165,8 @@ var
   i: Integer;
   vPath: string;
 begin
-  _DeleteUnUsedStyle([saHeader, saPage, saFooter]);
+  DeleteUnUsedStyle(FStyle, FSections, [saHeader, saPage, saFooter]);
+
   FStyle.GetHtmlFileTempName(True);
   if ASeparateSrc then
     vPath := ExtractFilePath(AFileName)
@@ -3315,7 +3317,7 @@ begin
   DoSaveStreamBefor(AStream);
 
   if not AQuick then
-    _DeleteUnUsedStyle(AAreas);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
+    DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
 
   FStyle.SaveToStream(AStream);
   // 节数量
@@ -3334,7 +3336,7 @@ var
   vNode: IHCXMLNode;
   i: Integer;
 begin
-  _DeleteUnUsedStyle([saHeader, saPage, saFooter]);
+  DeleteUnUsedStyle(FStyle, FSections, [saHeader, saPage, saFooter]);
 
   vXml := THCXMLDocument.Create(nil);
   vXml.Active := True;

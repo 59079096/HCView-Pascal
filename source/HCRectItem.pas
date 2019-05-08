@@ -1126,6 +1126,9 @@ procedure THCTextRectItem.LoadFromStream(const AStream: TStream;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   AStream.ReadBuffer(FTextStyleNo, SizeOf(FTextStyleNo));
+
+  if FTextStyleNo > AStyle.TextStyles.Count - 1 then  // 兼容历史错误(删除多余样式时没有)
+    FTextStyleNo := 0;
 end;
 
 procedure THCTextRectItem.MarkStyleUsed(const AMark: Boolean);

@@ -483,7 +483,7 @@ var
         else}
         begin
           SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-          SelectInfo.StartItemOffset := Items[SelectInfo.StartItemNo].Length;
+          SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
         end;
       end
       else  // 全选中的Item是起始格式化或结束格式化或在段内
@@ -852,7 +852,7 @@ function THCRichData.EmptyDataInsertItem(const AItem: THCCustomItem): Boolean;
 begin
   Result := False;
 
-  if (AItem.StyleNo > THCStyle.Null) and (AItem.Text = '') then Exit;
+  if (AItem.StyleNo > THCStyle.Null) and (AItem.Text = '') then Exit;  // 空行不能再插入空行
 
   UndoAction_DeleteItem(0, 0);
   Items.Clear;
@@ -952,9 +952,7 @@ begin
 
   for i := vAddStartNo to ASrcData.Items.Count - 1 do
   begin
-    if (ASrcData.Items[i].StyleNo < THCStyle.Null)
-      or ((ASrcData.Items[i].StyleNo > THCStyle.Null) and (ASrcData.Items[i].Text <> ''))
-    then
+    if not IsEmptyLine(i) then
     begin
       vItem := CreateItemByStyle(ASrcData.Items[i].StyleNo);
       vItem.Assign(ASrcData.Items[i]);
@@ -1148,17 +1146,12 @@ var
   var
     i, vParaNo: Integer;
   begin
-    if GetItemStyle(AItemNo) < THCStyle.Null then  // 当前是RectItem
-      (Items[AItemNo] as THCCustomRectItem).ApplySelectParaStyle(Self.Style, AMatchStyle)
-    else
+    GetParaItemRang(AItemNo, vFirstNo, vLastNo);
+    vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
+    if GetItemParaStyle(vFirstNo) <> vParaNo then
     begin
-      GetParaItemRang(AItemNo, vFirstNo, vLastNo);
-      vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
-      if GetItemParaStyle(vFirstNo) <> vParaNo then
-      begin
-        for i := vFirstNo to vLastNo do
-          Items[i].ParaNo := vParaNo;
-      end;
+      for i := vFirstNo to vLastNo do
+        Items[i].ParaNo := vParaNo;
     end;
   end;
 
@@ -1185,12 +1178,13 @@ begin
   if SelectInfo.StartItemNo < 0 then Exit;
 
   //vFormatFirstDrawItemNo := GetFormatFirst(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
-  vFormatFirstDrawItemNo := Items[GetParaFirstItemNo(SelectInfo.StartItemNo)].FirstDItemNo;
+
   //GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
   //vFormatFirstItemNo := GetParaFirstItemNo(SelectInfo.StartItemNo);
 
   if SelectInfo.EndItemNo >= 0 then  // 有选中内容
   begin
+    vFormatFirstDrawItemNo := Items[GetParaFirstItemNo(SelectInfo.StartItemNo)].FirstDItemNo;
     vFormatLastItemNo := GetParaLastItemNo(SelectInfo.EndItemNo);
     FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
     ApplyParagraphSelecteStyle;
@@ -1198,10 +1192,23 @@ begin
   end
   else  // 没有选中内容
   begin
-    vFormatLastItemNo := GetParaLastItemNo(SelectInfo.StartItemNo);
-    FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-    DoApplyParagraphStyle(SelectInfo.StartItemNo);  // 应用样式
-    ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+    if (GetItemStyle(SelectInfo.StartItemNo) < THCStyle.Null)
+      and (SelectInfo.StartItemOffset = OffsetInner)
+    then  // 当前是RectItem
+    begin
+      vFormatFirstDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+      FormatPrepare(vFormatFirstDrawItemNo, SelectInfo.StartItemNo);
+      (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ApplySelectParaStyle(Self.Style, AMatchStyle);
+      ReFormatData(vFormatFirstDrawItemNo, SelectInfo.StartItemNo);
+    end
+    else
+    begin
+      vFormatFirstDrawItemNo := Items[GetParaFirstItemNo(SelectInfo.StartItemNo)].FirstDItemNo;
+      vFormatLastItemNo := GetParaLastItemNo(SelectInfo.StartItemNo);
+      FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+      DoApplyParagraphStyle(SelectInfo.StartItemNo);  // 应用样式
+      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+    end;
   end;
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
@@ -1770,7 +1777,7 @@ begin
           end;
         end;}
 
-        if (Items[AIndex].StyleNo > THCStyle.Null) and (Items[AIndex].Text = '') then  // 插入位置处是空行，替换当前
+        if IsEmptyLine(AIndex) then  // 插入位置处是空行，替换当前
         begin
           AItem.ParaFirst := True;
           UndoAction_DeleteItem(AIndex, 0);
@@ -1875,7 +1882,7 @@ begin
       end
       else  // 在Item后面插入，未指定另起一段，在Item后面插入AIndex肯定是大于0
       begin
-        if (Items[AIndex - 1].StyleNo > THCStyle.Null) and (Items[AIndex - 1].Text = '') then  // 在空行后插入不换行，替换空行
+        if IsEmptyLine(AIndex - 1) then  // 在空行后插入不换行，替换空行
         begin
           GetFormatRange(AIndex - 1, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
           FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
@@ -3776,12 +3783,22 @@ var
                 FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
                 Undo_New;
-                UndoAction_ItemParaFirst(SelectInfo.StartItemNo + 1, 0, False);
+                if IsEmptyLine(SelectInfo.StartItemNo + 1) then
+                begin
+                  UndoAction_DeleteItem(SelectInfo.StartItemNo + 1, 0);
+                  Items.Delete(SelectInfo.StartItemNo + 1);
 
-                Items[SelectInfo.StartItemNo + 1].ParaFirst := False;
+                  ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - 1, -1);
+                  //ReSetSelectAndCaret(SelectInfo.StartItemNo, 0);
+                end
+                else
+                begin
+                  UndoAction_ItemParaFirst(SelectInfo.StartItemNo + 1, 0, False);
+                  Items[SelectInfo.StartItemNo + 1].ParaFirst := False;
 
-                ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-                ReSetSelectAndCaret(SelectInfo.StartItemNo + 1, 0);
+                  ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+                  ReSetSelectAndCaret(SelectInfo.StartItemNo + 1, 0);
+                end;
               end
               else
               begin
@@ -4214,9 +4231,7 @@ var
             ReSetSelectAndCaret(SelectInfo.StartItemNo - 1, vLen);
           end
           else  // 段前删除且段第一个Item不能和上一段最后Item合并
-          if (Items[SelectInfo.StartItemNo - 1].StyleNo > THCStyle.Null)
-            and (Items[SelectInfo.StartItemNo - 1].Text = '')  // 上一段是空段
-          then
+          if IsEmptyLine(SelectInfo.StartItemNo - 1) then  // 上一段是空段
           begin
             vFormatFirstDrawItemNo := GetFormatFirstDrawItem(SelectInfo.StartItemNo - 1, vLen);
             FormatPrepare(vFormatFirstDrawItemNo, SelectInfo.StartItemNo);

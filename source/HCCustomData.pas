@@ -309,6 +309,9 @@ type
     /// <returns></returns>
     function IsEmptyData: Boolean;
 
+    /// <summary> 当前Item是不是空行 </summary>
+    function IsEmptyLine(const AItemNo: Integer): Boolean;
+
     /// <summary> 为段应用对齐方式 </summary>
     /// <param name="AAlign">对方方式</param>
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz); virtual;
@@ -860,7 +863,12 @@ end;
 
 function THCCustomData.IsEmptyData: Boolean;
 begin
-  Result := (FItems.Count = 1) and (FItems[0].StyleNo > THCStyle.Null) and (FItems[0].Text = '');
+  Result := (FItems.Count = 1) and IsEmptyLine(0);
+end;
+
+function THCCustomData.IsEmptyLine(const AItemNo: Integer): Boolean;
+begin
+  Result := (FItems[AItemNo].StyleNo > THCStyle.Null) and (Items[AItemNo].Text = '');
 end;
 
 procedure THCCustomData.GetDataDrawItemRang(const ATop,

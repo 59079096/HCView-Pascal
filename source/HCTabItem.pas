@@ -49,10 +49,11 @@ procedure TTabItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  inherited;
+  inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+    ADataScreenBottom, ACanvas, APaintInfo);
   {if SelectComplate then
   begin
-    ACanvas.Brush.Color := GStyle.SelColor;
+    ACanvas.Brush.Color := clRed;
     ACanvas.FillRect(ADrawRect);
   end;}
 end;

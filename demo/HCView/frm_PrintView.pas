@@ -523,7 +523,7 @@ begin
     vScaleInfo := vPaintInfo.ScaleCanvas(FBitmap.Canvas);
     try
       vPaintInfo.PageIndex := vSectionPageIndex;
-      FHCView.Sections[vSection].PaintPage(vSectionPageIndex, 0, 0,
+      FHCView.Sections[vSection].PaintPaper(vSectionPageIndex, 0, 0,
         FBitmap.Canvas, vPaintInfo);
 
       {for i := 0 to vPaintInfo.TopItems.Count - 1 do  // ªÊ÷∆∂•≤„Item

@@ -1145,8 +1145,8 @@ begin
           end;
 
         2: FHCView.SaveToXML(vDlg.FileName, TEncoding.UTF8);  // xml
-      else
-        FHCView.SaveToDocumentFile(vDlg.FileName, vExt)
+
+        3: FHCView.SaveToDocumentFile(vDlg.FileName, vExt)
       end;
     end;
   finally

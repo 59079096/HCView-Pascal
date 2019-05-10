@@ -45,7 +45,7 @@ type
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
-
+    /// <summary> 获取指定位置所在的域信息 </summary>
     procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;

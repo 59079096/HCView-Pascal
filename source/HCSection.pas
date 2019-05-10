@@ -348,7 +348,7 @@ type
       const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
     function SaveToText: string;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word);
+      const AFileVersion: Word; const ANatural: Boolean = False);
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean;
     procedure FormatData;
@@ -1583,7 +1583,7 @@ begin
 end;
 
 procedure THCCustomSection.LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-  const AFileVersion: Word);
+  const AFileVersion: Word; const ANatural: Boolean = False);
 var
   vDataSize: Int64;
   vArea: Boolean;
@@ -1630,7 +1630,8 @@ begin
   if saPage in vLoadParts then
     FPage.LoadFromStream(AStream, FStyle, AFileVersion);
 
-  BuildSectionPages(0);
+  if not ANatural then
+    BuildSectionPages(0);
 end;
 
 procedure THCCustomSection.MarkStyleUsed(const AMark: Boolean;

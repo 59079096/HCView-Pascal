@@ -176,7 +176,7 @@ type
 
   THCDomainItem = class(THCCustomRectItem)  // 域
   private
-    FLevel: Byte;
+    FLevel: Byte;  // 域嵌套层级关系，最外为0，其内为1
     FMarkType: TMarkType;
   protected
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;

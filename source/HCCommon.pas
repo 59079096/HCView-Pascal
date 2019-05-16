@@ -29,6 +29,9 @@ const
   HCS_EXCEPTION_VOIDSOURCECELL = HC_EXCEPTION + '源单元格无法再获取源单元格！';
   HCS_EXCEPTION_TIMERRESOURCEOUTOF = HC_EXCEPTION + '安装计时器的资源不足！';
 
+  DMPAPER_HC_16K = -1000;
+  HC_EXT_DOCX = '.docx';
+
   HC_EXT = '.hcf';
   HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++, 4:HTML5
 
@@ -463,6 +466,7 @@ begin
     DMPAPER_A4: Result := 'A4';
     DMPAPER_A5: Result := 'A5';
     DMPAPER_B5: Result := 'B5';
+    DMPAPER_HC_16K: Result := '16K';
   else
     Result := '自定义';
   end;

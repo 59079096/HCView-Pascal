@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  Printers, Clipbrd, HCRuler, System.Actions, System.ImageList;
+  HCPrinters, Clipbrd, HCRuler, System.Actions, System.ImageList;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -495,7 +495,7 @@ begin
   try
     vPrintDlg.MaxPage := FHCView.PageCount;
     if vPrintDlg.Execute then
-      FHCView.Print(Printer.Printers[Printer.PrinterIndex]);
+      FHCView.Print(HCPrinter.Printers[HCPrinter.PrinterIndex]);
   finally
     FreeAndNil(vPrintDlg);
   end;
@@ -1298,12 +1298,12 @@ begin
   begin
     vDlg := TSaveDialog.Create(Self);
     try
-      vDlg.Filter := '支持的文件|*' + HC_EXT + '; *.xml; *.docx|HCView (*.hcf)|*' + HC_EXT + '|HCView xml (*.xml)|*.xml|Word 2007 Document (*.docx)|*.docx';
+      vDlg.Filter := 'HCView (*.hcf)|*' + HC_EXT + '|HCView xml (*.xml)|*.xml|Word 2007 Document (*.docx)|*.docx';
       vDlg.Execute;
       if vDlg.FileName <> '' then
       begin
         case vDlg.FilterIndex of
-          0:
+          1:
             begin
               if ExtractFileExt(vDlg.FileName) <> HC_EXT then
                 vDlg.FileName := vDlg.FileName + HC_EXT;
@@ -1313,12 +1313,22 @@ begin
               Result := True;
             end;
 
-          1:
+          2:
             begin
               if LowerCase(ExtractFileExt(vDlg.FileName)) <> '.xml' then
                 vDlg.FileName := vDlg.FileName + '.xml';
 
               FHCView.SaveToXml(vDlg.FileName, TEncoding.Unicode);
+              FHCView.IsChanged := False;
+              Result := True;
+            end;
+
+          3:  // .docx
+            begin
+              if LowerCase(ExtractFileExt(vDlg.FileName)) <> HC_EXT_DOCX then
+                vDlg.FileName := vDlg.FileName + HC_EXT_DOCX;
+
+              FHCView.SaveToDocumentFile(vDlg.FileName, HC_EXT_DOCX);
               FHCView.IsChanged := False;
               Result := True;
             end;

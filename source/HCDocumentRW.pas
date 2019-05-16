@@ -36,7 +36,6 @@ uses
   SysUtils, HCDocxRW;
 
 const
-  HC_EXT_DOCX = '.docx';
   HCS_EXCEPTION_UNSUPPORTFILE = HC_EXCEPTION + '不支持的文件格式！';
 
 procedure HCViewLoadFromDocumentFile(const AHCView: THCView; const AFileName: string; const AExt: string);

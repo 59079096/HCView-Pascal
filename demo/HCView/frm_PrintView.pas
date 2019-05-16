@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, Dialogs,
-  ExtCtrls, StdCtrls, Printers, HCView, HCGridView, HCSection, HCItem, ComCtrls, Buttons;
+  ExtCtrls, StdCtrls, HCPrinters, HCView, HCGridView, HCSection, HCItem, ComCtrls, Buttons;
 
 type
   TfrmPrintView = class(TForm)
@@ -366,8 +366,8 @@ procedure TfrmPrintView.FormShow(Sender: TObject);
 begin
   Width := 850;
   Height := 810;
-  cbbPrinter.Items.Assign(Printer.Printers);
-  cbbPrinter.ItemIndex := Printer.PrinterIndex;
+  cbbPrinter.Items.Assign(HCPrinter.Printers);
+  cbbPrinter.ItemIndex := HCPrinter.PrinterIndex;
 
   CreateToolTips(edtPrintPageNos.Handle);
   AddToolTip(edtPrintPageNos.Handle, @FToolInfo, 1, '单页以英文逗号“,”分隔如：1,4,6,8' + #13 +

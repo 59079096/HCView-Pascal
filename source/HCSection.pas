@@ -177,7 +177,6 @@ type
     procedure SetPaperMarginLeft(const Value: Single);
     procedure SetPaperMarginRight(const Value: Single);
     procedure SetPaperMarginBottom(const Value: Single);
-    procedure SetPaperOrientation(const Value: TPaperOrientation);
 
     function GetPaperWidthPix: Integer;
     function GetPaperHeightPix: Integer;
@@ -367,7 +366,7 @@ type
     property PaperMarginLeft: Single read GetPaperMarginLeft write SetPaperMarginLeft;
     property PaperMarginRight: Single read GetPaperMarginRight write SetPaperMarginRight;
     property PaperMarginBottom: Single read GetPaperMarginBottom write SetPaperMarginBottom;
-    property PaperOrientation: TPaperOrientation read FPaperOrientation write SetPaperOrientation;
+    property PaperOrientation: TPaperOrientation read FPaperOrientation write FPaperOrientation;
     //
     property PaperWidthPix: Integer read GetPaperWidthPix;
     property PaperHeightPix: Integer read GetPaperHeightPix;
@@ -2684,20 +2683,6 @@ begin
     FHeaderOffset := Value;
     BuildSectionPages(0);
     DoDataChanged(Self);
-  end;
-end;
-
-procedure THCCustomSection.SetPaperOrientation(const Value: TPaperOrientation);
-var
-  vfW: Single;
-begin
-  if FPaperOrientation <> Value then
-  begin
-    FPaperOrientation := Value;
-
-    vfW := FPaper.Width;
-    FPaper.Width := FPaper.Height;
-    FPaper.Height := vfW;
   end;
 end;
 

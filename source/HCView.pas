@@ -558,9 +558,9 @@ type
 
     /// <summary> 获取指定页所在的节和相对此节的页序号 </summary>
     /// <param name="APageIndex">页序号</param>
-    /// <param name="ASectionPageIndex">返回相对所在节的序号</param>
+    /// <param name="ASectionFirstPageIndex">返回节第一页相对所有页的序号</param>
     /// <returns>返回页序号所在的节序号</returns>
-    function GetSectionPageIndexByPageIndex(const APageIndex: Integer; var ASectionPageIndex: Integer): Integer;
+    function GetSectionPageIndexByPageIndex(const APageIndex: Integer; var ASectionFirstPageIndex: Integer): Integer;
 
     // 打印
     /// <summary> 使用默认打印机打印所有页 </summary>
@@ -774,7 +774,7 @@ type
 implementation
 
 uses
-  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml, HCDocumentRW,
+  HCPrinters, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml, HCDocumentRW,
   HCRtfRW, HCUnitConversion;
 
 const
@@ -1721,7 +1721,7 @@ begin
 end;
 
 function THCView.GetSectionPageIndexByPageIndex(const APageIndex: Integer;
-  var ASectionPageIndex: Integer): Integer;
+  var ASectionFirstPageIndex: Integer): Integer;
 var
   i, vPageCount: Integer;
 begin
@@ -1732,7 +1732,7 @@ begin
     if vPageCount + FSections[i].PageCount > APageIndex then
     begin
       Result := i;  // 找到节序号
-      ASectionPageIndex := APageIndex - vPageCount;  // FSections[i].PageCount;
+      ASectionFirstPageIndex := vPageCount;
       Break;
     end
     else
@@ -2633,7 +2633,7 @@ end;
 function THCView.Print(const APrinter: string; const ACopies: Integer;
   const APages: array of Integer): TPrintResult;
 var
-  i, vPageIndex, vSectionIndex, vPrintWidth, vPrintHeight,
+  i, vFirstPageIndex, vSectionIndex, vPrintWidth, vPrintHeight,
   vPrintOffsetX, vPrintOffsetY: Integer;
   vPrintCanvas: TCanvas;
   vPaintInfo: TSectionPaintInfo;
@@ -2642,39 +2642,41 @@ begin
   Result := prError;
 
   if APrinter <> '' then
-    Printer.PrinterIndex := Printer.Printers.IndexOf(APrinter);
+    HCPrinter.PrinterIndex := HCPrinter.Printers.IndexOf(APrinter);
 
-  if Printer.PrinterIndex < 0 then Exit;
+  if HCPrinter.PrinterIndex < 0 then Exit;
 
-  Printer.Title := FFileName;
+  HCPrinter.Title := FFileName;
 
   // 取打印机打印区域相关参数
-  vPrintOffsetX := -GetDeviceCaps(Printer.Handle, PHYSICALOFFSETX);  // 73
-  vPrintOffsetY := -GetDeviceCaps(Printer.Handle, PHYSICALOFFSETY);  // 37
+  vPrintOffsetX := -GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETX);  // 73
+  vPrintOffsetY := -GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETY);  // 37
 
-  Printer.Copies := ACopies;
+  HCPrinter.Copies := ACopies;
 
   vPaintInfo := TSectionPaintInfo.Create;
   try
     vPaintInfo.Print := True;
 
-    Printer.BeginDoc;
+    HCPrinter.BeginDoc(False);
     try
       vPrintCanvas := TCanvas.Create;
       try
-        vPrintCanvas.Handle := Printer.Canvas.Handle;  // 为什么不用vPrintCanvas中介打印就不行呢？
+        vPrintCanvas.Handle := HCPrinter.Canvas.Handle;  // 为什么不用vPrintCanvas中介打印就不行呢？
 
         for i := Low(APages) to High(APages) do
         begin
           // 根据页码获取起始节和结束节
-          vSectionIndex := GetSectionPageIndexByPageIndex(APages[i], vPageIndex);
+          vSectionIndex := GetSectionPageIndexByPageIndex(APages[i], vFirstPageIndex);
           if vPaintInfo.SectionIndex <> vSectionIndex then
           begin
             vPaintInfo.SectionIndex := vSectionIndex;
-            SetPrintBySectionInfo(vSectionIndex);
 
-            vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);  // 4961
-            vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);  // 7016
+            SetPrintBySectionInfo(vSectionIndex);
+            HCPrinter.NewPage(False);
+
+            vPrintWidth := GetDeviceCaps(HCPrinter.Handle, PHYSICALWIDTH);  // 4961
+            vPrintHeight := GetDeviceCaps(HCPrinter.Handle, PHYSICALHEIGHT);  // 7016
 
             if FSections[vSectionIndex].Page.DataAnnotates.Count > 0 then
             begin
@@ -2684,8 +2686,8 @@ begin
             end
             else
             begin
-              vPaintInfo.ScaleX := vPrintWidth / FSections[vSectionIndex].PaperWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-              vPaintInfo.ScaleY := vPrintHeight / FSections[vSectionIndex].PaperHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+              vPaintInfo.ScaleX := vPrintWidth / FSections[vSectionIndex].PaperWidthPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
+              vPaintInfo.ScaleY := vPrintHeight / FSections[vSectionIndex].PaperHeightPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
               vPaintInfo.Zoom := 1;
             end;
 
@@ -2694,17 +2696,18 @@ begin
 
             vPrintOffsetX := Round(vPrintOffsetX / vPaintInfo.ScaleX);
             vPrintOffsetY := Round(vPrintOffsetY / vPaintInfo.ScaleY);
-          end;
+          end
+          else
+            HCPrinter.NewPage(False);
 
           vScaleInfo := vPaintInfo.ScaleCanvas(vPrintCanvas);
           try
             vPaintInfo.PageIndex := APages[i];
 
-            FSections[vSectionIndex].PaintPaper(APages[i], vPrintOffsetX, vPrintOffsetY,
-              vPrintCanvas, vPaintInfo);
+            FSections[vSectionIndex].PaintPaper(APages[i] - vFirstPageIndex,
+              vPrintOffsetX, vPrintOffsetY, vPrintCanvas, vPaintInfo);
 
-            if i < High(APages) then
-              Printer.NewPage;
+            HCPrinter.EndPage;
           finally
             vPaintInfo.RestoreCanvasScale(vPrintCanvas, vScaleInfo);
           end;
@@ -2714,7 +2717,8 @@ begin
         vPrintCanvas.Free;
       end;
     finally
-      Printer.EndDoc;
+      if HCPrinter.Printing then
+        HCPrinter.EndDoc;
     end;
   finally
     vPaintInfo.Free;
@@ -2749,8 +2753,8 @@ var
 begin
   Result := TPrintResult.prError;
 
-  vPrintOffsetX := GetDeviceCaps(Printer.Handle, PHYSICALOFFSETX);  // 90
-  vPrintOffsetY := GetDeviceCaps(Printer.Handle, PHYSICALOFFSETY);  // 99
+  vPrintOffsetX := GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETX);  // 90
+  vPrintOffsetY := GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETY);  // 99
 
   vPaintInfo := TSectionPaintInfo.Create;
   try
@@ -2760,8 +2764,8 @@ begin
 
     SetPrintBySectionInfo(Self.ActiveSectionIndex);
 
-    vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);
-    vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);
+    vPrintWidth := GetDeviceCaps(HCPrinter.Handle, PHYSICALWIDTH);
+    vPrintHeight := GetDeviceCaps(HCPrinter.Handle, PHYSICALHEIGHT);
 
     if Self.ActiveSection.Page.DataAnnotates.Count > 0 then
     begin
@@ -2771,8 +2775,8 @@ begin
     end
     else
     begin
-      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PaperWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PaperHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PaperWidthPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
+      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PaperHeightPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
       vPaintInfo.Zoom := 1;
     end;
 
@@ -2782,11 +2786,11 @@ begin
     vPrintOffsetX := Round(vPrintOffsetX / vPaintInfo.ScaleX);
     vPrintOffsetY := Round(vPrintOffsetY / vPaintInfo.ScaleY);
 
-    Printer.BeginDoc;
+    HCPrinter.BeginDoc;
     try
       vPrintCanvas := TCanvas.Create;
       try
-        vPrintCanvas.Handle := Printer.Canvas.Handle;  // 为什么不用vPageCanvas中介打印就不行呢？
+        vPrintCanvas.Handle := HCPrinter.Canvas.Handle;  // 为什么不用vPageCanvas中介打印就不行呢？
 
         vScaleInfo := vPaintInfo.ScaleCanvas(vPrintCanvas);
         try
@@ -2837,7 +2841,7 @@ begin
         vPrintCanvas.Free;
       end;
     finally
-      Printer.EndDoc;
+      HCPrinter.EndDoc;
     end;
   finally
     vPaintInfo.Free;
@@ -2861,8 +2865,8 @@ begin
   // 注意：此方法需要起始Item格式化第一个DrawItem和结束ItemNo格式化最后一个DrawItem在同一页
   Result := TPrintResult.prError;
 
-  vPrintOffsetX := GetDeviceCaps(Printer.Handle, PHYSICALOFFSETX);  // 90
-  vPrintOffsetY := GetDeviceCaps(Printer.Handle, PHYSICALOFFSETY);  // 99
+  vPrintOffsetX := GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETX);  // 90
+  vPrintOffsetY := GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETY);  // 99
 
   vPaintInfo := TSectionPaintInfo.Create;
   try
@@ -2872,8 +2876,8 @@ begin
 
     SetPrintBySectionInfo(Self.ActiveSectionIndex);
 
-    vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);
-    vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);
+    vPrintWidth := GetDeviceCaps(HCPrinter.Handle, PHYSICALWIDTH);
+    vPrintHeight := GetDeviceCaps(HCPrinter.Handle, PHYSICALHEIGHT);
 
     if Self.ActiveSection.Page.DataAnnotates.Count > 0 then
     begin
@@ -2883,8 +2887,8 @@ begin
     end
     else
     begin
-      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PaperWidthPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PaperHeightPix;  // GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PaperWidthPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
+      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PaperHeightPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
       vPaintInfo.Zoom := 1;
     end;
 
@@ -2894,11 +2898,11 @@ begin
     vPrintOffsetX := Round(vPrintOffsetX / vPaintInfo.ScaleX);
     vPrintOffsetY := Round(vPrintOffsetY / vPaintInfo.ScaleY);
 
-    Printer.BeginDoc;
+    HCPrinter.BeginDoc;
     try
       vPrintCanvas := TCanvas.Create;
       try
-        vPrintCanvas.Handle := Printer.Canvas.Handle;  // 为什么不用vPageCanvas中介打印就不行呢？
+        vPrintCanvas.Handle := HCPrinter.Canvas.Handle;  // 为什么不用vPageCanvas中介打印就不行呢？
 
         vScaleInfo := vPaintInfo.ScaleCanvas(vPrintCanvas);
         try
@@ -2924,6 +2928,7 @@ begin
           // "抹"掉不需要显示的地方
           vPrintCanvas.Brush.Color := clWhite;
 
+          // 抹选中内容上面
           if APrintHeader then  // 打印页眉
             vRect := Bounds(vPrintOffsetX + vMarginLeft,
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight,  // 页眉下边
@@ -2934,25 +2939,26 @@ begin
               Self.ActiveSection.GetHeaderAreaHeight + vPt.Y);
           vPrintCanvas.FillRect(vRect);
 
+          // 抹选中内容起始左边
           vRect := Bounds(vPrintOffsetX + vMarginLeft,
             vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y,
-            vData.GetDrawItemOffsetWidth(vDrawItemNo, AStartOffset - vData.DrawItems[vDrawItemNo].CharOffs + 1),
+            vData.DrawItems[vDrawItemNo].Rect.Left + vData.GetDrawItemOffsetWidth(vDrawItemNo, AStartOffset - vData.DrawItems[vDrawItemNo].CharOffs + 1),
             vData.DrawItems[vDrawItemNo].Rect.Height);
           vPrintCanvas.FillRect(vRect);
 
-          //
+          // 抹选中内容结束右边
           vDrawItemNo := vData.GetDrawItemNoByOffset(AEndItemNo, AEndOffset);
           vPt := vData.DrawItems[vDrawItemNo].Rect.TopLeft;
           vPt.Y := vPt.Y - ActiveSection.GetPageDataFmtTop(Self.ActiveSection.ActivePageIndex);
 
-          vRect := Rect(
-            vPrintOffsetX + vMarginLeft +
+          vRect := Rect(vPrintOffsetX + vMarginLeft + vData.DrawItems[vDrawItemNo].Rect.Left +
               vData.GetDrawItemOffsetWidth(vDrawItemNo, AEndOffset - vData.DrawItems[vDrawItemNo].CharOffs + 1),
             vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y,
             vPrintOffsetX + Self.ActiveSection.PaperWidthPix - vMarginRight,
             vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height);
           vPrintCanvas.FillRect(vRect);
 
+          // 抹选中内容下面
           if not APrintFooter then  // 不打印页脚
           begin
             vRect := Rect(vPrintOffsetX + vMarginLeft,
@@ -2968,6 +2974,8 @@ begin
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
               vPrintOffsetX + Self.ActiveSection.PaperWidthPix - vMarginRight,
               vPrintOffsetY + Self.ActiveSection.PaperHeightPix - Self.ActiveSection.PaperMarginBottomPix);
+
+            vPrintCanvas.FillRect(vRect);
           end;
         finally
           vPaintInfo.RestoreCanvasScale(vPrintCanvas, vScaleInfo);
@@ -2977,7 +2985,7 @@ begin
         vPrintCanvas.Free;
       end;
     finally
-      Printer.EndDoc;
+      HCPrinter.EndDoc;
     end;
   finally
     vPaintInfo.Free;
@@ -3511,7 +3519,7 @@ var
   vHDMode: THandle;
   vPDMode: PDevMode;
 begin
-  Printer.GetPrinter(vDevice, vDriver, vPort, vHDMode);
+  HCPrinter.GetPrinter(vDevice, vDriver, vPort, vHDMode);
   if vHDMode <> 0 then
   begin
     // 获取指向DeviceMode的指针
@@ -3519,26 +3527,34 @@ begin
     try
       if vPDMode <> nil then
       begin
-        vPDMode^.dmPaperSize := FSections[ASectionIndex].PaperSize;
-        if vPDMode^.dmPaperSize = DMPAPER_USER then  // 自定义纸张
-        begin
-          //vPDMode^.dmPaperSize := DMPAPER_USER;
-          vPDMode^.dmPaperLength := Round(FSections[ASectionIndex].PaperHeight * 10); //纸长你可用变量获得纸张的长、宽。
-          vPDMode^.dmPaperWidth := Round(FSections[ASectionIndex].PaperWidth * 10);   //纸宽
+        try
+          vPDMode^.dmPaperSize := FSections[ASectionIndex].PaperSize;
+          if vPDMode^.dmPaperSize = DMPAPER_HC_16K then  //  16K等非国际标准纸张认定为自定义纸张
+            vPDMode^.dmPaperSize := DMPAPER_USER;
+
           vPDMode^.dmFields := vPDMode^.dmFields or DM_PAPERSIZE or DM_PAPERLENGTH or DM_PAPERWIDTH;
+
+          if FSections[ASectionIndex].PaperOrientation = TPaperOrientation.cpoPortrait then
+          begin
+            vPDMode^.dmOrientation := DMORIENT_PORTRAIT;
+            vPDMode^.dmPaperLength := Round(FSections[ASectionIndex].PaperHeight * 10); //纸长你可用变量获得纸张的长、宽。
+            vPDMode^.dmPaperWidth := Round(FSections[ASectionIndex].PaperWidth * 10);   //纸宽
+          end
+          else
+          begin
+            vPDMode^.dmOrientation := DMORIENT_LANDSCAPE;
+            vPDMode^.dmPaperLength := Round(FSections[ASectionIndex].PaperWidth * 10); //纸长你可用变量获得纸张的长、宽。
+            vPDMode^.dmPaperWidth := Round(FSections[ASectionIndex].PaperHeight * 10);   //纸宽
+          end;
+        finally
+          ResetDC(HCPrinter.Handle, vPDMode^);
         end;
-
-        if FSections[ASectionIndex].PaperOrientation = TPaperOrientation.cpoPortrait then
-          vPDMode^.dmOrientation := DMORIENT_PORTRAIT
-        else
-          vPDMode^.dmOrientation := DMORIENT_LANDSCAPE;
       end;
-
-      ResetDC(Printer.Handle, vPDMode^);
     finally
       GlobalUnlock(vHDMode);
     end;
-    //Printer.SetPrinter(vDevice, vDriver, vPort, vHDMode);
+    ResetDC(HCPrinter.Handle, vPDMode^);
+    //HCPrinter.SetPrinter(vDevice, vDriver, vPort, vHDMode);
   end;
 end;
 

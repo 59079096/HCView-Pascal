@@ -104,7 +104,7 @@ begin
   FPaperInfos.Append(DMPAPER_A4, 'A4', 210, 297);
   FPaperInfos.Append(DMPAPER_A5, 'A5', 148, 210);
   FPaperInfos.Append(DMPAPER_B5, 'B5', 182, 257);
-  FPaperInfos.Append(DMPAPER_USER, '16K', 195, 271);
+  FPaperInfos.Append(DMPAPER_HC_16K, '16K', 195, 271);
 
   for i := 0 to FPaperInfos.Count - 1 do
     cbbPaper.Items.Add(FPaperInfos[i].SizeName);
@@ -211,8 +211,19 @@ begin
 
   edtWidth.ReadOnly := cbbPaper.ItemIndex > 0;
   edtHeight.ReadOnly := cbbPaper.ItemIndex > 0;
-  edtWidth.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperWidth);
-  edtHeight.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperHeight);
+
+  if AHCView.ActiveSection.PaperOrientation = TPaperOrientation.cpoPortrait then
+  begin
+    cbbPageOrientation.ItemIndex := 0;
+    edtWidth.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperWidth);
+    edtHeight.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperHeight);
+  end
+  else
+  begin
+    cbbPageOrientation.ItemIndex := 1;
+    edtWidth.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperHeight);
+    edtHeight.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperWidth);
+  end;
 
   edtTop.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperMarginTop);
   edtLeft.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperMarginLeft);
@@ -221,10 +232,7 @@ begin
 
   chkSymmetryMargin.Checked := AHCView.ActiveSection.SymmetryMargin;
 
-  if AHCView.ActiveSection.PaperOrientation = TPaperOrientation.cpoPortrait then
-    cbbPageOrientation.ItemIndex := 0
-  else
-    cbbPageOrientation.ItemIndex := 1;
+
 
   chkPageNoVisible.Checked := AHCView.ActiveSection.PageNoVisible;
   chkParaLastMark.Checked := AHCView.Style.ShowParaLastMark;
@@ -240,15 +248,36 @@ begin
       vIndex := GetPaperInfoIndexByName(cbbPaper.Text);
       AHCView.ActiveSection.PaperSize := FPaperInfos[vIndex].Size;
 
+      if cbbPageOrientation.ItemIndex = 0 then  // 纵向
+        AHCView.ActiveSection.PaperOrientation := TPaperOrientation.cpoPortrait
+      else
+        AHCView.ActiveSection.PaperOrientation := TPaperOrientation.cpoLandscape;
+
       if vIndex = 0 then  // 自定义
       begin
-        AHCView.ActiveSection.PaperWidth := StrToFloat(edtWidth.Text);
-        AHCView.ActiveSection.PaperHeight := StrToFloat(edtHeight.Text);
+        if cbbPageOrientation.ItemIndex = 0 then  // 纵向
+        begin
+          AHCView.ActiveSection.PaperWidth := StrToFloat(edtWidth.Text);
+          AHCView.ActiveSection.PaperHeight := StrToFloat(edtHeight.Text);
+        end
+        else
+        begin
+          AHCView.ActiveSection.PaperWidth := StrToFloat(edtHeight.Text);
+          AHCView.ActiveSection.PaperHeight := StrToFloat(edtWidth.Text);
+        end;
       end
       else
       begin
-        AHCView.ActiveSection.PaperWidth := FPaperInfos[vIndex].Width;
-        AHCView.ActiveSection.PaperHeight := FPaperInfos[vIndex].Height;
+        if cbbPageOrientation.ItemIndex = 0 then  // 纵向
+        begin
+          AHCView.ActiveSection.PaperWidth := FPaperInfos[vIndex].Width;
+          AHCView.ActiveSection.PaperHeight := FPaperInfos[vIndex].Height;
+        end
+        else
+        begin
+          AHCView.ActiveSection.PaperWidth := FPaperInfos[vIndex].Height;
+          AHCView.ActiveSection.PaperHeight := FPaperInfos[vIndex].Width;
+        end;
       end;
 
       AHCView.ActiveSection.PaperMarginTop := StrToFloat(edtTop.Text);
@@ -257,11 +286,6 @@ begin
       AHCView.ActiveSection.PaperMarginBottom := StrToFloat(edtBottom.Text);
 
       AHCView.ActiveSection.SymmetryMargin := chkSymmetryMargin.Checked;
-
-      if cbbPageOrientation.ItemIndex = 0 then
-        AHCView.ActiveSection.PaperOrientation := TPaperOrientation.cpoPortrait
-      else
-        AHCView.ActiveSection.PaperOrientation := TPaperOrientation.cpoLandscape;
 
       AHCView.ActiveSection.PageNoVisible := chkPageNoVisible.Checked;
       AHCView.Style.ShowParaLastMark := chkParaLastMark.Checked;

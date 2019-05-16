@@ -2,9 +2,9 @@ object frmPageSet: TfrmPageSet
   Left = 0
   Top = 0
   BorderIcons = [biSystemMenu]
-  BorderStyle = bsToolWindow
+  BorderStyle = bsDialog
   Caption = #39029#38754#35774#32622
-  ClientHeight = 295
+  ClientHeight = 327
   ClientWidth = 387
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -142,8 +142,8 @@ object frmPageSet: TfrmPageSet
     Text = '15'
   end
   object btnOk: TButton
-    Left = 284
-    Top = 250
+    Left = 150
+    Top = 282
     Width = 75
     Height = 25
     Caption = #30830#23450

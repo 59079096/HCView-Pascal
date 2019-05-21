@@ -63,7 +63,8 @@ type
     procedure ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch); virtual;
     /// <summary> RectItem内部Data是否响应了修改样式 </summary>
     procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: THCParaMatch); virtual;
-
+    /// <summary> RectItem内容对齐方式 </summary>
+    procedure ApplyContentAlign(const AAlign: THCContentAlign); virtual;
     // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); virtual;
 
@@ -306,6 +307,10 @@ uses
   SysUtils;
 
 { THCCustomRectItem }
+
+procedure THCCustomRectItem.ApplyContentAlign(const AAlign: THCContentAlign);
+begin
+end;
 
 procedure THCCustomRectItem.ApplySelectParaStyle(const AStyle: THCStyle;
   const AMatchStyle: THCParaMatch);
@@ -1224,7 +1229,7 @@ begin
   Self.StyleNo := THCStyle.Domain;
   FLevel := 0;
   Width := 0;
-  Height := 10;
+  Height := AOwnerData.Style.TextStyles[0].FontHeight;
 end;
 
 procedure THCDomainItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;

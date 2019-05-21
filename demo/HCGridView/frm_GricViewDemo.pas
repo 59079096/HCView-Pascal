@@ -38,9 +38,7 @@ type
     mni6: TMenuItem;
     mniN11: TMenuItem;
     mni7: TMenuItem;
-    mniN16: TMenuItem;
     mniSplitRow: TMenuItem;
-    mniSplitCol: TMenuItem;
     mniN47: TMenuItem;
     mni8: TMenuItem;
     mni9: TMenuItem;
@@ -117,6 +115,15 @@ type
     mniN23: TMenuItem;
     mniExplore: TMenuItem;
     mniN24: TMenuItem;
+    mniAlignTopLeft: TMenuItem;
+    mniAlignTopCenter: TMenuItem;
+    mniAlignTopRight: TMenuItem;
+    mniAlignCenterLeft: TMenuItem;
+    mniAlignCenterCenter: TMenuItem;
+    mniAlignCenterRight: TMenuItem;
+    mniAlignBottomLeft: TMenuItem;
+    mniAlignBottomCenter: TMenuItem;
+    mniAlignBottomRight: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mniMergeClick(Sender: TObject);
@@ -137,7 +144,6 @@ type
     procedure btnBoldClick(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
     procedure mniLS100Click(Sender: TObject);
-    procedure mniLSFixClick(Sender: TObject);
     procedure cbbBackColorChange(Sender: TObject);
     procedure cbbFontColorChange(Sender: TObject);
     procedure btnprintClick(Sender: TObject);
@@ -167,6 +173,7 @@ type
     procedure cbbFontSizeChange(Sender: TObject);
     procedure mniBorderClick(Sender: TObject);
     procedure mniTablePropertyClick(Sender: TObject);
+    procedure mniAlignTopLeftClick(Sender: TObject);
   private
     { Private declarations }
     FGridView: THCGridView;
@@ -185,7 +192,7 @@ var
 implementation
 
 uses
-  Printers, HCTextStyle, HCParaStyle, HCViewData, HCFractionItem, HCExpressItem,
+  HCPrinters, HCTextStyle, HCParaStyle, HCViewData, HCFractionItem, HCExpressItem,
   HCSupSubScriptItem, HCCheckBoxItem, HCEditItem, HCComboboxItem, HCDateTimePicker,
   HCRadioGroup, HCBarCodeItem, HCQRCodeItem, HCTextItem, frm_Annotate, frm_TableProperty,
   frm_TableBorderBackColor, frm_PrintView, frm_Paragraph, frm_ControlItemProperty,
@@ -225,7 +232,7 @@ begin
   vPrintDlg := TPrintDialog.Create(nil);
   try
     if vPrintDlg.Execute then
-      FGridView.Print(Printer.Printers[Printer.PrinterIndex]);
+      FGridView.Print(HCPrinter.Printers[HCPrinter.PrinterIndex]);
   finally
     FreeAndNil(vPrintDlg);
   end;
@@ -612,22 +619,22 @@ begin
   begin
     vDlg := TSaveDialog.Create(Self);
     try
-      vDlg.Filter := '支持的文件|*' + HC_EXT + '; *.xml; *.xlsx|HCGridView (*.hcf)|*' + HC_EXT + '|HCGridView xml (*.xml)|*.xml|Excel 2007 Document (*.xlsx)|*.xlsx';
+      vDlg.Filter := 'HCView (*.hcf)|*' + HC_EXT + '|HCView xml (*.xml)|*.xml';//|Word 2007 Document (*.docx)|*.docx';
       vDlg.Execute;
       if vDlg.FileName <> '' then
       begin
         case vDlg.FilterIndex of
-          0:
+          1:
             begin
               if ExtractFileExt(vDlg.FileName) <> HC_EXT then
                 vDlg.FileName := vDlg.FileName + HC_EXT;
 
-              FGridView.SaveToFile(vDlg.FileName, True);
+              FGridView.SaveToFile(vDlg.FileName);
               FGridView.IsChanged := False;
               Result := True;
             end;
 
-          1:
+          2:
             begin
               if LowerCase(ExtractFileExt(vDlg.FileName)) <> '.xml' then
                 vDlg.FileName := vDlg.FileName + '.xml';
@@ -636,11 +643,36 @@ begin
               FGridView.IsChanged := False;
               Result := True;
             end;
+
+//          3:  // .docx
+//            begin
+//              if LowerCase(ExtractFileExt(vDlg.FileName)) <> HC_EXT_DOCX then
+//                vDlg.FileName := vDlg.FileName + HC_EXT_DOCX;
+//
+//              FGridView.SaveToDocumentFile(vDlg.FileName, HC_EXT_DOCX);
+//              FGridView.IsChanged := False;
+//              Result := True;
+//            end;
         end;
       end;
     finally
       vDlg.Free;
     end;
+  end;
+end;
+
+procedure TfrmGridViewDemo.mniAlignTopLeftClick(Sender: TObject);
+begin
+  case (Sender as TMenuItem).Tag of
+    0: FGridView.ApplyTableCellAlign(THCContentAlign.tcaTopLeft);
+    1: FGridView.ApplyTableCellAlign(THCContentAlign.tcaTopCenter);
+    2: FGridView.ApplyTableCellAlign(THCContentAlign.tcaTopRight);
+    3: FGridView.ApplyTableCellAlign(THCContentAlign.tcaCenterLeft);
+    4: FGridView.ApplyTableCellAlign(THCContentAlign.tcaCenterCenter);
+    5: FGridView.ApplyTableCellAlign(THCContentAlign.tcaCenterRight);
+    6: FGridView.ApplyTableCellAlign(THCContentAlign.tcaBottomLeft);
+    7: FGridView.ApplyTableCellAlign(THCContentAlign.tcaBottomCenter);
+    8: FGridView.ApplyTableCellAlign(THCContentAlign.tcaBottomRight);
   end;
 end;
 
@@ -846,20 +878,8 @@ begin
       1: FGridView.ApplyParaLineSpace(TParaLineSpaceMode.pls115);  // 1.15倍
       2: FGridView.ApplyParaLineSpace(TParaLineSpaceMode.pls150);  // 1.5倍
       3: FGridView.ApplyParaLineSpace(TParaLineSpaceMode.pls200);  // 双倍
+      4: FGridView.ApplyParaLineSpace(TParaLineSpaceMode.plsFix);  // 固定值
     end;
-  end;
-end;
-
-procedure TfrmGridViewDemo.mniLSFixClick(Sender: TObject);
-var
-  vsLineSpace: string;
-  vSpace: Integer;
-begin
-  vsLineSpace := InputBox('行间距', '固定值(>5)', '20');
-  if TryStrToInt(vsLineSpace, vSpace) then
-  begin
-    if vSpace >= 5 then
-      FGridView.ApplyParaLineSpace(TParaLineSpaceMode.plsFix);  // 固定值
   end;
 end;
 

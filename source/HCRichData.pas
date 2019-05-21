@@ -110,6 +110,7 @@ type
     // 选中内容应用样式
     procedure ApplySelectTextStyle(const AMatchStyle: THCStyleMatch); override;
     procedure ApplySelectParaStyle(const AMatchStyle: THCParaMatch); override;
+    procedure ApplyTableCellAlign(const AAlign: THCContentAlign); override;
 
     function DisSelect: Boolean; override;
 
@@ -1142,6 +1143,7 @@ procedure THCRichData.ApplySelectParaStyle(const AMatchStyle: THCParaMatch);
 var
   vFirstNo, vLastNo: Integer;
 
+  {$REGION 'DoApplyParagraphStyle'}
   procedure DoApplyParagraphStyle(const AItemNo: Integer);
   var
     i, vParaNo: Integer;
@@ -1154,7 +1156,9 @@ var
         Items[i].ParaNo := vParaNo;
     end;
   end;
+  {$ENDREGION}
 
+  {$REGION 'ApplyParagraphSelecteStyle'}
   procedure ApplyParagraphSelecteStyle;
   var
     i: Integer;
@@ -1171,6 +1175,7 @@ var
       Inc(i);
     end;
   end;
+  {$ENDREGION}
 
 var
   vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
@@ -1640,6 +1645,17 @@ begin
   Style.UpdateInfoReCaret;
 end;
 
+procedure THCRichData.ApplyTableCellAlign(const AAlign: THCContentAlign);
+begin
+  if not CanEdit then Exit;
+
+  TableInsertRC(function(const AItem: THCCustomItem): Boolean
+    begin
+      (AItem as THCTableItem).ApplyContentAlign(AAlign);
+      Result := True;
+    end);
+end;
+
 function THCRichData.BatchInsert: Boolean;
 begin
   Result := FBatchInsertCount > 0;
@@ -2006,10 +2022,14 @@ begin
   begin
     GetFormatRange(vCurItemNo, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
     FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+    Undo_New;
+    UndoAction_ItemSelf(vCurItemNo, OffsetInner);
     Result := AProc(Items[vCurItemNo]);
     if Result then
     begin
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0);
+      // DisSelect;  // 合并后清空选中，会导致当前ItemNo没有了，通过方法往表格里插入时会出错
       Style.UpdateInfoRePaint;
       Style.UpdateInfoReCaret;
     end;
@@ -2763,6 +2783,11 @@ var
           (vCurItem as THCCustomRectItem).KeyDown(Key, Shift);
           ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
         end;
+      end
+      else
+      begin
+        vTabItem := TTabItem.Create(Self);
+        Self.InsertItem(vTabItem);
       end;
     end
     else  // TextItem
@@ -4068,7 +4093,6 @@ var
         vsDelete := Copy(vText, SelectInfo.StartItemOffset + 1, 1);
 
         Delete(vText, SelectInfo.StartItemOffset + 1, 1);
-        vCurItem.Text := vText;
         DoItemAction(vCurItemNo, SelectInfo.StartItemOffset + 1, hiaDeleteChar);
 
         if vText = '' then  // 删除后没有内容了
@@ -4115,7 +4139,7 @@ var
             else  // 是最后一个Item删除空了
             begin
               // 光标左移
-              //FormatPrepare(vCurItemNo);
+              FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
               Undo_New;
               UndoAction_DeleteItem(vCurItemNo, 0);
@@ -4123,8 +4147,7 @@ var
 
               SelectInfo.StartItemNo := vCurItemNo - 1;
               SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
-              //_ReFormatData(SelectInfo.StartItemNo, SelectInfo.StartItemNo, -1);
-              DrawItems.DeleteFormatMark;
+              ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - 1, -1);
             end;
           end
           else  // 行首Item被删空了
@@ -4157,6 +4180,8 @@ var
         end
         else  // 删除后还有内容
         begin
+          vCurItem.Text := vText;
+
           Undo_New;
           UndoAction_DeleteText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, vsDelete);
 
@@ -4657,29 +4682,13 @@ begin
 end;
 
 function THCRichData.MergeTableSelectCells: Boolean;
-var
-  vItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
-  Result := False;
+  if not CanEdit then Exit(False);
 
-  if not CanEdit then Exit;
-
-  vItemNo := GetActiveItemNo;
-  if Items[vItemNo].StyleNo = THCStyle.Table then
-  begin
-    Undo_New;
-    UndoAction_ItemSelf(vItemNo, OffsetInner);
-    Result := (Items[vItemNo] as THCTableItem).MergeSelectCells;
-    if Result then  // 合并成功
+  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
     begin
-      GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
-      FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-      // DisSelect;  // 合并后清空选中，会导致当前ItemNo没有了，通过方法往表格里插入时会出错
-      InitializeMouseField;  // 201807311101
-      Style.UpdateInfoRePaint;
-    end;
-  end;
+      Result := (AItem as THCTableItem).MergeSelectCells;
+    end);
 end;
 
 procedure THCRichData.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);

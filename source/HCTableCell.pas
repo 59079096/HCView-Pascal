@@ -104,7 +104,8 @@ type
     procedure ToXml(const ANode: IHCXMLNode);
     procedure ParseXml(const ANode: IHCXMLNode);
 
-    procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo);
+    procedure GetCaretInfo(const AItemNo, AOffset: Integer;
+      const ACellVPadding: Byte; var ACaretInfo: THCCaretInfo);
 
     /// <summary> 绘制数据 </summary>
     /// <param name="ADataDrawLeft">绘制目标区域Left</param>
@@ -116,6 +117,7 @@ type
     /// <param name="ACanvas">画布</param>
     procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
+      const ACellHPadding, ACellVPadding: Byte;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
     property CellData: THCTableCellData read FCellData write FCellData;
@@ -165,7 +167,7 @@ begin
 end;
 
 procedure THCTableCell.GetCaretInfo(const AItemNo, AOffset: Integer;
-  var ACaretInfo: THCCaretInfo);
+  const ACellVPadding: Byte; var ACaretInfo: THCCaretInfo);
 begin
   if FCellData <> nil then
   begin
@@ -173,8 +175,8 @@ begin
     if ACaretInfo.Visible then
     begin
       case FAlignVert of
-        cavBottom: ACaretInfo.Y := ACaretInfo.Y + FHeight - FCellData.Height;
-        cavCenter: ACaretInfo.Y := ACaretInfo.Y + (FHeight - FCellData.Height) div 2;
+        cavCenter: ACaretInfo.Y := ACaretInfo.Y + (FHeight - ACellVPadding - ACellVPadding - FCellData.Height) div 2;
+        cavBottom: ACaretInfo.Y := ACaretInfo.Y + FHeight - ACellVPadding - FCellData.Height - ACellVPadding;
       end;
     end;
   end
@@ -227,6 +229,7 @@ end;
 
 procedure THCTableCell.PaintData(const ADataDrawLeft, ADataDrawTop,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
+  const ACellHPadding, ACellVPadding: Byte;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vTop: Integer;
@@ -235,8 +238,8 @@ begin
   begin
     case FAlignVert of
       cavTop: vTop := ADataDrawTop;
-      cavBottom: vTop := ADataDrawTop + FHeight - FCellData.Height;
-      cavCenter: vTop := ADataDrawTop + (FHeight - FCellData.Height) div 2;
+      cavCenter: vTop := ADataDrawTop + (FHeight - ACellHPadding - FCellData.Height - ACellVPadding) div 2;
+      cavBottom: vTop := ADataDrawTop + FHeight - ACellHPadding - FCellData.Height - ACellVPadding;
     end;
 
     FCellData.PaintData(ADataDrawLeft, vTop, ADataDrawBottom, ADataScreenTop,

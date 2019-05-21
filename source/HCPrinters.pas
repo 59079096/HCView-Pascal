@@ -15,14 +15,23 @@ unit HCPrinters;
 
 interface
 
+{$I HCView.inc}
+
 uses
 {$IF DEFINED(CLR)}
   WinUtils, System.Runtime.InteropServices,
-{$ENDIF}
+{$IFEND}
 {$IF DEFINED(LINUX)}
   WinUtils,
-{$ENDIF}
-  Winapi.Windows, Winapi.WinSpool, System.UITypes, System.SysUtils, System.Classes, Vcl.Graphics, Vcl.Forms;
+{$IFEND}
+
+{$IFDEF DELPHIXE}Winapi.Windows{$ELSE}Windows{$ENDIF},
+{$IFDEF DELPHIXE}Winapi.WinSpool{$ELSE}WinSpool{$ENDIF},
+{$IFDEF DELPHIXE}System.UITypes,{$ENDIF}
+{$IFDEF DELPHIXE}System.SysUtils{$ELSE}SysUtils{$ENDIF},
+{$IFDEF DELPHIXE}System.Classes{$ELSE}Classes{$ENDIF},
+{$IFDEF DELPHIXE}Vcl.Graphics{$ELSE}Graphics{$ENDIF},
+{$IFDEF DELPHIXE}Vcl.Forms{$ELSE}Forms{$ENDIF};
 
 (*$HPPEMIT '#if defined(_VCL_ALIAS_RECORDS)' *)
 (*$HPPEMIT '#if !defined(UNICODE)' *)
@@ -34,12 +43,14 @@ uses
 (*$HPPEMIT '#endif' *)
 (*$HPPEMIT '#endif' *)
 
+{$IFDEF DELPHIXE}
 const
   poPortrait = System.UITypes.TPrinterOrientation.poPortrait;
   poLandscape = System.UITypes.TPrinterOrientation.poLandScape;
   pcCopies = System.UITypes.TPrinterCapability.pcCopies;
   pcOrientation = System.UITypes.TPrinterCapability.pcOrientation;
   pcCollation = System.UITypes.TPrinterCapability.pcCollation;
+{$ENDIF}
 
 type
   EPrinter = class(Exception);
@@ -76,6 +87,7 @@ type
     Title - The title used by Windows in the Print Manager and for network
       title pages. }
 
+{$IFDEF DELPHIXE}
   TPrinterState = System.UITypes.TPrinterState;
   {$NODEFINE TPrinterState}
   TPrinterOrientation = System.UITypes.TPrinterOrientation;
@@ -91,6 +103,12 @@ type
   {$HPPEMIT 'using System::Uitypes::TPrinterCapability;'}
   {$HPPEMIT 'using System::Uitypes::TPrinterCapabilities;'}
   {$HPPEMIT CLOSENAMESPACE}
+{$ELSE}
+  TPrinterState = (psNoHandle, psHandleIC, psHandleDC);
+  TPrinterOrientation = (poPortrait, poLandscape);
+  TPrinterCapability = (pcCopies, pcOrientation, pcCollation);
+  TPrinterCapabilities = set of TPrinterCapability;
+{$ENDIF}
 
   THCPrinter = class(TObject)
   private
@@ -111,7 +129,7 @@ type
 {$ELSE}
     FDevMode: PDeviceMode;
     FDeviceMode: THandle;
-{$ENDIF}
+{$IFEND}
     procedure SetState(Value: TPrinterState);
     function GetCanvas: TCanvas;
     function GetNumCopies: Integer;
@@ -138,7 +156,7 @@ type
     procedure UpdateDeviceMode(ADeviceMode: IntPtr);
   strict protected
     procedure Finalize; override;
-{$ENDIF}
+{$IFEND}
   public
     constructor Create;
     destructor Destroy; override;
@@ -154,7 +172,7 @@ type
 {$ELSE}
     procedure GetPrinter(ADevice, ADriver, APort: PChar; var ADeviceMode: THandle);
     procedure SetPrinter(ADevice, ADriver, APort: PChar; ADeviceMode: THandle);
-{$ENDIF}
+{$IFEND}
     property Aborted: Boolean read FAborted;
     property Canvas: TCanvas read GetCanvas;
     property Capabilities: TPrinterCapabilities read FCapabilities;
@@ -198,18 +216,19 @@ implementation
 uses
 {$IF DEFINED(CLR)}
   System.Text, System.IO, System.Drawing.Printing, System.Security.Permissions,
-{$ENDIF}
-  Vcl.Consts;
+{$IFEND}
+
+{$IFDEF DELPHIXE}Vcl.Consts{$ELSE}Consts{$ENDIF};
 
 {$IF DEFINED(CLR)}
 function AbortProc(Prn: HDC; Error: Integer): Bool; forward;
-{$ENDIF}
+{$IFEND}
 
 var
   FPrinter: THCPrinter = nil;
 {$IF DEFINED(CLR)}
   AbortProcDelegate: TFNAbortProc = AbortProc;
-{$ENDIF}
+{$IFEND}
 
 {$IF DEFINED(CLR)}
 function FetchStr(Str: string; CurPos: Integer; out OutStr: string): Integer;
@@ -246,7 +265,7 @@ begin
   end;
   Str := P;
 end;
-{$ENDIF}
+{$IFEND}
 
 procedure RaiseError(const Msg: string);
 begin
@@ -277,7 +296,7 @@ type
       2: (
         Tmp: array[1..32] of AnsiChar);
   end;
-{$ENDIF}
+{$IFEND}
 
 procedure NewPage(var Prn: PrnRec);
 begin
@@ -363,7 +382,7 @@ begin
       end;
 
       if Extent.cY > Height then Height := Extent.cY + 2;
-      Winapi.Windows.TextOutA(Handle, Cur.X, Cur.Y, Text, L);
+      {$IFDEF DELPHIXE}Winapi.{$ENDIF}Windows.TextOutA(Handle, Cur.X, Cur.Y, Text, L);
       Dec(Len, L);
       Inc(Text, L);
       if Len > 0 then NewLine(Prn)
@@ -371,14 +390,14 @@ begin
     end;
   end;
 end;
-{$ENDIF}
+{$IFEND}
 
 { Print a string to the printer handling special characters. }
 {$IF DEFINED(CLR)}
 procedure PrnString(var Prn: PrnRec; Text: string; Len: Integer);
 {$ELSE}
 procedure PrnString(var Prn: PrnRec; Text: PAnsiChar; Len: Integer);
-{$ENDIF}
+{$IFEND}
 var
   L: Integer;
   TabWidth: Word;
@@ -390,7 +409,7 @@ var
     Text := Copy(Text, L + 2, Len);
 {$ELSE}
     Inc(Text, L + 1);
-{$ENDIF}
+{$IFEND}
     Dec(Len, L + 1);
     L := 0;
   end;
@@ -413,7 +432,7 @@ begin
       case Text[L + 1] of
 {$ELSE}
       case Text[L] of
-{$ENDIF}
+{$IFEND}
         #9:
           begin
             Flush;
@@ -536,7 +555,7 @@ procedure TPrinterWriter.WriteLine;
 begin
   Borland.Vcl.Printers.NewLine(FPrnRec);
 end;
-{$ENDIF}
+{$IFEND}
 
 {$IF NOT DEFINED(CLR)}
 { Called when a Read or Readln is applied to a printer file. Since reading is
@@ -611,7 +630,7 @@ begin
     Result := 0;
   end;
 end;
-{$ENDIF}
+{$IFEND}
 
 procedure AssignPrn(var F: Text);
 begin
@@ -634,7 +653,7 @@ begin
     BufPtr := @Buffer;
     OpenFunc := @PrnOpen;
   end;
-{$ENDIF}
+{$IFEND}
 end;
 
 { TPrinterDevice }
@@ -644,7 +663,7 @@ type
   TPrinterDeviceStringType = string;
 {$ELSE}
   TPrinterDeviceStringType = PChar;
-{$ENDIF}
+{$IFEND}
 
   TPrinterDevice = class
   private
@@ -745,7 +764,7 @@ begin
     GlobalFree(FDeviceMode);
     FDeviceMode := 0;
   end;
-{$ENDIF}
+{$IFEND}
   inherited Destroy;
 end;
 
@@ -774,7 +793,7 @@ begin
   end;
   inherited;
 end;
-{$ENDIF}
+{$IFEND}
 
 procedure THCPrinter.SetState(Value: TPrinterState);
 {$IF DEFINED(CLR)}
@@ -878,7 +897,7 @@ begin
     State := Value;
   end;
 end;
-{$ENDIF}
+{$IFEND}
 
 procedure THCPrinter.CheckPrinting(Value: Boolean);
 begin
@@ -929,7 +948,7 @@ begin
     lpszDocName := PChar(Title);
   end;
   SetAbortProc(DC, AbortProc);
-{$ENDIF}
+{$IFEND}
   if StartDoc(DC, DocInfo) <= 0 then
     FPrinting := False
   else
@@ -941,9 +960,9 @@ end;
 procedure THCPrinter.EndDoc;
 begin
   CheckPrinting(True);
-  Winapi.Windows.EndPage(DC);
+  {$IFDEF DELPHIXE}Winapi.{$ENDIF}Windows.EndPage(DC);
   if not Aborted then
-    Winapi.Windows.EndDoc(DC);
+    {$IFDEF DELPHIXE}Winapi.{$ENDIF}Windows.EndDoc(DC);
   FPrinting := False;
   FAborted := False;
   FPageNumber := 0;
@@ -952,7 +971,7 @@ end;
 procedure THCPrinter.EndPage;
 begin
   CheckPrinting(True);
-  Winapi.Windows.EndPage(DC);
+  {$IFDEF DELPHIXE}Winapi.{$ENDIF}Windows.EndPage(DC);
 end;
 
 [PrintingPermission(SecurityAction.LinkDemand, Level=PrintingPermissionLevel.AllPrinting)]
@@ -960,7 +979,7 @@ procedure THCPrinter.NewPage(const AEndPage: Boolean = True);
 begin
   CheckPrinting(True);
   if AEndPage then
-    Winapi.Windows.EndPage(DC);
+    {$IFDEF DELPHIXE}Winapi.{$ENDIF}Windows.EndPage(DC);
 
   StartPage(DC);
   Inc(FPageNumber);
@@ -989,7 +1008,7 @@ begin
   end;
   ADeviceMode := FDeviceMode;
 end;
-{$ENDIF}
+{$IFEND}
 
 procedure THCPrinter.SetPrinterCapabilities(Value: Integer);
 begin
@@ -1009,19 +1028,19 @@ begin
     Marshal.FreeHGlobal(FDeviceMode);
   FDeviceMode := ADeviceMode;
 end;
-{$ENDIF}
+{$IFEND}
 
 [PrintingPermission(SecurityAction.LinkDemand, Level=PrintingPermissionLevel.AllPrinting)]
 {$IF DEFINED(CLR)}
 procedure THCPrinter.SetPrinter(ADevice, ADriver, APort: string; ADeviceMode: IntPtr);
 {$ELSE}
 procedure THCPrinter.SetPrinter(ADevice, ADriver, APort: PChar; ADeviceMode: THandle);
-{$ENDIF}
+{$IFEND}
 var
   I, J: Integer;
 {$IF DEFINED(CLR)}
   LDevMode: TDeviceMode;
-{$ENDIF}
+{$IFEND}
 begin
   CheckPrinting(False);
 {$IF DEFINED(CLR)}
@@ -1048,7 +1067,7 @@ begin
     FDevMode := GlobalLock(FDeviceMode);
     SetPrinterCapabilities(FDevMode.dmFields);
   end;
-{$ENDIF}
+{$IFEND}
   FreeFonts;
   if FPrinterHandle <> 0 then
   begin
@@ -1106,7 +1125,7 @@ begin
     end;
     if FDeviceMode <> 0 then
       SetPrinterCapabilities(FDevMode^.dmFields);
-{$ENDIF}
+{$IFEND}
   end;
 end;
 
@@ -1131,7 +1150,7 @@ begin
   TStrings(Data).Add(LogFont.lfFaceName);
   Result := 1;
 end;
-{$ENDIF}
+{$IFEND}
 
 function THCPrinter.GetFonts: TStrings;
 begin
@@ -1143,7 +1162,7 @@ begin
     EnumFonts(DC, nil, EnumFontsProc, 0);
 {$ELSE}
     EnumFonts(DC, nil, @EnumFontsProc, Pointer(FFonts));
-{$ENDIF}
+{$IFEND}
   except
     FreeAndNil(FFonts);
     raise;
@@ -1161,14 +1180,14 @@ function THCPrinter.GetNumCopies: Integer;
 {$IF DEFINED(CLR)}
 var
   DevMode: TDeviceMode;
-{$ENDIF}
+{$IFEND}
 begin
   GetPrinterIndex;
   if FDeviceMode = 0 then
     RaiseError(SInvalidPrinterOp);
 {$IF DEFINED(CLR)}
   DevMode := TDeviceMode(Marshal.PtrToStructure(FDeviceMode, TypeOf(TDeviceMode)));
-{$ENDIF}
+{$IFEND}
   Result := FDevMode.dmCopies;
 end;
 
@@ -1176,7 +1195,7 @@ procedure THCPrinter.SetNumCopies(Value: Integer);
 {$IF DEFINED(CLR)}
 var
   DevMode: TDeviceMode;
-{$ENDIF}
+{$IFEND}
 begin
   CheckPrinting(False);
   GetPrinterIndex;
@@ -1189,21 +1208,21 @@ begin
   Marshal.StructureToPtr(TObject(DevMode), FDeviceMode, True);
 {$ELSE}
   FDevMode^.dmCopies := Value;
-{$ENDIF}
+{$IFEND}
 end;
 
 function THCPrinter.GetOrientation: TPrinterOrientation;
 {$IF DEFINED(CLR)}
 var
   DevMode: TDeviceMode;
-{$ENDIF}
+{$IFEND}
 begin
   GetPrinterIndex;
   if FDeviceMode = 0 then
     RaiseError(SInvalidPrinterOp);
 {$IF DEFINED(CLR)}
   DevMode := TDeviceMode(Marshal.PtrToStructure(FDeviceMode, TypeOf(TDeviceMode)));
-{$ENDIF}
+{$IFEND}
   if FDevMode.dmOrientation = DMORIENT_PORTRAIT then
     Result := poPortrait
   else
@@ -1217,7 +1236,7 @@ const
 {$IF DEFINED(CLR)}
 var
   DevMode: TDeviceMode;
-{$ENDIF}
+{$IFEND}
 begin
   CheckPrinting(False);
   GetPrinterIndex;
@@ -1230,7 +1249,7 @@ begin
   Marshal.StructureToPtr(TObject(DevMode), FDeviceMode, True);
 {$ELSE}
   FDevMode^.dmOrientation := Orientations[Value];
-{$ENDIF}
+{$IFEND}
 end;
 
 function THCPrinter.GetPageHeight: Integer;
@@ -1274,7 +1293,7 @@ begin
     GlobalFree(lDeviceMode);
     lDeviceMode := 0;
     HCPrinter.SetPrinter(lDevice, lDriver, lPort, lDeviceMode);
-{$ENDIF}
+{$IFEND}
     FreeFonts;
     SetState(TPrinterState.psNoHandle);
   end;
@@ -1291,7 +1310,7 @@ begin
   FPrinters.AddObject(Prnter, TPrinterDevice.Create('', Prnter, ''));
   Result := Offset + Marshal.SizeOf(TypeOf(TPrinterInfo4));
 end;
-{$ENDIF}
+{$IFEND}
 
 {$IF DEFINED(CLR)}
 function THCPrinter.GetPrinterInfo5(FPrinters: TStrings; Offset: Integer; Mem: IntPtr): Integer;
@@ -1313,7 +1332,7 @@ begin
   end;
   Result := Offset + Marshal.SizeOf(TypeOf(TPrinterInfo5));
 end;
-{$ENDIF}
+{$IFEND}
 
 function THCPrinter.GetPrinters: TStrings;
 var
@@ -1326,7 +1345,7 @@ var
 {$ELSE}
   LineCur, Port: PChar;
   Buffer, PrinterInfo: PByte;
-{$ENDIF}
+{$IFEND}
 begin
   if FPrinters = nil then
   begin
@@ -1394,7 +1413,7 @@ begin
       finally
         FreeMem(Buffer, Count);
       end;
-{$ENDIF}
+{$IFEND}
     except
       FPrinters.Free;
       FPrinters := nil;
@@ -1407,7 +1426,7 @@ end;
 {$IF DEFINED(UNICODE) AND DEFINED(MSWINDOWS)}
 function GetDefaultPrinter(DefaultPrinter: PChar; var I: Integer): BOOL; stdcall;
   external winspl name 'GetDefaultPrinterW';
-{$ENDIF}
+{$IFEND}
 
 procedure THCPrinter.SetToDefaultPrinter;
 var
@@ -1421,7 +1440,7 @@ var
   DefaultPrinter: array[0..1023] of Char;
   Cur, Device: PChar;
   PrinterInfo: PPrinterInfo5;
-{$ENDIF}
+{$IFEND}
 begin
   ByteCnt := 0;
   StructCnt := 0;
@@ -1478,7 +1497,7 @@ begin
         ZeroMemory(@DefaultPrinter[0], I * SizeOf(Char));
 {$ELSE}
       GetProfileString('windows', 'device', '', DefaultPrinter, SizeOf(DefaultPrinter) - 1);
-{$ENDIF}
+{$IFEND}
       Cur := DefaultPrinter;
       Device := FetchStr(Cur);
     end;
@@ -1495,7 +1514,7 @@ begin
   finally
     FreeMem(PrinterInfo);
   end;
-{$ENDIF}
+{$IFEND}
   RaiseError(SNoDefaultPrinter);
 end;
 
@@ -1541,5 +1560,5 @@ initialization
 
 finalization
   FPrinter.Free;
-{$ENDIF}
+{$IFEND}
 end.

@@ -203,6 +203,19 @@ begin
 end;
 
 procedure TfrmTableProperty.GetTableProperty;
+
+  procedure GetCellProperty_(const ACell: THCTableCell);
+  begin
+    cbbCellAlignVert.ItemIndex := Ord(ACell.AlignVert);
+
+    btnCellLeftBorder.Down := TBorderSide.cbsLeft in ACell.BorderSides;
+    btnCellTopBorder.Down := TBorderSide.cbsTop in ACell.BorderSides;
+    btnCellRightBorder.Down := TBorderSide.cbsRight in ACell.BorderSides;
+    btnCellBottomBorder.Down := TBorderSide.cbsBottom in ACell.BorderSides;
+    btnCellLTRBBorder.Down := TBorderSide.cbsLTRB in ACell.BorderSides;
+    btnCellRTLBBorder.Down := TBorderSide.cbsRTLB in ACell.BorderSides;
+  end;
+
 var
   vR, vC, viValue: Integer;
   vCell: THCTableCell;
@@ -276,16 +289,9 @@ begin
       vCell := FTableItem.GetEditCell;
       tsCell.Caption := 'µ¥Ôª¸ñ(' + IntToStr(FTableItem.SelectCellRang.StartRow + 1) + ','
         + IntToStr(FTableItem.SelectCellRang.StartCol + 1) + ')';
-
-      cbbCellAlignVert.ItemIndex := Ord(vCell.AlignVert);
-
-      btnCellLeftBorder.Down := TBorderSide.cbsLeft in vCell.BorderSides;
-      btnCellTopBorder.Down := TBorderSide.cbsTop in vCell.BorderSides;
-      btnCellRightBorder.Down := TBorderSide.cbsRight in vCell.BorderSides;
-      btnCellBottomBorder.Down := TBorderSide.cbsBottom in vCell.BorderSides;
-      btnCellLTRBBorder.Down := TBorderSide.cbsLTRB in vCell.BorderSides;
-      btnCellRTLBBorder.Down := TBorderSide.cbsRTLB in vCell.BorderSides;
     end;
+
+    GetCellProperty_(vCell);
   end
   else
     tsCell.TabVisible := False;

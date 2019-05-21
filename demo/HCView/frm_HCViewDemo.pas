@@ -131,6 +131,16 @@ type
     mniN18: TMenuItem;
     mniViewFilm: TMenuItem;
     mniViewPage: TMenuItem;
+    mniN20: TMenuItem;
+    mniAlignTopLeft: TMenuItem;
+    mniAlignTopCenter: TMenuItem;
+    mniAlignTopRight: TMenuItem;
+    mniAlignCenterLeft: TMenuItem;
+    mniAlignCenterCenter: TMenuItem;
+    mniAlignCenterRight: TMenuItem;
+    mniAlignBottomLeft: TMenuItem;
+    mniAlignBottomCenter: TMenuItem;
+    mniAlignBottomRight: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -173,7 +183,6 @@ type
     procedure btnUndoClick(Sender: TObject);
     procedure btnRedoClick(Sender: TObject);
     procedure mniEdit1Click(Sender: TObject);
-    procedure mniLSFixClick(Sender: TObject);
     procedure mniN19Click(Sender: TObject);
     procedure mniCombobox1Click(Sender: TObject);
     procedure mniN23Click(Sender: TObject);
@@ -205,6 +214,7 @@ type
     procedure mniDelAnnotateClick(Sender: TObject);
     procedure mniViewFilmClick(Sender: TObject);
     procedure mniViewPageClick(Sender: TObject);
+    procedure mniAlignTopLeftClick(Sender: TObject);
   private
     { Private declarations }
     FHRuler: THCHorizontalRuler;
@@ -643,6 +653,7 @@ begin
       1: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls115);  // 1.15倍
       2: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls150);  // 1.5倍
       3: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.pls200);  // 双倍
+      4: FHCView.ApplyParaLineSpace(TParaLineSpaceMode.plsFix);  // 固定值
     end;
   end;
 end;
@@ -858,19 +869,6 @@ begin
   end;
 end;
 
-procedure TfrmHCViewDemo.mniLSFixClick(Sender: TObject);
-var
-  vsLineSpace: string;
-  vSpace: Integer;
-begin
-  vsLineSpace := InputBox('行间距', '固定值(>5)', '20');
-  if TryStrToInt(vsLineSpace, vSpace) then
-  begin
-    if vSpace >= 5 then
-      FHCView.ApplyParaLineSpace(TParaLineSpaceMode.plsFix);  // 固定值
-  end;
-end;
-
 procedure TfrmHCViewDemo.mniInsertTableClick(Sender: TObject);
 var
   vFrmInsertTable: TfrmInsertTable;
@@ -970,6 +968,21 @@ begin
     vFrmPrintView.SetView(FHCView);
   finally
     FreeAndNil(vFrmPrintView);
+  end;
+end;
+
+procedure TfrmHCViewDemo.mniAlignTopLeftClick(Sender: TObject);
+begin
+  case (Sender as TMenuItem).Tag of
+    0: FHCView.ApplyTableCellAlign(THCContentAlign.tcaTopLeft);
+    1: FHCView.ApplyTableCellAlign(THCContentAlign.tcaTopCenter);
+    2: FHCView.ApplyTableCellAlign(THCContentAlign.tcaTopRight);
+    3: FHCView.ApplyTableCellAlign(THCContentAlign.tcaCenterLeft);
+    4: FHCView.ApplyTableCellAlign(THCContentAlign.tcaCenterCenter);
+    5: FHCView.ApplyTableCellAlign(THCContentAlign.tcaCenterRight);
+    6: FHCView.ApplyTableCellAlign(THCContentAlign.tcaBottomLeft);
+    7: FHCView.ApplyTableCellAlign(THCContentAlign.tcaBottomCenter);
+    8: FHCView.ApplyTableCellAlign(THCContentAlign.tcaBottomRight);
   end;
 end;
 

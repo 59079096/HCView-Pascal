@@ -325,6 +325,7 @@ type
     // 选中内容应用样式
     procedure ApplySelectTextStyle(const AMatchStyle: THCStyleMatch); virtual;
     procedure ApplySelectParaStyle(const AMatchStyle: THCParaMatch); virtual;
+    procedure ApplyTableCellAlign(const AAlign: THCContentAlign); virtual;
 
     /// <summary> 删除选中 </summary>
     function DeleteSelected: Boolean; virtual;
@@ -435,6 +436,11 @@ uses
   SysUtils, Math, HCTextItem, HCRectItem, HCUnitConversion;
 
 { THCCustomData }
+
+procedure THCCustomData.ApplyTableCellAlign(const AAlign: THCContentAlign);
+begin
+  // 因为要处理撤销恢复，所以不在这里实现
+end;
 
 procedure THCCustomData.ApplyTextBackColor(const AColor: TColor);
 var
@@ -2238,6 +2244,11 @@ begin
   //ATextStyle.ApplyStyle(ACanvas);  调用前请确认应用过样式了
 
   Result := ATextStyle.FontHeight;// THCStyle.GetFontHeight(ACanvas);  // 行高
+  if ALineSpaceMode = plsFix then
+  begin
+    Result := Result + FStyle.LineSpaceMin;
+    Exit;
+  end;
 
   if (ATextStyle.OutMetSize > 0) and ATextStyle.CJKFont then
   begin
@@ -2273,7 +2284,7 @@ begin
 
         pls200: Result := Result * 2;
 
-        plsFix: Result := Result + FStyle.LineSpaceMin;
+        //plsFix: Result := Result + FStyle.LineSpaceMin;
       end;
     end;
   end
@@ -2291,7 +2302,7 @@ begin
 
       pls200: Result := Result + vTextMetric.tmExternalLeading + vTextMetric.tmHeight + vTextMetric.tmExternalLeading;
 
-      plsFix: Result := Result + FStyle.LineSpaceMin;
+      //plsFix: Result := Result + FStyle.LineSpaceMin;
     end;
   end;
 end;

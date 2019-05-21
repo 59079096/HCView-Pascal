@@ -139,18 +139,12 @@ type
     //  ADataScreenBottom, AStartRow, AStartRowDataOffs, AEndRow, AEndRowDataOffs: Integer); overload;
     {procedure ConvertToDrawItems(const AItemNo, AOffs, AContentWidth,
       AContentHeight: Integer; var APos: TPoint; var APageIndex, ALastDNo: Integer);}
-    // 继承THCCustomItem抽象方法
+
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseLeave; override;
     procedure KillFocus; override;
-    // 继承TCustomRectItem抽象方法
-    procedure ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch); override;
-    procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: THCParaMatch); override;
-    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
-    /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
-    function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
 
     /// <summary> 清除并返回为处理分页行和行中间有向下偏移后，比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer; override;
@@ -236,6 +230,14 @@ type
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; override;
 
     procedure CheckFormatPageBreakBefor; override;
+
+    procedure ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch); override;
+    procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: THCParaMatch); override;
+    /// <summary> RectItem内容对齐方式 </summary>
+    procedure ApplyContentAlign(const AAlign: THCContentAlign); override;
+    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
+    /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
+    function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
 
     /// <summary> 表格分页 </summary>
     /// <param name="ADrawItemRectTop">表格对应的DrawItem的Rect.Top</param>
@@ -1050,7 +1052,7 @@ begin
             FRows[vDestRow][vDestCol].PaintData(
               vCellDrawLeft + FCellHPadding, vDestCellDataDrawTop,
               ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
-              0, ACanvas, APaintInfo);
+              0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
 
             if Assigned(FOnCellPaintData) then  // 有外部自定义绘制
             begin
@@ -2229,7 +2231,7 @@ begin
         vRect.Bottom := ABottom;
 
       FRows[vR][vC].PaintData(vCellLeft + FCellHPadding, vCellTop + FCellVPadding,
-        vCellBottom, ATop, ABottom, 0, ACanvas, APaintInfo);
+        vCellBottom, ATop, ABottom, 0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
 
       {$REGION ' 绘制边框线 '}
       if FBorderVisible or (not APaintInfo.Print) then
@@ -2402,7 +2404,7 @@ begin
     if vCellDrawBottom - vCellDataDrawTop > FCellVPadding then  // 有可显示的DrawItem
     begin
       FRows[ARow][vC].PaintData(vCellDrawLeft + FCellHPadding, vCellDataDrawTop,
-        vCellDrawBottom, ATop, ABottom, 0, ACanvas, APaintInfo);
+        vCellDrawBottom, ATop, ABottom, 0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
     end;
     {$ENDREGION}
 
@@ -3485,8 +3487,8 @@ begin
   end;
 
   vNorHeightMax := FCellVPadding + vNorHeightMax + FCellVPadding;  // 增加上下边距
-  for vC := 0 to FRows[ARow].ColCount - 1 do  // 对齐
-    FRows[ARow][vC].Height := vNorHeightMax;
+  {for vC := 0 to FRows[ARow].ColCount - 1 do  // 对齐 FRows[ARow].Height中处理了
+    FRows[ARow][vC].Height := vNorHeightMax;}
 
   if FRows[ARow].AutoHeight then  // 以行中各未发生行合并的列中最高的为行高
     FRows[ARow].Height := vNorHeightMax
@@ -4730,6 +4732,64 @@ begin
   AEndCol := vLastCol;
 end;
 
+procedure THCTableItem.ApplyContentAlign(const AAlign: THCContentAlign);
+
+  procedure ApplyCellAlign_(const ACell: THCTableCell);
+  var
+    vData: THCTableCellData;
+  begin
+    case AAlign of
+      tcaTopLeft, tcaTopCenter, tcaTopRight:
+        ACell.AlignVert := THCAlignVert.cavTop;
+
+      tcaCenterLeft, tcaCenterCenter, tcaCenterRight:
+        ACell.AlignVert := THCAlignVert.cavCenter;
+
+      tcaBottomLeft, tcaBottomCenter, tcaBottomRight:
+        ACell.AlignVert := THCAlignVert.cavBottom;
+    end;
+
+    vData := ACell.CellData;
+    if Assigned(vData) then
+    begin
+      vData.BeginFormat;
+      try
+        case AAlign of
+          tcaTopLeft, tcaCenterLeft, tcaBottomLeft:
+            vData.ApplyParaAlignHorz(TParaAlignHorz.pahLeft);
+
+          tcaTopCenter, tcaCenterCenter, tcaBottomCenter:
+            vData.ApplyParaAlignHorz(TParaAlignHorz.pahCenter);
+
+          tcaTopRight, tcaCenterRight, tcaBottomRight:
+            vData.ApplyParaAlignHorz(TParaAlignHorz.pahRight);
+        end;
+      finally
+        vData.EndFormat(True);
+      end;
+    end;
+  end;
+
+var
+  vR, vC: Integer;
+begin
+  inherited ApplyContentAlign(AAlign);
+
+  if FSelectCellRang.StartRow >= 0 then  // 有选择起始行
+  begin
+    if FSelectCellRang.EndRow >= 0 then  // 有选择结束行，说明选中不在同一单元格
+    begin
+      for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
+      begin
+        for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
+          ApplyCellAlign_(FRows[vR][vC]);
+      end;
+    end
+    else  // 在同一单元格
+      ApplyCellAlign_(GetEditCell);
+  end;
+end;
+
 procedure THCTableItem.ApplySelectParaStyle(const AStyle: THCStyle;
   const AMatchStyle: THCParaMatch);
 var
@@ -4990,7 +5050,7 @@ begin
     end;
 
     vCaretCell.GetCaretInfo(vCaretCell.CellData.MouseMoveItemNo,
-      vCaretCell.CellData.MouseMoveItemOffset, ACaretInfo);
+      vCaretCell.CellData.MouseMoveItemOffset, FCellVPadding, ACaretInfo);
   end
   else  // 非拖拽
   begin
@@ -5003,7 +5063,7 @@ begin
     end;
 
     vCaretCell.GetCaretInfo(vCaretCell.CellData.SelectInfo.StartItemNo,
-      vCaretCell.CellData.SelectInfo.StartItemOffset, ACaretInfo);
+      vCaretCell.CellData.SelectInfo.StartItemOffset, FCellVPadding, ACaretInfo);
   end;
 
   vPos := GetCellPostion(vRow, vCol);

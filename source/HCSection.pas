@@ -238,6 +238,8 @@ type
     procedure ApplyTextColor(const AColor: TColor);
     procedure ApplyTextBackColor(const AColor: TColor);
 
+    procedure ApplyTableCellAlign(const AAlign: THCContentAlign);
+
     function InsertText(const AText: string): Boolean;
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
     function InsertImage(const AFile: string): Boolean;
@@ -591,6 +593,14 @@ begin
   ActiveDataChangeByAction(function(): Boolean
     begin
       FActiveData.ApplyParaRightIndent(AIndent);
+    end);
+end;
+
+procedure THCCustomSection.ApplyTableCellAlign(const AAlign: THCContentAlign);
+begin
+  ActiveDataChangeByAction(function(): Boolean
+    begin
+      FActiveData.ApplyTableCellAlign(AAlign);
     end);
 end;
 

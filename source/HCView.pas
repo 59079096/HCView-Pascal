@@ -235,7 +235,6 @@ type
     procedure CreateWnd; override;
     procedure Paint; override;
     procedure Resize; override;
-    procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
     procedure DoChange; virtual;
     procedure DoSectionCreateItem(Sender: TObject); virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
@@ -299,6 +298,7 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
+    procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
     /// <summary> 删除不使用的文本样式 </summary>
     class procedure DeleteUnUsedStyle(const AStyle: THCStyle;
       const ASections: TObjectList<THCSection>; const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
@@ -425,6 +425,9 @@ type
 
     /// <summary> 修改当前选中文本的背景颜色 </summary>
     procedure ApplyTextBackColor(const AColor: TColor);
+
+    /// <summary> 修改当前单元内容对齐方式 </summary>
+    procedure ApplyTableCellAlign(const AAlign: THCContentAlign);
 
     /// <summary> 全选(所有节内容) </summary>
     procedure SelectAll;
@@ -806,6 +809,11 @@ begin
   else
   if SetTimer(Handle, 2, 100, nil) = 0 then
     raise EOutOfResources.Create(HCS_EXCEPTION_TIMERRESOURCEOUTOF);
+end;
+
+procedure THCView.ApplyTableCellAlign(const AAlign: THCContentAlign);
+begin
+  ActiveSection.ApplyTableCellAlign(AAlign);
 end;
 
 procedure THCView.ApplyTextBackColor(const AColor: TColor);
@@ -3461,7 +3469,9 @@ begin
   begin
     if FActiveSectionIndex >= 0 then
       FSections[FActiveSectionIndex].DisActive;
+
     FActiveSectionIndex := Value;
+    DoViewResize;
   end;
 end;
 

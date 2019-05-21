@@ -82,6 +82,11 @@ type
   TSectionArea = (saHeader, saPage, saFooter);  // 当前激活的是文档哪一部分
   TSectionAreas = set of TSectionArea;  // 保存时存哪几部分内容
 
+  // 表格单元格对齐方式
+  THCContentAlign = (tcaTopLeft, tcaTopCenter, tcaTopRight, tcaCenterLeft,
+    tcaCenterCenter, tcaCenterRight, tcaBottomLeft, tcaBottomCenter, tcaBottomRight);
+
+
   TCharType = (
     jctBreak,  //  截断点
     jctHZ,  // 汉字

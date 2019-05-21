@@ -255,6 +255,9 @@ type
     /// <summary> 修改当前选中文本的背景颜色 </summary>
     procedure ApplyTextBackColor(const AColor: TColor);
 
+    /// <summary> 修改当前单元内容对齐方式 </summary>
+    procedure ApplyTableCellAlign(const AAlign: THCContentAlign);
+
     procedure CloneToHCView(const AHCView: THCView);
 
     // 保存文档
@@ -558,6 +561,14 @@ begin
   ChangeByAction(function(): Boolean
     begin
       FPage.ApplyParaRightIndent(AIndent);
+    end);
+end;
+
+procedure THCCustomGridView.ApplyTableCellAlign(const AAlign: THCContentAlign);
+begin
+  ChangeByAction(function(): Boolean
+    begin
+      FPage.ApplyTableCellAlign(AAlign);
     end);
 end;
 

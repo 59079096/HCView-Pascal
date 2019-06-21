@@ -13,6 +13,8 @@ unit HCCustomData;
 
 interface
 
+{$I HCView.inc}
+
 uses
   Windows, Classes, Types, Controls, Graphics, HCItem, HCDrawItem, HCStyle,
   HCParaStyle, HCTextStyle, HCStyleMatch, HCCommon, HCUndo, HCXml, HCList;
@@ -129,7 +131,7 @@ type
 
     /// <summary> 计算行高(文本高+行间距) </summary>
     function CalculateLineHeight(const ACanvas: TCanvas;
-      const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
+      const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Integer;
     function GetUndoList: THCUndoList;
     procedure DoInsertItem(const AItem: THCCustomItem); virtual;
     procedure DoRemoveItem(const AItem: THCCustomItem); virtual;
@@ -195,6 +197,12 @@ type
     /// <returns></returns>
     function GetDrawItemOffsetWidth(const ADrawItemNo, ADrawOffs: Integer;
       const AStyleCanvas: TCanvas = nil): Integer;
+
+    {$IFDEF UNPLACEHOLDERCHAR}
+    /// <summary> 返回文本字符串指定位置实际有效的前、后位置 </summary>
+    /// <param name="AAfter = False">True:前，False:后</param>
+    function GetItemActualOffset(const AItemNo, AOffset: Integer; const AAfter: Boolean = False): Integer;
+    {$ENDIF}
 
     /// <summary> 获取指定的Item最后面位置 </summary>
     /// <param name="AItemNo">指定的Item</param>
@@ -959,7 +967,7 @@ end;
 
 function THCCustomData.GetDrawItemOffsetAt(const ADrawItemNo, X: Integer): Integer;
 var
-  vX, vCharWidth: Integer;
+  vRight, vWidth: Integer;
   vDrawItem: THCCustomDrawItem;
   vText: string;
   vS: string;
@@ -973,6 +981,10 @@ var
 
   vParaStyle: THCParaStyle;
   vSplitList: THCIntegerList;
+  vLen: Integer;
+  vCharWArr: array of Integer;  // 每个字符绘制结束位置
+  vSize: TSize;
+  vExtraAll, vExtra: Integer;
 begin
   Result := 0;
   vDrawItem := FDrawItems[ADrawItemNo];
@@ -985,11 +997,11 @@ begin
     vText := (vItem as THCTextItem).SubString(vDrawItem.CharOffs, vDrawItem.CharLen);
     FStyle.ApplyTempStyle(vItem.StyleNo);
     vParaStyle := FStyle.ParaStyles[vItem.ParaNo];
-    vX := vDrawItem.Rect.Left;
+    vWidth := X - vDrawItem.Rect.Left;
 
     case vParaStyle.AlignHorz of
       pahLeft, pahRight, pahCenter:
-        Result := GetCharOffsetAt(FStyle.TempCanvas, vText, X - vX);
+        Result := GetNorAlignCharOffsetAt(FStyle.TempCanvas, vText, vWidth);
 
       pahJustify, pahScatter:  // 20170220001 两端、分散对齐相关处理
         begin
@@ -997,80 +1009,93 @@ begin
           begin
             if IsParaLastDrawItem(ADrawItemNo) then  // 两端对齐、段最后一行不处理
             begin
-              Result := GetCharOffsetAt(FStyle.TempCanvas, vText, X - vX);
+              Result := GetNorAlignCharOffsetAt(FStyle.TempCanvas, vText, vWidth);
               Exit;
             end;
           end;
-          vMod := 0;
-          viSplitW := vDrawItem.Width - FStyle.TempCanvas.TextWidth(vText);  // 当前DItem的Rect中用于分散的空间
+
+          vLen := Length(vText);
+          SetLength(vCharWArr, vLen);
+          GetTextExtentExPoint(FStyle.TempCanvas.Handle, PChar(vText), vLen, 0,
+            nil, PInteger(vCharWArr), vSize);  // 超过65535数组元素取不到值
+          // 20190618002 需要同步修改的字符和位置相关的计算
+          viSplitW := vDrawItem.Width - vCharWArr[vLen - 1];  // 当前DItem的Rect中用于分散的空间
+
           // 计算当前Ditem内容分成几份，每一份在内容中的起始位置
           vSplitList := THCIntegerList.Create;
           try
             vSplitCount := GetJustifyCount(vText, vSplitList);
             vLineLast := IsLineLastDrawItem(ADrawItemNo);
+
             if vLineLast and (vSplitCount > 0) then  // 行最后DItem，少分一个
               Dec(vSplitCount);
+
             if vSplitCount > 0 then  // 有分到间距
             begin
               vMod := viSplitW mod vSplitCount;
               viSplitW := viSplitW div vSplitCount;
-            end;
+            end
+            else
+              vMod := 0;
 
-            //vSplitCount := 0;
+            vRight := 0;
+            vExtraAll := 0;
+            vExtra := 0;
+
             for i := 0 to vSplitList.Count - 2 do  // vSplitList最后一个是字符串长度所以多减1
             begin
-              vS := Copy(vText, vSplitList[i], vSplitList[i + 1] - vSplitList[i]);  // 当前分隔的一个字符串
-              vCharWidth := FStyle.TempCanvas.TextWidth(vS);
-              if vMod > 0 then
-              begin
-                Inc(vCharWidth);  // 多分的余数
-                vSplitCount := 1;
-                Dec(vMod);
-              end
+              // 计算结束位置
+              if vLineLast and (i = vSplitList.Count - 2) then  // 是当前DrawItem分隔的最后一个
+                vExtra := 0
               else
-                vSplitCount := 0;
-              { 增加间距 }
-              if i <> vSplitList.Count - 2 then  // 不是当前DItem分隔的最后一个
-                vCharWidth := vCharWidth + viSplitW  // 分隔间距
-              else  // 是当前DItem分隔的最后一个
               begin
-                if not vLineLast then  // 不是行最后一个DItem
-                  vCharWidth := vCharWidth + viSplitW;  // 分隔间距
+                if vMod > 0 then
+                begin
+                  vExtra := viSplitW + 1;
+                  Dec(vMod);
+                end
+                else
+                  vExtra := viSplitW;
+
+                vExtraAll := vExtraAll + vExtra;
               end;
 
-              if vX + vCharWidth > X then  // 当前字符结束位置在X后，找到了位置
-              begin
-                vMod := Length(vS);  // 借用变量，准备处理  a b c d e fgh ijklm n opq的形式(多个字符为一个分隔串)
-                for j := 1 to vMod do  // 找在当前分隔的一个字符串中哪一个位置
-                begin
-                  vCharWidth := FStyle.TempCanvas.TextWidth(vS[j]);
-                  if i <> vSplitList.Count - 2 then  // 不是当前DItem分隔的最后一个
-                  begin
-                    if j = vMod then
-                      vCharWidth := vCharWidth + viSplitW + vSplitCount;
-                  end
-                  else  // 是当前DItem分隔的最后一个
-                  begin
-                    if not vLineLast then  // 不是行最后一个DItem
-                      vCharWidth := vCharWidth + viSplitW + vSplitCount;  // 分隔间距
-                  end;
+              vRight := vCharWArr[(vSplitList[i + 1] - 1) - 1] + vExtraAll;  // 下一个分段的前一个字符，保证是这一个的最后字符，确保藏文最后字符
 
-                  vX := vX + vCharWidth;
-                  if vX > X then  // 当前字符结束位置在X后
+              if vRight > vWidth then  // 当前字符串结束位置超出给定的宽度，找具体位置
+              begin
+                j := vSplitList[i];
+                while j < vSplitList[i + 1] do
+                begin
+                  {$IFDEF UNPLACEHOLDERCHAR}
+                  j := GetTextActualOffset(vText, j, True);
+                  {$ENDIF}
+
+                  if vCharWArr[j - 1] + vExtraAll > vWidth then
                   begin
-                    if vX - vCharWidth div 2 > X then  // 点击在前半部分
-                      Result := vSplitList[i] - 1 + j - 1  // 计为前一个后面
-                    else
-                      Result := vSplitList[i] - 1 + j;
+                    vRight := vExtraAll - vExtra div 2
+                      + GetCharHalfFarfrom({$IFDEF UNPLACEHOLDERCHAR}vText,{$ENDIF} j, vCharWArr);  // 中间位置
+
+                    if vWidth > vRight then  // 后半部分
+                      Result := j
+                    else  // 前半部分，返回前一个字符段最后位置
+                    begin
+                      Result := j - 1;
+                      {$IFDEF UNPLACEHOLDERCHAR}
+                      if IsUnPlaceHolderChar(vText[Result + 1]) then
+                        Result := GetTextActualOffset(vText, Result) - 1;
+                      {$ENDIF}
+                    end;
+
                     Break;
                   end;
                 end;
 
                 Break;
               end;
-
-              vX := vX + vCharWidth;
             end;
+
+            SetLength(vCharWArr, 0);
           finally
             vSplitList.Free;
           end;
@@ -1082,16 +1107,38 @@ end;
 function THCCustomData.GetDrawItemOffsetWidth(const ADrawItemNo, ADrawOffs: Integer;
   const AStyleCanvas: TCanvas = nil): Integer;
 var
+  vCanvas: TCanvas;
+  vDrawItem: THCCustomDrawItem;
+  vText: string;
+  vLen: Integer;
+  vCharWArr: array of Integer;  // 每个字符绘制结束位置
+  vSize: TSize;
+
+  function _GetNorAlignDrawItemOffsetWidth: Integer;
+  begin
+    {$IFDEF UNPLACEHOLDERCHAR}
+    vText := GetDrawItemText(ADrawItemNo);
+    vLen := Length(vText);
+    SetLength(vCharWArr, vLen);
+    GetTextExtentExPoint(vCanvas.Handle, PChar(vText), vLen, 0,
+      nil, PInteger(vCharWArr), vSize);
+    Result := vCharWArr[ADrawOffs - 1];
+    SetLength(vCharWArr, 0);
+    {$ELSE}
+    vText := Copy(FItems[vDrawItem.ItemNo].Text, vDrawItem.CharOffs, ADrawOffs);
+    Result := vCanvas.TextWidth(vText);
+    {$ENDIF}
+  end;
+
+var
   vStyleNo: Integer;
   vAlignHorz: TParaAlignHorz;
-  vDrawItem: THCCustomDrawItem;
 
   vSplitList: THCIntegerList;
   vLineLast: Boolean;
-  vText, vS: string;
-  i, j, viSplitW, vSplitCount, vMod, vCharWidth, vDOffset
+  i, j, viSplitW, vSplitCount, vMod, {vCharWidth} vInnerOffs
     : Integer;
-  vCanvas: TCanvas;
+  vExtra, vX: Integer;
 begin
   Result := 0;
   if ADrawOffs = 0 then Exit;
@@ -1110,97 +1157,78 @@ begin
     else
     begin
       vCanvas := FStyle.TempCanvas;
-      FStyle.TextStyles[vStyleNo].ApplyStyle(vCanvas);
+      FStyle.ApplyTempStyle(vStyleNo);
     end;
 
     vAlignHorz := FStyle.ParaStyles[GetDrawItemParaStyle(ADrawItemNo)].AlignHorz;
     case vAlignHorz of
       pahLeft, pahRight, pahCenter:
-        begin
-          Result := vCanvas.TextWidth(Copy(FItems[vDrawItem.ItemNo].Text,
-            vDrawItem.CharOffs, ADrawOffs));
-        end;
+        Result := _GetNorAlignDrawItemOffsetWidth;
+
       pahJustify, pahScatter:  // 20170220001 两端、分散对齐相关处理
         begin
           if vAlignHorz = pahJustify then  // 两端对齐
           begin
             if IsParaLastDrawItem(ADrawItemNo) then  // 两端对齐、段最后一行不处理
             begin
-              Result := vCanvas.TextWidth(Copy(FItems[vDrawItem.ItemNo].Text,
-                vDrawItem.CharOffs, ADrawOffs));
+              Result := _GetNorAlignDrawItemOffsetWidth;
               Exit;
             end;
           end;
 
           vText := GetDrawItemText(ADrawItemNo);
-          viSplitW := vDrawItem.Width - vCanvas.TextWidth(vText);  // 当前DItem的Rect中用于分散的空间
-          vMod := 0;
-          // 计算当前Ditem内容分成几份，每一份在内容中的起始位置
+          vLen := Length(vText);
+          SetLength(vCharWArr, vLen);
+          GetTextExtentExPoint(vCanvas.Handle, PChar(vText), vLen, 0,
+            nil, PInteger(vCharWArr), vSize);  // 超过65535数组元素取不到值
+          // 20190618002 需要同步修改的字符和位置相关的计算
+          viSplitW := vDrawItem.Width - vCharWArr[vLen - 1];  // 当前DItem的Rect中用于分散的空间
+
           vSplitList := THCIntegerList.Create;
           try
             vSplitCount := GetJustifyCount(vText, vSplitList);
             vLineLast := IsLineLastDrawItem(ADrawItemNo);
             if vLineLast and (vSplitCount > 0) then  // 行最后DItem，少分一个
               Dec(vSplitCount);
+
             if vSplitCount > 0 then  // 有分到间距
             begin
               vMod := viSplitW mod vSplitCount;
               viSplitW := viSplitW div vSplitCount;
-            end;
+            end
+            else
+              vMod := 0;
 
-            //vSplitCount := 0;  // 借用变量
+            vExtra := 0;
             for i := 0 to vSplitList.Count - 2 do  // vSplitList最后一个是字符串长度所以多减1
             begin
-              vS := Copy(vText, vSplitList[i], vSplitList[i + 1] - vSplitList[i]);  // 当前分隔的一个字符串
-              vCharWidth := vCanvas.TextWidth(vS);
+              // 计算结束位置
+              if vLineLast and (i = vSplitList.Count - 2) then  // 是当前DrawItem分隔的最后一个
+
+              else
               if vMod > 0 then
               begin
-                Inc(vCharWidth);  // 多分的余数
-                vSplitCount := 1;
+                vExtra := vExtra + viSplitW + 1;
                 Dec(vMod);
               end
               else
-                vSplitCount := 0;
+                vExtra := vExtra + viSplitW;
 
-              vDOffset := vSplitList[i] + Length(vS) - 1;
-              if vDOffset <= ADrawOffs then  // 当前字符结束位置在AOffs前
+              vInnerOffs := vSplitList[i + 1] - 1;  // 在DrawItem中的偏移，下一个的前一个，保证是这一个的最后字符，确保藏文最后字符
+              if vInnerOffs = ADrawOffs then  // 当前字符结束位置就是ADrawOffs
               begin
-                { 增加间距 }
-                if i <> vSplitList.Count - 2 then  // 不是当前DItem分隔的最后一个
-                  vCharWidth := vCharWidth + viSplitW  // 分隔间距
-                else  // 是当前DItem分隔的最后一个
-                begin
-                  if not vLineLast then  // 不是行最后一个DItem
-                    vCharWidth := vCharWidth + viSplitW;  // 分隔间距
-                end;
-
-                Result := Result + vCharWidth;
-                if vDOffset = ADrawOffs then
-                  Break;
+                Result := vCharWArr[vInnerOffs - 1] + vExtra;
+                Break;
               end
-              else  // 当前字符结束位置在AOffs后，找具体位置
+              else
+              if vInnerOffs > ADrawOffs then// 当前字符串结束位置在ADrawOffs后，找具体位置
               begin
-                // 准备处理  a b c d e fgh ijklm n opq的形式(多个字符为一个分隔串)
-                for j := 1 to Length(vS) do  // 找在当前分隔的这串字符串中哪一个位置
-                begin
-                  vCharWidth := vCanvas.TextWidth(vS[j]);
-
-                  vDOffset := vSplitList[i] - 1 + j;
-                  if vDOffset = vDrawItem.CharLen then  // 是当前DItem最后一个分隔串
-                  begin
-                    if not vLineLast then  // 当前DItem不是行最后一个DItem
-                      vCharWidth := vCharWidth + viSplitW + vSplitCount;  // 当前DItem最后一个字符享受分隔间距和多分的余数
-                    //else 行最后一个DItem的最后一个字符不享受分隔间距和多分的余数，因为串格式化时最后一个分隔字符串右侧就不分间距
-                  end;
-                  Result := Result + vCharWidth;
-
-                  if vDOffset = ADrawOffs then  // 当前字符结束位置在X后
-                    Break;
-                end;
-
+                Result := vCharWArr[ADrawOffs - vSplitList[i]] + vExtra;
                 Break;
               end;
             end;
+
+            SetLength(vCharWArr, 0);
           finally
             vSplitList.Free;
           end;
@@ -1234,6 +1262,14 @@ begin
   else
     Result := FItems[AItemNo].Length;
 end;
+
+{$IFDEF UNPLACEHOLDERCHAR}
+function THCCustomData.GetItemActualOffset(const AItemNo, AOffset: Integer;
+  const AAfter: Boolean = False): Integer;
+begin
+  Result := GetTextActualOffset(FItems[AItemNo].Text, AOffset, AAfter);
+end;
+{$ENDIF}
 
 procedure THCCustomData.GetItemAt(const X, Y: Integer;
   var AItemNo, AOffset, ADrawItemNo: Integer; var ARestrain: Boolean);
@@ -1271,7 +1307,8 @@ begin
       begin
         if vEndDItemNo - vStartDItemNo > 1 then  // 相差大于1
         begin
-          i := vStartDItemNo + (vEndDItemNo - vStartDItemNo) div 2;
+          i := vStartDItemNo + (vEndDItemNo - vStartDItemNo) div 2;  // 二分
+
           if Y > FDrawItems[i].Rect.Bottom then  // 大于中间位置
           begin
             vStartDItemNo := i + 1;  // 中间位置下一个
@@ -1410,12 +1447,18 @@ begin
 
   for i := 1 to Length(AText) do
   begin
-    Inc(Result);
-    if ACharIndexs <> nil then
-      ACharIndexs.Add(i);
+    {$IFDEF UNPLACEHOLDERCHAR}
+    if Pos(AText[i], UnPlaceholderChar) = 0 then
+    {$ENDIF}
+    begin
+      Inc(Result);
+      if ACharIndexs <> nil then
+        ACharIndexs.Add(i);
+    end;
   end;
+
   if ACharIndexs <> nil then
-    ACharIndexs.Add(Length(AText) + 1);
+    ACharIndexs.Add(Length(AText) + 1);  // 为方便循环时 + 1不越界
 end;
 
 procedure THCCustomData.GetLineDrawItemRang(var AFirstDrawItemNo, ALastDrawItemNo: Integer);
@@ -1442,7 +1485,7 @@ end;
 function THCCustomData.GetLineFirstDrawItemNo(const AItemNo,
   AOffset: Integer): Integer;
 begin
-  Result := AItemNo;
+  //Result := AItemNo;
   Result := GetDrawItemNoByOffset(AItemNo, AOffset);
 
   while Result > 0 do
@@ -1476,7 +1519,6 @@ end;
 function THCCustomData.GetLineBlankSpace(const ADrawNo: Integer): Integer;
 var
   i, vFirst, vLast, vHi, vMaxItemHi, vMaxDrawItemNo: Integer;
-  vCanvas: TCanvas;
 begin
   Result := 0;
 
@@ -1486,24 +1528,20 @@ begin
   // 找行起始和结束DrawItem
   // 找行中最高的DrawItem
   vMaxItemHi := 0;
-  vCanvas := THCStyle.CreateStyleCanvas;
-  try
-    vMaxDrawItemNo := vFirst;
-    for i := vFirst to vLast do
-    begin
-      if GetDrawItemStyle(i) < THCStyle.Null then
-        vHi := (FItems[FDrawItems[i].ItemNo] as THCCustomRectItem).Height
-      else
-        vHi := FStyle.TextStyles[FItems[FDrawItems[i].ItemNo].StyleNo].FontHeight;
 
-      if vHi > vMaxItemHi then
-      begin
-        vMaxItemHi := vHi;
-        vMaxDrawItemNo := i;  // 记下最高的DrawItemNo
-      end;
+  vMaxDrawItemNo := vFirst;
+  for i := vFirst to vLast do
+  begin
+    if GetDrawItemStyle(i) < THCStyle.Null then
+      vHi := (FItems[FDrawItems[i].ItemNo] as THCCustomRectItem).Height
+    else
+      vHi := FStyle.TextStyles[FItems[FDrawItems[i].ItemNo].StyleNo].FontHeight;
+
+    if vHi > vMaxItemHi then
+    begin
+      vMaxItemHi := vHi;
+      vMaxDrawItemNo := i;  // 记下最高的DrawItemNo
     end;
-  finally
-    THCStyle.DestroyStyleCanvas(vCanvas);
   end;
 
   if GetDrawItemStyle(vMaxDrawItemNo) < THCStyle.Null then
@@ -1898,55 +1936,100 @@ var
     i, vSplitCount, vX, vLen, viSplitW, vMod: Integer;
     vSplitList: THCIntegerList;
     vS: string;
-    vPos: array[0..0] of Integer;
+    //vPos: array[0..0] of Integer;
+    vExtra: Integer;
+    vCharWArr: array of Integer;  // 每个字符绘制结束位置
+    vSize: TSize;
   begin
-    vMod := 0;
     vX := ARect.Left;
-    viSplitW := (ARect.Right - ARect.Left) - FStyle.TempCanvas.TextWidth(AText);
-    // 计算当前Ditem内容分成几份，每一份在内容中的起始位置
-    vSplitList := THCIntegerList.Create;
-    try
-      vSplitCount := GetJustifyCount(AText, vSplitList);
-      if ALineLast and (vSplitCount > 0) then  // 行最后DrawItem，少分一个
-        Dec(vSplitCount);
+    //  20160618001 处理紧缩字符
+    vLen := Length(AText);
+    SetLength(vCharWArr, vLen);
+    GetTextExtentExPoint(FStyle.TempCanvas.Handle, PChar(AText), vLen, 0,
+      nil, PInteger(vCharWArr), vSize);  // 超过65535数组元素取不到值
+    // 20190618002 需要同步修改的字符和位置相关的计算
+    viSplitW := ARect.Width - vCharWArr[vLen - 1];
+    if viSplitW > 0 then  // 有多余的空间
+    begin
+      vSplitList := THCIntegerList.Create;  // 计算当前DrawItem内容分成几份，每一份在内容中的起始位置
+      try
+        vSplitCount := GetJustifyCount(AText, vSplitList);
+        if ALineLast and (vSplitCount > 0) then  // 行最后DrawItem，少分一个
+          Dec(vSplitCount);
 
-      if vSplitCount > 0 then  // 有分到间距
-      begin
-        vMod := viSplitW mod vSplitCount;
-        viSplitW := viSplitW div vSplitCount;
-      end;
-
-      for i := 0 to vSplitList.Count - 2 do  // vSplitList最后一个是字符串长度所以多减1
-      begin
-        vLen := vSplitList[i + 1] - vSplitList[i];
-        vS := Copy(AText, vSplitList[i], vLen);
-
-        if ALineLast and (i = vSplitList.Count - 2) then
-          vPos[0] := FStyle.TempCanvas.TextWidth(vS)
-        else
-        if vMod > 0 then
+        if vSplitCount > 0 then  // 有分到间距
         begin
-          vPos[0] := FStyle.TempCanvas.TextWidth(vS) + viSplitW + 1;
-          Dec(vMod);
+          vMod := viSplitW mod vSplitCount;
+          viSplitW := viSplitW div vSplitCount;
         end
         else
-          vPos[0] := FStyle.TempCanvas.TextWidth(vS) + viSplitW;
+          vMod := 0;
 
-        //vRect := Rect(vX, vTextDrawTop, ARect.Right, ARect.Bottom);
-        //Windows.DrawText(ACanvas.Handle, vS, -1, vRect, DT_LEFT or DT_SINGLELINE or vAlignVert);
-        //ACanvas.TextOut(vX, vTextDrawTop, vS);
-        { 201805161718
-        ETO_CLIPPED：正文将裁剪到矩形中。
-        ETO_GLYPH_INDEX：LpString指向由GetCharacterPlacement返回的数组，如果没有进一步的特殊语言处理的要求，则此数组直接由GDI解析，仅对字体应用符号索引，但此标志可用于位图和向量字体，以表示不必做进一步的语言处理，GDI应用直接处理此字符串。
-        ETO_OPAQUE：用当前的背景色来填充矩形。
-        ETO_RTLREADING：在Middle_Eastern Windows中如果指定了此值，且Hebrew或Arabic字体被选进设备环境，则此字符串用以从右到左的阅读顺序来输出。如果没有指定此值，则字符串以从左到右的顺序输出。在SetTextAlign中设置TA_RTLREADING值可获得同样的效果。为向后兼容，此值作为保留值。
-        ETO_GLYPH_INDEX和ETO_RTLREADING值不能在一起使用。因为ETO_GLYPH_INDEX表示所有的语言处理已经完成，函数就会忽略被指定的ETO_RTLREADING值。}
-        Windows.ExtTextOut(ACanvas.Handle, vX, vTextDrawTop, 0, nil, PChar(vS), vLen, @vPos);
-        vX := vX + vPos[0];
+        vX := 0;
+        vExtra := 0;
+
+        for i := 0 to vSplitList.Count - 2 do  // vSplitList最后一个是字符串长度所以多减1
+        begin
+          vLen := vSplitList[i + 1] - vSplitList[i];
+          vS := Copy(AText, vSplitList[i], vLen);
+
+          if i > 0 then  // 第一个左对齐，后面的才增加间距
+            vX := vCharWArr[vSplitList[i] - 2] + vExtra;
+
+          //Windows.ExtTextOut(ACanvas.Handle, vX, vTextDrawTop, 0, nil, PChar(vS), vLen, @vPos);  // 不支持藏文
+          Windows.ExtTextOut(ACanvas.Handle, ARect.Left + vX, vTextDrawTop, 0, nil, PChar(vS), vLen, nil);
+
+          // 准备下一个的起始位置
+          if ALineLast and (i = vSplitList.Count - 2) then  // 最后一个
+
+          else
+          if vMod > 0 then
+          begin
+            vExtra := vExtra + viSplitW + 1;
+            Dec(vMod);
+          end
+          else
+            vExtra := vExtra + viSplitW;
+        end;
+
+        {for i := 0 to vSplitList.Count - 2 do  // vSplitList最后一个是字符串长度所以多减1
+        begin
+          vLen := vSplitList[i + 1] - vSplitList[i];
+          vS := Copy(AText, vSplitList[i], vLen);
+
+          if ALineLast and (i = vSplitList.Count - 2) then
+            vPos[0] := FStyle.TempCanvas.TextWidth(vS)
+          else
+          if vMod > 0 then
+          begin
+            vPos[0] := FStyle.TempCanvas.TextWidth(vS) + viSplitW + 1;
+            Dec(vMod);
+          end
+          else
+            vPos[0] := FStyle.TempCanvas.TextWidth(vS) + viSplitW;
+
+          //vRect := Rect(vX, vTextDrawTop, ARect.Right, ARect.Bottom);
+          //Windows.DrawText(ACanvas.Handle, vS, -1, vRect, DT_LEFT or DT_SINGLELINE or vAlignVert);
+          //ACanvas.TextOut(vX, vTextDrawTop, vS);
+          // 201805161718
+          //ETO_CLIPPED：正文将裁剪到矩形中。
+          //ETO_GLYPH_INDEX：LpString指向由GetCharacterPlacement返回的数组，如果没有进一步的特殊语言处理的要求，则此数组直接由GDI解析，仅对字体应用符号索引，但此标志可用于位图和向量字体，以表示不必做进一步的语言处理，GDI应用直接处理此字符串。
+          //ETO_OPAQUE：用当前的背景色来填充矩形。
+          //ETO_RTLREADING：在Middle_Eastern Windows中如果指定了此值，且Hebrew或Arabic字体被选进设备环境，则此字符串用以从右到左的阅读顺序来输出。如果没有指定此值，则字符串以从左到右的顺序输出。在SetTextAlign中设置TA_RTLREADING值可获得同样的效果。为向后兼容，此值作为保留值。
+          //ETO_GLYPH_INDEX和ETO_RTLREADING值不能在一起使用。因为ETO_GLYPH_INDEX表示所有的语言处理已经完成，函数就会忽略被指定的ETO_RTLREADING值。
+
+          //Windows.ExtTextOut(ACanvas.Handle, vX, vTextDrawTop, 0, nil, PChar(vS), vLen, @vPos);  // 不支持藏文
+          Windows.ExtTextOut(ACanvas.Handle, vX, vTextDrawTop, 0, nil, PChar(vS), vLen, nil);
+          vX := vX + vPos[0];
+        end;}
+      finally
+        vSplitList.Free;
       end;
-    finally
-      vSplitList.Free;
-    end;
+    end
+    else  // 直接绘制
+      Windows.ExtTextOut(ACanvas.Handle, vX, vTextDrawTop, 0, nil, PChar(AText), Length(AText), nil);
+
+    SetLength(vCharWArr, 0);
   end;
   {$ENDREGION}
 
@@ -2230,7 +2313,7 @@ begin
 end;
 
 function THCCustomData.CalculateLineHeight(const ACanvas: TCanvas;
-  const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Cardinal;
+  const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Integer;
 var
   //vOutlineTextmetric: ^TOutlineTextmetric;
   //vFontSignature: TFontSignature;
@@ -2371,6 +2454,7 @@ begin
       FItems[AStartItemNo].SaveToStream(AStream, AStartOffset, FItems[AStartItemNo].Length);
       for i := AStartItemNo + 1 to AEndItemNo - 1 do
         FItems[i].SaveToStream(AStream);
+
       FItems[AEndItemNo].SaveToStream(AStream, 0, AEndOffset);
     end
     else

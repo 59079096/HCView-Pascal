@@ -41,6 +41,7 @@ type
     FLeftIndent,     // 左缩进
     FRightIndent     // 右缩进
       : Single;     // 单位毫米
+
     FBackColor: TColor;
     FAlignHorz: TParaAlignHorz;
     FAlignVert: TParaAlignVert;

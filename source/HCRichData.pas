@@ -18,6 +18,8 @@ unit HCRichData;
 
 interface
 
+{$I HCView.inc}
+
 uses
   Windows, Classes, Types, Controls, Graphics, SysUtils, HCCustomData, HCStyle,
   HCItem, HCDrawItem, HCTextStyle, HCParaStyle, HCStyleMatch, HCCommon, HCRectItem,
@@ -372,7 +374,7 @@ begin
       Self.FormatInit;
   end
   else
-    DeleteItems(AStartNo, AEndNo)
+    DeleteItems(AStartNo, AEndNo);
 end;
 
 procedure THCRichData.DeleteItems(const AStartNo: Integer; const AEndNo: Integer);
@@ -669,6 +671,7 @@ begin
               Items.Delete(SelectInfo.StartItemNo);
               Inc(vDelCount);
             end;
+
             if SelectInfo.StartItemNo > vFormatFirstItemNo then
               SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
           end
@@ -1140,13 +1143,11 @@ begin
 end;
 
 procedure THCRichData.ApplySelectParaStyle(const AMatchStyle: THCParaMatch);
-var
-  vFirstNo, vLastNo: Integer;
 
   {$REGION 'DoApplyParagraphStyle'}
   procedure DoApplyParagraphStyle(const AItemNo: Integer);
   var
-    i, vParaNo: Integer;
+    i, vParaNo, vFirstNo, vLastNo: Integer;
   begin
     GetParaItemRang(AItemNo, vFirstNo, vLastNo);
     vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
@@ -1161,7 +1162,7 @@ var
   {$REGION 'ApplyParagraphSelecteStyle'}
   procedure ApplyParagraphSelecteStyle;
   var
-    i: Integer;
+    i, vFirstNo, vLastNo: Integer;
   begin
     // 先处理起始位置所在的段，以便后面遍历时减少循环次数
     GetParaItemRang(SelectInfo.StartItemNo, vFirstNo, vLastNo);
@@ -1215,6 +1216,7 @@ begin
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
     end;
   end;
+
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
 end;
@@ -2166,12 +2168,14 @@ begin
       begin
         if vItem.StyleNo > THCStyle.Null then
           vItem.StyleNo := Style.GetStyleNo(AStyle.TextStyles[vItem.StyleNo], True);
+
         vItem.ParaNo := Style.GetParaNo(AStyle.ParaStyles[vItem.ParaNo], True);
       end
       else  // 无样式表
       begin
         if vItem.StyleNo > THCStyle.Null then
           vItem.StyleNo := CurStyleNo;
+
         vItem.ParaNo := CurParaNo;
       end;
 
@@ -2205,7 +2209,6 @@ begin
       if MergeItemText(Items[vInsetLastNo], vAfterItem) then  // 插入最后一个和后半部分能合并
       begin
         UndoAction_InsertText(vInsetLastNo, Items[vInsetLastNo].Length - vAfterItem.Length + 1, vAfterItem.Text);
-
         FreeAndNil(vAfterItem);
       end
       else  // 插入最后一个和后半部分不能合并
@@ -2402,14 +2405,15 @@ end;
 function THCRichData.InsertTable(const ARowCount,
   AColCount: Integer): Boolean;
 var
+  vTopData: THCRichData;
   vItem: THCCustomItem;
 begin
   Result := False;
 
   if not CanEdit then Exit;
 
-  vItem := THCTableItem.Create(Self, ARowCount, AColCount,
-    (Self.GetTopLevelData as THCRichData).Width);
+  vTopData := GetTopLevelData as THCRichData;
+  vItem := THCTableItem.Create(vTopData, ARowCount, AColCount, vTopData.Width);
   Result := InsertItem(vItem);
   InitializeMouseField;  // 201807311101
 end;
@@ -2706,6 +2710,7 @@ begin
       DoInsertText(vS, vNewPara);
 
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + vAddCount, vAddCount);
+      Result := True;
     end;
   finally
     Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
@@ -2820,6 +2825,11 @@ var
         else
           AOffset := Items[AItemNo].Length - 1;  // 倒数第1个前面
       end;
+
+      {$IFDEF UNPLACEHOLDERCHAR}
+      if (Items[AItemNo].StyleNo > THCStyle.Null) and IsUnPlaceHolderChar(Items[AItemNo].Text[AOffset + 1]) then
+        AOffset := GetItemActualOffset(AItemNo, AOffset) - 1;
+      {$ENDIF}
     end;
 
     procedure SelectStartItemPrio;
@@ -2891,7 +2901,14 @@ var
       else  // 无选中内容
       begin
         if SelectInfo.StartItemOffset <> 0 then  // 不在Item最开始
-          SelectInfo.StartItemOffset := SelectInfo.StartItemOffset - 1
+        begin
+          SelectInfo.StartItemOffset := SelectInfo.StartItemOffset - 1;
+
+          {$IFDEF UNPLACEHOLDERCHAR}
+          if IsUnPlaceHolderChar(Items[SelectInfo.StartItemNo].Text[SelectInfo.StartItemOffset + 1]) then
+            SelectInfo.StartItemOffset := GetItemActualOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset) - 1;
+          {$ENDIF}
+        end
         else  // 在Item最开始左方向键
         begin
           if SelectInfo.StartItemNo > 0 then  // 不是第一个Item的最开始，往前面移动
@@ -2953,6 +2970,10 @@ var
         else
           AOffset := AOffset + 1;
       end;
+
+      {$IFDEF UNPLACEHOLDERCHAR}
+      AOffset := GetItemActualOffset(AItemNo, AOffset, True);
+      {$ENDIF}
     end;
 
     procedure SelectStartItemNext;
@@ -3038,7 +3059,11 @@ var
       else  // 无选中内容
       begin
         if SelectInfo.StartItemOffset < vCurItem.Length then  // 不在Item最右边
+          {$IFDEF UNPLACEHOLDERCHAR}
+          SelectInfo.StartItemOffset := GetItemActualOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, True)
+          {$ELSE}
           SelectInfo.StartItemOffset := SelectInfo.StartItemOffset + 1
+          {$ENDIF}
         else  // 在Item最右边
         begin
           if SelectInfo.StartItemNo < Items.Count - 1 then  // 不是最后一个Item的最右边
@@ -3180,6 +3205,7 @@ var
         else
           Inc(vLastDItemNo);
       end;
+
       Dec(vLastDItemNo);
 
       if SelectInfo.EndItemNo >= 0 then  // 有选中内容
@@ -3997,6 +4023,9 @@ var
   var
     vText, vsDelete: string;
     i, vCurItemNo, vLen, vDelCount, vParaNo: Integer;
+    {$IFDEF UNPLACEHOLDERCHAR}
+    vCharCount: Integer;
+    {$ENDIF}
   begin
     vDelCount := 0;
     vCurItemNo := SelectInfo.StartItemNo;
@@ -4090,9 +4119,14 @@ var
       else  // 可删除
       begin
         vText := Items[vCurItemNo].Text;
+        {$IFDEF UNPLACEHOLDERCHAR}
+        vCharCount := GetTextActualOffset(vText, SelectInfo.StartItemOffset + 1, True) - SelectInfo.StartItemOffset;
+        vsDelete := Copy(vText, SelectInfo.StartItemOffset + 1, vCharCount);
+        Delete(vText, SelectInfo.StartItemOffset + 1, vCharCount);
+        {$ELSE}
         vsDelete := Copy(vText, SelectInfo.StartItemOffset + 1, 1);
-
         Delete(vText, SelectInfo.StartItemOffset + 1, 1);
+        {$ENDIF}
         DoItemAction(vCurItemNo, SelectInfo.StartItemOffset + 1, hiaDeleteChar);
 
         if vText = '' then  // 删除后没有内容了
@@ -4169,6 +4203,8 @@ var
             end
             else  // 当前段删除空了
             begin
+              vCurItem.Text := vText;
+
               Undo_New;
               UndoAction_DeleteText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, vsDelete);
 
@@ -4366,6 +4402,7 @@ var
 
             Style.UpdateInfoReStyle;
             BackspaceKeyDown;  // 重新处理
+
             Exit;
           end;
         end;
@@ -4599,6 +4636,7 @@ begin
       begin
         if vSelectExist then
           Style.UpdateInfoRePaint;
+
         Style.UpdateInfoReCaret;
         Style.UpdateInfoReScroll;
       end;
@@ -4832,8 +4870,6 @@ begin
     Exit;
   end;
 
-  //vOldMouseMoveItemOffset := FMouseMoveItemOffset;
-
   GetItemAt(X, Y, vMouseMoveItemNo, vMouseMoveItemOffset, FMouseMoveDrawItemNo, vRestrain);
 
   if FDraging or Style.UpdateInfo.Draging then  // 拖拽
@@ -4896,6 +4932,7 @@ begin
     begin
       if FMouseMoveItemNo >= 0 then  // 旧的移出
         DoItemMouseLeave(FMouseMoveItemNo);
+
       if (vMouseMoveItemNo >= 0) and (not vRestrain) then  // 新的移入
         DoItemMouseEnter(vMouseMoveItemNo);
 

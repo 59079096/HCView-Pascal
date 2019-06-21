@@ -55,8 +55,8 @@ type
     FFixColCount   // 固定列数量 > 0有效
       : Byte;  // 单元格数据和单元格边框的距离
 
-    FFixCol,  // 固定列
-    FFixRow  // 固定行
+    FFixCol,  // 从哪列开始固定列
+    FFixRow  // 从哪行开始固定行
       : ShortInt;
 
     FOutsideInfo: TOutsideInfo;  // 点击在表格左右边时对应的行信息
@@ -159,31 +159,8 @@ type
     /// <param name="ADItemMostBottom">最后一行最底端DItem的底部位置</param>
     //procedure GetPageFmtBottomInfo(const AHeight: Integer; var ADItemMostBottom: Integer); override;
 
-    procedure DblClick(const X, Y: Integer); override;
-    function CoordInSelect(const X, Y: Integer): Boolean; override;
-    function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; override;
-    function GetTopLevelData: THCCustomData; override;
-    function GetActiveData: THCCustomData; override;
-    function GetActiveItem: THCCustomItem; override;
-    function GetTopLevelItem: THCCustomItem; override;
-    function GetActiveDrawItem: THCCustomDrawItem; override;
-    function GetActiveDrawItemCoord: TPoint; override;
-    function GetHint: string; override;
-
-    function InsertText(const AText: string): Boolean; override;
-    function InsertItem(const AItem: THCCustomItem): Boolean; override;
-    function InsertStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word): Boolean; override;
-    procedure ReFormatActiveItem; override;
-    procedure ReAdaptActiveItem; override;
-    function DeleteActiveDomain: Boolean; override;
-    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer); override;
-    procedure SetActiveItemText(const AText: string); override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
-    function IsSelectComplateTheory: Boolean; override;
-    function SelectExists: Boolean; override;
-    procedure TraverseItem(const ATraverse: TItemTraverse); override;
 
     // 撤销重做相关方法
     function DoSelfUndoNew: THCUndo; override;
@@ -221,6 +198,28 @@ type
     destructor Destroy; override;
 
     procedure Assign(Source: THCCustomItem); override;
+    procedure DblClick(const X, Y: Integer); override;
+    function CoordInSelect(const X, Y: Integer): Boolean; override;
+    function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; override;
+    function GetTopLevelData: THCCustomData; override;
+    function GetActiveData: THCCustomData; override;
+    function GetActiveItem: THCCustomItem; override;
+    function GetTopLevelItem: THCCustomItem; override;
+    function GetActiveDrawItem: THCCustomDrawItem; override;
+    function GetActiveDrawItemCoord: TPoint; override;
+    function GetHint: string; override;
+    function InsertText(const AText: string): Boolean; override;
+    function InsertItem(const AItem: THCCustomItem): Boolean; override;
+    function InsertStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word): Boolean; override;
+    procedure ReFormatActiveItem; override;
+    procedure ReAdaptActiveItem; override;
+    function DeleteActiveDomain: Boolean; override;
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer); override;
+    procedure SetActiveItemText(const AText: string); override;
+    function IsSelectComplateTheory: Boolean; override;
+    function SelectExists: Boolean; override;
+    procedure TraverseItem(const ATraverse: TItemTraverse); override;
 
     /// <summary> 当前位置开始查找指定的内容 </summary>
     /// <param name="AKeyword">要查找的关键字</param>
@@ -470,6 +469,7 @@ begin
     FormatRow(vR);  // 格式化行，并计算行高度
     CalcRowCellHeight(vR);  // 以行中所有无行合并操作列中最大高度更新其他列
   end;
+
   FLastChangeFormated := True;
 
   CalcMergeRowHeightFrom(0);
@@ -576,7 +576,7 @@ function THCTableItem.DeleteActiveDomain: Boolean;
 var
   vResult: Boolean;
 begin
-  inherited DeleteActiveDomain;
+  Result := inherited DeleteActiveDomain;
 
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
@@ -638,6 +638,7 @@ begin
   Result := False;
   vCell := GetEditCell;
   if vCell = nil then Exit;
+
   vCell.CellData.InitializeField;
 
   if FColWidths.Count > 1 then
@@ -651,6 +652,7 @@ begin
   Result := False;
   vCell := GetEditCell;
   if vCell = nil then Exit;
+
   vCell.CellData.InitializeField;
 
   if FRows.Count > 1 then
@@ -813,7 +815,8 @@ var
   vR, vC,
   vCellScreenTop,
   vCellScreenBottom,
-  vCellDataDrawTop,  // 当前单元格数据绘制顶部位置
+  vDestCellDataDrawTop,  // 当前目标单元格数据绘制顶部位置（按单元格顶对齐）
+  vCellDataDrawTop,  // 当前单元格数据绘制顶部位置（按单元格顶对齐）
   vCellDataDrawBottom,  // 当前单元格数据绘制底部位置
   vCellDrawLeft,  // 单元格绘制时左边起始位置(左边框右边)
   vBorderLeft,
@@ -822,7 +825,7 @@ var
   vBorderBottom,
   vShouLian,
   vDestRow, vDestCol, vDestRow2, vDestCol2, vSrcRowBorderTop,
-  vDestCellDataDrawTop, vFirstDrawRow  // 本次绘制的第一行
+  vFirstDrawRow  // 本次绘制的第一行
     : Integer;
 
   vDrawBorder,
@@ -1049,8 +1052,8 @@ begin
           //if vFristDItemNo >= 0 then
           if vCellScreenBottom - vCellScreenTop > FCellVPadding then  // 有可显示的DrawItem
           begin
-            FRows[vDestRow][vDestCol].PaintData(
-              vCellDrawLeft + FCellHPadding, vDestCellDataDrawTop,
+            FRows[vDestRow][vDestCol].PaintTo(
+              vCellDrawLeft, vDestCellDataDrawTop - FCellVPadding,
               ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
               0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
 
@@ -1205,7 +1208,7 @@ begin
             //GetObject(ACanvas.Pen.Handle, vBottom, vExtPen);
           end
           else}
-          vExtPen := CreatExtPen(ACanvas.Pen);  // 因为默认的画笔没有线帽的控制，新增支持线帽的画笔
+          vExtPen := CreateExtPen(ACanvas.Pen);  // 因为默认的画笔没有线帽的控制，新增支持线帽的画笔
           vOldPen := SelectObject(ACanvas.Handle, vExtPen);
           try
             if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then  // 上边框可显示
@@ -1726,8 +1729,8 @@ begin
       FMouseDownCol := vMouseDownCol;
 
       vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
-      FRows[FMouseDownRow][FMouseDownCol].CellData.MouseDown(Button, Shift,
-        X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+      FRows[FMouseDownRow][FMouseDownCol].MouseDown(Button, Shift,
+        X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
     end
     else  // 不在选中区域中
     begin
@@ -1749,8 +1752,8 @@ begin
       FSelectCellRang.SetStart(FMouseDownRow, FMouseDownCol);
 
       vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
-      FRows[FMouseDownRow][FMouseDownCol].CellData.MouseDown(Button, Shift,
-        X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+      FRows[FMouseDownRow][FMouseDownCol].MouseDown(Button, Shift,
+        X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
     end;
   end
   else  // 不在单元格内
@@ -1888,7 +1891,7 @@ var
     if (FSelectCellRang.StartRow = FSelectCellRang.EndRow)
       and (FSelectCellRang.StartCol = FSelectCellRang.EndCol)
     then  // 不处理合并时，选中在同一单元格
-      FSelectCellRang.InitilazeEnd
+      FSelectCellRang.InitializeEnd
     else
     begin
       if FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].IsMergeSource then  // 起始选择在合并源
@@ -1906,7 +1909,7 @@ var
       if (FSelectCellRang.StartRow = FSelectCellRang.EndRow)
         and (FSelectCellRang.StartCol = FSelectCellRang.EndCol)
       then  // 修正合并后在同一单元格
-        FSelectCellRang.InitilazeEnd
+        FSelectCellRang.InitializeEnd;
     end;
   end;
   {$ENDREGION}
@@ -1938,8 +1941,8 @@ begin
   if ActiveDataResizing then
   begin
     vCellPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
-    FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.MouseMove(
-      Shift, X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+    FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].MouseMove(
+      Shift, X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
 
     Exit;
   end;
@@ -1964,8 +1967,8 @@ begin
         FMouseMoveRow := vMoveRow;
         FMouseMoveCol := vMoveCol;
         vCellPt := GetCellPostion(FMouseMoveRow, FMouseMoveCol);
-        FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseMove(Shift,
-          X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+        FRows[FMouseMoveRow][FMouseMoveCol].MouseMove(Shift,
+          X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
 
         Exit;
       end;
@@ -1987,8 +1990,8 @@ begin
       then}  // 选择起始和现在是同一个单元格
       begin
         vCellPt := GetCellPostion(FMouseMoveRow, FMouseMoveCol);
-        FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseMove(Shift,
-          X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+        FRows[FMouseMoveRow][FMouseMoveCol].MouseMove(Shift,
+          X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
       end;
     end
     else  // 鼠标移动，没有按键按下
@@ -2008,8 +2011,8 @@ begin
       if (FMouseMoveRow < 0) or (FMouseMoveCol < 0) then Exit;
 
       vCellPt := GetCellPostion(FMouseMoveRow, FMouseMoveCol);
-      FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseMove(Shift,
-        X - vCellPt.X - FCellHPadding, Y - vCellPt.Y - FCellVPadding);
+      FRows[FMouseMoveRow][FMouseMoveCol].MouseMove(Shift,
+        X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
     end;
   end
   else  // 鼠标不在单元格中
@@ -2033,7 +2036,7 @@ end;
 
 procedure THCTableItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
-  vPt: TPoint;
+  vCellPt: TPoint;
   vUpRow, vUpCol: Integer;
   vResizeInfo: TResizeInfo;
   //vMouseUpInSelect: Boolean;
@@ -2042,9 +2045,9 @@ begin
 
   if ActiveDataResizing then
   begin
-    vPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
-    FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.MouseUp(
-      Button, Shift, X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
+    vCellPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
+    FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].MouseUp(
+      Button, Shift, X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
 
     Exit;
   end;
@@ -2053,27 +2056,27 @@ begin
   begin
     if FResizeInfo.TableSite = tsBorderRight then  // 拖宽/拖窄
     begin
-      vPt.X := X - FMouseDownX;  // 不使用FResizeInfo.DestX(会造成按下处弹出也有偏移)
-      if vPt.X <> 0 then
+      vCellPt.X := X - FMouseDownX;  // 不使用FResizeInfo.DestX(会造成按下处弹出也有偏移)
+      if vCellPt.X <> 0 then
       begin
         // AReDest为False用于处理拖动改变列宽时，如拖动处列是合并源，其他行此列并无合并操作
         // 这时弹起，如果取拖动列目标列变宽，则其他行拖动处的列并没变宽
         vResizeInfo := GetCellAt(FMouseDownX, FMouseDownY, vUpRow, vUpCol, False{实际位置处的列});
 
-        if (vResizeInfo.TableSite <> tsOutside) and (vPt.X <> 0) then  // 没弹起在外面
+        if (vResizeInfo.TableSite <> tsOutside) and (vCellPt.X <> 0) then  // 没弹起在外面
         begin
-          if vPt.X > 0 then  // 拖宽了
+          if vCellPt.X > 0 then  // 拖宽了
           begin
             if vUpCol < FColWidths.Count - 1 then  // 右侧有，右侧变窄后不能小于最小宽度
             begin
-              if FColWidths[vUpCol + 1] - vPt.X < MinColWidth then
-                vPt.X := FColWidths[vUpCol + 1] - MinColWidth;
+              if FColWidths[vUpCol + 1] - vCellPt.X < MinColWidth then
+                vCellPt.X := FColWidths[vUpCol + 1] - MinColWidth;
 
-              if vPt.X <> 0 then
+              if vCellPt.X <> 0 then
               begin
-                Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vPt.X);
+                Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
 
-                FColWidths[vUpCol] := FColWidths[vUpCol] + vPt.X;  // 当前列变化
+                FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // 当前列变化
                 {右侧的减少，可实现拖动不改变表格整体宽度
                 if vUpCol < FColWidths.Count - 1 then  // 右侧的弥补变化
                   FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vPt.X;}
@@ -2085,21 +2088,21 @@ begin
                 vPt.X := Width - FColWidths[vUpCol + 1];
 
               if vPt.X <> 0 then}
-                FColWidths[vUpCol] := FColWidths[vUpCol] + vPt.X;  // 当前列变化
+                FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // 当前列变化
 
-              Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vPt.X);
+              Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
             end;
           end
           else  // 拖窄了
           begin
-            if FColWidths[vUpCol] + vPt.X < MinColWidth then  // 小于最小宽度
-              vPt.X := MinColWidth - FColWidths[vUpCol];
+            if FColWidths[vUpCol] + vCellPt.X < MinColWidth then  // 小于最小宽度
+              vCellPt.X := MinColWidth - FColWidths[vUpCol];
 
-            if vPt.X <> 0 then
+            if vCellPt.X <> 0 then
             begin
-              Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vPt.X);
+              Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
 
-              FColWidths[vUpCol] := FColWidths[vUpCol] + vPt.X;  // 当前列变化
+              FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // 当前列变化
               {右侧的增加，可实现拖动不改变表格整体宽度
               if vUpCol < FColWidths.Count - 1 then  // 右侧的弥补变化
                 FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vPt.X;}
@@ -2111,11 +2114,11 @@ begin
     else
     if FResizeInfo.TableSite = tsBorderBottom then  // 拖高/拖矮
     begin
-      vPt.Y := Y - FMouseDownY;  // 不使用FResizeInfo.DestY(会造成按下处弹出也有偏移)
-      if vPt.Y <> 0 then
+      vCellPt.Y := Y - FMouseDownY;  // 不使用FResizeInfo.DestY(会造成按下处弹出也有偏移)
+      if vCellPt.Y <> 0 then
       begin
-        Undo_RowResize(FMouseDownRow, FRows[FMouseDownRow].Height, FRows[FMouseDownRow].Height + vPt.Y);
-        FRows[FMouseDownRow].Height := FRows[FMouseDownRow].Height + vPt.Y;
+        Undo_RowResize(FMouseDownRow, FRows[FMouseDownRow].Height, FRows[FMouseDownRow].Height + vCellPt.Y);
+        FRows[FMouseDownRow].Height := FRows[FMouseDownRow].Height + vCellPt.Y;
         FRows[FMouseDownRow].AutoHeight := False;
       end;
     end;
@@ -2136,9 +2139,9 @@ begin
     // 先在按下单元格弹起，以便单元格中嵌套的表格有机会响应弹起(取消按下、划选状态，划选完成)
     if (FMouseDownRow >= 0) and (not FOutSelectInto) then  // 在表格右侧按下移动时再弹起时无有效的FMouseDownRow和FMouseDownCol
     begin
-      vPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
-      FRows[FMouseDownRow][FMouseDownCol].CellData.MouseUp(Button, Shift,
-        X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
+      vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
+      FRows[FMouseDownRow][FMouseDownCol].MouseUp(Button, Shift,
+        X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
     end;
 
     vResizeInfo := GetCellAt(X, Y, vUpRow, vUpCol);
@@ -2146,9 +2149,9 @@ begin
     begin
       if (vUpRow <> FMouseDownRow) or (vUpCol <> FMouseDownCol) then  // 划选完成后弹起在非按下单元格
       begin
-        vPt := GetCellPostion(vUpRow, vUpCol);
-        FRows[vUpRow][vUpCol].CellData.MouseUp(Button, Shift,
-          X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
+        vCellPt := GetCellPostion(vUpRow, vUpCol);
+        FRows[vUpRow][vUpCol].MouseUp(Button, Shift,
+          X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
       end;
     end;
   end
@@ -2172,9 +2175,9 @@ begin
       // 不管是否在在选中单元格中弹起，拖拽弹起都需要编辑到选中单元格，
       FSelectCellRang.StartRow := vUpRow;
       FSelectCellRang.StartCol := vUpCol;
-      vPt := GetCellPostion(vUpRow, vUpCol);
-      FRows[vUpRow][vUpCol].CellData.MouseUp(Button, Shift,
-        X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
+      vCellPt := GetCellPostion(vUpRow, vUpCol);
+      FRows[vUpRow][vUpCol].MouseUp(Button, Shift,
+        X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
 
       {if FMouseDownRow >= 0 then  // 有点击时的单元格(表格是划选范围内其中一个，在其他上拖拽到表格上时没有按下FMouseDownRow)
         Cells[FMouseDownRow, FMouseDownCol].CellData.InitializeField;}  // 拖拽起始单元格标明拖拽完成了
@@ -2183,9 +2186,9 @@ begin
   else  // 非划选，非拖拽
   if FMouseDownRow >= 0 then  // 有点击时的单元格
   begin
-    vPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
-    FRows[FMouseDownRow][FMouseDownCol].CellData.MouseUp(Button, Shift,
-      X - vPt.X - FCellHPadding, Y - vPt.Y - FCellVPadding);
+    vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
+    FRows[FMouseDownRow][FMouseDownCol].MouseUp(Button, Shift,
+      X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
   end;
 end;
 
@@ -2230,8 +2233,8 @@ begin
       if vRect.Bottom > ABottom then
         vRect.Bottom := ABottom;
 
-      FRows[vR][vC].PaintData(vCellLeft + FCellHPadding, vCellTop + FCellVPadding,
-        vCellBottom, ATop, ABottom, 0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
+      FRows[vR][vC].PaintTo(vCellLeft, vCellTop, vCellBottom, ATop, ABottom, 0,
+        FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
 
       {$REGION ' 绘制边框线 '}
       if FBorderVisible or (not APaintInfo.Print) then
@@ -2257,7 +2260,7 @@ begin
         vBorderLeft := vCellLeft - FBorderWidth;
         vBorderRight := vCellLeft + FColWidths[vC] + GetColSpanWidth(vR, vC);
 
-        vExtPen := CreatExtPen(ACanvas.Pen);  // 因为默认的画笔没有线帽的控制，新增支持线帽的画笔
+        vExtPen := CreateExtPen(ACanvas.Pen);  // 因为默认的画笔没有线帽的控制，新增支持线帽的画笔
         vOldPen := SelectObject(ACanvas.Handle, vExtPen);
         try
           if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then  // 上边框可显示
@@ -2332,6 +2335,7 @@ begin
       then
         vH := Max(vH, FRows[vR][vC].CellData.Height);
     end;
+
     vH := FCellVPadding + vH + FCellVPadding;  // 增加上下边距
     vH := Max(vH, FRows[vR].Height) + FBorderWidth + FBorderWidth;
 
@@ -2403,7 +2407,7 @@ begin
 
     if vCellDrawBottom - vCellDataDrawTop > FCellVPadding then  // 有可显示的DrawItem
     begin
-      FRows[ARow][vC].PaintData(vCellDrawLeft + FCellHPadding, vCellDataDrawTop,
+      FRows[ARow][vC].PaintTo(vCellDrawLeft, vCellDataDrawTop - FCellVPadding,
         vCellDrawBottom, ATop, ABottom, 0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
     end;
     {$ENDREGION}
@@ -2432,7 +2436,7 @@ begin
       vBorderLeft := vCellDrawLeft - FBorderWidth;
       vBorderRight := vCellDrawLeft + FColWidths[vC] + GetColSpanWidth(ARow, vC);
 
-      vExtPen := CreatExtPen(ACanvas.Pen);  // 因为默认的画笔没有线帽的控制，新增支持线帽的画笔
+      vExtPen := CreateExtPen(ACanvas.Pen);  // 因为默认的画笔没有线帽的控制，新增支持线帽的画笔
       vOldPen := SelectObject(ACanvas.Handle, vExtPen);
       try
         if (vBorderTop >= 0) and (cbsTop in FRows[ARow][vC].BorderSides) then  // 上边框可显示
@@ -2711,7 +2715,7 @@ begin
   Result := inherited GetHint;
   if (FMouseMoveRow < 0) or (FMouseMoveCol < 0) then Exit;
   vCell := FRows[FMouseMoveRow][FMouseMoveCol];
-  if (vCell <> nil) and (vCell.CellData <> nil) then
+  if Assigned(vCell) and Assigned(vCell.CellData) then
     Result := vCell.CellData.GetHint;
 end;
 
@@ -2815,6 +2819,7 @@ begin
         ARow := i;
         Break;
       end;
+
       vTop := vBottom + FBorderWidth;
     end;
 
@@ -2848,11 +2853,13 @@ begin
       Result.DestY := vBottom;
       Break;  // 为处理跨单元格划选时，划到下边框时ACol<0造成中间选中的也被忽略掉的问题，不能像下面列找不到时Exit
     end;
+
     if (vTop < Y) and (vBottom > Y) then  // 在此行中
     begin
       ARow := i;
       Break;
     end;
+
     vTop := vBottom;
   end;
 
@@ -2876,6 +2883,7 @@ begin
 
       Break;
     end;
+
     if (vLeft < X) and (vRight > X) then  // 在此列中
     begin
       ACol := i;
@@ -2907,6 +2915,7 @@ begin
   Result.Y := FBorderWidth;
   for i := 0 to ARow - 1 do
     Result.Y := Result.Y + FRows[i].FmtOffset + FRows[i].Height + FBorderWidth;
+
   Result.Y := Result.Y + FRows[ARow].FmtOffset;
   for i := 0 to ACol - 1 do
     Result.X := Result.X + FColWidths[i] + FBorderWidth;
@@ -2985,19 +2994,20 @@ begin
   ACellData.OnInsertItem := OwnerData.OnInsertItem;
   ACellData.OnRemoveItem := OwnerData.OnRemoveItem;
   ACellData.OnItemMouseUp := (OwnerData as THCViewData).OnItemMouseUp;
+
   ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
+  ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
   ACellData.OnDrawItemPaintAfter := (OwnerData as THCViewData).OnDrawItemPaintAfter;
+
   ACellData.OnInsertAnnotate := (OwnerData as THCViewData).OnInsertAnnotate;
   ACellData.OnRemoveAnnotate := (OwnerData as THCViewData).OnRemoveAnnotate;
   ACellData.OnDrawItemAnnotate := (OwnerData as THCViewData).OnDrawItemAnnotate;
-  ACellData.OnCanEdit := (OwnerData as THCViewData).OnCanEdit;
 
+  ACellData.OnCanEdit := (OwnerData as THCViewData).OnCanEdit;
   ACellData.OnItemResized := (OwnerData as THCRichData).OnItemResized;
   ACellData.OnCurParaNoChange := (OwnerData as THCRichData).OnCurParaNoChange;
-  ACellData.OnDrawItemPaintAfter := (OwnerData as THCRichData).OnDrawItemPaintAfter;
-  ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
-  ACellData.OnCreateItem := (OwnerData as THCRichData).OnCreateItem;
 
+  ACellData.OnCreateItem := (OwnerData as THCRichData).OnCreateItem;
   ACellData.OnGetUndoList := Self.GetSelfUndoList;
   ACellData.OnGetRootData := DoCellDataGetRootData;
 end;
@@ -3263,7 +3273,7 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
 
   procedure DeleteEmptyRows(const ASRow, AERow: Cardinal);
   var
-    vR, vC, vR1: Integer;
+    vR, vC, i: Integer;
     vEmptyRow: Boolean;
   begin
     for vR := AERow downto ASRow do  // 遍历行
@@ -3280,21 +3290,21 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
 
       if vEmptyRow then  // 空行
       begin
-        for vR1 := 0 to vR - 1 do
+        for i := 0 to vR - 1 do
         begin
-          for vC := 0 to FRows[vR1].ColCount - 1 do
+          for vC := 0 to FRows[i].ColCount - 1 do
           begin
-            if FRows[vR1][vC].RowSpan > 0 then
-              FRows[vR1][vC].RowSpan := FRows[vR1][vC].RowSpan - 1;
+            if FRows[i][vC].RowSpan > 0 then
+              FRows[i][vC].RowSpan := FRows[i][vC].RowSpan - 1;
           end;
         end;
 
-        for vR1 := vR + 1 to FRows.Count - 1 do
+        for i := vR + 1 to FRows.Count - 1 do
         begin
-          for vC := 0 to FRows[vR1].ColCount - 1 do
+          for vC := 0 to FRows[i].ColCount - 1 do
           begin
-            if FRows[vR1][vC].RowSpan < 0 then
-              FRows[vR1][vC].RowSpan := FRows[vR1][vC].RowSpan + 1;
+            if FRows[i][vC].RowSpan < 0 then
+              FRows[i][vC].RowSpan := FRows[i][vC].RowSpan + 1;
           end;
         end;
 
@@ -3305,7 +3315,7 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
 
   procedure DeleteEmptyCols(const ASCol, AECol: Cardinal);
   var
-    vR, vC, vC2: Integer;
+    vR, vC, i: Integer;
     vEmptyCol: Boolean;
     vTableCell: THCTableCell;
   begin
@@ -3325,17 +3335,17 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
       begin
         for vR := RowCount - 1 downto 0 do  // 循环各行，删除对应列
         begin
-          for vC2 := 0 to vC - 1 do
+          for i := 0 to vC - 1 do
           begin
-            vTableCell := FRows[vR][vC2];
-            if vC2 + vTableCell.ColSpan >= vC then
+            vTableCell := FRows[vR][i];
+            if i + vTableCell.ColSpan >= vC then
               vTableCell.ColSpan := vTableCell.ColSpan - 1;
           end;
 
-          for vC2 := vC + 1 to FRows[vR].ColCount - 1 do
+          for i := vC + 1 to FRows[vR].ColCount - 1 do
           begin
-            vTableCell := FRows[vR][vC2];
-            if vC2 + vTableCell.ColSpan < vC then
+            vTableCell := FRows[vR][i];
+            if i + vTableCell.ColSpan < vC then
               vTableCell.ColSpan := vTableCell.ColSpan + 1;
           end;
 
@@ -3454,13 +3464,14 @@ begin
 
     Result := MergeCells(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       FSelectCellRang.EndRow, FSelectCellRang.EndCol);
+
     if Result then
     begin
       FLastChangeFormated := False;
       { 防止合并后有空行或空列被删除后，DisSelect访问越界，所以合并后直接赋值结束信息 }
       vSelRow := FSelectCellRang.StartRow;
       vSelCol := FSelectCellRang.StartCol;
-      FSelectCellRang.InitilazeEnd;
+      FSelectCellRang.InitializeEnd;
       DisSelect;
       FSelectCellRang.SetStart(vSelRow, vSelCol);
       FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.InitializeField;
@@ -3627,7 +3638,7 @@ begin
   AFmtOffset := 0;
   ACellMaxInc := 0;  // vCellInc的最大值，表示当前行各列为避开分页额外增加的格式化高度中最高的
 
-  { 得到起始行的Fmt起始位置 }
+  { 得到起始行的Fmt起始位置 }                         {20190613 一半?}
   vBreakRowFmtTop := ADrawItemRectTop + FBorderWidth - 1;  // 第1行排版位置(上边框线结束位置)，因为边框在ADrawItemRectTop也占1像素，所以要减掉
   for vR := 0 to AStartRow - 1 do
     vBreakRowFmtTop := vBreakRowFmtTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidth;  // 第i行结束位置(含下边框结束位置)
@@ -3751,7 +3762,7 @@ begin
           // 计算分页的DrawItem向下偏移多少可在下一页全显示该DrawItem
           vH := APageDataFmtBottom - (vDestCellDataFmtTop + vDrawItem.Rect.Top) // 页Data底部 - 当前DrawItem在页的相对位置
             + FBorderWidth + FCellVPadding - 1;  // 预留出顶部边框和FCellVPadding，因为边框在APageDataFmtBottom也占1像素，所以要减掉
-
+                                            {20190613 一半?}
           // 单元格实际增加的高度 = DrawItem分页向下偏移的距离 - 原最后一个DrawItem底部距离行底部的空白距离(不含底部的FCellVPadding)
           if vH > vLastDFromRowBottom then  // 偏移量比当前单元格下面有空白大时，计算单元格增量
             vCellInc := vH - vLastDFromRowBottom
@@ -3943,6 +3954,7 @@ begin
     AStream.WriteBuffer(FRows[vR].AutoHeight, SizeOf(Boolean));
     if not FRows[vR].AutoHeight then
       AStream.WriteBuffer(FRows[vR].Height, SizeOf(Integer));
+
     for vC := 0 to FRows[vR].ColCount - 1 do  // 各列数据
       FRows[vR][vC].SaveToStream(AStream);
   end;
@@ -4158,6 +4170,7 @@ begin
     vCell := GetEditCell;
     if (vCell <> nil) and (vCell.CellData <> nil) then
       vCell.CellData.Active := Value;
+
     if not Value then
       Self.InitializeMouseInfo;
 
@@ -4450,50 +4463,6 @@ begin
           Inc(vC);
       end;
     end;
-
-
-
-    {for vC := 0 to Self.ColCount - 1 do  // 遍历拆分前光标所在的行各列
-    begin
-      vTopCell := Cells[vCurRow, vC];
-      if vTopCell.RowSpan > 0 then  // 合并目标已经在插入行方法中处理了合并
-      begin
-
-      end
-      else
-      if vTopCell.RowSpan < 0 then  // 合并源
-      begin
-        if vTopCell.ColSpan = 0 then  // 多单元格合并，只在起始列处理目标单元格列合并范围的增加
-        begin
-          GetDestCell(vCurRow, vC, vDestRow, vDestCol);  // 得到目标
-          GetSourceCell(vDestRow, vDestCol, vSrcRow, vSrcCol);  // 得到范围
-
-          if vCurRow = vSrcRow then  // 只在范围最后一行(拆分)下面插入的才处理合并，中间(拆分)插入的已经在插入行方法中处理了合并
-          begin
-            Cells[vDestRow, vDestCol].RowSpan := Cells[vDestRow, vDestCol].RowSpan + 1;  // 目标行合并范围增1
-
-            for i := vC to vSrcCol do  // 合并范围最后一行新插入的行各列要清除CellData
-            begin
-              Cells[vCurRow + 1, i].CellData.Free;
-              Cells[vCurRow + 1, i].CellData := nil;
-              Cells[vCurRow + 1, i].RowSpan := vDestRow - (vCurRow + 1);
-              Cells[vCurRow + 1, i].ColSpan := vC - i;
-            end;
-          end;
-        end;
-      end
-      else
-      if vTopCell.RowSpan = 0 then  // 普通单元格
-      begin
-        if vC <> vCurCol then
-        begin
-          Cells[vCurRow + 1, vC].CellData.Free;
-          Cells[vCurRow + 1, vC].CellData := nil;
-          Cells[vCurRow + 1, vC].RowSpan := -1;
-          Cells[vCurRow, vC].RowSpan := 1;
-        end;
-      end;
-    end;}
   end;
 
   Result := True;
@@ -4722,6 +4691,7 @@ begin
         vDestCol := vDestCol + vCell.ColSpan;
         if vLastRow < vDestRow then
           vLastRow := vDestRow;
+
         if vLastCol < vDestCol then
           vLastCol := vDestCol;
       end;
@@ -4958,7 +4928,7 @@ var
 begin
   Result := Point(0, 0);
   vCell := GetEditCell;
-  if vCell <> nil then
+  if Assigned(vCell) then
   begin
     Result := vCell.CellData.GetActiveDrawItemCoord;
     vPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
@@ -5050,7 +5020,7 @@ begin
     end;
 
     vCaretCell.GetCaretInfo(vCaretCell.CellData.MouseMoveItemNo,
-      vCaretCell.CellData.MouseMoveItemOffset, FCellVPadding, ACaretInfo);
+      vCaretCell.CellData.MouseMoveItemOffset, FCellHPadding, FCellVPadding, ACaretInfo);
   end
   else  // 非拖拽
   begin
@@ -5063,12 +5033,12 @@ begin
     end;
 
     vCaretCell.GetCaretInfo(vCaretCell.CellData.SelectInfo.StartItemNo,
-      vCaretCell.CellData.SelectInfo.StartItemOffset, FCellVPadding, ACaretInfo);
+      vCaretCell.CellData.SelectInfo.StartItemOffset, FCellHPadding, FCellVPadding, ACaretInfo);
   end;
 
   vPos := GetCellPostion(vRow, vCol);
-  ACaretInfo.X := vPos.X + ACaretInfo.X + FCellHPadding;
-  ACaretInfo.Y := vPos.Y + ACaretInfo.Y + FCellVPadding;
+  ACaretInfo.X := vPos.X + ACaretInfo.X;
+  ACaretInfo.Y := vPos.Y + ACaretInfo.Y;
 end;
 
 { TColCross }

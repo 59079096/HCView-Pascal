@@ -380,7 +380,7 @@ begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
     OwnerData.Style.ApplyTempStyle(TextStyleNo);
-    vOffset := GetCharOffsetAt(OwnerData.Style.TempCanvas, vS, vX);
+    vOffset := GetNorAlignCharOffsetAt(OwnerData.Style.TempCanvas, vS, vX);
   end
   else
     vOffset := -1;

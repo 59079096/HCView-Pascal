@@ -154,6 +154,7 @@ begin
     ACanvas.Brush.Color := clMenu
   else
     ACanvas.Brush.Color := clWindow;
+
   ACanvas.FillRect(FButtonDrawRect);
 
   ACanvas.Pen.Color := clBlack;
@@ -295,7 +296,6 @@ var
 begin
   ACanvas.Brush.Color := clInfoBk;
   ACanvas.FillRect(GetItemRect);  // AClientRect
-
   ACanvas.Font.Size := DROPDOWNFONTSIZE;  // 8ºÅ×Ö£¬¸ß14
 
   GetDisplayRange(vStartIndex, vEndIndex);
@@ -366,16 +366,14 @@ begin
 end;
 
 function THCComboboxItem.GetItemIndexAt(const X, Y: Integer): Integer;
-var
-  vTop: Integer;
 begin
   Result := -1;
   if ScrollBarVisible then
-    vTop := FScrollBar.Position + Y
+    Result := FScrollBar.Position + Y
   else
-    vTop := Y;
+    Result := Y;
 
-  Result := vTop div DROPDOWNITEMHEIGHT;
+  Result := Result div DROPDOWNITEMHEIGHT;
   if Result > FItems.Count - 1 then
     Result := FItems.Count - 1;
 end;

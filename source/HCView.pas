@@ -20,8 +20,6 @@ uses
   HCTextItem, HCItem, HCCustomFloatItem, HCUndo, HCAnnotateData, HCSectionData;
 
 type
-  THCPageScrollModel = (psmVertical, psmHorizontal);
-
   TLoadSectionProc = reference to procedure(const AFileVersion: Word);
 
   THCDrawAnnotate = class(THCDrawItemAnnotate)  // Data批注信息
@@ -44,6 +42,7 @@ type
     FActiveDrawAnnotateIndex: Integer;
     // 在批注区引起的需要重绘时触发，如鼠标移入移出批注区域的高亮切换
     FOnUpdateView: TNotifyEvent;
+
     function GetDrawCount: Integer;
     function GetDrawAnnotateAt(const X, Y: Integer): Integer; overload;
     function GetDrawAnnotateAt(const APoint: TPoint): Integer; overload;
@@ -227,6 +226,9 @@ type
     procedure SetActiveSectionIndex(const Value: Integer);
     procedure SetIsChanged(const Value: Boolean);
     procedure SetPagePadding(const Value: Byte);
+    /// <summary> 获取当前节对象 </summary>
+    function GetActiveSection: THCSection;
+
     procedure AutoScrollTimer(const AStart: Boolean);
     // Imm
     procedure UpdateImmPosition;
@@ -496,9 +498,6 @@ type
     /// <summary> 格式化指定节的数据 </summary>
     procedure FormatSection(const ASectionIndex: Integer);
 
-    /// <summary> 获取当前节对象 </summary>
-    function ActiveSection: THCSection;
-
     /// <summary> 获取当前节顶层Data </summary>
     function ActiveSectionTopLevelData: THCCustomData;
 
@@ -652,10 +651,12 @@ type
     /// <summary> 当前光标所在节的序号 </summary>
     property ActiveSectionIndex: Integer read FActiveSectionIndex write SetActiveSectionIndex;
 
+    property ActiveSection: THCSection read GetActiveSection;
+
     /// <summary> 水平滚动条 </summary>
     property HScrollBar: THCScrollBar read FHScrollBar;
 
-    /// <summary> 垂直滚动条的值 </summary>
+    /// <summary> 垂直滚动条 </summary>
     property VScrollBar: THCRichScrollBar read FVScrollBar;
     /// <summary> 当前光标处的文本样式 </summary>
     property CurStyleNo: Integer read GetCurStyleNo;
@@ -920,6 +921,7 @@ begin
   finally
     FUndoList.RestoreState;
   end;
+
   FHScrollBar.Position := 0;
   FVScrollBar.Position := 0;
   FActiveSectionIndex := 0;
@@ -1037,11 +1039,6 @@ procedure THCView.Cut;
 begin
   Copy;
   ActiveSection.DeleteSelected;
-end;
-
-function THCView.ActiveSection: THCSection;
-begin
-  Result := FSections[FActiveSectionIndex];
 end;
 
 procedure THCView.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
@@ -1197,7 +1194,7 @@ begin
   end
   else
   begin
-    if ssCtrl in Shift then
+    if ssShift in Shift then
       FHScrollBar.Position := FHScrollBar.Position - WheelDelta
     else
       FVScrollBar.Position := FVScrollBar.Position - WheelDelta;
@@ -1638,7 +1635,7 @@ begin
 
   // 映射到节页面(白色区域)
   Result.X := ZoomIn(GetSectionDrawLeft(Self.ActiveSectionIndex)
-    + (ActiveSection.GetPageMarginLeft(vPageIndex) + Result.X)) - Self.HScrollBar.Position;
+    + (ActiveSection.GetPageMarginLeft(vPageIndex) + Result.X)) - FHScrollBar.Position;
 
   if ActiveSection.ActiveData = ActiveSection.Header then
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
@@ -1646,7 +1643,7 @@ begin
       + ActiveSection.GetHeaderPageDrawTop
       + Result.Y
       - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
-      - Self.VScrollBar.Position
+      - FVScrollBar.Position
   else
   if ActiveSection.ActiveData = ActiveSection.Footer then
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
@@ -1654,14 +1651,14 @@ begin
       + ActiveSection.PaperHeightPix - ActiveSection.PaperMarginBottomPix
       + Result.Y
       - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
-      - Self.VScrollBar.Position
+      - FVScrollBar.Position
   else
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
       + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
       + ActiveSection.GetHeaderAreaHeight // 94
       + Result.Y
       - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
-      - Self.VScrollBar.Position;
+      - FVScrollBar.Position;
 end;
 
 function THCView.GetActiveItem: THCCustomItem;
@@ -1678,6 +1675,11 @@ begin
     Result := Result + FSections[i].PageCount;
 
   Result := Result + ActiveSection.ActivePageIndex;
+end;
+
+function THCView.GetActiveSection: THCSection;
+begin
+  Result := FSections[FActiveSectionIndex];
 end;
 
 function THCView.GetCurParaNo: Integer;
@@ -2370,11 +2372,11 @@ begin
 
   CheckUpdateInfo;  // 在选中区域中按下不移动弹起鼠标时需要更新
 
-  if Assigned(FOnMouseUp) then
-    FOnMouseUp(Self, Button, Shift, X, Y);
-
   FStyle.UpdateInfo.Selecting := False;
   FStyle.UpdateInfo.Draging := False;
+
+  if Assigned(FOnMouseUp) then
+    FOnMouseUp(Self, Button, Shift, X, Y);
 end;
 
 function THCView.NewDefaultSection: THCSection;
@@ -2441,6 +2443,7 @@ begin
   Result := 0;
   for i := 0 to FActiveSectionIndex - 1 do
     Result := Result + FSections[i].PageCount;
+
   Result := Result + FSections[FActiveSectionIndex].DisplayFirstPageIndex;
 end;
 
@@ -2507,8 +2510,8 @@ procedure THCView.Paste;
     vStream := TMemoryStream.Create;
     try
       Clipboard.Open;
+      vData := GetClipboardData(CF_RTF);
       try
-        vData := GetClipboardData(CF_RTF);
         if (vData <> 0) and (vData <> INVALID_HANDLE_VALUE) then
         begin
           vLen := GlobalSize(vData);
@@ -2830,6 +2833,7 @@ begin
             vRect := Bounds(vPrintOffsetX + vMarginLeft, vPrintOffsetY,
               Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
               Self.ActiveSection.GetHeaderAreaHeight + vPt.Y);
+
           vPrintCanvas.FillRect(vRect);
 
           if not APrintFooter then  // 不打印页脚
@@ -2945,6 +2949,7 @@ begin
             vRect := Bounds(vPrintOffsetX + vMarginLeft, vPrintOffsetY,
               Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
               Self.ActiveSection.GetHeaderAreaHeight + vPt.Y);
+
           vPrintCanvas.FillRect(vRect);
 
           // 抹选中内容起始左边
@@ -2952,6 +2957,7 @@ begin
             vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y,
             vData.DrawItems[vDrawItemNo].Rect.Left + vData.GetDrawItemOffsetWidth(vDrawItemNo, AStartOffset - vData.DrawItems[vDrawItemNo].CharOffs + 1),
             vData.DrawItems[vDrawItemNo].Rect.Height);
+
           vPrintCanvas.FillRect(vRect);
 
           // 抹选中内容结束右边
@@ -2964,6 +2970,7 @@ begin
             vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y,
             vPrintOffsetX + Self.ActiveSection.PaperWidthPix - vMarginRight,
             vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height);
+
           vPrintCanvas.FillRect(vRect);
 
           // 抹选中内容下面
@@ -3153,8 +3160,8 @@ begin
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
-  CheckUpdateInfo;
 
+  CheckUpdateInfo;
   DoViewResize;
 end;
 
@@ -3320,6 +3327,7 @@ begin
 
   if Length(vPreamble) > 0 then
     AStream.WriteBuffer(vPreamble[0], Length(vPreamble));
+
   AStream.WriteBuffer(vBuffer[0], Length(vBuffer));
 end;
 
@@ -3647,6 +3655,7 @@ begin
     vValue := 5
   else
     vValue := Value;
+
   if FZoom <> vValue then
   begin
     Self.SetFocus;
@@ -3759,6 +3768,7 @@ procedure THCView.UpdateView(const ARect: TRect);
       FSections[FDisplayFirstSection].DisplayLastPageIndex := -1;
       FDisplayFirstSection := -1;
     end;
+
     if FDisplayLastSection >= 0 then
     begin
       FSections[FDisplayLastSection].DisplayFirstPageIndex := -1;
@@ -3785,6 +3795,7 @@ procedure THCView.UpdateView(const ARect: TRect);
           Break;
         end;
       end;
+
       if vFirstPage >= 0 then
       begin
         FDisplayFirstSection := i;
@@ -3792,6 +3803,7 @@ procedure THCView.UpdateView(const ARect: TRect);
         Break;
       end;
     end;
+
     if FDisplayFirstSection >= 0 then
     begin
       vY := FVScrollBar.Position + FViewHeight;
@@ -3812,6 +3824,7 @@ procedure THCView.UpdateView(const ARect: TRect);
             Break;
           end;
         end;
+
         if vLastPage >= 0 then
         begin
           FDisplayLastSection := i;
@@ -3819,6 +3832,7 @@ procedure THCView.UpdateView(const ARect: TRect);
           Break;
         end;
       end;
+
       if FDisplayLastSection < 0 then  // 没有找到结束页，赋值为最后一节最后一页
       begin
         FDisplayLastSection := FSections.Count - 1;
@@ -4034,7 +4048,7 @@ begin
   // 会先触发这里，再触发MouseDown，在MouseDown里会重新取当前样式不受影响
   FStyle.UpdateInfoReCaret(False);
   FStyle.UpdateInfoRePaint;
-  FStyle.UpdateInfoReScroll;
+  //FStyle.UpdateInfoReScroll;  // 失去焦点前光标不在显示页，获取焦点后不要乱跳
   CheckUpdateInfo;
 end;
 
@@ -4184,12 +4198,12 @@ end;
 
 procedure THCAnnotatePre.MouseMove(const X, Y: Integer);
 var
-  vIndex: Integer;
+  //vIndex: Integer;
   vPt: TPoint;
 begin
   vPt := Point(X, Y);
   MouseIn := PtInRect(FDrawRect, vPt);
-  vIndex := GetDrawAnnotateAt(vPt);
+  //vIndex := GetDrawAnnotateAt(vPt);
 end;
 
 procedure THCAnnotatePre.PaintDrawAnnotate(const Sender: TObject; const APageRect: TRect;

@@ -3,10 +3,10 @@ unit frm_HCViewDemo;
 interface
 
 uses
-  Windows, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, StdCtrls,
+  Windows, SysUtils, Classes, Graphics, Controls, Messages, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  HCPrinters, Clipbrd, HCRuler, System.Actions, System.ImageList;
+  HCPrinters, Clipbrd, HCRuler;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -603,6 +603,7 @@ procedure TfrmHCViewDemo.FormShow(Sender: TObject);
 begin
   cbbFont.Items := Screen.Fonts;
   cbbFont.ItemIndex := cbbFont.Items.IndexOf('ËÎÌו');
+  SendMessage(cbbFont.Handle, CB_SETDROPPEDWIDTH, 200, 0);
   FHCView.SetFocus;
 end;
 

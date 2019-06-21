@@ -292,7 +292,7 @@ begin
   inherited MouseDown(Button, Shift, X, Y);
   OwnerData.Style.ApplyTempStyle(TextStyleNo);
   vX := X - FMargin;// - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
-  vOffset := GetCharOffsetAt(OwnerData.Style.TempCanvas, FText, vX);
+  vOffset := GetNorAlignCharOffsetAt(OwnerData.Style.TempCanvas, FText, vX);
   if vOffset <> FCaretOffset then
   begin
     FCaretOffset := vOffset;

@@ -14,7 +14,8 @@ unit HCTableCell;
 interface
 
 uses
-  Classes, Graphics, HCStyle, HCCustomData, HCTableCellData, HCItem, HCCommon, HCXml;
+  Classes, Graphics, Controls, HCStyle, HCCustomData, HCTableCellData, HCItem,
+  HCCommon, HCXml;
 
 type
   TTableSite = (
@@ -50,7 +51,7 @@ type
     /// <summary> 初始化字段和变量 </summary>
     procedure Initialize;
 
-    procedure InitilazeEnd;
+    procedure InitializeEnd;
     procedure SetStart(const ARow, ACol: Integer);
     procedure SetEnd(const ARow, ACol: Integer);
 
@@ -85,6 +86,7 @@ type
     FBackgroundColor: TColor;
     FAlignVert: THCAlignVert;
     FBorderSides: TBorderSides;
+    function GetCellDataTop(const ACellVPadding: Byte): Integer;
   protected
     function GetActive: Boolean;
     procedure SetActive(const Value: Boolean);
@@ -92,6 +94,13 @@ type
   public
     constructor Create(const AStyle: THCStyle);
     destructor Destroy; override;
+
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
+      const ACellHPadding, ACellVPadding: Byte);
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer; const ACellHPadding, ACellVPadding: Byte);
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
+      const ACellHPadding, ACellVPadding: Byte);
+
     function IsMergeSource: Boolean;
     function IsMergeDest: Boolean;
 
@@ -105,17 +114,17 @@ type
     procedure ParseXml(const ANode: IHCXMLNode);
 
     procedure GetCaretInfo(const AItemNo, AOffset: Integer;
-      const ACellVPadding: Byte; var ACaretInfo: THCCaretInfo);
+      const ACellHPadding, ACellVPadding: Byte; var ACaretInfo: THCCaretInfo);
 
     /// <summary> 绘制数据 </summary>
-    /// <param name="ADataDrawLeft">绘制目标区域Left</param>
-    /// <param name="ADataDrawTop">绘制目标区域的Top</param>
+    /// <param name="ADrawLeft">绘制目标区域Left</param>
+    /// <param name="ADrawTop">绘制目标区域的Top</param>
     /// <param name="ADataDrawBottom">绘制目标区域的Bottom</param>
     /// <param name="ADataScreenTop">屏幕区域Top</param>
     /// <param name="ADataScreenBottom">屏幕区域Bottom</param>
     /// <param name="AVOffset">指定从哪个位置开始的数据绘制到目标区域的起始位置</param>
     /// <param name="ACanvas">画布</param>
-    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+    procedure PaintTo(const ADrawLeft, ADrawTop, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
       const ACellHPadding, ACellVPadding: Byte;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -167,26 +176,33 @@ begin
 end;
 
 procedure THCTableCell.GetCaretInfo(const AItemNo, AOffset: Integer;
-  const ACellVPadding: Byte; var ACaretInfo: THCCaretInfo);
+  const ACellHPadding, ACellVPadding: Byte; var ACaretInfo: THCCaretInfo);
 begin
-  if FCellData <> nil then
+  if Assigned(FCellData) then
   begin
     FCellData.GetCaretInfo(AItemNo, AOffset, ACaretInfo);
     if ACaretInfo.Visible then
     begin
-      case FAlignVert of
-        cavCenter: ACaretInfo.Y := ACaretInfo.Y + (FHeight - ACellVPadding - ACellVPadding - FCellData.Height) div 2;
-        cavBottom: ACaretInfo.Y := ACaretInfo.Y + FHeight - ACellVPadding - FCellData.Height - ACellVPadding;
-      end;
+      ACaretInfo.X := ACaretInfo.X + ACellHPadding;
+      ACaretInfo.Y := ACaretInfo.Y + GetCellDataTop(ACellVPadding)
     end;
   end
   else
     ACaretInfo.Visible := False;
 end;
 
+function THCTableCell.GetCellDataTop(const ACellVPadding: Byte): Integer;
+begin
+  case FAlignVert of
+    cavTop: Result := ACellVPadding;
+    cavCenter: Result := (FHeight - ACellVPadding - FCellData.Height - ACellVPadding) div 2;
+    cavBottom: Result := FHeight - ACellVPadding - FCellData.Height;
+  end;
+end;
+
 function THCTableCell.ClearFormatExtraHeight: Integer;
 begin
-  if FCellData <> nil then
+  if Assigned(FCellData) then
     Result := FCellData.ClearFormatExtraHeight
   else
     Result := 0;
@@ -227,22 +243,55 @@ begin
   end;
 end;
 
-procedure THCTableCell.PaintData(const ADataDrawLeft, ADataDrawTop,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
-  const ACellHPadding, ACellVPadding: Byte;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+procedure THCTableCell.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer; const ACellHPadding, ACellVPadding: Byte);
+var
+  vX, vY: Integer;
+begin
+  if Assigned(FCellData) then
+  begin
+    vX := X - ACellHPadding;
+    vY := Y - GetCellDataTop(ACellVPadding);
+    FCellData.MouseDown(Button, Shift, vX, vY);
+  end;
+end;
+
+procedure THCTableCell.MouseMove(Shift: TShiftState; X, Y: Integer;
+  const ACellHPadding, ACellVPadding: Byte);
+var
+  vX, vY: Integer;
+begin
+  if Assigned(FCellData) then
+  begin
+    vX := X - ACellHPadding;
+    vY := Y - GetCellDataTop(ACellVPadding);
+    FCellData.MouseMove(Shift, vX, vY);
+  end;
+end;
+
+procedure THCTableCell.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer; const ACellHPadding, ACellVPadding: Byte);
+var
+  vX, vY: Integer;
+begin
+  if Assigned(FCellData) then
+  begin
+    vX := X - ACellHPadding;
+    vY := Y - GetCellDataTop(ACellVPadding);
+    FCellData.MouseUp(Button, Shift, vX, vY);
+  end;
+end;
+
+procedure THCTableCell.PaintTo(const ADrawLeft, ADrawTop, ADataDrawBottom,
+  ADataScreenTop, ADataScreenBottom, AVOffset: Integer; const ACellHPadding,
+  ACellVPadding: Byte; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vTop: Integer;
 begin
   if Assigned(FCellData) then
   begin
-    case FAlignVert of
-      cavTop: vTop := ADataDrawTop;
-      cavCenter: vTop := ADataDrawTop + (FHeight - ACellHPadding - FCellData.Height - ACellVPadding) div 2;
-      cavBottom: vTop := ADataDrawTop + FHeight - ACellHPadding - FCellData.Height - ACellVPadding;
-    end;
-
-    FCellData.PaintData(ADataDrawLeft, vTop, ADataDrawBottom, ADataScreenTop,
+    vTop := ADrawTop + GetCellDataTop(ACellVPadding);
+    FCellData.PaintData(ADrawLeft + ACellHPadding, vTop, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom, AVOffset, ACanvas, APaintInfo);
   end;
 end;
@@ -273,7 +322,7 @@ end;
 
 function THCTableCell.IsMergeSource: Boolean;
 begin
-  Result := FCellData = nil;
+  Result := not Assigned(FCellData);
 end;
 
 procedure THCTableCell.SaveToStream(const AStream: TStream);
@@ -300,7 +349,7 @@ end;
 
 procedure THCTableCell.SetActive(const Value: Boolean);
 begin
-  if FCellData <> nil then
+  if Assigned(FCellData) then
     FCellData.Active := Value;
 end;
 
@@ -309,7 +358,7 @@ begin
   if FHeight <> Value then
   begin
     FHeight := Value;
-    if FCellData <> nil then
+    if Assigned(FCellData) then
       FCellData.CellHeight := Value;
   end;
 end;
@@ -345,11 +394,10 @@ procedure TSelectCellRang.Initialize;
 begin
   FStartRow := -1;
   FStartCol := -1;
-  FEndRow := -1;
-  FEndCol := -1;
+  InitializeEnd;
 end;
 
-procedure TSelectCellRang.InitilazeEnd;
+procedure TSelectCellRang.InitializeEnd;
 begin
   FEndRow := -1;
   FEndCol := -1;

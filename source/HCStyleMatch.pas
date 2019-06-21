@@ -225,6 +225,7 @@ begin
     DoMatchNew(vTextStyle);
     if Assigned(FOnTextStyle) then
       FOnTextStyle(ACurStyleNo, vTextStyle);
+
     Result := AStyle.GetStyleNo(vTextStyle, True);  // ÐÂÑùÊ½±àºÅ
   finally
     vTextStyle.Free;

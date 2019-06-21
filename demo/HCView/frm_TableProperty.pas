@@ -217,7 +217,6 @@ procedure TfrmTableProperty.GetTableProperty;
   end;
 
 var
-  vR, vC, viValue: Integer;
   vCell: THCTableCell;
 begin
   // ±í¸ñ

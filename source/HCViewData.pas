@@ -74,9 +74,9 @@ type
     function DeleteDomain(const ADomain: THCDomainInfo): Boolean;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    function InsertItem(const AItem: THCCustomItem): Boolean; override;
+    function InsertItem(const AItem: THCCustomItem): Boolean; overload; override;
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
-      const AOffsetBefor: Boolean = True): Boolean; override;
+      const AOffsetBefor: Boolean = True): Boolean; overload; override;
     function CanEdit: Boolean; override;
 
     /// <summary> 根据传入的域"模具"创建域 </summary>
@@ -731,6 +731,7 @@ begin
       vDomainItem := CreateDefaultDomainItem as THCDomainItem;
       if Assigned(AMouldDomain) then
         vDomainItem.Assign(AMouldDomain);
+
       vDomainItem.MarkType := cmtBeg;
       if FActiveDomain.BeginNo >= 0 then
         vDomainItem.Level := (Items[FActiveDomain.BeginNo] as THCDomainItem).Level + 1;
@@ -742,6 +743,7 @@ begin
         vDomainItem := CreateDefaultDomainItem as THCDomainItem;
         if Assigned(AMouldDomain) then
           vDomainItem.Assign(AMouldDomain);
+
         vDomainItem.MarkType := cmtEnd;
         if FActiveDomain.BeginNo >= 0 then
           vDomainItem.Level := (Items[FActiveDomain.BeginNo] as THCDomainItem).Level + 1;
@@ -790,6 +792,7 @@ begin
   // 清除 FHotDeGroup 信息
   if FHotDomain.BeginNo >= 0 then
     Style.UpdateInfoRePaint;
+
   FHotDomain.Clear;
   FDrawHotDomainRegion := False;
 
@@ -1169,9 +1172,7 @@ begin
   SelectInfo.StartItemNo := AStartNo;
   SelectInfo.StartItemOffset := AStartOffset;
 
-  if (vEndNo < 0)
-    or ((vEndNo = vStartNo) and (vEndOffset = vStartOffset))
-  then
+  if (vEndNo < 0) or ((vEndNo = vStartNo) and (vEndOffset = vStartOffset)) then
   begin
     SelectInfo.EndItemNo := -1;
     SelectInfo.EndItemOffset := -1;

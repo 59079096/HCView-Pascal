@@ -241,8 +241,7 @@ end;
 procedure THCTextStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 var
   vOldSize: Integer;
-  vSize: Word;
-  vBuffer: TBytes;
+  vFamily: string;
 begin
   if AFileVersion < 12 then
   begin
@@ -252,14 +251,8 @@ begin
   else
     AStream.ReadBuffer(FSize, SizeOf(FSize));  // ×ÖºÅ
 
-  // ×ÖÌå
-  AStream.ReadBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
-  begin
-    SetLength(vBuffer, vSize);
-    AStream.Read(vBuffer[0], vSize);
-    FFamily := StringOf(vBuffer);
-  end;
+  HCLoadTextFromStream(AStream, vFamily);  // ×ÖÌå
+  FFamily := vFamily;
 
   AStream.ReadBuffer(FFontStyles, SizeOf(FFontStyles));
 

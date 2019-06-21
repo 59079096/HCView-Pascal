@@ -529,14 +529,29 @@ begin
   inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
 
   if CaretDrawItemNo < 0 then
-    vCaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset)
+  begin
+    if Style.UpdateInfo.Draging then
+      vCaretDrawItemNo := GetDrawItemNoByOffset(Self.MouseMoveItemNo, Self.MouseMoveItemOffset)
+    else
+      vCaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+  end
   else
     vCaretDrawItemNo := CaretDrawItemNo;
 
-  vDataAnnotate := GetDrawItemFirstDataAnnotateAt(vCaretDrawItemNo,
-    GetDrawItemOffsetWidth(vCaretDrawItemNo,
-      SelectInfo.StartItemOffset - DrawItems[vCaretDrawItemNo].CharOffs + 1),
-    DrawItems[vCaretDrawItemNo].Rect.Top + 1);
+  if Style.UpdateInfo.Draging then
+  begin
+    vDataAnnotate := GetDrawItemFirstDataAnnotateAt(vCaretDrawItemNo,
+      GetDrawItemOffsetWidth(vCaretDrawItemNo,
+        Self.MouseMoveItemOffset - DrawItems[vCaretDrawItemNo].CharOffs + 1),
+      DrawItems[vCaretDrawItemNo].Rect.Top + 1);
+  end
+  else
+  begin
+    vDataAnnotate := GetDrawItemFirstDataAnnotateAt(vCaretDrawItemNo,
+      GetDrawItemOffsetWidth(vCaretDrawItemNo,
+        SelectInfo.StartItemOffset - DrawItems[vCaretDrawItemNo].CharOffs + 1),
+      DrawItems[vCaretDrawItemNo].Rect.Top + 1);
+  end;
 
   if FActiveAnnotate <> vDataAnnotate then
   begin

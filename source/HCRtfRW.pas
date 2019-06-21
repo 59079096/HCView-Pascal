@@ -416,7 +416,7 @@ end;
 
 function THCRtfReader.ParseRtfKeyword(const AStream: TStream): Boolean;
 var
-  vChar: AnsiChar;
+  vAnsiChar: AnsiChar;
   vKeyWord, vS: string;
   vIsParam, vIsNeg: Boolean;
   vParaValue: Integer;
@@ -425,37 +425,37 @@ begin
   vIsParam := False;
   vIsNeg := False;
   vKeyWord := '';
-  vChar := ReadAnsiChar(AStream);
+  vAnsiChar := ReadAnsiChar(AStream);
 
-  if not (vChar in ['a'..'z','A'..'Z']) then
+  if not (vAnsiChar in ['a'..'z','A'..'Z']) then
   begin
-    Result := TranslateKeyWord(vChar, 0, vIsParam);
+    Result := TranslateKeyWord(vAnsiChar, 0, vIsParam);
     Exit;
   end;
 
   while True do
   begin
-    vKeyWord := vKeyWord + vChar;
-    vChar := ReadAnsiChar(AStream);
-    if not (vChar in ['a'..'z','A'..'Z']) then
+    vKeyWord := vKeyWord + vAnsiChar;
+    vAnsiChar := ReadAnsiChar(AStream);
+    if not (vAnsiChar in ['a'..'z','A'..'Z']) then
       Break;
   end;
 
-  if vChar = '-' then
+  if vAnsiChar = '-' then
   begin
     vIsNeg := True;
-    vChar := ReadAnsiChar(AStream);
+    vAnsiChar := ReadAnsiChar(AStream);
   end;
 
-  if vChar in ['0'..'9'] then
+  if vAnsiChar in ['0'..'9'] then
   begin
     vIsParam := True;
     vS := '';
     while True do
     begin
-      vS := vS + vChar;
-      vChar := ReadAnsiChar(AStream);
-      if not (vChar in ['0'..'9']) then
+      vS := vS + vAnsiChar;
+      vAnsiChar := ReadAnsiChar(AStream);
+      if not (vAnsiChar in ['0'..'9']) then
         Break;
     end;
 
@@ -464,8 +464,8 @@ begin
       vParaValue := -vParaValue;
   end;
 
-  if vChar <> ' ' then
-    FLastChar := vChar;
+  if vAnsiChar <> ' ' then
+    FLastChar := vAnsiChar;
 
   Result := TranslateKeyword(vKeyword, vParaValue, vIsParam);  // 创建项目符号等
 end;

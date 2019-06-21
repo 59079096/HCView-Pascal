@@ -396,6 +396,7 @@ begin
     begin
       if Items[FSeek].IsUndo then
         Inc(FSeek);
+
       Self.DeleteRange(FSeek, Self.Count - FSeek);
     end
     else
@@ -456,6 +457,7 @@ begin
     Result := FOnUndoNew
   else
     Result := THCUndo.Create;
+
   DoNewUndo(Result);
 end;
 
@@ -617,8 +619,8 @@ begin
     uatDeleteItem, uatInsertItem, uatItemMirror:
       Result := THCItemUndoAction.Create;
 
-    uatItemProperty:
-      Result := THCItemParaFirstUndoAction.Create;
+    //uatItemProperty:  // 不需要吧，属性的改变直接Create了各自的Action不走ActionAppend
+    //  Result := THCItemParaFirstUndoAction.Create;
 
     uatItemSelf:
       Result := THCItemSelfUndoAction.Create;

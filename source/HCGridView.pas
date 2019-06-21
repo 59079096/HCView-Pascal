@@ -626,11 +626,13 @@ end;
 function THCCustomGridView.ChangeByAction(
   const AFunction: THCFunction): Boolean;
 begin
-  if not FPage.CanEdit then Exit(False);
+  Result := False;
+
+  if not FPage.CanEdit then Exit;
   if (FPage.SelectInfo.StartItemNo < 0)
     or (FPage.SelectInfo.StartItemOffset <> OffsetInner)
   then
-    Exit(False);
+    Exit;
 
 
   Result := AFunction;  // 处理变动
@@ -770,7 +772,7 @@ var
 begin
   if ACol = 3 then
   begin
-    vTop := ACellDataDrawTop;
+    //vTop := ACellDataDrawTop;
     vCellData := (Sender as THCTableItem).Cells[ARow, ACol].CellData;
     for i := 1 to vCellData.DrawItems.Count - 1 do
     begin
@@ -1287,7 +1289,7 @@ var
   vNode: IHCXMLNode;
   vVersion: string;
   vLang: Byte;
-  i, j: Integer;
+  i: Integer;
 begin
   Self.BeginUpdate;
   try
@@ -1387,7 +1389,7 @@ procedure THCCustomGridView.PaintTo(const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 var
   vRect: TRect;
-  i, vTop, vH, vPageWidth, vPageHeight, vBs, vYs: Integer;
+  i, vTop, vPageWidth, vPageHeight, vBs, vYs: Integer;
   vLeft: Integer absolute vTop;
 begin
   if APaintInfo.Print and (FAnnotatePre.DrawCount > 0) then  // 打印是单面绘制，所以每一页前清除
@@ -1483,10 +1485,12 @@ function THCCustomGridView.Print(const APrinter: string;
 var
   vHCView: THCView;
 begin
+  Result := TPrintResult.prError;
+
   vHCView := THCView.Create(nil);
   try
     CloneToHCView(vHCView);
-    vHCView.Print(APrinter, ACopies);
+    Result := vHCView.Print(APrinter, ACopies);
   finally
     FreeAndNil(vHCView);
   end;
@@ -1497,10 +1501,12 @@ function THCCustomGridView.Print(const APrinter: string; const ACopies: Integer;
 var
   vHCView: THCView;
 begin
+  Result := TPrintResult.prError;
+
   vHCView := THCView.Create(nil);
   try
     CloneToHCView(vHCView);
-    vHCView.Print(APrinter, ACopies, APages);
+    Result := vHCView.Print(APrinter, ACopies, APages);
   finally
     FreeAndNil(vHCView);
   end;
@@ -1514,11 +1520,6 @@ end;
 procedure THCCustomGridView.ReBuildCaret;
 var
   vCaretInfo: THCCaretInfo;
-  vRect: TRect;
-var
-  i, vTop, vBottom, vRow, vCol: Integer;
-  vPos: TPoint;
-  vCaretCell: THCTableCell;
 begin
   if not Assigned(FCaret) then Exit;
 
@@ -1698,7 +1699,6 @@ procedure THCCustomGridView.SaveToHtml(const AFileName: string;
   const ASeparateSrc: Boolean);
 var
   vHtmlTexts: TStrings;
-  i: Integer;
   vPath: string;
 begin
   _DeleteUnUsedStyle;
@@ -1749,7 +1749,6 @@ procedure THCCustomGridView.SaveToStream(const AStream: TStream;
   const AQuick: Boolean = False);
 var
   vByte: Byte;
-  i: Integer;
 begin
   _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
   DoSaveStreamBefor(AStream);

@@ -31,11 +31,11 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure PaintTop(const ACanvas: TCanvas); override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
+    procedure PaintTop(const ACanvas: TCanvas); override;
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); override;

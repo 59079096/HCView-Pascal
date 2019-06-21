@@ -10,13 +10,13 @@ type
   TPaperInfo = class
   public
     Size: Integer;
-    SizeName: ShortString;
+    SizeName: string;
     Width, Height: Single;
   end;
 
   TPaperInfos = class(TObjectList<TPaperInfo>)
   public
-    procedure Append(const ASize: Integer; const ASizeName: ShortString;
+    procedure Append(const ASize: Integer; const ASizeName: string;
       const AWidth, AHeight: Single);
   end;
 
@@ -56,7 +56,7 @@ type
   private
     { Private declarations }
     FPaperInfos: TPaperInfos;
-    function GetPaperInfoIndexByName(const AName: ShortString): Integer;
+    function GetPaperInfoIndexByName(const AName: string): Integer;
   public
     { Public declarations }
     procedure SetView(const AHCView: THCView);
@@ -115,7 +115,7 @@ begin
   FreeAndNil(FPaperInfos);
 end;
 
-function TfrmPageSet.GetPaperInfoIndexByName(const AName: ShortString): Integer;
+function TfrmPageSet.GetPaperInfoIndexByName(const AName: string): Integer;
 var
   i: Integer;
 begin
@@ -301,7 +301,7 @@ end;
 
 { TPaperInfos }
 
-procedure TPaperInfos.Append(const ASize: Integer; const ASizeName: ShortString;
+procedure TPaperInfos.Append(const ASize: Integer; const ASizeName: string;
   const AWidth, AHeight: Single);
 var
   vPaperInfo: TPaperInfo;

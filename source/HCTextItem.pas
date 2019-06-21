@@ -123,7 +123,11 @@ begin
   begin
     SetLength(vBuffer, vDSize);
     AStream.Read(vBuffer[0], vDSize);
-    FText := StringOf(vBuffer);
+
+    if AFileVersion > 24 then
+      FText := TEncoding.Unicode.GetString(vBuffer)
+    else
+      FText := StringOf(vBuffer);
   end;
 end;
 
@@ -143,9 +147,10 @@ begin
   inherited SaveToStream(AStream, AStart, AEnd);
   vS := SubString(AStart + 1, AEnd - AStart);
   //  DWORD大小不能用HCSaveTextToStream(AStream, vS);
-  vBuffer := BytesOf(vS);
+  vBuffer := TEncoding.Unicode.GetBytes(vS);
   if System.Length(vBuffer) > HC_TEXTMAXSIZE then
     raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
+
   vSize := System.Length(vBuffer);
   AStream.WriteBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then

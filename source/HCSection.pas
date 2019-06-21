@@ -328,9 +328,9 @@ type
     /// <param name="AStartItemNo"></param>
     procedure BuildSectionPages(const AStartDrawItemNo: Integer);
     function DeleteSelected: Boolean;
+    procedure DisSelect;
     function DeleteActiveDomain: Boolean;
     procedure DeleteActiveDataItems(const AStartNo: Integer; const AEndNo: Integer);
-    procedure DisSelect;
     function MergeTableSelectCells: Boolean;
     procedure ReFormatActiveParagraph;
     procedure ReFormatActiveItem;
@@ -722,6 +722,7 @@ begin
   ActiveDataChangeByAction(function(): Boolean
     begin
       FActiveData.DeleteActiveDataItems(AStartNo, AEndNo);
+      Result := True;
     end);
 end;
 
@@ -1143,7 +1144,7 @@ begin
   if FViewModel = hvmFilm then
     Result := FPages.Count * (FPagePadding + FPaper.HeightPix)
   else
-    Result := FPages.Count * (FPagePadding + GetPageHeight)
+    Result := FPages.Count * ({FPagePadding + }GetPageHeight)
 end;
 
 function THCCustomSection.GetFilmWidth: Cardinal;
@@ -1219,8 +1220,6 @@ begin
 
   if (Result < 0) and (AVOffset > vPos) then  // 同节最后一页下面，按下一页里面
     Result := FPages.Count - 1;
-
-  Assert(Result >= 0, '没有获取到正确的页序号！');
 end;
 
 procedure THCCustomSection.GetPageCaretInfo(var ACaretInfo: THCCaretInfo);
@@ -1272,7 +1271,7 @@ begin
     begin
       ACaretInfo.Y := ACaretInfo.Y + GetPageTop(vPageIndex);
       if FActiveData = FPage then
-        ACaretInfo.Y := ACaretInfo.Y - GetPageDataFmtTop(vPageIndex)  // - 页起始数据在Data中的位置
+        ACaretInfo.Y := ACaretInfo.Y - GetPageDataFmtTop(vPageIndex);  // - 页起始数据在Data中的位置
     end;
   end;
 end;
@@ -1616,9 +1615,11 @@ begin
   AStream.ReadBuffer(vArea, SizeOf(vArea));
   if vArea then
     vLoadParts := vLoadParts + [saHeader];
+
   AStream.ReadBuffer(vArea, SizeOf(vArea));
   if vArea then
     vLoadParts := vLoadParts + [saFooter];
+
   AStream.ReadBuffer(vArea, SizeOf(vArea));
   if vArea then
     vLoadParts := vLoadParts + [saPage];
@@ -1678,10 +1679,11 @@ begin
   if FActivePageIndex <> vPageIndex then
     SetActivePageIndex(vPageIndex);
 
+  SectionCoordToPage(FActivePageIndex, X, Y, vX, vY);  // X，Y转换到指定页的坐标vX,vY
+
   {$REGION ' 有FloatItem时短路 '}
   if FActiveData.FloatItems.Count > 0 then  // 有FloatItem时优先
   begin
-    SectionCoordToPage(FActivePageIndex, X, Y, vX, vY);
     PageCoordToData(FActivePageIndex, FActiveData, vX, vY);
     if FActiveData = FPage then  // FloatItem在PageData中
       vY := vY + GetPageDataFmtTop(FActivePageIndex);
@@ -1689,8 +1691,6 @@ begin
     if FActiveData.MouseDownFloatItem(Button, Shift, vX, vY) then Exit;
   end;
   {$ENDREGION}
-
-  SectionCoordToPage(FActivePageIndex, X, Y, vX, vY);  // X，Y转换到指定页的坐标vX,vY
 
   vNewActiveData := GetSectionDataAt(vX, vY);
 
@@ -1789,6 +1789,7 @@ begin
   begin
     if FMoveData <> nil then
       FMoveData.MouseLeave;
+
     FMoveData := vMoveData;
   end;
 
@@ -2041,7 +2042,7 @@ var
   {$ENDREGION}
 
 var
-  vX, vY, vDCState: Integer;
+  vDCState: Integer;
   vPaintRegion: HRGN;
   vClipBoxRect: TRect;
 begin
@@ -2269,12 +2270,10 @@ begin
     if APaintInfo.ViewModel = hvmFilm then
     begin
       FHeader.PaintFloatItems(APageIndex, vPageDrawLeft,
-        vPageDrawTop + GetHeaderPageDrawTop,
-        0, ACanvas, APaintInfo);
+        vPageDrawTop + GetHeaderPageDrawTop, 0, ACanvas, APaintInfo);
 
       FFooter.PaintFloatItems(APageIndex, vPageDrawLeft,
-        vPageDrawBottom,
-        0, ACanvas, APaintInfo);
+        vPageDrawBottom, 0, ACanvas, APaintInfo);
     end;
 
     FPage.PaintFloatItems(APageIndex, vPageDrawLeft,  // 当前页绘制到的Left
@@ -2529,7 +2528,7 @@ begin
   begin
     if FPage.DrawItems[i].LineFirst then
     begin
-      if FPage.Items[FPage.DrawItems[i].ItemNo].StyleNo < THCStyle.Null then
+      if FPage.GetDrawItemStyle(i) < THCStyle.Null then
         _FormatRectItemCheckPageBreak(i)
       else
         _FormatTextItemCheckPageBreak(i);

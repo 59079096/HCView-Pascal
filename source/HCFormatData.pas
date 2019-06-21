@@ -25,7 +25,7 @@ uses
 type
   THCFormatData = class(THCCustomData)
   private
-    FWidth: Cardinal;
+    FWidth: Integer;
     FFormatCount,
     /// <summary> Item含行高的高度 </summary>
     FItemFormatHeight,
@@ -40,6 +40,7 @@ type
     FFormatHeightChange: Boolean;
     /// <summary> 多次格式化是否有变动，外部由此决定是否重新计算分页起始结束DrawItemNo </summary>
     FFormatChange: Boolean;
+
     procedure FormatRange(const AStartDrawItemNo, ALastItemNo: Integer);
 
     procedure CalcItemFormatHeigh(const AItem: THCCustomItem);
@@ -102,7 +103,7 @@ type
     procedure ReFormatActiveItem; virtual;
     procedure BeginFormat;
     procedure EndFormat(const AReformat: Boolean = True);
-    property Width: Cardinal read FWidth write FWidth;
+    property Width: Integer read FWidth write FWidth;
     property FormatStartDrawItemNo: Integer read FFormatStartDrawItemNo;
     property FormatHeightChange: Boolean read FFormatHeightChange;
     property FormatDrawItemCountChange: Boolean read FFormatDrawItemCountChange;
@@ -300,7 +301,7 @@ var
   var
     i, vLineBegDItemNo,  // 行第一个DItem
     vMaxBottom,
-    viSplitW, vW, vMaxHiDrawItem,
+    viSplitW, vW,
     vLineSpaceCount,   // 当前行分几份
     vDItemSpaceCount,  // 当前DrawItem分几份
     vExtraW,
@@ -321,15 +322,11 @@ var
     end;
     Assert((vLineBegDItemNo >= 0), '断言失败：行起始DrawItemNo小于0！');
     // 找行DrawItem中最高的
-    vMaxHiDrawItem := ALineEndDItemNo;  // 默认最后一个最高
     vMaxBottom := DrawItems[ALineEndDItemNo].Rect.Bottom;  // 先默认行最后一个DItem的Rect底位置最大
     for i := ALineEndDItemNo - 1 downto vLineBegDItemNo do
     begin
       if DrawItems[i].Rect.Bottom > vMaxBottom then
-      begin
         vMaxBottom := DrawItems[i].Rect.Bottom;  // 记下最大的Rect底位置
-        vMaxHiDrawItem := i;
-      end;
     end;
 
     // 根据最高的处理行间距，并影响到同行DrawItem
@@ -339,6 +336,7 @@ var
     // 处理对齐方式，放在这里，是因为方便计算行起始和结束DrawItem，避免绘制时的运算
     case vParaStyle.AlignHorz of  // 段内容水平对齐方式
       pahLeft: ;  // 默认
+
       pahRight:
         begin
           for i := ALineEndDItemNo downto vLineBegDItemNo do
@@ -416,6 +414,7 @@ var
           begin
             DrawItems[vLineBegDItemNo].Rect.Right := DrawItems[vLineBegDItemNo].Rect.Right
               + vDrawItemSplitCounts[0] * viSplitW;
+
             if viSplitMod > 0 then  // 额外的没有分完
             begin
               vDLen := DrawItems[vLineBegDItemNo].CharLen;
@@ -476,21 +475,21 @@ var
   {$ENDREGION}
 
   {$REGION 'NewDrawItem'}
-  procedure NewDrawItem(const AItemNo, AOffs, ACharLen: Integer;
+  procedure NewDrawItem(const AItemNo, ACharOffs, ACharLen: Integer;
     const ARect: TRect; const AParaFirst, ALineFirst: Boolean);
   var
     vDrawItem: THCCustomDrawItem;
   begin
     vDrawItem := THCCustomDrawItem.Create;
     vDrawItem.ItemNo := AItemNo;
-    vDrawItem.CharOffs := AOffs;
+    vDrawItem.CharOffs := ACharOffs;
     vDrawItem.CharLen := ACharLen;
     vDrawItem.ParaFirst := AParaFirst;
     vDrawItem.LineFirst := ALineFirst;
     vDrawItem.Rect := ARect;
     Inc(ALastDrawItemNo);
     DrawItems.Insert(ALastDrawItemNo, vDrawItem);
-    if AOffs = 1 then
+    if ACharOffs = 1 then
       Items[AItemNo].FirstDItemNo := ALastDrawItemNo;
   end;
   {$ENDREGION}
@@ -550,6 +549,7 @@ var
               jctFH:
                 begin
                   if AText[AIndex - 1] = '￠' then
+
                   else
                   if not CharInSet(AText[AIndex - 1], ['.', ':', '-', '^', '*', '/']) then  // 数字前面是小数点、冒号等数学符号时不截断
                     Result := jbpPrev;
@@ -829,7 +829,7 @@ var
   //vPoints: array[0..1] of TPoint;
   //vTextMetric: TTextMetric;
   i, vIndex, viBase, viLen: Integer;
-  vCharWArr: array of Integer;
+  vCharWArr: array of Integer;  // 每个字符绘制结束位置
 begin
   if not Items[AItemNo].Visible then Exit;
 
@@ -857,38 +857,6 @@ begin
   else  // 文本
   begin
     CalcItemFormatHeigh(vItem);
-
-    {FStyle.TextStyles[vItem.StyleNo].ApplyStyle(FStyle.DefCanvas);
-
-    vItemHeight := THCStyle.GetFontHeight(FStyle.DefCanvas);  // + vParaStyle.LineSpace;  // 行高
-
-    GetTextMetrics(FStyle.DefCanvas.Handle, vTextMetric);  // 得到字体信息
-
-    case FStyle.ParaStyles[vItem.ParaNo].LineSpaceMode of
-      pls100: vItemHeight := vItemHeight + vTextMetric.tmExternalLeading; // Round(vTextMetric.tmHeight * 0.2);
-
-      pls115: vItemHeight := vItemHeight + vTextMetric.tmExternalLeading + Round((vTextMetric.tmHeight + vTextMetric.tmExternalLeading) * 0.15);
-
-      pls150: vItemHeight := vItemHeight + vTextMetric.tmExternalLeading + Round((vTextMetric.tmHeight + vTextMetric.tmExternalLeading) * 0.5);
-
-      pls200: vItemHeight := vItemHeight + vTextMetric.tmExternalLeading + vTextMetric.tmHeight + vTextMetric.tmExternalLeading;
-
-      plsFix: vItemHeight := vItemHeight + LineSpaceMin;
-    end;}
-
-    //Windows.GetTextExtentPoint32(FStyle.DefCanvas.Handle, '字', 1, vSize);
-    //GetTextMetrics(FStyle.DefCanvas.Handle, vTextMetric);
-    //vItemHeight := vTextMetric.tmHeight;
-    //GetOutlineTextMetrics(FStyle.DefCanvas.Handle, )
-    //vPoints[0].X := 0;
-    //vPoints[0].Y := 0;
-    //vPoints[1].X := 0;
-    //vPoints[1].Y := vItemHeight;
-    //LPtoDP(FStyle.DefCanvas.Handle, vPoints, 2);
-    //(GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY) * FStyle.TextStyles[vItem.StyleNo].Size * 100 / 72 / 100);
-    //DPtoLP(FStyle.DefCanvas.Handle, vPoints, 2);
-    //vItemHeight := vSize.cy;// + vParaStyle.LineSpace;  // 行高
-    //vItemHeight := vPoints[1].Y - vPoints[0].Y;
     vRemainderWidth := AFmtRight - APos.X;
 
     if AOffset <> 1 then
@@ -930,7 +898,7 @@ begin
         GetTextExtentExPoint(Style.TempCanvas.Handle, PChar(Copy(vText, vIndex + 1, FormatTextCut)), FormatTextCut, 0,
           nil, PInteger(vCharWArr), vSize);  // 超过65535数组元素取不到值
 
-        for i := 0 to FormatTextCut do
+        for i := 0 to FormatTextCut - 1 do
           vCharWidths[vIndex + i] := vCharWArr[i] + viBase;
 
         Dec(viLen, FormatTextCut);
@@ -1129,6 +1097,8 @@ begin
   begin                            {FFormatDrawItemCountChange能被前两者代表吗？}
     FFormatChange := True;
     vLastItemNo := -1;
+    vFmtTopOffset := 0;
+
     for i := vLastDrawItemNo + 1 to DrawItems.Count - 1 do  // 从格式化变动段的下一段开始
     begin
       if (AExtraItemCount <> 0) or FFormatDrawItemCountChange then  // 将ItemNo的增量传递给后面的DrawItem

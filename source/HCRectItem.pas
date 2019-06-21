@@ -71,10 +71,14 @@ type
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer; virtual;
     procedure ReFormatActiveItem; virtual;
+    /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
     procedure ReAdaptActiveItem; virtual;
     function DeleteSelected: Boolean; virtual;
+    /// <summary> 删除当前域 </summary>
     function DeleteActiveDomain: Boolean; virtual;
+    /// <summary> 删除当前Data指定范围内的Item </summary>
     procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer); virtual;
+    /// <summary> 直接设置当前TextItem的Text值 </summary>
     procedure SetActiveItemText(const AText: string); virtual;
     procedure MarkStyleUsed(const AMark: Boolean); virtual;
     procedure SaveSelectToStream(const AStream: TStream); virtual;
@@ -136,12 +140,12 @@ type
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; virtual;
 
-    /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomData类型) </summary>
-    function GetActiveData: THCCustomData; virtual;
 
     /// <summary> 返回指定位置处的顶层Data(为松耦合请返回TCustomData类型) </summary>
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
     function GetTopLevelData: THCCustomData; virtual;
+    /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomData类型) </summary>
+    function GetActiveData: THCCustomData; virtual;
     procedure TraverseItem(const ATraverse: TItemTraverse); virtual;
     procedure SaveToBitmap(var ABitmap: TBitmap); virtual;
     //

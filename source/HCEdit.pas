@@ -39,8 +39,8 @@ type
     FOnCreateStyleItem: TStyleItemEvent;
     FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
     //
-    function GetDisplayWidth: Integer;
-    function GetDisplayHeight: Integer;
+    function GetViewWidth: Integer;
+    function GetViewHeight: Integer;
 
     function GetCurStyleNo: Integer;
     function GetCurParaNo: Integer;
@@ -68,6 +68,7 @@ type
     procedure CreateWnd; override;
     procedure Paint; override;
     procedure Resize; override;
+    procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
     //
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState;
       X, Y: Integer); override;
@@ -87,6 +88,7 @@ type
     procedure WMGetDlgCode(var Message: TWMGetDlgCode); message WM_GETDLGCODE;
     procedure WMERASEBKGND(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
     procedure WMLButtonDblClk(var Message: TWMLButtonDblClk); message WM_LBUTTONDBLCLK;
+    procedure WMSetFocus(var Message: TWMSetFocus); message WM_SETFOCUS;
     procedure WMKillFocus(var Message: TWMKillFocus); message WM_KILLFOCUS;
 
     // 接收输入法输入的内容
@@ -108,7 +110,6 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
@@ -228,7 +229,7 @@ begin
   FVScrollBar.Max := FData.Height + Self.Padding.Top + Self.Padding.Bottom;
 end;
 
-procedure THCEdit.CheckUpdateInfo(const AScrollBar: Boolean);
+procedure THCEdit.CheckUpdateInfo(const AScrollBar: Boolean = False);
 begin
   if (FCaret <> nil) and FStyle.UpdateInfo.ReCaret then
   begin
@@ -390,6 +391,7 @@ begin
     FVScrollBar.Position := FVScrollBar.Position - WheelDelta div 1
   else
     FHScrollBar.Position := FHScrollBar.Position - WheelDelta div 1;
+
   Result := True;
 end;
 
@@ -537,7 +539,7 @@ begin
   Result := FData.GetTopLevelData.CurParaNo;
 end;
 
-function THCEdit.GetDisplayHeight: Integer;
+function THCEdit.GetViewHeight: Integer;
 begin
   if FHScrollBar.Visible then
     Result := Height - FHScrollBar.Height
@@ -545,7 +547,7 @@ begin
     Result := Height;
 end;
 
-function THCEdit.GetDisplayWidth: Integer;
+function THCEdit.GetViewWidth: Integer;
 begin
   if FVScrollBar.Visible then
     Result := Width - FVScrollBar.Width
@@ -555,7 +557,10 @@ end;
 
 function THCEdit.InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
 begin
-  Result := FData.InsertDomain(AMouldDomain);
+  Result := DataChangeByAction(function(): Boolean
+    begin
+      Result := FData.InsertDomain(AMouldDomain);
+    end);
 end;
 
 function THCEdit.InsertItem(const AIndex: Integer;
@@ -642,14 +647,13 @@ begin
   else
   begin
     FData.KeyDown(Key, Shift);
-    case Key of
-      VK_BACK, VK_DELETE, VK_RETURN, VK_TAB:
-        DoChange;
-
-      VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
-        DoDataCheckUpdateInfo;
-    end;
+    if IsKeyDownEdit(Key) then
+      DoChange
+    else
+    if IsDirectionKey(Key) then
+      DoDataCheckUpdateInfo;
   end;
+
   CheckUpdateInfo;
 end;
 
@@ -688,16 +692,30 @@ var
   viVersion: Word;
   vLang: Byte;
 begin
-  FData.Clear;
-  FStyle.Initialize;
-  AStream.Position := 0;
-  _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLang);  // 文件格式和版本
-  if vFileExt <> HC_EXT then
-    raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
+  Self.BeginUpdate;
+  try
+    // 清除撤销恢复数据
+    FUndoList.Clear;
+    FUndoList.SaveState;
+    try
+      FUndoList.Enable := False;
 
-  FStyle.LoadFromStream(AStream, viVersion);  // 加载样式表
-  FData.LoadFromStream(AStream, FStyle, viVersion);
-  DoMapChanged;
+      FData.Clear;
+      FStyle.Initialize;
+      AStream.Position := 0;
+      _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLang);  // 文件格式和版本
+      if vFileExt <> HC_EXT then
+        raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
+
+      FStyle.LoadFromStream(AStream, viVersion);  // 加载样式表
+      FData.LoadFromStream(AStream, FStyle, viVersion);
+      DoMapChanged;
+    finally
+      FUndoList.RestoreState;
+    end;
+  finally
+    Self.EndUpdate;
+  end;
 end;
 
 procedure THCEdit.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -733,6 +751,7 @@ begin
   GCursor := crIBeam;
   FData.MouseMove(Shift, X - Self.Padding.Left + FHScrollBar.Position,
     Y - Self.Padding.Top + FVScrollBar.Position);
+
   if ShowHint then
     ProcessHint;
 
@@ -765,7 +784,7 @@ end;
 
 procedure THCEdit.Paint;
 begin
-  BitBlt(Canvas.Handle, 0, 0, GetDisplayWidth, GetDisplayHeight,
+  BitBlt(Canvas.Handle, 0, 0, GetViewWidth, GetViewHeight,
     FDataBmp.Canvas.Handle, 0, 0, SRCCOPY);
 end;
 
@@ -822,14 +841,14 @@ begin
   end;
 end;
 
-procedure THCEdit.ReBuildCaret(const AScrollBar: Boolean);
+procedure THCEdit.ReBuildCaret(const AScrollBar: Boolean = False);
 var
   vCaretInfo: THCCaretInfo;
-  vDisplayHeight: Integer;
+  vViewHeight: Integer;
 begin
   if FCaret = nil then Exit;
 
-  if (not Self.Focused) or ((not Style.UpdateInfo.Draging) and FData.SelectExists) then
+  if (not Self.Focused) or ((not FStyle.UpdateInfo.Draging) and FData.SelectExists) then
   begin
     FCaret.Hide;
     Exit;
@@ -840,26 +859,29 @@ begin
   vCaretInfo.Y := 0;
   vCaretInfo.Height := 0;
   vCaretInfo.Visible := True;
+
   FData.GetCaretInfo(FData.SelectInfo.StartItemNo, FData.SelectInfo.StartItemOffset, vCaretInfo);
+
   if not vCaretInfo.Visible then
   begin
     FCaret.Hide;
     Exit;
   end;
+
   FCaret.X := vCaretInfo.X - FHScrollBar.Position + Self.Padding.Left;
   FCaret.Y := vCaretInfo.Y - FVScrollBar.Position + Self.Padding.Top;
   FCaret.Height := vCaretInfo.Height;
 
-  vDisplayHeight := GetDisplayHeight;
+  vViewHeight := GetViewHeight;
   if AScrollBar then // 滚动条平滑滚动时，可能将光标卷掉看不见
   begin
-    if (FCaret.X < 0) or (FCaret.X > GetDisplayWidth) then
+    if (FCaret.X < 0) or (FCaret.X > GetViewWidth) then
     begin
       FCaret.Hide;
       Exit;
     end;
 
-    if (FCaret.Y + FCaret.Height < 0) or (FCaret.Y > vDisplayHeight) then
+    if (FCaret.Y + FCaret.Height < 0) or (FCaret.Y > vViewHeight) then
     begin
       FCaret.Hide;
       Exit;
@@ -867,18 +889,18 @@ begin
   end
   else  // 非滚动条(方向键、点击等)引起的光标位置变化
   begin
-    if FCaret.Height < vDisplayHeight then
+    if FCaret.Height < vViewHeight then
     begin
       if FCaret.Y < 0 then
         FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - Self.Padding.Top
       else
-      if FCaret.Y + FCaret.Height + Self.Padding.Top > vDisplayHeight then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + Self.Padding.Top - vDisplayHeight;
+      if FCaret.Y + FCaret.Height + Self.Padding.Top > vViewHeight then
+        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + Self.Padding.Top - vViewHeight;
     end;
   end;
 
-  if FCaret.Y + FCaret.Height > vDisplayHeight then
-    FCaret.Height := vDisplayHeight - FCaret.Y;
+  if FCaret.Y + FCaret.Height > vViewHeight then
+    FCaret.Height := vViewHeight - FCaret.Y;
 
   FCaret.Show;
   DoCaretChange;
@@ -887,29 +909,32 @@ end;
 procedure THCEdit.Redo;
 begin
   if FUndoList.Enable then  // 恢复过程不要产生新的Redo
-  try
-    FUndoList.Enable := False;
-
-    BeginUpdate;
+  begin
     try
-      FUndoList.Redo;
+      FUndoList.Enable := False;
+
+      BeginUpdate;
+      try
+        FUndoList.Redo;
+      finally
+        EndUpdate;
+      end;
     finally
-      EndUpdate;
+      FUndoList.Enable := True;
     end;
-  finally
-    FUndoList.Enable := True;
   end;
 end;
 
 procedure THCEdit.Resize;
 begin
   inherited;
-  FDataBmp.SetSize(GetDisplayWidth, GetDisplayHeight);
+  FDataBmp.SetSize(GetViewWidth, GetViewHeight);
   FData.Width := FDataBmp.Width - Self.Padding.Left - Self.Padding.Right;
   FData.ReFormat;
   FStyle.UpdateInfoRePaint;
   if FCaret <> nil then
     FStyle.UpdateInfoReCaret(False);
+
   DoMapChanged;
 end;
 
@@ -961,23 +986,25 @@ end;
 procedure THCEdit.Undo;
 begin
   if FUndoList.Enable then  // 撤销过程不要产生新的Undo
-  try
-    FUndoList.Enable := False;
-
-    BeginUpdate;
+  begin
     try
-      FUndoList.Undo;
+      FUndoList.Enable := False;
+
+      BeginUpdate;
+      try
+        FUndoList.Undo;
+      finally
+        EndUpdate;
+      end;
     finally
-      EndUpdate;
+      FUndoList.Enable := True;
     end;
-  finally
-    FUndoList.Enable := True;
   end;
 end;
 
 procedure THCEdit.UpdateView;
 var
-  i, vDisplayWidth, vDisplayHeight: Integer;
+  i, vViewWidth, vViewHeight: Integer;
   vPaintInfo: TPaintInfo;
 begin
   if FUpdateCount = 0 then
@@ -988,8 +1015,8 @@ begin
       FDataBmp.Canvas.Brush.Color := clWhite;// $00E7BE9F;
       FDataBmp.Canvas.FillRect(Rect(0, 0, FDataBmp.Width, FDataBmp.Height));
       //
-      vDisplayWidth := GetDisplayWidth;
-      vDisplayHeight := GetDisplayHeight;
+      vViewWidth := GetViewWidth;
+      vViewHeight := GetViewHeight;
 
       vPaintInfo := TPaintInfo.Create;
       try
@@ -1008,7 +1035,7 @@ begin
         vPaintInfo.Free;
       end;
 
-      BitBlt(Canvas.Handle, 0, 0, vDisplayWidth, vDisplayHeight, FDataBmp.Canvas.Handle, 0, 0, SRCCOPY);
+      BitBlt(Canvas.Handle, 0, 0, vViewWidth, vViewHeight, FDataBmp.Canvas.Handle, 0, 0, SRCCOPY);
       InvalidateRect(Handle, ClientRect, False);  // 通知Edit只更新变动区域，防止闪烁，解决BitBlt光标滞留问题
     finally
       FDataBmp.Canvas.Unlock;
@@ -1094,12 +1121,25 @@ end;
 procedure THCEdit.WMKillFocus(var Message: TWMKillFocus);
 begin
   inherited;
-  FData.KillFocus;
+  if Message.FocusedWnd <> Self.Handle then
+    FCaret.Hide;
 end;
 
 procedure THCEdit.WMLButtonDblClk(var Message: TWMLButtonDblClk);
 begin
   inherited;
+end;
+
+procedure THCEdit.WMSetFocus(var Message: TWMSetFocus);
+begin
+  inherited;
+  // 光标在行最后，通过工具栏修改光标处字号后会重新设置焦点到HCView，如果不停止重取样式，
+  // 则会以当前光标前文本样式做为当前样式了，如果是焦点失去后鼠标重新点击获取焦点
+  // 会先触发这里，再触发MouseDown，在MouseDown里会重新取当前样式不受影响
+  FStyle.UpdateInfoReCaret(False);
+  FStyle.UpdateInfoRePaint;
+  //FStyle.UpdateInfoReScroll;  // 失去焦点前光标不在显示页，获取焦点后不要乱跳
+  CheckUpdateInfo;
 end;
 
 procedure THCEdit.WndProc(var Message: TMessage);

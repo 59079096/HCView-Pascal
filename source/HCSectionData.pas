@@ -38,7 +38,6 @@ type
     function GetFloatItemAt(const X, Y: Integer): Integer;
     function GetActiveFloatItem: THCCustomFloatItem;
   protected
-    function GetScreenCoord(const X, Y: Integer): TPoint; override;
     procedure SetReadOnly(const Value: Boolean); override;
   public
     constructor Create(const AStyle: THCStyle); override;
@@ -51,7 +50,7 @@ type
 
     procedure Clear; override;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
-
+    function GetScreenCoord(const X, Y: Integer): TPoint; override;
     /// <summary> 插入浮动Item </summary>
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 
@@ -82,7 +81,6 @@ type
     FShowLineActiveMark: Boolean;  // 当前激活的行前显示标识
     FShowUnderLine: Boolean;  // 下划线
     FShowLineNo: Boolean;  // 行号
-    function GetPageDataFmtTop(const APageIndex: Integer): Integer;
   protected
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
@@ -166,6 +164,7 @@ var
 begin
   inherited DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
     ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+
   if not APaintInfo.Print then
   begin
     if FShowLineActiveMark then  // 绘制行指示符
@@ -268,21 +267,6 @@ procedure THCPageData.LoadFromStream(const AStream: TStream;
 begin
   AStream.ReadBuffer(FShowUnderLine, SizeOf(FShowUnderLine));
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-end;
-
-function THCPageData.GetPageDataFmtTop(const APageIndex: Integer): Integer;
-//var
-//  i, vContentHeight: Integer;
-begin
-//  Result := 0;
-//  if APageIndex > 0 then
-//  begin
-//    vContentHeight := FPageSize.PageHeightPix  // 节页面正文区域高度，即页面除页眉、页脚后净高
-//      - FPageSize.PageMarginBottomPix - GetHeaderAreaHeight;
-//
-//    for i := 0 to APageIndex - 1 do
-//      Result := Result + vContentHeight;
-//  end;
 end;
 
 procedure THCPageData.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -614,6 +598,7 @@ var
 begin
   vItemsNode := ANode.ChildNodes.FindNode('items');
   inherited ParseXml(vItemsNode);
+
   vItemsNode := ANode.ChildNodes.FindNode('floatitems');
   for i := 0 to vItemsNode.ChildNodes.Count - 1 do
   begin
@@ -654,10 +639,11 @@ var
   vNode: IHCXMLNode;
 begin
   vNode := ANode.AddChild('items');
-  inherited ToXml(vNode);
+  inherited ToXml(vNode);  // 存Itmes
+
+  // 存FloatItems
   vNode := ANode.AddChild('floatitems');
   vNode.Attributes['count'] := FFloatItems.Count;
-
   for i := 0 to FFloatItems.Count - 1 do
     FFloatItems[i].ToXml(vNode.AddChild('floatitem'));
 end;

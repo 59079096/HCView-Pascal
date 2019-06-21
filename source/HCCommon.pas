@@ -11,6 +11,9 @@
 
 unit HCCommon;
 
+// 20160618001 由于有的设备紧缩字符，比如空格在藏文中和单独时TextWidth返回的宽度不一样，
+// 因此一个字符串里字符单独范围之和或许不等于字符串的范围
+
 interface
 
 {$I HCView.inc}
@@ -48,10 +51,11 @@ const
    2.2 增加段缩进的存储
    2.3 增加批注的保存和读取
    2.4 兼容EmrView保存保护元素属性
+   2.5 使用unicode字符集保存文档以便支持藏文等
   }
 
-  HC_FileVersion = '2.4';
-  HC_FileVersionInt = 24;
+  HC_FileVersion = '2.5';
+  HC_FileVersionInt = 25;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -61,8 +65,25 @@ const
   AnnotateBKActiveColor = $00A8A8FF;
   HyperTextColor = $00C16305;
   HCTransparentColor = clNone;  // 透明色
+  {$IFDEF UNPLACEHOLDERCHAR}
+  /// <summary> 不占位字符或紧缩字符 </summary>
+  UnPlaceholderChar =
+    #3962{e} + #3956{u} + #3954{i} + #3964{o}  // 藏文元音字母
+    // 藏文其他紧缩字符
+    + #4024 + #3966 + #3971 + #3895 + #3893 + #3967 + #4023 + #4026 + #3989
+    + #3990 + #3963 + #4018 + #3999 + #4017 + #4013 + #3968 + #3965 + #4005
+    + #4009 + #4010 + #4011 + #4016 + #4022 + #4001 + #4006 + #3988 + #4008
+    + #3972 + #3986 + #3986 + #4014 + #4015 + #4020 + #3984 + #3985 + #4004
+    + #4003 + #4000 + #3991 + #3993 + #4028 + #4027 + #3865 + #3953 + #3902
+    + #3903 + #3975 + #3974 + #3958 + #3959 + #3960 + #3961 + #3955 + #3994
+    + #3957 + #3955 + #3996 + #4038 + #4021 + #4025 + #3970 + #3998 + #3995;
+  {$ENDIF}
   /// <summary> 不能在行首的字符 </summary>
-  DontLineFirstChar = '`-=[]\;,./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；’，。、～！＠＃￥％……＆×（）——＋｛｝｜：”《》？°';
+  DontLineFirstChar = '`-=[]\;,./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；’，。、～！＠＃￥％……＆×（）——＋｛｝｜：”《》？°'
+  {$IFDEF UNPLACEHOLDERCHAR}
+    + UnPlaceholderChar  // 紧缩字符
+  {$ENDIF}
+    ;
   /// <summary> 不能在行尾的字符 </summary>
   DontLineLastChar = '/\＼“‘';
 
@@ -183,7 +204,7 @@ type
   function IsKeyDownEdit(const AKey: Word): Boolean;  // 引起内容变化的KeyDown
   function IsDirectionKey(const AKey: Word): Boolean;
 
-  function CreatExtPen(const APen: TPen): HPEN;
+  function CreateExtPen(const APen: TPen): HPEN;
 
   /// <summary> 效率更高的返回字符在字符串位置函数 </summary>
   function PosCharHC(const AChar: Char; const AStr: string{; const Offset: Integer = 1}): Integer;
@@ -191,14 +212,34 @@ type
   /// <summary> 返回字符类型 </summary>
   function GetUnicodeCharType(const AChar: Char): TCharType;
 
-  /// <summary>
-  /// 返回指定位置在字符串哪个字符后面(0：第一个前面)
-  /// </summary>
+  {$IFDEF UNPLACEHOLDERCHAR}
+  /// <summary> 返回字符串指定位置的实际有效字前、后位置 </summary>
+  /// <param name="AText"></param>
+  /// <param name="AIndex"></param>
+  /// <param name="AAfter = False">True:前，False:后</param>
+  /// <returns></returns>
+  function GetTextActualOffset(const AText: string; const AOffset: Integer; const AAfter: Boolean = False): Integer;
+
+  function IsUnPlaceHolderChar(const AChar: Char): Boolean;
+  {$ENDIF}  // UNPLACEHOLDERCHAR
+
+  /// <summary> 返回字符串位置数组中指定的字符中间位置 </summary>
+  /// <param name="AIndex">指定第几个字符</param>
+  /// <param name="ACharWArr">字符串位置数组</param>
+  /// <returns>中间位置</returns>
+  function GetCharHalfFarfrom(
+    {$IFDEF UNPLACEHOLDERCHAR}
+    const AText: string;
+    {$ENDIF}  // UNPLACEHOLDERCHAR
+    const AOffset: Integer;
+    const ACharWArr: array of Integer): Integer;
+
+  /// <summary> 返回普通对齐方式(左中右)指定位置在字符串哪个字符后面(0：第一个前面) </summary>
   /// <param name="ACanvas"></param>
   /// <param name="AText"></param>
   /// <param name="X"></param>
   /// <returns></returns>
-  function GetCharOffsetAt(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
+  function GetNorAlignCharOffsetAt(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
 
   // 根据汉字大小获取字体数字大小
   function GetFontSize(const AFontSize: string): Single;
@@ -257,19 +298,19 @@ begin
 end;
 {$ENDIF}
 
-function CreatExtPen(const APen: TPen): HPEN;
+function CreateExtPen(const APen: TPen): HPEN;
 var
-  APenParams: TLogBrush;
+  vPenParams: TLogBrush;
 const
   PenTypes: array[Boolean] of Integer = (PS_COSMETIC, PS_GEOMETRIC);
   PenStyles: array[psSolid..psInsideFrame] of Word =
     (PS_SOLID, PS_DASH, PS_DOT, PS_DASHDOT, PS_DASHDOTDOT, PS_NULL, PS_SOLID);
 begin
-  APenParams.lbStyle := PenStyles[APen.Style];
-  APenParams.lbColor := APen.Color;
-  APenParams.lbHatch := 0;
+  vPenParams.lbStyle := PenStyles[APen.Style];
+  vPenParams.lbColor := APen.Color;
+  vPenParams.lbHatch := 0;
   Result := ExtCreatePen(PenTypes[APen.Width <> 1] or PS_ENDCAP_SQUARE,
-    APen.Width, APenParams, 0, nil);
+    APen.Width, vPenParams, 0, nil);
 end;
 
 function SwapBytes(AValue: Word): Word;
@@ -282,9 +323,10 @@ var
   vBuffer: TBytes;
   vSize: Word;
 begin
-  vBuffer := BytesOf(S);
+  vBuffer := TEncoding.Unicode.GetBytes(S);
   if System.Length(vBuffer) > MAXWORD then
     raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
+
   vSize := System.Length(vBuffer);
   AStream.WriteBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
@@ -301,7 +343,10 @@ begin
   begin
     SetLength(vBuffer, vSize);
     AStream.Read(vBuffer[0], vSize);
-    S := StringOf(vBuffer);
+    if HC_FileVersionInt > 24 then
+      S := TEncoding.Unicode.GetString(vBuffer)
+    else
+      S := StringOf(vBuffer);
   end
   else
     S := '';
@@ -332,7 +377,8 @@ begin
     $2F800..$2FA1D  // 兼容扩展 542
       : Result := jctHZ;  // 汉字
 
-    $F00..$FFF: Result := jctHZ;  // 藏语
+    $0F00..$0FFF:  // 藏文
+      Result := jctHZ;
 
     $1800..$18AF: Result := jctHZ;  // 蒙古字符
 
@@ -355,7 +401,18 @@ end;
 
 function IsKeyPressWant(const AKey: Char): Boolean;
 begin
+  {$IFDEF UNPLACEHOLDERCHAR}
+  case AKey of
+    #32..#126,  // <#32是ASCII控制字 #127是ASCII DEL
+    #3840..#4095,  // 藏文
+    #6144..#6319:  // 蒙古文
+      Result := True;
+  else
+    Result := False;
+  end;
+  {$ELSE}
   Result := AKey in [#32..#126];  // <#32是ASCII控制字 #127是ASCII DEL
+  {$ENDIF}
 end;
 
 function IsKeyDownWant(const AKey: Word): Boolean;
@@ -652,33 +709,135 @@ begin
     AColor := vB shl 16 + vG shl 8 + vR;
 end;
 
-function GetCharOffsetAt(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
+{$IFDEF UNPLACEHOLDERCHAR}
+function IsUnPlaceHolderChar(const AChar: Char): Boolean;
+begin
+  Result := Pos(AChar, UnPlaceholderChar) > 0;
+end;
+
+function GetTextActualOffset(const AText: string; const AOffset: Integer;
+  const AAfter: Boolean = False): Integer;
 var
-  i, vX, vCharWidth: Integer;
+  vLen: Integer;
+begin
+  Result := AOffset;  // 返回哪一个后面
+
+  vLen := Length(AText);
+  if AAfter then  // 后面
+  begin
+    while Result < vLen do
+    begin
+      if Pos(AText[Result + 1], UnPlaceholderChar) > 0 then
+        Inc(Result)
+      else
+        Break;
+    end;
+  end
+  else  // 前面
+  begin
+    while Result > 1 do
+    begin
+      if Pos(AText[Result], UnPlaceholderChar) > 0 then
+        Dec(Result)
+      else
+        Break;
+    end;
+  end;
+end;
+
+function GetCharHalfFarfrom(const AText: string; const AOffset: Integer;
+  const ACharWArr: array of Integer): Integer;
+var
+  vBeginOffs, vEndOffs: Integer;
+begin
+  vEndOffs := GetTextActualOffset(AText, AOffset, True);
+  vBeginOffs := GetTextActualOffset(AText, AOffset) - 1;
+
+  if vBeginOffs > 0 then
+  begin
+    if vEndOffs = vBeginOffs then
+    begin
+      if vBeginOffs > 1 then
+        Result := ACharWArr[vBeginOffs - 2] + ((ACharWArr[vEndOffs - 1] - ACharWArr[vBeginOffs - 2]) div 2)
+      else
+        Result := ACharWArr[vBeginOffs - 1] div 2;
+    end
+    else
+      Result := ACharWArr[vBeginOffs - 1] + ((ACharWArr[vEndOffs - 1] - ACharWArr[vBeginOffs - 1]) div 2);
+  end
+  else  // = 0
+    Result := ACharWArr[vEndOffs - 1] div 2;
+end;
+{$ELSE}
+function GetCharHalfFarfrom(const AOffset: Integer;
+  const ACharWArr: array of Integer): Integer;
+begin
+  if AOffset > 1 then
+    Result := ACharWArr[AOffset - 2] + ((ACharWArr[AOffset - 1] - ACharWArr[AOffset - 2]) div 2)
+  else
+  if AOffset = 1 then
+    Result := ACharWArr[AOffset - 1] div 2
+  else
+    Result := 0;
+end;
+{$ENDIF}  // UNPLACEHOLDERCHAR
+
+function GetNorAlignCharOffsetAt(const ACanvas: TCanvas; const AText: string; const X: Integer): Integer;
+var
+  vCharWArr: array of Integer;  // 每个字符绘制结束位置
+  i, vLen: Integer;
+  vSize: TSize;
 begin
   Result := -1;
 
   if X < 0 then
     Result := 0
   else
-  if X > ACanvas.TextWidth(AText) then
-    Result := Length(AText)
-  else
   begin
-    vX := 0;
-    for i := 1 to Length(AText) do  { TODO : 有空改为二分法更高效 }
+    vLen := Length(AText);
+    // 由于有的设备紧缩字符，因此一个字符串里字符的范围之和或许不等于字符串的范围
+    SetLength(vCharWArr, vLen);
+    GetTextExtentExPoint(ACanvas.Handle, PChar(AText), vLen, 0,
+      nil, PInteger(vCharWArr), vSize);  // 超过65535数组元素取不到值
+    // 20190618002 需要同步修改的字符和位置相关的计算
+    if X > vSize.cx then
+      Result := vLen
+    else
     begin
-      vCharWidth := ACanvas.TextWidth(AText[i]);
-      vX := vX + vCharWidth;
-      if vX > X then  // 当前字符结束位置在X后
+      i := 1;
+      while i <= vLen do
       begin
-        if vX - vCharWidth div 2 > X then  // 点击在前半部分
-          Result := i - 1  // 计为前一个后面
-        else
+        {$IFDEF UNPLACEHOLDERCHAR}
+        i := GetTextActualOffset(AText, i, True);
+        {$ENDIF}
+
+        if X = vCharWArr[i - 1] then
+        begin
           Result := i;
-        Break;
+          Break;
+        end
+        else
+        if X > vCharWArr[i - 1] then
+          Inc(i)
+        else  // X < vCharWArr[i - 1]
+        begin
+          if X > GetCharHalfFarfrom({$IFDEF UNPLACEHOLDERCHAR}AText,{$ENDIF} i, vCharWArr) then  // 在结束的后半部分
+            Result := i
+          else  // 在起始的前半部分，返回前一个字符段最后
+          begin
+            {$IFDEF UNPLACEHOLDERCHAR}
+            Result := GetTextActualOffset(AText, i) - 1;
+            {$ELSE}
+            Result := i - 1;
+            {$ENDIF}
+          end;
+
+          Break;
+        end;
       end;
     end;
+
+    SetLength(vCharWArr, 0);
   end;
 end;
 

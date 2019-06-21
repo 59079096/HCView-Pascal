@@ -36,8 +36,6 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
-    function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
@@ -48,6 +46,8 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData; const ASupText, ASubText: string);
     procedure Assign(Source: THCCustomItem); override;
+    /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
+    function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
 
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -224,6 +224,7 @@ begin
           ACaretInfo.X := FSupRect.Left + OwnerData.Style.TempCanvas.TextWidth(Copy(FSupText, 1, FCaretOffset));
           ACaretInfo.Y := FSupRect.Top;
         end;
+
       ceaBottom:
         begin
           ACaretInfo.Height := FSubRect.Bottom - FSubRect.Top;
@@ -418,7 +419,7 @@ begin
   if FActiveArea <> TExpressArea.ceaNone then
   begin
     ApplySupSubStyle(OwnerData.Style.TextStyles[TextStyleNo], OwnerData.Style.TempCanvas);
-    vOffset := GetCharOffsetAt(OwnerData.Style.TempCanvas, vS, vX);
+    vOffset := GetNorAlignCharOffsetAt(OwnerData.Style.TempCanvas, vS, vX);
   end
   else
     vOffset := -1;

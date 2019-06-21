@@ -455,23 +455,27 @@ begin
         vPos := FPosition - FBtnStep;
         if vPos < FMin then  // 控制上（左）越界
           vPos := FMin;
+
         if FPosition <> vPos then
         begin
           Position := vPos;
           //Scroll(scLineUp, FPosition);
         end;
       end;
+
     scLineDown:
       begin
         vPos := FPosition + FBtnStep;
         if vPos > FRange - FPageSize then  // 控制下（右）越界
           vPos := FRange - FPageSize;
+
         if FPosition <> vPos then
         begin
           Position := vPos;
           //Scroll(scLineDown, FPosition);
         end;
       end;
+
     scPageUp:
       begin
         vPos := FPosition - FPageSize;
@@ -481,12 +485,14 @@ begin
           vPos := Position - Width;}
         if vPos < FMin then
           vPos := FMin;
+
         if FPosition <> vPos then
         begin
           Position := vPos;
           //Scroll(scPageUp, FPosition);
         end;
       end;
+
     scPageDown:
       begin
         vPos := FPosition + FPageSize;
@@ -496,6 +502,7 @@ begin
           vPos := Position + Width;}
         if vPos > FRange - FPageSize then
           vPos := FRange - FPageSize;
+
         if FPosition <> vPos then
         begin
           Position := vPos;
@@ -558,8 +565,10 @@ begin
       FMin := FMax
     else
       FMin := Value;
+
     if FPosition < FMin then
       FPosition := FMin;
+
     FRange := FMax - FMin;
     ReCalcThumRect;  // 滑块区域
     UpdateRangRect;  // 重绘
@@ -572,14 +581,11 @@ begin
   begin
     FOrientation := Value;
     if Value = oriHorizontal then  // 设置为水平滚动条
-    begin
-      Height := 20;  // 赋值水平滚动条的高度为 20
-    end
+      Height := 20  // 赋值水平滚动条的高度为 20
     else
     if Value = oriVertical then  // 垂直滚动条
-    begin
       Width := 20;
-    end;
+
     ReCalcButtonRect;
     ReCalcThumRect;
     UpdateRangRect;  // 重绘

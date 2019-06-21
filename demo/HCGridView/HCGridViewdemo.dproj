@@ -1,140 +1,206 @@
-﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-		<PropertyGroup>
-			<ProjectGuid>{FDE01C64-8B2A-43F8-AE45-8015D461724F}</ProjectGuid>
-			<MainSource>HCGridViewdemo.dpr</MainSource>
-			<Config Condition="'$(Config)'==''">Debug</Config>
-			<DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
-			<ProjectVersion>12.0</ProjectVersion>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_1)'!=''">
-			<Cfg_1>true</Cfg_1>
-			<CfgParent>Base</CfgParent>
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_2)'!=''">
-			<Cfg_2>true</Cfg_2>
-			<CfgParent>Base</CfgParent>
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Base)'!=''">
-			<DCC_DependencyCheckOutputName>HCGridViewdemo.exe</DCC_DependencyCheckOutputName>
-			<DCC_UnitAlias>WinTypes=Windows;WinProcs=Windows;$(DCC_UnitAlias)</DCC_UnitAlias>
-			<DCC_ImageBase>00400000</DCC_ImageBase>
-			<DCC_Platform>x86</DCC_Platform>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Cfg_1)'!=''">
-			<DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
-			<DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
-			<DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
-			<DCC_DebugInformation>false</DCC_DebugInformation>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Cfg_2)'!=''">
-			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
-		</PropertyGroup>
-		<ItemGroup>
-			<DelphiCompile Include="HCGridViewdemo.dpr">
-				<MainSource>MainSource</MainSource>
-			</DelphiCompile>
-			<DCCReference Include="frm_GricViewDemo.pas">
-				<Form>frmGridViewDemo</Form>
-			</DCCReference>
-			<DCCReference Include="..\HCView\frm_PrintView.pas">
-				<Form>frmPrintView</Form>
-			</DCCReference>
-			<DCCReference Include="..\HCView\frm_Paragraph.pas">
-				<Form>frmParagraph</Form>
-			</DCCReference>
-			<DCCReference Include="..\HCView\frm_ControlItemProperty.pas">
-				<Form>frmControlItemProperty</Form>
-			</DCCReference>
-			<DCCReference Include="..\HCView\frm_InsertTable.pas">
-				<Form>frmInsertTable</Form>
-			</DCCReference>
-			<DCCReference Include="..\HCView\frm_PageSet.pas">
-				<Form>frmPageSet</Form>
-			</DCCReference>
-			<DCCReference Include="..\HCView\frm_Annotate.pas">
-				<Form>frmAnnotate</Form>
-			</DCCReference>
-			<DCCReference Include="..\HCView\frm_TableBorderBackColor.pas">
-				<Form>frmBorderBackColor</Form>
-			</DCCReference>
-			<DCCReference Include="..\HCView\frm_TableProperty.pas">
-				<Form>frmTableProperty</Form>
-			</DCCReference>
-			<BuildConfiguration Include="Base">
-				<Key>Base</Key>
-			</BuildConfiguration>
-			<BuildConfiguration Include="Release">
-				<Key>Cfg_1</Key>
-				<CfgParent>Base</CfgParent>
-			</BuildConfiguration>
-			<BuildConfiguration Include="Debug">
-				<Key>Cfg_2</Key>
-				<CfgParent>Base</CfgParent>
-			</BuildConfiguration>
-		</ItemGroup>
-		<Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
-		<ProjectExtensions>
-			<Borland.Personality>Delphi.Personality.12</Borland.Personality>
-			<Borland.ProjectType>VCLApplication</Borland.ProjectType>
-			<BorlandProject>
-				<Delphi.Personality>
-					<Source>
-						<Source Name="MainSource">HCGridViewdemo.dpr</Source>
-					</Source>
-					<Parameters>
-						<Parameters Name="UseLauncher">False</Parameters>
-						<Parameters Name="LoadAllSymbols">True</Parameters>
-						<Parameters Name="LoadUnspecifiedSymbols">False</Parameters>
-					</Parameters>
-					<VersionInfo>
-						<VersionInfo Name="IncludeVerInfo">False</VersionInfo>
-						<VersionInfo Name="AutoIncBuild">False</VersionInfo>
-						<VersionInfo Name="MajorVer">1</VersionInfo>
-						<VersionInfo Name="MinorVer">0</VersionInfo>
-						<VersionInfo Name="Release">0</VersionInfo>
-						<VersionInfo Name="Build">0</VersionInfo>
-						<VersionInfo Name="Debug">False</VersionInfo>
-						<VersionInfo Name="PreRelease">False</VersionInfo>
-						<VersionInfo Name="Special">False</VersionInfo>
-						<VersionInfo Name="Private">False</VersionInfo>
-						<VersionInfo Name="DLL">False</VersionInfo>
-						<VersionInfo Name="Locale">2052</VersionInfo>
-						<VersionInfo Name="CodePage">936</VersionInfo>
-					</VersionInfo>
-					<VersionInfoKeys>
-						<VersionInfoKeys Name="CompanyName"/>
-						<VersionInfoKeys Name="FileDescription"/>
-						<VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys>
-						<VersionInfoKeys Name="InternalName"/>
-						<VersionInfoKeys Name="LegalCopyright"/>
-						<VersionInfoKeys Name="LegalTrademarks"/>
-						<VersionInfoKeys Name="OriginalFilename"/>
-						<VersionInfoKeys Name="ProductName"/>
-						<VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
-						<VersionInfoKeys Name="Comments"/>
-					</VersionInfoKeys>
-					<Excluded_Packages>
-						<Excluded_Packages Name="C:\Users\Public\Documents\RAD Studio\7.0\Bpl\dcldac140.bpl">Devart Data Access Components</Excluded_Packages>
-						<Excluded_Packages Name="C:\Users\Public\Documents\RAD Studio\7.0\Bpl\dclcrcontrols140.bpl">Devart Controls</Excluded_Packages>
-						<Excluded_Packages Name="C:\Users\Public\Documents\RAD Studio\7.0\Bpl\acnt2010.bpl">AlphaControls</Excluded_Packages>
-						<Excluded_Packages Name="$(BDS)\bin\dcloffice2k140.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-						<Excluded_Packages Name="$(BDS)\bin\dclofficexp140.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
-					</Excluded_Packages>
-				</Delphi.Personality>
-			</BorlandProject>
-			<ProjectFileVersion>12</ProjectFileVersion>
-		</ProjectExtensions>
-	</Project>
-
-<!-- EurekaLog First Line
-[Exception Log]
-EurekaLog Version=7007
-Activate=0
-DeleteMapAfterCompile=0
-Encrypt Password=""
-EurekaLog Last Line -->
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{FDE01C64-8B2A-43F8-AE45-8015D461724F}</ProjectGuid>
+        <MainSource>HCGridViewdemo.dpr</MainSource>
+        <Config Condition="'$(Config)'==''">Debug</Config>
+        <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
+        <ProjectVersion>18.4</ProjectVersion>
+        <FrameworkType>VCL</FrameworkType>
+        <Base>True</Base>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <TargetedPlatforms>1153</TargetedPlatforms>
+        <AppType>Application</AppType>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
+        <Base_Win32>true</Base_Win32>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
+        <Base_Win64>true</Base_Win64>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_1)'!=''">
+        <Cfg_1>true</Cfg_1>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_1)'=='true') or '$(Cfg_1_Win32)'!=''">
+        <Cfg_1_Win32>true</Cfg_1_Win32>
+        <CfgParent>Cfg_1</CfgParent>
+        <Cfg_1>true</Cfg_1>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_2)'!=''">
+        <Cfg_2>true</Cfg_2>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='iOSDevice64' and '$(Cfg_2)'=='true') or '$(Cfg_2_iOSDevice64)'!=''">
+        <Cfg_2_iOSDevice64>true</Cfg_2_iOSDevice64>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
+        <Cfg_2_Win32>true</Cfg_2_Win32>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base)'!=''">
+        <DCC_DependencyCheckOutputName>HCGridViewdemo.exe</DCC_DependencyCheckOutputName>
+        <DCC_ImageBase>00400000</DCC_ImageBase>
+        <DCC_Platform>x86</DCC_Platform>
+        <SanitizedProjectName>HCGridViewdemo</SanitizedProjectName>
+        <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Winapi;$(DCC_Namespace)</DCC_Namespace>
+        <VerInfo_Locale>2052</VerInfo_Locale>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Win32)'!=''">
+        <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
+        <BT_BuildType>Debug</BT_BuildType>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
+        <VerInfo_Locale>1033</VerInfo_Locale>
+        <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
+        <Icon_MainIcon>HCGridViewdemo_Icon.ico</Icon_MainIcon>
+        <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
+        <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
+        <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Win64)'!=''">
+        <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
+        <Icon_MainIcon>HCGridViewdemo_Icon.ico</Icon_MainIcon>
+        <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
+        <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
+        <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_1)'!=''">
+        <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
+        <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
+        <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+        <DCC_DebugInformation>0</DCC_DebugInformation>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
+        <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
+        <AppEnableHighDPI>true</AppEnableHighDPI>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2)'!=''">
+        <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_iOSDevice64)'!=''">
+        <BT_BuildType>Debug</BT_BuildType>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+        <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
+        <AppEnableHighDPI>true</AppEnableHighDPI>
+        <DCC_ExeOutput>..\bin\</DCC_ExeOutput>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
+    </PropertyGroup>
+    <ItemGroup>
+        <DelphiCompile Include="$(MainSource)">
+            <MainSource>MainSource</MainSource>
+        </DelphiCompile>
+        <DCCReference Include="frm_GricViewDemo.pas">
+            <Form>frmGridViewDemo</Form>
+        </DCCReference>
+        <DCCReference Include="..\HCView\frm_PrintView.pas">
+            <Form>frmPrintView</Form>
+        </DCCReference>
+        <DCCReference Include="..\HCView\frm_Paragraph.pas">
+            <Form>frmParagraph</Form>
+        </DCCReference>
+        <DCCReference Include="..\HCView\frm_ControlItemProperty.pas">
+            <Form>frmControlItemProperty</Form>
+        </DCCReference>
+        <DCCReference Include="..\HCView\frm_InsertTable.pas">
+            <Form>frmInsertTable</Form>
+        </DCCReference>
+        <DCCReference Include="..\HCView\frm_PageSet.pas">
+            <Form>frmPageSet</Form>
+        </DCCReference>
+        <DCCReference Include="..\HCView\frm_Annotate.pas">
+            <Form>frmAnnotate</Form>
+        </DCCReference>
+        <DCCReference Include="..\HCView\frm_TableBorderBackColor.pas">
+            <Form>frmBorderBackColor</Form>
+        </DCCReference>
+        <DCCReference Include="..\HCView\frm_TableProperty.pas">
+            <Form>frmTableProperty</Form>
+        </DCCReference>
+        <BuildConfiguration Include="Debug">
+            <Key>Cfg_2</Key>
+            <CfgParent>Base</CfgParent>
+        </BuildConfiguration>
+        <BuildConfiguration Include="Base">
+            <Key>Base</Key>
+        </BuildConfiguration>
+        <BuildConfiguration Include="Release">
+            <Key>Cfg_1</Key>
+            <CfgParent>Base</CfgParent>
+        </BuildConfiguration>
+    </ItemGroup>
+    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+    <ProjectExtensions>
+        <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+        <Borland.ProjectType>VCLApplication</Borland.ProjectType>
+        <BorlandProject>
+            <Delphi.Personality>
+                <Source>
+                    <Source Name="MainSource">HCGridViewdemo.dpr</Source>
+                </Source>
+                <Parameters>
+                    <Parameters Name="UseLauncher">False</Parameters>
+                    <Parameters Name="LoadAllSymbols">True</Parameters>
+                    <Parameters Name="LoadUnspecifiedSymbols">False</Parameters>
+                </Parameters>
+                <VersionInfo>
+                    <VersionInfo Name="IncludeVerInfo">False</VersionInfo>
+                    <VersionInfo Name="AutoIncBuild">False</VersionInfo>
+                    <VersionInfo Name="MajorVer">1</VersionInfo>
+                    <VersionInfo Name="MinorVer">0</VersionInfo>
+                    <VersionInfo Name="Release">0</VersionInfo>
+                    <VersionInfo Name="Build">0</VersionInfo>
+                    <VersionInfo Name="Debug">False</VersionInfo>
+                    <VersionInfo Name="PreRelease">False</VersionInfo>
+                    <VersionInfo Name="Special">False</VersionInfo>
+                    <VersionInfo Name="Private">False</VersionInfo>
+                    <VersionInfo Name="DLL">False</VersionInfo>
+                    <VersionInfo Name="Locale">2052</VersionInfo>
+                    <VersionInfo Name="CodePage">936</VersionInfo>
+                </VersionInfo>
+                <VersionInfoKeys>
+                    <VersionInfoKeys Name="CompanyName"/>
+                    <VersionInfoKeys Name="FileDescription"/>
+                    <VersionInfoKeys Name="FileVersion">1.0.0.0</VersionInfoKeys>
+                    <VersionInfoKeys Name="InternalName"/>
+                    <VersionInfoKeys Name="LegalCopyright"/>
+                    <VersionInfoKeys Name="LegalTrademarks"/>
+                    <VersionInfoKeys Name="OriginalFilename"/>
+                    <VersionInfoKeys Name="ProductName"/>
+                    <VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys>
+                    <VersionInfoKeys Name="Comments"/>
+                </VersionInfoKeys>
+                <Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                </Excluded_Packages>
+            </Delphi.Personality>
+            <Platforms>
+                <Platform value="iOSDevice64">True</Platform>
+                <Platform value="Linux64">True</Platform>
+                <Platform value="Win32">True</Platform>
+                <Platform value="Win64">False</Platform>
+            </Platforms>
+        </BorlandProject>
+        <ProjectFileVersion>12</ProjectFileVersion>
+    </ProjectExtensions>
+    <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
+</Project>

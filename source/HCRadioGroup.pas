@@ -220,8 +220,7 @@ end;
 procedure THCRadioGroup.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
-  i, vSize: Word;
-  vBuffer: TBytes;
+  i: Word;
   vS, vText: string;
   vP, vPStart: PChar;
   vBool: Boolean;
@@ -229,13 +228,9 @@ begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   FItems.Clear;
   // ¶ÁItems
-  AStream.ReadBuffer(vSize, SizeOf(vSize));
-  if vSize > 0 then
+  HCLoadTextFromStream(AStream, vS);
+  if vS <> '' then
   begin
-    SetLength(vBuffer, vSize);
-    AStream.ReadBuffer(vBuffer[0], vSize);
-    vS := StringOf(vBuffer);
-
     vP := PChar(vS);
 
     while vP^ <> #0 do
@@ -243,8 +238,8 @@ begin
       vPStart := vP;
       while not (vP^ in [#0, #10, #13]) do
         Inc(vP);
-      SetString(vText, vPStart, vP - vPStart);
 
+      SetString(vText, vPStart, vP - vPStart);
       AddItem(vText);
 
       if vP^ = #13 then
@@ -337,8 +332,16 @@ begin
   if FItems.Count > 0 then
   begin
     vS := FItems[0].Text;
+    if vS = '' then
+      vS := 'Î´ÃüÃû';
+
     for i := 1 to FItems.Count - 1 do
-      vS := vS + sLineBreak + FItems[i].Text;
+    begin
+      if FItems[i].Text <> '' then
+        vS := vS + sLineBreak + FItems[i].Text
+      else
+        vS := vS + sLineBreak + 'Î´ÃüÃû';
+    end;
   end
   else
     vS := '';

@@ -229,6 +229,7 @@ begin
       Exit;
     end;
   end;
+
   if ACreateIfNull and (Result < 0) then
   begin
     vParaStyle := THCParaStyle.Create;
@@ -253,6 +254,7 @@ begin
       Exit;
     end;
   end;
+
   if ACreateIfNull and (Result < 0) then
   begin
     vTextStyle := THCTextStyle.Create;

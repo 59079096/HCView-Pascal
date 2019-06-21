@@ -26,14 +26,16 @@ type
   protected
     procedure SetChecked(const Value: Boolean);
     //
+    function GetText: string; override;
+    procedure SetText(const Value: string); override;
     procedure MouseEnter; override;
     procedure MouseLeave; override;
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string; const AChecked: Boolean); virtual;
     procedure Assign(Source: THCCustomItem); override;
@@ -45,7 +47,6 @@ type
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
     property Checked: Boolean read FChecked write SetChecked;
-    property Text: string read FText write FText;
   end;
 
 implementation
@@ -61,6 +62,11 @@ const
 function THCCheckBoxItem.GetBoxRect: TRect;
 begin
   Result := Classes.Bounds(FMargin, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize)
+end;
+
+function THCCheckBoxItem.GetText: string;
+begin
+  Result := FText;
 end;
 
 procedure THCCheckBoxItem.Assign(Source: THCCustomItem);
@@ -150,6 +156,7 @@ begin
 
   if Width < FMinWidth then
     Width := FMinWidth;
+
   if Height < FMinHeight then
     Height := FMinHeight;
 end;
@@ -211,6 +218,11 @@ begin
   begin
     FChecked := Value;
   end;
+end;
+
+procedure THCCheckBoxItem.SetText(const Value: string);
+begin
+  FText := Value;
 end;
 
 procedure THCCheckBoxItem.ToXml(const ANode: IHCXMLNode);

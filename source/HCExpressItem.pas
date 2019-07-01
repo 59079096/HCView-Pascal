@@ -23,7 +23,6 @@ type
     FLeftText, FRightText: string;
     FLeftRect, FRightRect: TRect;
   protected
-    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -37,14 +36,15 @@ type
       const ALeftText, ATopText, ARightText, ABottomText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
 
+    procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
-    property LeftRect: TRect read FLeftRect;
-    property RightRect: TRect read FRightRect;
+    property LeftRect: TRect read FLeftRect write FLeftRect;
+    property RightRect: TRect read FRightRect write FRightRect;
     property LeftText: string read FLeftText write FLeftText;
     property RightText: string read FRightText write FRightText;
 
@@ -343,8 +343,8 @@ procedure THCExpressItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, FLeftText);
-  HCLoadTextFromStream(AStream, FRightText);
+  HCLoadTextFromStream(AStream, FLeftText, AFileVersion);
+  HCLoadTextFromStream(AStream, FRightText, AFileVersion);
 end;
 
 procedure THCExpressItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

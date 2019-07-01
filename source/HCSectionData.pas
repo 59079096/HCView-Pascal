@@ -244,13 +244,6 @@ begin
 
   vPageBreak := TPageBreakItem.Create(Self);
   vPageBreak.ParaFirst := True;
-  // 第一个Item分到下一页后，前一页没有任何Item，对编辑有诸多不利，所以在前一页补充一个空Item
-  if (SelectInfo.StartItemNo = 0) and (SelectInfo.StartItemOffset = 0) then
-  begin
-    vKey := VK_RETURN;
-    KeyDown(vKey, []);
-  end;
-
   Result := Self.InsertItem(vPageBreak);
 end;
 

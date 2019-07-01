@@ -200,7 +200,7 @@ procedure THCCheckBoxItem.LoadFromStream(const AStream: TStream;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   AStream.ReadBuffer(FChecked, SizeOf(FChecked));  // ¶Á¹´Ñ¡×´Ì¬
-  HCLoadTextFromStream(AStream, FText);  // ¶ÁText
+  HCLoadTextFromStream(AStream, FText, AFileVersion);  // ¶ÁText
 end;
 
 procedure THCCheckBoxItem.SaveToStream(const AStream: TStream; const AStart,

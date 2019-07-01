@@ -337,7 +337,7 @@ procedure THCEditItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, FText);  // ¶ÁÈ¡Text
+  HCLoadTextFromStream(AStream, FText, AFileVersion);  // ¶ÁÈ¡Text
   AStream.ReadBuffer(FReadOnly, SizeOf(FReadOnly));
 
   if AFileVersion > 15 then

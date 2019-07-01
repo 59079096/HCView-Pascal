@@ -379,8 +379,8 @@ procedure THCSupSubScriptItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, FSupText);
-  HCLoadTextFromStream(AStream, FSubText);
+  HCLoadTextFromStream(AStream, FSupText, AFileVersion);
+  HCLoadTextFromStream(AStream, FSubText, AFileVersion);
 end;
 
 procedure THCSupSubScriptItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

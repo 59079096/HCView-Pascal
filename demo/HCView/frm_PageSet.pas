@@ -39,7 +39,7 @@ type
     chkShowLineNo: TCheckBox;
     chkShowLineActiveMark: TCheckBox;
     chkShowUnderLine: TCheckBox;
-    cbbPageOrientation: TComboBox;
+    cbbPaperOrientation: TComboBox;
     lbl8: TLabel;
     chkPageNoVisible: TCheckBox;
     lbl9: TLabel;
@@ -137,6 +137,7 @@ begin
   cbbPaper.ItemIndex := cbbPaper.Items.IndexOf(GetPaperSizeStr(AHCGridView.PaperSize));
   if cbbPaper.ItemIndex < 0 then  // 自定义
     cbbPaper.ItemIndex := 0;
+
   edtWidth.Text := FormatFloat('0.#', AHCGridView.PaperWidth);
   edtHeight.Text := FormatFloat('0.#', AHCGridView.PaperHeight);
 
@@ -148,9 +149,9 @@ begin
   chkSymmetryMargin.Checked := AHCGridView.SymmetryMargin;
 
   if AHCGridView.PaperOrientation = TPaperOrientation.cpoPortrait then
-    cbbPageOrientation.ItemIndex := 0
+    cbbPaperOrientation.ItemIndex := 0
   else
-    cbbPageOrientation.ItemIndex := 1;
+    cbbPaperOrientation.ItemIndex := 1;
 
   chkPageNoVisible.Checked := AHCGridView.PageNoVisible;
   chkParaLastMark.Checked := AHCGridView.Style.ShowParaLastMark;
@@ -187,7 +188,7 @@ begin
 
       AHCGridView.SymmetryMargin := chkSymmetryMargin.Checked;
 
-      if cbbPageOrientation.ItemIndex = 0 then
+      if cbbPaperOrientation.ItemIndex = 0 then
         AHCGridView.PaperOrientation := TPaperOrientation.cpoPortrait
       else
         AHCGridView.PaperOrientation := TPaperOrientation.cpoLandscape;
@@ -214,13 +215,13 @@ begin
 
   if AHCView.ActiveSection.PaperOrientation = TPaperOrientation.cpoPortrait then
   begin
-    cbbPageOrientation.ItemIndex := 0;
+    cbbPaperOrientation.ItemIndex := 0;
     edtWidth.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperWidth);
     edtHeight.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperHeight);
   end
   else
   begin
-    cbbPageOrientation.ItemIndex := 1;
+    cbbPaperOrientation.ItemIndex := 1;
     edtWidth.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperHeight);
     edtHeight.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperWidth);
   end;
@@ -231,8 +232,6 @@ begin
   edtBottom.Text := FormatFloat('0.#', AHCView.ActiveSection.PaperMarginBottom);
 
   chkSymmetryMargin.Checked := AHCView.ActiveSection.SymmetryMargin;
-
-
 
   chkPageNoVisible.Checked := AHCView.ActiveSection.PageNoVisible;
   chkParaLastMark.Checked := AHCView.Style.ShowParaLastMark;
@@ -248,14 +247,14 @@ begin
       vIndex := GetPaperInfoIndexByName(cbbPaper.Text);
       AHCView.ActiveSection.PaperSize := FPaperInfos[vIndex].Size;
 
-      if cbbPageOrientation.ItemIndex = 0 then  // 纵向
+      if cbbPaperOrientation.ItemIndex = 0 then  // 纵向
         AHCView.ActiveSection.PaperOrientation := TPaperOrientation.cpoPortrait
       else
         AHCView.ActiveSection.PaperOrientation := TPaperOrientation.cpoLandscape;
 
       if vIndex = 0 then  // 自定义
       begin
-        if cbbPageOrientation.ItemIndex = 0 then  // 纵向
+        if cbbPaperOrientation.ItemIndex = 0 then  // 纵向
         begin
           AHCView.ActiveSection.PaperWidth := StrToFloat(edtWidth.Text);
           AHCView.ActiveSection.PaperHeight := StrToFloat(edtHeight.Text);
@@ -268,7 +267,7 @@ begin
       end
       else
       begin
-        if cbbPageOrientation.ItemIndex = 0 then  // 纵向
+        if cbbPaperOrientation.ItemIndex = 0 then  // 纵向
         begin
           AHCView.ActiveSection.PaperWidth := FPaperInfos[vIndex].Width;
           AHCView.ActiveSection.PaperHeight := FPaperInfos[vIndex].Height;

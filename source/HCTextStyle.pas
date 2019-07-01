@@ -251,7 +251,7 @@ begin
   else
     AStream.ReadBuffer(FSize, SizeOf(FSize));  // ×ÖºÅ
 
-  HCLoadTextFromStream(AStream, vFamily);  // ×ÖÌå
+  HCLoadTextFromStream(AStream, vFamily, AFileVersion);  // ×ÖÌå
   FFamily := vFamily;
 
   AStream.ReadBuffer(FFontStyles, SizeOf(FFontStyles));

@@ -252,7 +252,7 @@ type
 
   /// <summary> 保存长度小于65536个字节的字符串到流 </summary>
   procedure HCSaveTextToStream(const AStream: TStream; const S: string);
-  procedure HCLoadTextFromStream(const AStream: TStream; var S: string);
+  procedure HCLoadTextFromStream(const AStream: TStream; var S: string; const AFileVersion: Word);
 
   procedure HCSaveColorToStream(const AStream: TStream; const AColor: TColor);
   procedure HCLoadColorFromStream(const AStream: TStream; var AColor: TColor);
@@ -323,7 +323,11 @@ var
   vBuffer: TBytes;
   vSize: Word;
 begin
+  {$IFDEF UNPLACEHOLDERCHAR}
   vBuffer := TEncoding.Unicode.GetBytes(S);
+  {$ELSE}
+  vBuffer := BytesOf(S);
+  {$ENDIF}
   if System.Length(vBuffer) > MAXWORD then
     raise Exception.Create(HCS_EXCEPTION_TEXTOVER);
 
@@ -333,7 +337,8 @@ begin
     AStream.WriteBuffer(vBuffer[0], vSize);
 end;
 
-procedure HCLoadTextFromStream(const AStream: TStream; var S: string);
+procedure HCLoadTextFromStream(const AStream: TStream; var S: string;
+  const AFileVersion: Word);
 var
   vSize: Word;
   vBuffer: TBytes;
@@ -343,10 +348,14 @@ begin
   begin
     SetLength(vBuffer, vSize);
     AStream.Read(vBuffer[0], vSize);
-    if HC_FileVersionInt > 24 then
+    {$IFDEF UNPLACEHOLDERCHAR}
+    if AFileVersion > 24 then
       S := TEncoding.Unicode.GetString(vBuffer)
     else
       S := StringOf(vBuffer);
+    {$ELSE}
+      S := StringOf(vBuffer);
+    {$ENDIF}
   end
   else
     S := '';

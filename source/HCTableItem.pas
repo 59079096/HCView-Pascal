@@ -219,7 +219,7 @@ type
     procedure SetActiveItemText(const AText: string); override;
     function IsSelectComplateTheory: Boolean; override;
     function SelectExists: Boolean; override;
-    procedure TraverseItem(const ATraverse: TItemTraverse); override;
+    procedure TraverseItem(const ATraverse: THCItemTraverse); override;
 
     /// <summary> 当前位置开始查找指定的内容 </summary>
     /// <param name="AKeyword">要查找的关键字</param>
@@ -1649,16 +1649,17 @@ begin
 
   AStream.ReadBuffer(FBorderVisible, SizeOf(FBorderVisible));
 
-//  if AFileVersion > 24 then  // 固定行数、列数信息
-//  begin
-//    AStream.ReadBuffer(FFixRow, SizeOf(FFixRow));
-//    AStream.ReadBuffer(FFixRowCount, SizeOf(FFixRowCount));
-//    AStream.ReadBuffer(FFixCol, SizeOf(FFixCol));
-//    AStream.ReadBuffer(FFixColCount, SizeOf(FFixColCount));
-//  end;
-
   AStream.ReadBuffer(vR, SizeOf(vR));  // 行数
   AStream.ReadBuffer(vC, SizeOf(vC));  // 列数
+
+  if AFileVersion > 24 then  // 固定行数、列数信息
+  begin
+    AStream.ReadBuffer(FFixRow, SizeOf(FFixRow));
+    AStream.ReadBuffer(FFixRowCount, SizeOf(FFixRowCount));
+    AStream.ReadBuffer(FFixCol, SizeOf(FFixCol));
+    AStream.ReadBuffer(FFixColCount, SizeOf(FFixColCount));
+  end;
+
   { 创建行、列 }
   for i := 0 to vR - 1 do
   begin
@@ -3934,14 +3935,14 @@ begin
 
   AStream.WriteBuffer(FBorderVisible, SizeOf(FBorderVisible));
 
-  // 固定行数、列数信息
-//  AStream.WriteBuffer(FFixRow, SizeOf(FFixRow));
-//  AStream.WriteBuffer(FFixRowCount, SizeOf(FFixRowCount));
-//  AStream.WriteBuffer(FFixCol, SizeOf(FFixCol));
-//  AStream.WriteBuffer(FFixColCount, SizeOf(FFixColCount));
-
   AStream.WriteBuffer(FRows.Count, SizeOf(FRows.Count));  // 行数
   AStream.WriteBuffer(FColWidths.Count, SizeOf(FColWidths.Count));  // 列数
+
+  // 固定行数、列数信息
+  AStream.WriteBuffer(FFixRow, SizeOf(FFixRow));
+  AStream.WriteBuffer(FFixRowCount, SizeOf(FFixRowCount));
+  AStream.WriteBuffer(FFixCol, SizeOf(FFixCol));
+  AStream.WriteBuffer(FFixColCount, SizeOf(FFixColCount));
 
   for i := 0 to FColWidths.Count - 1 do  // 各列标准宽度
   begin
@@ -4569,7 +4570,7 @@ begin
     FRows[vR].ToXml(ANode.AddChild('row'));
 end;
 
-procedure THCTableItem.TraverseItem(const ATraverse: TItemTraverse);
+procedure THCTableItem.TraverseItem(const ATraverse: THCItemTraverse);
 var
   vR, vC: Integer;
 begin

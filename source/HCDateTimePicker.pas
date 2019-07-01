@@ -932,7 +932,7 @@ procedure THCDateTimePicker.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, FFormat);  // ∂¡»°Format
+  HCLoadTextFromStream(AStream, FFormat, AFileVersion);  // ∂¡»°Format
   AStream.ReadBuffer(FDateTime, SizeOf(FDateTime));
 end;
 

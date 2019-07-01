@@ -1,9 +1,9 @@
 object frmBorderBackColor: TfrmBorderBackColor
   Left = 0
   Top = 0
-  BorderStyle = bsToolWindow
+  BorderStyle = bsDialog
   Caption = #36793#26694#21450#32972#26223#33394
-  ClientHeight = 202
+  ClientHeight = 200
   ClientWidth = 323
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -39,7 +39,7 @@ object frmBorderBackColor: TfrmBorderBackColor
   object cbbRang: TComboBox
     Left = 58
     Top = 13
-    Width = 247
+    Width = 223
     Height = 21
     Style = csDropDownList
     ItemIndex = 0
@@ -52,31 +52,31 @@ object frmBorderBackColor: TfrmBorderBackColor
   object chkLeft: TCheckBox
     Left = 92
     Top = 47
-    Width = 44
+    Width = 34
     Height = 17
     Caption = #24038
     TabOrder = 1
   end
   object chkTop: TCheckBox
-    Left = 154
+    Left = 146
     Top = 47
-    Width = 44
+    Width = 34
     Height = 17
     Caption = #19978
     TabOrder = 2
   end
   object chkRight: TCheckBox
-    Left = 210
+    Left = 198
     Top = 47
-    Width = 44
+    Width = 34
     Height = 17
     Caption = #21491
     TabOrder = 3
   end
   object chkBottom: TCheckBox
-    Left = 267
+    Left = 252
     Top = 47
-    Width = 44
+    Width = 34
     Height = 17
     Caption = #19979
     TabOrder = 4
@@ -105,17 +105,17 @@ object frmBorderBackColor: TfrmBorderBackColor
   object chkLTRB: TCheckBox
     Left = 92
     Top = 81
-    Width = 112
+    Width = 98
     Height = 17
-    Caption = #24038#19978'->'#21491#19979#26012#32447
+    Caption = #24038#19978'-'#21491#19979#26012#32447
     TabOrder = 7
   end
   object chkRTLB: TCheckBox
-    Left = 210
+    Left = 198
     Top = 81
-    Width = 103
+    Width = 99
     Height = 17
-    Caption = #21491#19978'->'#24038#19979#26012#32447
+    Caption = #21491#19978'-'#24038#19979#26012#32447
     TabOrder = 8
   end
 end

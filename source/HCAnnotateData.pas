@@ -699,8 +699,8 @@ begin
   Self.EndItemOffset := FID;
   AStream.ReadBuffer(FID, SizeOf(FID));
 
-  HCLoadTextFromStream(AStream, FTitle);
-  HCLoadTextFromStream(AStream, FText);
+  HCLoadTextFromStream(AStream, FTitle, AFileVersion);
+  HCLoadTextFromStream(AStream, FText, AFileVersion);
 end;
 
 procedure THCDataAnnotate.SaveToStream(const AStream: TStream);

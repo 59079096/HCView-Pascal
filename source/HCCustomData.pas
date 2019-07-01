@@ -428,7 +428,7 @@ type
   TTraverseItemEvent = procedure(const AData: THCCustomData;
     const AItemNo, ATag: Integer; var AStop: Boolean) of object;
 
-  TItemTraverse = class(TObject)
+  THCItemTraverse = class(TObject)
   public
     Areas: TSectionAreas;
     Tag: Integer;

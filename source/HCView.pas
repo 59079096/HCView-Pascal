@@ -60,7 +60,7 @@ type
     /// <param name="ACanvas"></param>
     /// <param name="APaintInfo"></param>
     procedure PaintDrawAnnotate(const Sender: TObject; const APageRect: TRect;
-      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo); virtual;
+      const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 
     /// <summary> 有批注插入 </summary>
     procedure InsertDataAnnotate(const ADataAnnotate: THCDataAnnotate);
@@ -658,7 +658,7 @@ type
 
     /// <summary> 垂直滚动条 </summary>
     property VScrollBar: THCRichScrollBar read FVScrollBar;
-    /// <summary> 当前光标处的文本样式 </summary>
+    /// <summary> 当前光标处的样式 </summary>
     property CurStyleNo: Integer read GetCurStyleNo;
     /// <summary> 当前光标处的段样式 </summary>
     property CurParaNo: Integer read GetCurParaNo;
@@ -1254,6 +1254,17 @@ end;
 procedure THCView.DoSectionPaintPaperAfter(const Sender: TObject; const APageIndex: Integer;
   const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 begin
+  // HCView广告信息，如介意可以删掉
+  if (FViewModel = THCViewModel.hvmFilm) and ((Sender as THCSection).PagePadding > 10) then
+  begin
+    ACanvas.Brush.Style := bsClear;
+    ACanvas.Font.Size := 10;
+    ACanvas.Font.Name := '宋体';
+    ACanvas.Font.Color := clBlack;
+
+    ACanvas.TextOut(ARect.Left, ARect.Bottom + 4, '编辑器由 HCView 提供 QQ群：649023932');
+  end;
+
   if FAnnotatePre.Visible then  // 当前页有批注，绘制批注
     FAnnotatePre.PaintDrawAnnotate(Sender, ARect, ACanvas, APaintInfo);
 
@@ -1742,7 +1753,7 @@ begin
     if vPageCount + FSections[i].PageCount > APageIndex then
     begin
       Result := i;  // 找到节序号
-      ASectionFirstPageIndex := vPageCount;
+      ASectionFirstPageIndex := APageIndex - vPageCount;
       Break;
     end
     else
@@ -2715,7 +2726,7 @@ begin
           try
             vPaintInfo.PageIndex := APages[i];
 
-            FSections[vSectionIndex].PaintPaper(APages[i] - vFirstPageIndex,
+            FSections[vSectionIndex].PaintPaper(vFirstPageIndex,
               vPrintOffsetX, vPrintOffsetY, vPrintCanvas, vPaintInfo);
 
             HCPrinter.EndPage;
@@ -3341,7 +3352,7 @@ begin
   DoSaveStreamBefor(AStream);
 
   if not AQuick then
-    DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
+    DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
 
   FStyle.SaveToStream(AStream);
   // 节数量
@@ -4368,7 +4379,8 @@ begin
         ACanvas.RoundRect(vDrawAnnotate.Rect, 5, 5);  // 填充批注区域
         vTextRect := vDrawAnnotate.Rect;
         vTextRect.Inflate(-5, -5);
-        DrawTextEx(ACanvas.Handle, PChar(IntToStr(i) + vText), -1, vTextRect, DT_VCENTER or DT_LEFT or DT_WORDBREAK, nil);
+        DrawTextEx(ACanvas.Handle, PChar(IntToStr(i) + vText), -1, vTextRect,
+          DT_VCENTER or DT_LEFT or DT_WORDBREAK, nil);
 
         // 绘制指向线
         ACanvas.Brush.Style := bsClear;

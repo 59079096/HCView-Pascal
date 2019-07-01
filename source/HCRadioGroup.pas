@@ -228,7 +228,7 @@ begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   FItems.Clear;
   // ¶ÁItems
-  HCLoadTextFromStream(AStream, vS);
+  HCLoadTextFromStream(AStream, vS, AFileVersion);
   if vS <> '' then
   begin
     vP := PChar(vS);

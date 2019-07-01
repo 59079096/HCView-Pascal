@@ -146,7 +146,7 @@ type
     function GetTopLevelData: THCCustomData; virtual;
     /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomData类型) </summary>
     function GetActiveData: THCCustomData; virtual;
-    procedure TraverseItem(const ATraverse: TItemTraverse); virtual;
+    procedure TraverseItem(const ATraverse: THCItemTraverse); virtual;
     procedure SaveToBitmap(var ABitmap: TBitmap); virtual;
     //
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -726,7 +726,7 @@ begin
   ANode.Attributes['height'] := FHeight;
 end;
 
-procedure THCCustomRectItem.TraverseItem(const ATraverse: TItemTraverse);
+procedure THCCustomRectItem.TraverseItem(const ATraverse: THCItemTraverse);
 begin
 end;
 
@@ -1136,7 +1136,7 @@ begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   AStream.ReadBuffer(FTextStyleNo, SizeOf(FTextStyleNo));
 
-  if FTextStyleNo > AStyle.TextStyles.Count - 1 then  // 兼容历史错误(删除多余样式时没有)
+  if Assigned(AStyle) and (FTextStyleNo > AStyle.TextStyles.Count - 1) then  // 兼容历史错误(删除多余样式时没有)
     FTextStyleNo := 0;
 end;
 
@@ -1245,6 +1245,7 @@ begin
 
   if not APaintInfo.Print then  // 绘制[和]
   begin
+    ACanvas.Pen.Width := 1;
     if FMarkType = cmtBeg then
     begin
       ACanvas.Pen.Style := psSolid;

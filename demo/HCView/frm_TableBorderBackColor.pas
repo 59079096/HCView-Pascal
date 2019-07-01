@@ -9,6 +9,8 @@ uses
 type
   TfrmBorderBackColor = class(TForm)
     lbl8: TLabel;
+    lbl1: TLabel;
+    lbl2: TLabel;
     cbbRang: TComboBox;
     chkLeft: TCheckBox;
     chkTop: TCheckBox;
@@ -16,8 +18,6 @@ type
     chkBottom: TCheckBox;
     cbbBackColor: TColorBox;
     btnOk: TButton;
-    lbl1: TLabel;
-    lbl2: TLabel;
     chkLTRB: TCheckBox;
     chkRTLB: TCheckBox;
     procedure btnOkClick(Sender: TObject);

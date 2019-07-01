@@ -340,8 +340,8 @@ procedure THCFractionItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, FTopText);
-  HCLoadTextFromStream(AStream, FBottomText);
+  HCLoadTextFromStream(AStream, FTopText, AFileVersion);
+  HCLoadTextFromStream(AStream, FBottomText, AFileVersion);
 end;
 
 procedure THCFractionItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

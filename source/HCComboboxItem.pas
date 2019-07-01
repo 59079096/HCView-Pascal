@@ -437,7 +437,7 @@ var
   vText: string;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, vText); // ¶ÁItems
+  HCLoadTextFromStream(AStream, vText, AFileVersion); // ¶ÁItems
   FItems.Text := vText;
 end;
 

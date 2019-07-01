@@ -98,7 +98,7 @@ procedure THCBarCodeItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, FText);
+  HCLoadTextFromStream(AStream, FText, AFileVersion);
 end;
 
 procedure THCBarCodeItem.ParseXml(const ANode: IHCXMLNode);

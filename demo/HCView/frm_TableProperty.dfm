@@ -21,16 +21,12 @@ object frmTableProperty: TfrmTableProperty
     Top = 0
     Width = 420
     Height = 334
-    ActivePage = tsCell
+    ActivePage = tsTable
     Align = alClient
     TabOrder = 0
     TabWidth = 120
     object tsTable: TTabSheet
       Caption = #34920#26684
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lbl1: TLabel
         Left = 24
         Top = 10
@@ -244,10 +240,6 @@ object frmTableProperty: TfrmTableProperty
     object tsCell: TTabSheet
       Caption = #21333#20803#26684'(0,0)'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lbl7: TLabel
         Left = 24
         Top = 10

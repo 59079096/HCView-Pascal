@@ -388,6 +388,10 @@ begin
   Self.InitializeField;
 
   GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+  if (Items[AStartNo].ParaFirst) and (vFormatFirstDrawItemNo > 0) then  // 段首删除时要从上一段最后
+    Dec(vFormatFirstDrawItemNo);
+
   FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
   vDelCount := AEndNo - AStartNo + 1;
@@ -398,6 +402,15 @@ begin
     Items.Delete(i);
   end;
 
+  if Items.Count = 0 then  // 删除没有了，不用SetEmptyData，因为其无Undo
+  begin
+    vItem := CreateDefaultTextItem;
+    vItem.ParaFirst := True;
+    Items.Add(vItem);
+    Inc(vDelCount);
+    UndoAction_InsertItem(0, 0);
+  end;
+
   ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
@@ -405,17 +418,7 @@ begin
   if AStartNo > 0 then  // 不是从第1个开始删除
     ReSetSelectAndCaret(AStartNo - 1)
   else  // 从第一个开始删除
-  begin
-    if Items.Count = 0 then  // 删除没有了，不用SetEmptyData，因为其无Undo
-    begin
-      vItem := CreateDefaultTextItem;
-      vItem.ParaFirst := True;
-      Items.Add(vItem);
-      UndoAction_InsertItem(0, 0);
-    end;
-
     ReSetSelectAndCaret(0);
-  end;
 end;
 
 function THCRichData.DeleteSelected: Boolean;
@@ -1764,7 +1767,7 @@ begin
   AItem.ParaNo := CurParaNo;
   //AItem.StyleNo := Style.CurStyleNo  // 插入TextItem Item创建时处理好当前样式了
 
-  if IsEmptyData then
+  if IsEmptyData and (not AItem.ParaFirst) then
   begin
     Undo_New;
     Result := EmptyDataInsertItem(AItem);
@@ -2305,7 +2308,7 @@ begin
 
   AItem.ParaNo := CurParaNo;
 
-  if IsEmptyData then
+  if IsEmptyData and (not AItem.ParaFirst) then
   begin
     Undo_New;
     Result := EmptyDataInsertItem(AItem);
@@ -3786,7 +3789,7 @@ var
               if (SelectInfo.StartItemNo >= 0)
                 and (SelectInfo.StartItemNo < Items.Count - 1)
                 and (not Items[SelectInfo.StartItemNo + 1].ParaFirst)
-              then  // 同一段还有内容
+              then  // 同一段后面还有内容
               begin
                 Undo_New;
                 UndoAction_DeleteItem(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);

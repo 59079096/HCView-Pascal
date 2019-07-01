@@ -110,7 +110,7 @@ type
     function Replace(const AText: string): Boolean;
 
     procedure GetCaretInfoCur(var ACaretInfo: THCCaretInfo);
-    procedure TraverseItem(const ATraverse: TItemTraverse);
+    procedure TraverseItem(const ATraverse: THCItemTraverse);
 
     property HotDomain: THCDomainInfo read FHotDomain;
     property ActiveDomain: THCDomainInfo read FActiveDomain;
@@ -443,6 +443,7 @@ begin
       try
         if (FHotDomain.BeginNo >= 0) and vDrawHotDomainBorde then
           CombineRgn(FHotDomainRGN, FHotDomainRGN, vDliRGN, RGN_OR);
+
         if (FActiveDomain.BeginNo >= 0) and vDrawActiveDomainBorde then
           CombineRgn(FActiveDomainRGN, FActiveDomainRGN, vDliRGN, RGN_OR);
       finally
@@ -1188,7 +1189,7 @@ begin
     ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, True);
 end;
 
-procedure THCViewData.TraverseItem(const ATraverse: TItemTraverse);
+procedure THCViewData.TraverseItem(const ATraverse: THCItemTraverse);
 var
   i: Integer;
 begin

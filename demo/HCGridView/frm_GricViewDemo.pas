@@ -5,8 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   StdCtrls, Menus, ActnList, ImgList, ExtCtrls, ComCtrls, ToolWin,
-  HCGridView, HCTableCell, HCItem, HCCommon, HCCustomData, System.ImageList,
-  System.Actions;
+  HCGridView, HCTableCell, HCItem, HCCommon, HCCustomData;
 
 type
   TfrmGridViewDemo = class(TForm)

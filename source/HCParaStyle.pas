@@ -17,8 +17,8 @@ uses
   Classes, Graphics, HCXml;
 
 type
-  /// <summary> 段水平对齐方式：左、右、居中、两端、分散) </summary>
-  TParaAlignHorz = (pahLeft, pahRight, pahCenter, pahJustify, pahScatter);
+  /// <summary> 段水平对齐方式：左、居中、右、两端、分散) </summary>
+  TParaAlignHorz = (pahLeft, pahCenter, pahRight, pahJustify, pahScatter);
 
   /// <summary> 段垂直对齐方式：上、居中、下) </summary>
   TParaAlignVert = (pavTop, pavCenter, pavBottom);

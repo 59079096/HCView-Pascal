@@ -154,7 +154,8 @@ type
     procedure KeyPress(var Key: Char); virtual;
 
     // Key返回0表示此键按下Data没有做任何事情
-    procedure KeyDown(var Key: Word; Shift: TShiftState); virtual;
+    procedure KeyDown(var Key: Word; Shift: TShiftState;
+      const APageBreak: Boolean = False); virtual;
 
     // Key返回0表示此键按下Data没有做任何事情
     procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
@@ -223,7 +224,7 @@ implementation
 
 uses
   Math, HCTableItem, HCImageItem, HCCheckBoxItem, HCTabItem, HCLineItem, HCExpressItem,
-  HCPageBreakItem, HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem,
+  HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem,
   HCFractionItem, HCDateTimePicker, HCRadioGroup, HCSupSubScriptItem, HCUnitConversion;
 
 { THCRichData }
@@ -250,7 +251,7 @@ begin
       THCStyle.Express: Result := THCExpressItem.Create(Self, '', '', '', '');
       // RsVector
       THCStyle.Domain: Result := CreateDefaultDomainItem;
-      THCStyle.PageBreak: Result := TPageBreakItem.Create(Self, 0, 1);
+      //THCStyle.PageBreak: Result := TPageBreakItem.Create(Self, 0, 1);
       THCStyle.CheckBox: Result := THCCheckBoxItem.Create(Self, '勾选框', False);
       THCStyle.Gif: Result := THCGifItem.Create(Self, 1, 1);
       THCStyle.Edit: Result := THCEditItem.Create(Self, '');
@@ -2733,7 +2734,8 @@ begin
     (FSelectSeekOffset = SelectInfo.StartItemOffset);
 end;
 
-procedure THCRichData.KeyDown(var Key: Word; Shift: TShiftState);
+procedure THCRichData.KeyDown(var Key: Word; Shift: TShiftState;
+  const APageBreak: Boolean = False);
 
   {$REGION 'CheckSelectEndEff 判断选择结束是否和起始在同一位置，是则取消选中'}
   procedure CheckSelectEndEff;
@@ -3647,6 +3649,15 @@ var
               vCurItem.ParaFirst := True;
               Items.Insert(SelectInfo.StartItemNo, vCurItem);
 
+              Undo_New;
+              UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+
+              if APageBreak then
+              begin
+                UndoAction_ItemPageBreak(SelectInfo.StartItemNo + 1, 0, True);  // 我变成下一个了
+                Items[SelectInfo.StartItemNo + 1].PageBreak := True;
+              end;
+
               ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
 
               SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
@@ -3654,7 +3665,17 @@ var
             end
             else  // RectItem不在行首
             begin
+              Undo_New;
+
+              UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
               vCurItem.ParaFirst := True;
+
+              if APageBreak then
+              begin
+                UndoAction_ItemPageBreak(SelectInfo.StartItemNo, 0, True);
+                vCurItem.PageBreak := True;
+              end;
+
               ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
             end;
           end;
@@ -3665,13 +3686,29 @@ var
             begin
               if SelectInfo.StartItemNo > 0 then  // 第一个前回删不处理，停止格式化
               begin
-                GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+                if vCurItem.ParaFirst and (SelectInfo.StartItemNo > 0) then
+                begin
+                  vFormatFirstDrawItemNo := GetFormatFirstDrawItem(SelectInfo.StartItemNo - 1,
+                    GetItemOffsetAfter(SelectInfo.StartItemNo - 1));
+
+                  vFormatLastItemNo := GetParaLastItemNo(SelectInfo.StartItemNo);
+                end
+                else
+                  GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
                 FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
                 Undo_New;
-                UndoAction_ItemParaFirst(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, False);
 
+                UndoAction_ItemParaFirst(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, False);
                 vCurItem.ParaFirst := False;
+
+                if vCurItem.PageBreak then
+                begin
+                  UndoAction_ItemPageBreak(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, False);
+                  vCurItem.PageBreak := False;
+                end;
+
                 ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
               end;
             end
@@ -3935,9 +3972,16 @@ var
       if not vCurItem.ParaFirst then  // 原来不是段首
       begin
         Undo_New;
-        UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
 
+        UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
         vCurItem.ParaFirst := True;
+
+        if APageBreak then
+        begin
+          UndoAction_ItemPageBreak(SelectInfo.StartItemNo, 0, True);
+          vCurItem.PageBreak := True;
+        end;
+
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
       end
       else  // 原来就是段首
@@ -3946,10 +3990,14 @@ var
         vItem.ParaNo := vCurItem.ParaNo;
         vItem.StyleNo := vCurItem.StyleNo;
         vItem.ParaFirst := True;
-        Items.Insert(SelectInfo.StartItemNo, vItem);  // 原位置的向下移动
+
+        if APageBreak then
+          vItem.PageBreak := True;
+
+        Items.Insert(SelectInfo.StartItemNo + 1, vItem);  // 插入到下面
 
         Undo_New;
-        UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+        UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
 
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
@@ -3964,9 +4012,16 @@ var
         if not vItem.ParaFirst then  // 下一个不是段起始
         begin
           Undo_New;
-          UndoAction_ItemParaFirst(SelectInfo.StartItemNo + 1, 0, True);
 
+          UndoAction_ItemParaFirst(SelectInfo.StartItemNo + 1, 0, True);
           vItem.ParaFirst := True;
+
+          if APageBreak then
+          begin
+            UndoAction_ItemPageBreak(SelectInfo.StartItemNo + 1, 0, True);
+            vItem.PageBreak := True;
+          end;
+
           ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
         end
         else  // 下一个是段起始
@@ -3975,6 +4030,10 @@ var
           vItem.ParaNo := vCurItem.ParaNo;
           vItem.StyleNo := vCurItem.StyleNo;
           vItem.ParaFirst := True;
+
+          if APageBreak then
+            vItem.PageBreak := True;
+
           Items.Insert(SelectInfo.StartItemNo + 1, vItem);
 
           Undo_New;
@@ -3982,6 +4041,7 @@ var
 
           ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
         end;
+
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
         SelectInfo.StartItemOffset := 0;
       end
@@ -3991,6 +4051,10 @@ var
         vItem.ParaNo := vCurItem.ParaNo;
         vItem.StyleNo := vCurItem.StyleNo;
         vItem.ParaFirst := True;
+
+        if APageBreak then
+          vItem.PageBreak := True;
+
         Items.Insert(SelectInfo.StartItemNo + 1, vItem);
 
         Undo_New;
@@ -4005,6 +4069,9 @@ var
     begin
       vItem := vCurItem.BreakByOffset(SelectInfo.StartItemOffset);  // 截断当前Item
       vItem.ParaFirst := True;
+
+      if APageBreak then
+        vItem.PageBreak := True;
 
       Items.Insert(SelectInfo.StartItemNo + 1, vItem);
 
@@ -4048,6 +4115,7 @@ var
             Undo_New;
             UndoAction_DeleteItem(vCurItemNo, 0);
             Items.Delete(vCurItemNo);
+
             ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - 1, -1);
           end
           else  // 当前不是空行
@@ -4056,7 +4124,18 @@ var
             begin
               vFormatLastItemNo := GetParaLastItemNo(vCurItemNo + 1);  // 获取下一段最后一个
               FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+              Undo_New;
+
+              UndoAction_ItemParaFirst(vCurItemNo + 1, 0, False);
               Items[vCurItemNo + 1].ParaFirst := False;
+
+              if Items[vCurItemNo + 1].PageBreak then
+              begin
+                UndoAction_ItemPageBreak(vCurItemNo + 1, 0, False);
+                Items[vCurItemNo + 1].PageBreak := False;
+              end;
+
               ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
               SelectInfo.StartItemNo := vCurItemNo + 1;
@@ -4071,7 +4150,10 @@ var
 
               if Items[vCurItemNo + 1].Length = 0 then  // 下一段的段首是是空行
               begin
+                Undo_New;
+                UndoAction_DeleteItem(vCurItemNo + 1, 0);
                 Items.Delete(vCurItemNo + 1);
+
                 Inc(vDelCount);
               end
               else  // 下一段的段首不是空行
@@ -4080,8 +4162,14 @@ var
                 //  and (vCurItem.StyleNo = Items[vCurItemNo + 1].StyleNo)
                 if vCurItem.CanConcatItems(Items[vCurItemNo + 1]) then  // 下一段段首可合并到当前(当前在上一段段尾) 201804111209 (不能用MergeItemText的情况)
                 begin
+                  Undo_New;
+
+                  UndoAction_InsertText(vCurItemNo, vCurItem.Length + 1, Items[vCurItemNo + 1].Text);
                   vCurItem.Text := vCurItem.Text + Items[vCurItemNo + 1].Text;
+
+                  UndoAction_DeleteItem(vCurItemNo + 1, 0);
                   Items.Delete(vCurItemNo + 1);
+
                   Inc(vDelCount);
                 end
                 else// 下一段段首不是空行也不能合并
@@ -4148,7 +4236,6 @@ var
                 UndoAction_DeleteItem(vCurItemNo, 0);
                 Items.Delete(vCurItemNo);  // 删除当前
 
-                Undo_New;
                 UndoAction_DeleteItem(vCurItemNo, 0);
                 Items.Delete(vCurItemNo);  // 删除下一个
 

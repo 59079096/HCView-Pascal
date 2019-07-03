@@ -11,3 +11,7 @@ demo编译步骤：
 2.打开Demo目录下的代码，编译，运行；
 3.Delphi2010以上的版本编译如果提示找不到Delphi自带的单元，则在工程属性中（Project-Options-Delphi Compiler右侧Unit scope names）根据实际情况添加命名空间域
 System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Winapi
+
+
+友情提示：
+1.HCView默认支持藏文等有紧缩字符的文本，这导致文件保存后体积比不支持藏文等要大，如果你只需要中文和英文支持且对体积有敏感，可以关闭全局的条件编译符号 UNPLACEHOLDERCHAR，关闭后文件保存体积较关闭前理论上会减小约50%，注意关闭后打开关闭前保存的文档会不正常。

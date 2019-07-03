@@ -52,10 +52,11 @@ const
    2.3 增加批注的保存和读取
    2.4 兼容EmrView保存保护元素属性
    2.5 使用unicode字符集保存文档以便支持藏文等
+   2.6 文件保存时直接使用TItemOptions集合变量的值，不再单独判断成员存储
   }
 
-  HC_FileVersion = '2.5';
-  HC_FileVersionInt = 25;
+  HC_FileVersion = '2.6';
+  HC_FileVersionInt = 26;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;

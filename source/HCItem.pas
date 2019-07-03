@@ -32,7 +32,7 @@ type
     hvmPage
   );
 
-  TItemOptions = set of (ioParaFirst, ioSelectPart, ioSelectComplate);
+  TItemOptions = set of (ioParaFirst, ioSelectPart, ioSelectComplate, ioPageBreak);
 
   THCItemAction = (hiaRemove, hiaInsertChar, hiaBackDeleteChar, hiaDeleteChar);
 
@@ -94,6 +94,8 @@ type
   protected
     function GetParaFirst: Boolean;
     procedure SetParaFirst(const Value: Boolean);
+    function GetPageBreak: Boolean;
+    procedure SetPageBreak(const Value: Boolean);
     function GetSelectComplate: Boolean; virtual;
     function GetSelectPart: Boolean;
     function GetText: string; virtual;
@@ -163,6 +165,7 @@ type
     property Text: string read GetText write SetText;
     property Length: Integer read GetLength;
     property ParaFirst: Boolean read GetParaFirst write SetParaFirst;
+    property PageBreak: Boolean read GetPageBreak write SetPageBreak;
     property HyperLink: string read GetHyperLink write SetHyperLink;
 
     property IsSelectComplate: Boolean read GetSelectComplate;
@@ -232,6 +235,7 @@ begin
   FStyleNo := THCStyle.Null;
   FParaNo := THCStyle.Null;
   FFirstDItemNo := -1;
+  FOptions := [];
   FVisible := True;
   FActive := False;
 end;
@@ -266,6 +270,11 @@ begin
   Result := 0;
 end;
 
+function THCCustomItem.GetPageBreak: Boolean;
+begin
+  Result := ioPageBreak in FOptions;
+end;
+
 function THCCustomItem.GetParaFirst: Boolean;
 begin
   Result := ioParaFirst in FOptions;
@@ -297,8 +306,14 @@ var
 begin
   //AStream.ReadBuffer(FStyleNo, SizeOf(FStyleNo));  // 由TCustomData.InsertStream处加载了
   AStream.ReadBuffer(FParaNo, SizeOf(FParaNo));
-  AStream.ReadBuffer(vParFirst, SizeOf(vParFirst));
-  ParaFirst := vParFirst;
+
+  if AFileVersion > 25 then
+    AStream.ReadBuffer(FOptions, SizeOf(FOptions))
+  else
+  begin
+    AStream.ReadBuffer(vParFirst, SizeOf(vParFirst));
+    ParaFirst := vParFirst;
+  end;
 end;
 
 procedure THCCustomItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -392,14 +407,10 @@ end;
 
 procedure THCCustomItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
-var
-  vParFirst: Boolean;
 begin
   AStream.WriteBuffer(FStyleNo, SizeOf(FStyleNo));
   AStream.WriteBuffer(FParaNo, SizeOf(FParaNo));
-
-  vParFirst := ParaFirst;
-  AStream.WriteBuffer(vParFirst, SizeOf(vParFirst));
+  AStream.WriteBuffer(FOptions, SizeOf(FOptions));
 end;
 
 procedure THCCustomItem.SetActive(const Value: Boolean);
@@ -410,6 +421,14 @@ end;
 
 procedure THCCustomItem.SetHyperLink(const Value: string);
 begin
+end;
+
+procedure THCCustomItem.SetPageBreak(const Value: Boolean);
+begin
+  if Value then
+    Include(FOptions, ioPageBreak)
+  else
+    Exclude(FOptions, ioPageBreak);
 end;
 
 procedure THCCustomItem.SetParaFirst(const Value: Boolean);

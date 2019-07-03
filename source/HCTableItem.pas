@@ -497,6 +497,7 @@ begin
   FFixRowCount := 0;
   FCellHPadding := 2;
   FCellVPadding := 2;
+  FFormatHeight := 0;
   FDraging := False;
   FBorderWidth := 1;
   FBorderColor := clBlack;

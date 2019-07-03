@@ -60,6 +60,9 @@ type
     /// <summary> 修改Item的段起始属性(修改前调用) </summary>
     procedure UndoAction_ItemParaFirst(const AItemNo, AOffset: Integer; const ANewParaFirst: Boolean);
 
+    /// <summary> 修改Item的分页属性(修改前调用) </summary>
+    procedure UndoAction_ItemPageBreak(const AItemNo, AOffset: Integer; const ANewPageBreak: Boolean);
+
     procedure UndoAction_ItemSelf(const AItemNo, AOffset: Integer);
     procedure UndoAction_ItemMirror(const AItemNo, AOffset: Integer);
     { 撤销恢复相关方法- }
@@ -321,6 +324,14 @@ var
             else
               vItem.ParaFirst := (vAction as THCItemParaFirstUndoAction).NewParaFirst;
           end;
+
+        uipPageBreak:
+          begin
+            if AIsUndo then
+              vItem.PageBreak := (vAction as THCItemPageBreakUndoAction).OldPageBreak
+            else
+              vItem.PageBreak := (vAction as THCItemPageBreakUndoAction).NewPageBreak;
+          end;
       end;
     end;
     {$ENDREGION}
@@ -401,14 +412,13 @@ var
 
       uatItemProperty:
         begin
-          if AAction.Tag = TUndoActionTag.uatItemProperty then
+          vPropAction := AAction as THCItemPropertyUndoAction;
+          if (vPropAction.ItemProperty = TItemProperty.uipParaFirst)  // 段首属性变化
+            or (vPropAction.ItemProperty = TItemProperty.uipPageBreak)  // 分页属性变化
+          then
           begin
-            vPropAction := AAction as THCItemPropertyUndoAction;
-            if vPropAction.ItemProperty = TItemProperty.uipParaFirst then  // 段首属性变化
-            begin
-              if Result > 0 then
-                Dec(Result);
-            end;
+            if Result > 0 then
+              Dec(Result);
           end;
         end
     else
@@ -798,6 +808,30 @@ begin
       vItemAction := vUndo.ActionAppend(uatItemMirror, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCItemUndoAction;
       SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
+    end;
+  end;
+end;
+
+procedure THCUndoData.UndoAction_ItemPageBreak(const AItemNo, AOffset: Integer;
+  const ANewPageBreak: Boolean);
+var
+  vUndo: THCUndo;
+  vUndoList: THCUndoList;
+  vItemAction: THCItemPageBreakUndoAction;
+begin
+  vUndoList := GetUndoList;
+  if Assigned(vUndoList) and vUndoList.Enable then
+  begin
+    vUndo := vUndoList.Last;
+    if vUndo <> nil then
+    begin
+      vItemAction := THCItemPageBreakUndoAction.Create;
+      vItemAction.ItemNo := AItemNo;
+      vItemAction.Offset := AOffset;
+      vItemAction.OldPageBreak := Items[AItemNo].PageBreak;
+      vItemAction.NewPageBreak := ANewPageBreak;
+
+      vUndo.Actions.Add(vItemAction);
     end;
   end;
 end;

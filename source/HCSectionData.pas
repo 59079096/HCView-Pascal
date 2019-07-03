@@ -113,8 +113,7 @@ implementation
 {$I HCView.inc}
 
 uses
-  Math, HCTextItem, HCImageItem, HCTableItem, HCPageBreakItem,
-  HCFloatLineItem;
+  Math, HCTextItem, HCImageItem, HCTableItem, HCFloatLineItem;
 
 { THCPageData }
 
@@ -237,14 +236,21 @@ end;
 
 function THCPageData.InsertPageBreak: Boolean;
 var
-  vPageBreak: TPageBreakItem;
   vKey: Word;
 begin
   Result := False;
 
-  vPageBreak := TPageBreakItem.Create(Self);
-  vPageBreak.ParaFirst := True;
-  Result := Self.InsertItem(vPageBreak);
+  if Self.SelectExists then Exit;  // 有选中时不能分页
+
+  if (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)
+    and (SelectInfo.StartItemOffset = OffsetInner)
+  then  // 不支持在RectItem内部分页
+    Exit;
+
+  vKey := VK_RETURN;
+  Self.KeyDown(vKey, [], True);
+
+  Result := True;
 end;
 
 function THCPageData.InsertStream(const AStream: TStream;

@@ -2186,7 +2186,7 @@ begin
     begin
       vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPageDrawLeft),
         Max(APaintInfo.GetScaleY(vPaperDrawTop + FHeaderOffset), 0),
-        APaintInfo.GetScaleX(vPageDrawRight),
+        APaintInfo.GetScaleX(vPaperDrawRight),  // 表格有时候会拖宽到页面外面vPageDrawRight
         Min(APaintInfo.GetScaleY(vPageDrawTop), APaintInfo.WindowHeight));
 
       try
@@ -2212,7 +2212,7 @@ begin
     begin
       vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPageDrawLeft),
         Max(APaintInfo.GetScaleY(vPageDrawBottom), 0),
-        APaintInfo.GetScaleX(vPageDrawRight),
+        APaintInfo.GetScaleX(vPaperDrawRight),  // 表格有时候会拖宽到页面外面vPageDrawRight
         Min(APaintInfo.GetScaleY(vPaperDrawBottom), APaintInfo.WindowHeight));
 
       try
@@ -2239,7 +2239,7 @@ begin
   begin
     vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPageDrawLeft),
       APaintInfo.GetScaleY(Max(vPageDrawTop, vPageDataScreenTop)),
-      APaintInfo.GetScaleX(vPageDrawRight),
+      APaintInfo.GetScaleX(vPaperDrawRight),  // 表格有时候会拖宽到页面外面vPageDrawRight
       // 底部让出1像素，否则表格底部边框和数据绘制底部一样时，边框绘制不出来。Rgn比Rect约束了1像素？
       APaintInfo.GetScaleY(Min(vPageDrawBottom, vPageDataScreenBottom)) + 1);
     try
@@ -2342,7 +2342,9 @@ var
       vFmtHeightInc, vFmtOffset: Integer;
       vDrawRect: TRect;
     begin
-      if FPage.GetDrawItemStyle(ADrawItemNo) = THCStyle.PageBreak then
+      vFmtOffset := 0;
+
+      {if FPage.GetDrawItemStyle(ADrawItemNo) = THCStyle.PageBreak then
       begin
         vFmtOffset := vPageDataFmtBottom - FPage.DrawItems[ADrawItemNo].Rect.Top;
 
@@ -2355,7 +2357,7 @@ var
 
         _FormatNewPage(ADrawItemNo - 1, ADrawItemNo);  // 新建页
       end
-      else
+      else}
       if FPage.DrawItems[ADrawItemNo].Rect.Bottom > vPageDataFmtBottom then  // 当前页放不下表格整体(带行间距)
       begin
         if (FPages[vPageIndex].StartDrawItemNo = ADrawItemNo)
@@ -2460,7 +2462,7 @@ var
   {$ENDREGION}
 
 var
-  i, vPrioDrawItemNo: Integer;
+  i, vPrioDrawItemNo, vFmtPageOffset: Integer;
   vPage: THCPage;
 begin
   // 上一行所在页作为格式化起始页
@@ -2528,6 +2530,18 @@ begin
   begin
     if FPage.DrawItems[i].LineFirst then
     begin
+      if FPage.Items[FPage.DrawItems[i].ItemNo].PageBreak then
+      begin
+        vFmtPageOffset := vPageDataFmtBottom - FPage.DrawItems[i].Rect.Top;
+        if vFmtPageOffset > 0 then  // 整体向下移动了
+          OffsetRect(FPage.DrawItems[i].Rect, 0, vFmtPageOffset);
+
+        vPageDataFmtTop := vPageDataFmtBottom;
+        vPageDataFmtBottom := vPageDataFmtTop + vPageHeight;
+
+        _FormatNewPage(i - 1, i);  // 新建页
+      end;
+
       if FPage.GetDrawItemStyle(i) < THCStyle.Null then
         _FormatRectItemCheckPageBreak(i)
       else

@@ -112,7 +112,7 @@ type
   end;
 
   /// <summary> ItemÕ®”√ Ù–‘ </summary>
-  TItemProperty = (uipStyleNo, uipParaNo, uipParaFirst);
+  TItemProperty = (uipStyleNo, uipParaNo, uipParaFirst, uipPageBreak);
 
   THCItemPropertyUndoAction = class(THCCustomUndoAction)
   strict private
@@ -147,6 +147,15 @@ type
     constructor Create; override;
     property OldParaFirst: Boolean read FOldParaFirst write FOldParaFirst;
     property NewParaFirst: Boolean read FNewParaFirst write FNewParaFirst;
+  end;
+
+  THCItemPageBreakUndoAction = class(THCItemPropertyUndoAction)
+  private
+    FOldPageBreak, FNewPageBreak: Boolean;
+  public
+    constructor Create; override;
+    property OldPageBreak: Boolean read FOldPageBreak write FOldPageBreak;
+    property NewPageBreak: Boolean read FNewPageBreak write FNewPageBreak;
   end;
 
   THCItemUndoAction = class(THCCustomUndoAction)
@@ -776,6 +785,14 @@ constructor THCItemParaUndoAction.Create;
 begin
   inherited Create;
   Self.ItemProperty := TItemProperty.uipParaNo;
+end;
+
+{ THCItemPageBreakUndoAction }
+
+constructor THCItemPageBreakUndoAction.Create;
+begin
+  inherited Create;
+  Self.ItemProperty := TItemProperty.uipPageBreak;
 end;
 
 end.

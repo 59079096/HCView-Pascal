@@ -340,7 +340,11 @@ type
 
     /// <summary> 插入指定行列的表格 </summary>
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
+
+    /// <summary> 插入图片 </summary>
     function InsertImage(const AFile: string): Boolean;
+
+    /// <summary> 插入GIF图片 </summary>
     function InsertGifImage(const AFile: string): Boolean;
 
     /// <summary> 插入水平线 </summary>
@@ -367,6 +371,7 @@ type
     /// <summary> 从当前位置后分节 </summary>
     function InsertSectionBreak: Boolean;
 
+    /// <summary> 插入域 </summary>
     function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
 
     /// <summary> 当前表格选中行下面插入行 </summary>
@@ -378,7 +383,10 @@ type
     /// <summary> 当前表格删除选中的行 </summary>
     function ActiveTableDeleteCurRow: Boolean;
 
+    /// <summary> 当前表格选中的单元格拆分行 </summary>
     function ActiveTableSplitCurRow: Boolean;
+
+    /// <summary> 当前表格选中的单元格拆分列 </summary>
     function ActiveTableSplitCurCol: Boolean;
 
     /// <summary> 当前表格选中列左侧插入列 </summary>
@@ -464,7 +472,10 @@ type
     /// <summary> 结束批量重绘 </summary>
     procedure EndUpdate;
 
+    /// <summary> 开始一组撤销操作 </summary>
     procedure UndoGroupBegin;
+
+    /// <summary> 结束一组撤销操作 </summary>
     procedure UndoGroupEnd;
     //
     /// <summary> 返回当前节当前Item </summary>
@@ -492,7 +503,7 @@ type
     /// <returns>坐标</returns>
     function GetActiveDrawItemClientCoord: TPoint;
 
-    /// <summary> 直接设置当前TextItem的Text值 </summary>
+    /// <summary> 设置当前TextItem的文本内容 </summary>
     procedure SetActiveItemText(const AText: string);
 
     /// <summary> 格式化指定节的数据 </summary>
@@ -613,7 +624,7 @@ type
     /// <summary> 撤销 </summary>
     procedure Undo;
 
-    /// <summary> 重做 </summary>
+    /// <summary> 恢复/重做 </summary>
     procedure Redo;
 
     /// <summary> 当前位置开始查找指定的内容 </summary>
@@ -651,6 +662,7 @@ type
     /// <summary> 当前光标所在节的序号 </summary>
     property ActiveSectionIndex: Integer read FActiveSectionIndex write SetActiveSectionIndex;
 
+    /// <summary> 当前光标所在的节 </summary>
     property ActiveSection: THCSection read GetActiveSection;
 
     /// <summary> 水平滚动条 </summary>
@@ -680,10 +692,17 @@ type
 
     /// <summary> 当前文档是否有变化 </summary>
     property IsChanged: Boolean read FIsChanged write SetIsChanged;
+
+    /// <summary> 当前文档胶卷视图时页之间的间距 </summary>
     property PagePadding: Byte read FPagePadding write SetPagePadding;
+
+    /// <summary> 当前文档显示出来的批注 </summary>
     property AnnotatePre: THCAnnotatePre read FAnnotatePre;
 
+    /// <summary> 当前文档可显示的宽度 </summary>
     property ViewWidth: Integer read FViewWidth;
+
+    /// <summary> 当前文档可显示的高度 </summary>
     property ViewHeight: Integer read FViewHeight;
   published
     { Published declarations }
@@ -694,6 +713,7 @@ type
     /// <summary> 节有新的Item插入时触发 </summary>
     property OnSectionItemInsert: TSectionDataItemNotifyEvent read FOnSectionInsertItem write FOnSectionInsertItem;
 
+    /// <summary> 节有新的Item删除时触发 </summary>
     property OnSectionRemoveItem: TSectionDataItemNotifyEvent read FOnSectionRemoveItem write FOnSectionRemoveItem;
 
     /// <summary> Item绘制开始前触发 </summary>
@@ -720,7 +740,7 @@ type
     /// <summary> 节只读属性有变化时触发 </summary>
     property OnSectionReadOnlySwitch: TNotifyEvent read FOnSectionReadOnlySwitch write FOnSectionReadOnlySwitch;
 
-    /// <summary> 界面显示模式：页面、Web </summary>
+    /// <summary> 界面显示模式：胶卷、页面 </summary>
     property ViewModel: THCViewModel read FViewModel write SetViewModel;
 
     /// <summary> 是否根据宽度自动计算缩放比例 </summary>
@@ -762,13 +782,19 @@ type
     /// <summary> 窗口重绘结束后触发 </summary>
     property OnPaintViewAfter: TPaintEvent read FOnPaintViewAfter write FOnPaintViewAfter;
 
+    /// <summary> 创建指定样式的Item时触发 </summary>
     property OnSectionCreateStyleItem: TStyleItemEvent read FOnSectionCreateStyleItem write FOnSectionCreateStyleItem;
 
+    /// <summary> 当编辑只读状态的Data时触发 </summary>
     property OnSectionCanEdit: TOnCanEditEvent read FOnSectionCanEdit write FOnSectionCanEdit;
 
+    /// <summary> 节当前位置段样式和上一次不一样时触发 </summary>
     property OnSectionCurParaNoChange: TNotifyEvent read FOnSectionCurParaNoChange write FOnSectionCurParaNoChange;
+
+    /// <summary> 节当前位置文本样式和上一次不一样时触发 </summary>
     property OnSectionActivePageChange: TNotifyEvent read FOnSectionActivePageChange write FOnSectionActivePageChange;
 
+    /// <summary> 文档视图有变动时触发 </summary>
     property OnViewResize: TNotifyEvent read FOnViewResize write FOnViewResize;
 
     property Color;

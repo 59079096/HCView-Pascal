@@ -849,6 +849,15 @@ begin
     vLineFirst := APos.X = AFmtLeft;
   end;
 
+  if not vItem.Visible then  // 不显示的Item
+  begin
+    vRect.Left := APos.X;
+    vRect.Top := APos.Y;
+    vRect.Right := vRect.Left;
+    vRect.Bottom := vRect.Top + 5;  // 带上行间距
+    NewDrawItem(AItemNo, AOffset, vItem.Length, vRect, vParaFirst, vLineFirst);
+  end
+  else
   if vItem.StyleNo < THCStyle.Null then  // 是RectItem
   begin
     vRectItem := vItem as THCCustomRectItem;

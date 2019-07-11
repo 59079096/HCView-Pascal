@@ -2812,6 +2812,20 @@ var
     FData.InsertItem(vItem);
   end;
 
+  procedure LoadImageElement(const ATag: IHtmlElement);
+  var
+    vSrc: string;
+    //vIdHttp: TIdHttp;
+  begin
+    vSrc := ATag.Attributes['SRC'];
+    {vIdHTTP := TIdHTTP.Create(nil);
+    try
+      vIdHTTP.Get(vSrc, vStream);
+    finally
+      vIdHTTP.Free;
+    end;}
+  end;
+
 var
   i: Integer;
   vTag, vBodyTag: IHtmlElement;
@@ -2839,7 +2853,10 @@ begin
               //vStyles := vBodyTag.SimpleCSSSelector(vTag.TagName);
 
             LoadStyleTextElement(vTag.TagName, vStyleClass, vTag.InnerText);
-          end;
+          end
+          else
+          if vTag.TagName = 'IMG' then
+            LoadImageElement(vTag);
         end;
       finally
         FreeAndNil(vStyleDict);

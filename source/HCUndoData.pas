@@ -58,6 +58,9 @@ type
     procedure UndoAction_ItemStyle(const AItemNo, AOffset, ANewStyleNo: Integer);
 
     /// <summary> 修改Item的段起始属性(修改前调用) </summary>
+    /// <param name="AItemNo">要修改的ItemNo</param>
+    /// <param name="AOffset">修改时所在的偏移位置</param>
+    /// <param name="ANewParaFirst">新的段首属性</param>
     procedure UndoAction_ItemParaFirst(const AItemNo, AOffset: Integer; const ANewParaFirst: Boolean);
 
     /// <summary> 修改Item的分页属性(修改前调用) </summary>
@@ -467,7 +470,7 @@ var
   end;
 
 var
-  i: Integer;
+  i, vItemNo: Integer;
   vUndoList: THCUndoList;
 begin
   if AUndo is THCUndoGroupEnd then  // 组结束(无Actions)
@@ -544,13 +547,50 @@ begin
     begin
       if FUndoGroupCount = 0 then  // 组恢复开始
       begin
-        FFormatFirstItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
+        vUndoList := GetUndoList;
+        FFormatFirstItemNo := -1;
+        FFormatLastItemNo := -1;
+
+        for i := vUndoList.CurGroupBeginIndex to vUndoList.CurGroupEndIndex do
+        begin
+          if vUndoList[i] is THCUndoGroupBegin then
+          begin
+            if FFormatFirstItemNo > (vUndoList[i] as THCUndoGroupBegin).ItemNo then
+              FFormatFirstItemNo := (vUndoList[i] as THCUndoGroupBegin).ItemNo;
+          end
+          else
+          if vUndoList[i] is THCUndoGroupEnd then
+          begin
+            if FFormatLastItemNo < (vUndoList[i] as THCUndoGroupEnd).ItemNo then
+              FFormatLastItemNo := (vUndoList[i] as THCUndoGroupEnd).ItemNo;
+          end
+          else
+          begin
+            vItemNo := GetParaFirstItemNo(GetActionAffectFirst(vUndoList[i].Actions.First));
+            if FFormatFirstItemNo > vItemNo then
+              FFormatFirstItemNo := vItemNo;
+
+            vItemNo := GetParaLastItemNo(GetActionAffectLast(vUndoList[i].Actions.Last));
+            if FFormatLastItemNo < vItemNo then
+              FFormatLastItemNo := vItemNo;
+          end;
+        end;
+
+        if FFormatFirstItemNo < 0 then
+          FFormatFirstItemNo := 0;
+
+        if FFormatLastItemNo > Items.Count - 1 then  // 防止在最后插入Item的撤销后恢复访问越界
+          Dec(FFormatLastItemNo);
+
+        FFormatFirstDrawItemNo := GetFormatFirstDrawItem(Items[FFormatFirstItemNo].FirstDItemNo);
+
+        {FFormatFirstItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         FFormatFirstDrawItemNo := GetFormatFirstDrawItem(Items[FFormatFirstItemNo].FirstDItemNo);
 
         vUndoList := GetUndoList;
         FFormatLastItemNo := (vUndoList[vUndoList.CurGroupEndIndex] as THCUndoGroupEnd).ItemNo;
         if FFormatLastItemNo > Items.Count - 1 then  // 防止在最后插入Item的撤销后恢复访问越界
-          Dec(FFormatLastItemNo);
+          Dec(FFormatLastItemNo);   }
 
         FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
 

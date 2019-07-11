@@ -142,7 +142,7 @@ type
       const AOffsetBefor: Boolean = True): Boolean; overload; virtual;
 
     /// <summary> 直接设置当前TextItem的Text值 </summary>
-    procedure SetActiveItemText(const AText: string); virtual;
+    procedure SetActiveItemText(const AText: string);
 
     procedure KillFocus; virtual;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
@@ -382,6 +382,7 @@ procedure THCRichData.DeleteItems(const AStartNo: Integer; const AEndNo: Integer
 var
   i, vFormatFirstDrawItemNo, vFormatLastItemNo, vDelCount: Integer;
   vItem: THCCustomItem;
+  vStartParaFirst: Boolean;
 begin
   if not CanEdit then Exit;
   if AEndNo < AStartNo then Exit;
@@ -395,6 +396,7 @@ begin
 
   FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
+  vStartParaFirst := Items[AStartNo].ParaFirst;
   vDelCount := AEndNo - AStartNo + 1;
   Undo_New;
   for i := AEndNo downto AStartNo do
@@ -410,6 +412,12 @@ begin
     Items.Add(vItem);
     Inc(vDelCount);
     UndoAction_InsertItem(0, 0);
+  end
+  else
+  if vStartParaFirst and (not Items[AStartNo].ParaFirst) then  // 段首删除完了
+  begin
+    UndoAction_ItemParaFirst(AStartNo, 0, True);
+    Items[AStartNo].ParaFirst := True;
   end;
 
   ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
@@ -419,7 +427,7 @@ begin
   if AStartNo > 0 then  // 不是从第1个开始删除
     ReSetSelectAndCaret(AStartNo - 1)
   else  // 从第一个开始删除
-    ReSetSelectAndCaret(0);
+    ReSetSelectAndCaret(0, 0);  // 光标置到现在的最前面，为其后插入内容做准备
 end;
 
 function THCRichData.DeleteSelected: Boolean;
@@ -2273,7 +2281,9 @@ begin
     begin
       if MergeItemText(Items[vInsetLastNo], Items[vInsetLastNo + 1 {vInsPos + vItemCount}]) then  // 可以和插入前0位置的合并
       begin
-        UndoAction_DeleteItem(vInsPos + vItemCount, 0);
+        vItem := Items[vInsetLastNo + 1];
+        UndoAction_InsertText(vInsetLastNo, Items[vInsetLastNo].Length - vItem.Length + 1, vItem.Text);
+        UndoAction_DeleteItem(vInsPos + vItemCount, 0);  // vInsPos + vItemCount = vInsetLastNo + 1?
 
         Items.Delete(vInsPos + vItemCount);
         Dec(vItemCount);
@@ -3992,15 +4002,23 @@ var
         vItem.ParaFirst := True;
 
         if APageBreak then
+        begin
           vItem.PageBreak := True;
+          Items.Insert(SelectInfo.StartItemNo + 1, vItem);  // 插入到下面
 
-        Items.Insert(SelectInfo.StartItemNo + 1, vItem);  // 插入到下面
+          Undo_New;
+          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+        end
+        else
+        begin
+          Items.Insert(SelectInfo.StartItemNo, vItem);  // 插入到当前
 
-        Undo_New;
-        UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+          Undo_New;
+          UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+        end;
 
-        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
       end;
     end
     else
@@ -4385,13 +4403,14 @@ var
           if IsEmptyLine(SelectInfo.StartItemNo - 1) then  // 上一段是空段
           begin
             vFormatFirstDrawItemNo := GetFormatFirstDrawItem(SelectInfo.StartItemNo - 1, vLen);
-            FormatPrepare(vFormatFirstDrawItemNo, SelectInfo.StartItemNo);
+            vFormatLastItemNo := GetParaLastItemNo(SelectInfo.StartItemNo);
+            FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
             Undo_New;
             UndoAction_DeleteItem(SelectInfo.StartItemNo - 1, 0);
             Items.Delete(SelectInfo.StartItemNo - 1);
 
-            ReFormatData(vFormatFirstDrawItemNo, SelectInfo.StartItemNo - 1, -1);
+            ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - 1, -1);
 
             ReSetSelectAndCaret(SelectInfo.StartItemNo - 1, 0);
           end

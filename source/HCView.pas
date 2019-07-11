@@ -1104,12 +1104,14 @@ class procedure THCView.DeleteUnUsedStyle(const AStyle: THCStyle;
   const ASections: TObjectList<THCSection>; const AAreas: TSectionAreas = [saHeader, saPage, saFooter]);
 var
   i, vUnCount: Integer;
+  vData: THCCustomData;
 begin
   for i := 0 to AStyle.TextStyles.Count - 1 do
   begin
     AStyle.TextStyles[i].CheckSaveUsed := False;
     AStyle.TextStyles[i].TempNo := THCStyle.Null;
   end;
+
   for i := 0 to AStyle.ParaStyles.Count - 1 do
   begin
     AStyle.ParaStyles[i].CheckSaveUsed := False;
@@ -1138,7 +1140,13 @@ begin
   end;
 
   for i := 0 to ASections.Count - 1 do
+  begin
     ASections[i].MarkStyleUsed(False);
+
+    vData := ASections[i].ActiveData.GetTopLevelData;
+    vData.CurStyleNo := AStyle.TextStyles[vData.CurStyleNo].TempNo;
+    vData.CurParaNo := AStyle.ParaStyles[vData.CurParaNo].TempNo;
+  end;
 
   for i := AStyle.TextStyles.Count - 1 downto 0 do
   begin

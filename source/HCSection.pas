@@ -2237,7 +2237,7 @@ begin
   {$REGION ' 绘制页面 '}
   if vPageDataScreenBottom > vPageDataScreenTop then  // 能露出数据则绘制当前页，绘制正文
   begin
-    vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPageDrawLeft),
+    vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPaperDrawLeft),  // 有行号或行指示符所以从纸张左边
       APaintInfo.GetScaleY(Max(vPageDrawTop, vPageDataScreenTop)),
       APaintInfo.GetScaleX(vPaperDrawRight),  // 表格有时候会拖宽到页面外面vPageDrawRight
       // 底部让出1像素，否则表格底部边框和数据绘制底部一样时，边框绘制不出来。Rgn比Rect约束了1像素？

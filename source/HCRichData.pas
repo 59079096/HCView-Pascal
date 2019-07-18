@@ -453,6 +453,8 @@ var
         vLen := Items[SelectInfo.StartItemNo - 1].Length;
         if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.StartItemNo]) then  // 删除位置前后可合并
         begin
+          UndoAction_InsertText(SelectInfo.StartItemNo - 1, vLen + 1, Items[SelectInfo.StartItemNo].Text);
+          UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
           Items.Delete(SelectInfo.StartItemNo);
           Inc(vDelCount);
 
@@ -481,6 +483,8 @@ var
         else
         begin
           SelectInfo.StartItemOffset := 0;
+
+          UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
           Items[SelectInfo.StartItemNo].ParaFirst := True;
         end;
       end
@@ -502,12 +506,14 @@ var
         end;
       end
       else  // 全选中的Item是起始格式化或结束格式化或在段内
-      begin
+      begin  // 这里的代码会触发吗？
         if SelectInfo.StartItemNo > 0 then
         begin
           vLen := Items[SelectInfo.StartItemNo - 1].Length;
           if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.StartItemNo]) then
           begin
+            UndoAction_InsertText(SelectInfo.StartItemNo - 1, vLen + 1, Items[SelectInfo.StartItemNo].Text);
+            UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
             Items.Delete(SelectInfo.StartItemNo);
             Inc(vDelCount);
             SelectInfo.StartItemOffset := vLen;
@@ -2270,6 +2276,8 @@ begin
         and MergeItemText(Items[vInsetLastNo], Items[vInsetLastNo + 1])
       then
       begin
+        UndoAction_InsertText(vInsetLastNo,
+          Items[vInsetLastNo].Length - Items[vInsetLastNo + 1].Length + 1, Items[vInsetLastNo + 1].Text);
         UndoAction_DeleteItem(vInsetLastNo + 1, 0);
 
         Items.Delete(vInsetLastNo + 1);
@@ -4247,10 +4255,13 @@ var
               if MergeItemText(Items[vCurItemNo - 1], Items[vCurItemNo + 1]) then  // 下一个可合并到上一个
               begin
                 vLen := Items[vCurItemNo + 1].Length;
+
+                Undo_New;
+                UndoAction_InsertText(vCurItemNo - 1, Items[vCurItemNo - 1].Length - vLen + 1, Items[vCurItemNo + 1].Text);
+
                 GetFormatRange(vCurItemNo - 1, vLen, vFormatFirstDrawItemNo, vFormatLastItemNo);
                 FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
-                Undo_New;
                 UndoAction_DeleteItem(vCurItemNo, 0);
                 Items.Delete(vCurItemNo);  // 删除当前
 

@@ -118,10 +118,16 @@ var
 begin
   Result := cloNone;
 
-  if PtInRect(Rect(FStartPt.X - PointSize, FStartPt.Y - PointSize, FStartPt.X + PointSize, FStartPt.Y + PointSize), Point(X, Y)) then
+  if PtInRect(Rect(FStartPt.X - PointSize, FStartPt.Y - PointSize,
+                   FStartPt.X + PointSize, FStartPt.Y + PointSize),
+              Point(X, Y))
+  then
     Result := cloLeftOrTop
   else
-  if PtInRect(Rect(FEndPt.X - PointSize, FEndPt.Y - PointSize, FEndPt.X + PointSize, FEndPt.Y + PointSize), Point(X, Y)) then
+  if PtInRect(Rect(FEndPt.X - PointSize, FEndPt.Y - PointSize,
+                   FEndPt.X + PointSize, FEndPt.Y + PointSize),
+              Point(X, Y))
+  then
     Result := cloRightOrBottom
   else
   begin

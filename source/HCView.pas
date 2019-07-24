@@ -230,8 +230,6 @@ type
     function GetActiveSection: THCSection;
 
     procedure AutoScrollTimer(const AStart: Boolean);
-    // Imm
-    procedure UpdateImmPosition;
   protected
     { Protected declarations }
     procedure CreateWnd; override;
@@ -247,9 +245,6 @@ type
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
-
-    /// <summary> 是否上屏输入法输入的词条屏词条ID和词条 </summary>
-    function DoProcessIMECandi(const ACandi: string): Boolean; virtual;
 
     /// <summary> 实现插入文本 </summary>
     function DoInsertText(const AText: string): Boolean; virtual;
@@ -289,12 +284,18 @@ type
 
     // 接收输入法输入的内容
     procedure WMImeComposition(var Message: TMessage); message WM_IME_COMPOSITION;
+    procedure UpdateImeComposition(const ALParam: Integer); virtual;
+    procedure UpdateImePosition; virtual;  // IME 通知输入法更新位置
+
     procedure WndProc(var Message: TMessage); override;
     //
     procedure CalcScrollRang;
 
     /// <summary> 是否由滚动条位置变化引起的更新 </summary>
     procedure CheckUpdateInfo;
+
+    /// <summary> 当前光标信息 </summary>
+    property Caret: THCCaret read FCaret;
   public
     { Public declarations }
     constructor Create(AOwner: TComponent); override;
@@ -924,7 +925,7 @@ begin
     FStyle.UpdateInfo.ReCaret := False;
     FStyle.UpdateInfo.ReStyle := False;
     FStyle.UpdateInfo.ReScroll := False;
-    UpdateImmPosition;
+    UpdateImePosition;
   end;
 
   if FStyle.UpdateInfo.RePaint then
@@ -1348,11 +1349,6 @@ end;
 
 procedure THCView.DoPasteDataBefor(const AStream: TStream; const AVersion: Word);
 begin
-end;
-
-function THCView.DoProcessIMECandi(const ACandi: string): Boolean;
-begin
-  Result := True;
 end;
 
 procedure THCView.DoRedo(const Sender: THCUndo);
@@ -2081,6 +2077,9 @@ end;
 procedure THCView.KeyPress(var Key: Char);
 begin
   inherited KeyPress(Key);
+  if (GetKeyState(VK_CONTROL) < 0) or (GetKeyState(VK_SHIFT) < 0) then  // 按下ctrl或shift
+    Exit;
+
   ActiveSection.KeyPress(Key);
 end;
 
@@ -3974,24 +3973,54 @@ begin
   UpdateView(GetViewRect);
 end;
 
-procedure THCView.UpdateImmPosition;
+procedure THCView.UpdateImeComposition(const ALParam: Integer);
+var
+  vhIMC: HIMC;
+  vSize: Integer;
+  vBuffer: TBytes;
+  vS: string;
+begin
+  if (ALParam and GCS_RESULTSTR) <> 0 then  // 通知检索或更新上屏字符串
+  begin
+    // 处理上屏文本一次性插入，否则会不停的触发KeyPress事件
+    vhIMC := ImmGetContext(Handle);
+    if vhIMC <> 0 then
+    begin
+      try
+        vSize := ImmGetCompositionString(vhIMC, GCS_RESULTSTR, nil, 0);  // 获取IME结果字符串的大小
+        if vSize > 0 then  	// 如果IME结果字符串不为空，且没有错误
+        begin
+          // 取出字符串
+          SetLength(vBuffer, vSize);
+          ImmGetCompositionString(vhIMC, GCS_RESULTSTR, vBuffer, vSize);
+          //SetLength(vBuffer, vSize);  // vSize - 2
+          vS := WideStringOf(vBuffer);
+          if vS <> '' then
+            InsertText(vS);
+        end;
+      finally
+        ImmReleaseContext(Handle, vhIMC);
+      end;
+    end;
+  end;
+end;
+
+procedure THCView.UpdateImePosition;
 var
   vhIMC: HIMC;
   vCF: TCompositionForm;
-  vLogFont: TLogFont;
-  //vIMEWnd: THandle;
-  //vS: string;
-  //vCandiID: Integer;
+  //vLogFont: TLogFont;
 begin
   vhIMC := ImmGetContext(Handle);
   try
     // 告诉输入法当前光标处字体信息
-    ImmGetCompositionFont(vhIMC, @vLogFont);
+    {ImmGetCompositionFont(vhIMC, @vLogFont);
     vLogFont.lfHeight := 22;
-    ImmSetCompositionFont(vhIMC, @vLogFont);
+    ImmSetCompositionFont(vhIMC, @vLogFont);}
+
     // 告诉输入法当前光标位置信息
-    vCF.ptCurrentPos := Point(FCaret.X, FCaret.Y + 5);  // 输入法弹出窗体位置
-    vCF.dwStyle := CFS_RECT;
+    vCF.ptCurrentPos := Point(FCaret.X, FCaret.Y + FCaret.Height + 4);  // 输入法弹出窗体位置
+    vCF.dwStyle := CFS_FORCE_POSITION;  // 强制按我的位置  CFS_RECT
     vCF.rcArea := ClientRect;
     ImmSetCompositionWindow(vhIMC, @vCF);
   finally
@@ -4035,41 +4064,9 @@ begin
 end;
 
 procedure THCView.WMImeComposition(var Message: TMessage);
-var
-  vhIMC: HIMC;
-  vSize: Integer;
-  vBuffer: TBytes;
-  vS: string;
 begin
-  if (Message.LParam and GCS_RESULTSTR) <> 0 then  // 通知检索或更新上屏字符串
-  begin
-    // 处理上屏文本一次性插入，否则会不停的触发KeyPress事件
-    vhIMC := ImmGetContext(Handle);
-    if vhIMC <> 0 then
-    begin
-      try
-        vSize := ImmGetCompositionString(vhIMC, GCS_RESULTSTR, nil, 0);  // 获取IME结果字符串的大小
-        if vSize > 0 then  	// 如果IME结果字符串不为空，且没有错误
-        begin
-          // 取出字符串
-          SetLength(vBuffer, vSize);
-          ImmGetCompositionString(vhIMC, GCS_RESULTSTR, vBuffer, vSize);
-          //SetLength(vBuffer, vSize);  // vSize - 2
-          vS := WideStringOf(vBuffer);
-          if vS <> '' then
-          begin
-            if DoProcessIMECandi(vS) then
-              InsertText(vS);
-          end;
-        end;
-      finally
-        ImmReleaseContext(Handle, vhIMC);
-      end;
-      Message.Result := 0;
-    end;
-  end
-  else
-    inherited;
+  UpdateImeComposition(Message.LParam);
+  inherited;
 end;
 
 procedure THCView.WMKillFocus(var Message: TWMKillFocus);
@@ -4135,22 +4132,14 @@ begin
             FHScrollBar.Position := FHScrollBar.Position - 60;
         end;
       end;
-    {WM_PAINT:
+
+    WM_IME_CHAR:  // 通过 UpdateImeComposition 取了输入法，防止回车字符重复上屏
       begin
-        DC := BeginPaint(Handle, PS);
-        try
-          BitBlt(DC,
-            PS.rcPaint.Left, PS.rcPaint.Top,
-            PS.rcPaint.Right - PS.rcPaint.Left - FVScrollBar.Width,
-            PS.rcPaint.Bottom - PS.rcPaint.Top - FHScrollBar.Height,
-            FSectionData.DataBmp.Canvas.Handle,
-            PS.rcPaint.Left, PS.rcPaint.Top,
-            SRCCOPY);
-        finally
-          EndPaint(Handle, PS);
-        end;
-      end; }
+        Message.Result := 1;
+        Exit;
+      end;
   end;
+
   inherited WndProc(Message);
 end;
 

@@ -21,6 +21,7 @@ type
   private
     FFormatFirstItemNo, FFormatFirstDrawItemNo, FFormatLastItemNo,
       FUndoGroupCount, FItemAddCount: Integer;
+    FForceClearExtra: Boolean;  // 分页情况下强制清除格式化后面的分页偏移量
     procedure DoUndoRedo(const AUndo: THCCustomUndo);
   protected
     // Item单独保存和读取事件
@@ -330,6 +331,8 @@ var
 
         uipPageBreak:
           begin
+            FForceClearExtra := True;
+
             if AIsUndo then
               vItem.PageBreak := (vAction as THCItemPageBreakUndoAction).OldPageBreak
             else
@@ -473,6 +476,8 @@ var
   i, vItemNo: Integer;
   vUndoList: THCUndoList;
 begin
+  FForceClearExtra := False;
+
   if AUndo is THCUndoGroupEnd then  // 组结束(无Actions)
   begin
     if AUndo.IsUndo then  // 组撤销(无Action)
@@ -511,7 +516,8 @@ begin
 
       if FUndoGroupCount = 0 then  // 组恢复结束
       begin
-        ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+        ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount,
+          FItemAddCount, FForceClearExtra);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupEnd).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupEnd).Offset;
@@ -533,7 +539,8 @@ begin
 
       if FUndoGroupCount = 0 then  // 组撤销结束
       begin
-        ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+        ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount,
+          FItemAddCount, FForceClearExtra);
 
         SelectInfo.StartItemNo := (AUndo as THCUndoGroupBegin).ItemNo;
         SelectInfo.StartItemOffset := (AUndo as THCUndoGroupBegin).Offset;
@@ -645,7 +652,8 @@ begin
 
   if FUndoGroupCount = 0 then
   begin
-    ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount, FItemAddCount);
+    ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount,
+      FItemAddCount, FForceClearExtra);
 
     if vCaretDrawItemNo < 0 then
       vCaretDrawItemNo := GetDrawItemNoByOffset(vCaretItemNo, vCaretOffset)

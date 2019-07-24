@@ -3987,7 +3987,7 @@ var
     // 判断光标位置内容如何换行
     if SelectInfo.StartItemOffset = 0 then  // 光标在Item最前面
     begin
-      if not vCurItem.ParaFirst then  // 原来不是段首
+      if not vCurItem.ParaFirst then  // 原来不是段首(光标在Item最前面)
       begin
         Undo_New;
 
@@ -4000,33 +4000,33 @@ var
           vCurItem.PageBreak := True;
         end;
 
-        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0, APageBreak);
       end
-      else  // 原来就是段首
+      else  // 原来就是段首(光标在Item最前面)
       begin
-        vItem := CreateDefaultTextItem;
-        vItem.ParaNo := vCurItem.ParaNo;
-        vItem.StyleNo := vCurItem.StyleNo;
-        vItem.ParaFirst := True;
-
         if APageBreak then
         begin
-          vItem.PageBreak := True;
-          Items.Insert(SelectInfo.StartItemNo + 1, vItem);  // 插入到下面
-
           Undo_New;
-          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+          UndoAction_ItemPageBreak(SelectInfo.StartItemNo, 0, True);
+          vCurItem.PageBreak := True;
+
+          ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0, True);
         end
         else
         begin
+          vItem := CreateDefaultTextItem;
+          vItem.ParaNo := vCurItem.ParaNo;
+          vItem.StyleNo := vCurItem.StyleNo;
+          vItem.ParaFirst := True;
+
           Items.Insert(SelectInfo.StartItemNo, vItem);  // 插入到当前
 
           Undo_New;
           UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
-        end;
 
-        SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
+          SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+          ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
+        end;
       end;
     end
     else
@@ -4048,7 +4048,7 @@ var
             vItem.PageBreak := True;
           end;
 
-          ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+          ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0, APageBreak);
         end
         else  // 下一个是段起始
         begin
@@ -4065,7 +4065,7 @@ var
           Undo_New;
           UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
 
-          ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
+          ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1, APageBreak);
         end;
 
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
@@ -4086,7 +4086,7 @@ var
         Undo_New;
         UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
 
-        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
+        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1, APageBreak);
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
         SelectInfo.StartItemOffset := 0;
       end;
@@ -4104,11 +4104,12 @@ var
       Undo_New;
       UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
 
-      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
+      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1, APageBreak);
 
       SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
       SelectInfo.StartItemOffset := 0;
     end;
+
     if Key <> 0 then
       CaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   end;
@@ -4367,6 +4368,18 @@ var
       begin
         vParaStyle := Style.ParaStyles[vCurItem.ParaNo];
         ApplyParaFirstIndent(Max(0, vParaStyle.FirstIndent - PixXToMillimeter(TabCharWidth)));
+      end
+      else
+      if vCurItem.PageBreak then
+      begin
+        GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+        FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+        Undo_New;
+        UndoAction_ItemPageBreak(SelectInfo.StartItemNo, 0, False);
+        vCurItem.PageBreak := False;
+
+        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0, True);
       end
       else
       if SelectInfo.StartItemNo <> 0 then  // 不是第1个Item最前面删除

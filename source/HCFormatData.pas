@@ -89,9 +89,12 @@ type
     /// <param name="AFirstItemNo"></param>
     procedure FormatPrepare(const AFirstDrawItemNo: Integer; const ALastItemNo: Integer = -1);
 
+    // 分页时只是修改了Item的PageBreak属性并没有造成Item数量和高度变化，
+    // 需要强制清除后面的DrawItem因分页额外增加的空间以便本次分页时处理
+    /// AForceClearExtra 是否强制清除本次格式化范围下面的DrawItem额外空间
     /// <summary> 格式化指定范围内的DrawItem </summary>
     procedure ReFormatData(const AFirstDrawItemNo: Integer; const ALastItemNo: Integer = -1;
-      const AExtraItemCount: Integer = 0);
+      const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False);
   public
     constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
@@ -118,7 +121,7 @@ uses
   HCRectItem, HCDrawItem, HCCommon;
 
 const
-  FormatTextCut = 8192;
+  FormatTextCut = 8192;  // 一次计算多少个字符的间距
 
 { THCFormatData }
 
@@ -1078,7 +1081,8 @@ begin
 end;
 
 procedure THCFormatData.ReFormatData(const AFirstDrawItemNo: Integer;
-  const ALastItemNo: Integer = -1; const AExtraItemCount: Integer = 0);
+  const ALastItemNo: Integer = -1; const AExtraItemCount: Integer = 0;
+  const AForceClearExtra: Boolean = False);
 var
   i, vLastItemNo, vLastDrawItemNo, vDrawItemCount,
   vFmtTopOffset, vClearFmtHeight: Integer;
@@ -1099,7 +1103,8 @@ begin
   if (Items[vLastItemNo] is THCCustomRectItem) and (Items[vLastItemNo] as THCCustomRectItem).SizeChanged then
     FFormatHeightChange := True
   else
-    FFormatHeightChange := (DrawItems[AFirstDrawItemNo].Rect.Top <> FFormatStartTop)  // 段格式化后，高度的增量
+    FFormatHeightChange := AForceClearExtra
+                        or (DrawItems[AFirstDrawItemNo].Rect.Top <> FFormatStartTop)  // 段格式化后，高度的增量
                         or (DrawItems[vLastDrawItemNo].Rect.Bottom <> FFormatEndBottom);
 
   if FFormatHeightChange or (AExtraItemCount <> 0) or FFormatDrawItemCountChange then

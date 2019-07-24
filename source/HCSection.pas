@@ -148,9 +148,9 @@ type
     /// <param name="AX"></param>
     /// <param name="AY"></param>
     /// <param name="ARestrain">是否约束到Data的绝对区域中</param>
-    procedure PageCoordToData(const APageIndex: Integer;
+    procedure PaperCoordToData(const APageIndex: Integer;
       const AData: THCViewData; var AX, AY: Integer;
-      const ARestrain: Boolean = False);
+      const ARestrain: Boolean = True);
 
     function GetReadOnly: Boolean;
     procedure SetReadOnly(const Value: Boolean);
@@ -270,8 +270,8 @@ type
     function ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
     function ActiveTableDeleteCurCol: Boolean;
     //
-    //// <summary>  节坐标转换到指定页坐标 </summary>
-    procedure SectionCoordToPage(const APageIndex, X, Y: Integer; var
+    //// <summary> 节坐标转换到指定页坐标 </summary>
+    procedure SectionCoordToPaper(const APageIndex, X, Y: Integer; var
       APageX, APageY: Integer);
 
     /// <summary> 为段应用对齐方式 </summary>
@@ -1679,19 +1679,7 @@ begin
   if FActivePageIndex <> vPageIndex then
     SetActivePageIndex(vPageIndex);
 
-  SectionCoordToPage(FActivePageIndex, X, Y, vX, vY);  // X，Y转换到指定页的坐标vX,vY
-
-  {$REGION ' 有FloatItem时短路 '}
-  if FActiveData.FloatItems.Count > 0 then  // 有FloatItem时优先
-  begin
-    PageCoordToData(FActivePageIndex, FActiveData, vX, vY);
-    if FActiveData = FPage then  // FloatItem在PageData中
-      vY := vY + GetPageDataFmtTop(FActivePageIndex);
-
-    if FActiveData.MouseDownFloatItem(Button, Shift, vX, vY) then Exit;
-  end;
-  {$ENDREGION}
-
+  SectionCoordToPaper(FActivePageIndex, X, Y, vX, vY);  // X，Y转换到指定页的坐标vX,vY
   vNewActiveData := GetSectionDataAt(vX, vY);
 
   if (vNewActiveData <> FActiveData) and (ssDouble in Shift) then  // 双击、新的Data
@@ -1700,10 +1688,18 @@ begin
     vChangeActiveData := True;
   end;
 
-  if (vNewActiveData <> FActiveData) and (FActiveData = FPage) then  // 激活正文，点击页眉、页脚
-    PageCoordToData(FActivePageIndex, FActiveData, vX, vY, True)  // 约束到Data中，防止点页脚认为是下一页
-  else
-    PageCoordToData(FActivePageIndex, FActiveData, vX, vY);
+  {$REGION ' 有FloatItem时短路 '}
+  if FActiveData.FloatItems.Count > 0 then  // 有FloatItem时优先
+  begin
+    PaperCoordToData(FActivePageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
+    if FActiveData = FPage then  // FloatItem在PageData中
+      vY := vY + GetPageDataFmtTop(FActivePageIndex);
+
+    if FActiveData.MouseDownFloatItem(Button, Shift, vX, vY) then Exit;
+  end;
+  {$ENDREGION}
+
+  PaperCoordToData(FActivePageIndex, FActiveData, vX, vY);
 
   if FActiveData = FPage then
     vY := vY + GetPageDataFmtTop(FActivePageIndex);
@@ -1753,14 +1749,14 @@ begin
     begin
       if (FActiveData.FloatItemIndex >= 0) and (FActiveData.ActiveFloatItem.Resizing) then  // 缩放时以所在页为标准
       begin
-        SectionCoordToPage(FActiveData.ActiveFloatItem.PageIndex, X, Y, vX, vY);
-        PageCoordToData(FActiveData.ActiveFloatItem.PageIndex, FActiveData, vX, vY);
+        SectionCoordToPaper(FActiveData.ActiveFloatItem.PageIndex, X, Y, vX, vY);
+        PaperCoordToData(FActiveData.ActiveFloatItem.PageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
         vY := vY + GetPageDataFmtTop(FActiveData.ActiveFloatItem.PageIndex);
       end
       else
       begin
-        SectionCoordToPage(FMousePageIndex, X, Y, vX, vY);
-        PageCoordToData(FMousePageIndex, FActiveData, vX, vY);
+        SectionCoordToPaper(FMousePageIndex, X, Y, vX, vY);
+        PaperCoordToData(FMousePageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
         vY := vY + GetPageDataFmtTop(FMousePageIndex);
       end;
     end
@@ -1768,13 +1764,13 @@ begin
     begin
       if (FActiveData.FloatItemIndex >= 0) and (FActiveData.ActiveFloatItem.Resizing) then  // 缩放时以所在页为标准
       begin
-        SectionCoordToPage(FActivePageIndex, X, Y, vX, vY);
-        PageCoordToData(FActivePageIndex, FActiveData, vX, vY);
+        SectionCoordToPaper(FActivePageIndex, X, Y, vX, vY);
+        PaperCoordToData(FActivePageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
       end
       else
       begin
-        SectionCoordToPage(FMousePageIndex, X, Y, vX, vY);
-        PageCoordToData(FMousePageIndex, FActiveData, vX, vY);
+        SectionCoordToPaper(FMousePageIndex, X, Y, vX, vY);
+        PaperCoordToData(FMousePageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
       end;
     end;
 
@@ -1782,7 +1778,7 @@ begin
   end;
   {$ENDREGION}
 
-  SectionCoordToPage(FMousePageIndex, X, Y, vX, vY);
+  SectionCoordToPaper(FMousePageIndex, X, Y, vX, vY);
 
   vMoveData := GetSectionDataAt(vX, vY);
   if vMoveData <> FMoveData then
@@ -1793,7 +1789,7 @@ begin
     FMoveData := vMoveData;
   end;
 
-  PageCoordToData(FMousePageIndex, FActiveData, vX, vY, FActiveData.Selecting);  // 划选时约束到Data中
+  PaperCoordToData(FMousePageIndex, FActiveData, vX, vY);
 
   if FActiveData = FPage then
     vY := vY + GetPageDataFmtTop(FMousePageIndex);
@@ -1813,27 +1809,22 @@ begin
   begin
     if FActiveData = FPage then  // FloatItem在PageData中
     begin
-      SectionCoordToPage(FActiveData.ActiveFloatItem.PageIndex, X, Y, vX, vY);
-      PageCoordToData(FActiveData.ActiveFloatItem.PageIndex, FActiveData, vX, vY);
+      SectionCoordToPaper(FActiveData.ActiveFloatItem.PageIndex, X, Y, vX, vY);
+      PaperCoordToData(FActiveData.ActiveFloatItem.PageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
       vY := vY + GetPageDataFmtTop(FActiveData.ActiveFloatItem.PageIndex);
     end
     else  // FloatItem在Header或Footer
     begin
-      SectionCoordToPage(vPageIndex, X, Y, vX, vY);
-      PageCoordToData(vPageIndex, FActiveData, vX, vY);
+      SectionCoordToPaper(vPageIndex, X, Y, vX, vY);
+      PaperCoordToData(vPageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
     end;
 
     if FActiveData.MouseUpFloatItem(Button, Shift, vX, vY) then Exit;
   end;
   {$ENDREGION}
 
-  SectionCoordToPage(vPageIndex, X, Y, vX, vY);
-
-  //if  <> FActiveData then Exit;  // 不在当前激活的Data上
-  if (GetSectionDataAt(vX, vY) <> FActiveData) and (FActiveData = FPage) then  // 激活正文，点击页眉、页脚
-    PageCoordToData(vPageIndex, FActiveData, vX, vY, True)
-  else
-    PageCoordToData(vPageIndex, FActiveData, vX, vY);
+  SectionCoordToPaper(vPageIndex, X, Y, vX, vY);
+  PaperCoordToData(vPageIndex, FActiveData, vX, vY);
 
   if FActiveData = FPage then
     vY := vY + GetPageDataFmtTop(vPageIndex);
@@ -1856,8 +1847,8 @@ begin
   FPages.Add(Result);
 end;
 
-procedure THCCustomSection.PageCoordToData(const APageIndex: Integer;
-  const AData: THCViewData; var AX, AY: Integer; const ARestrain: Boolean = False);
+procedure THCCustomSection.PaperCoordToData(const APageIndex: Integer;
+  const AData: THCViewData; var AX, AY: Integer; const ARestrain: Boolean = True);
 var
   viTemp, vMarginLeft: Integer;
 begin
@@ -2258,19 +2249,19 @@ begin
   end;
   {$ENDREGION}
 
-  // 恢复区域，准备给整页绘制用(各部分浮动Item)
+  // 恢复区域，准备给整页绘制用(为支持浮动Item，所以纸张边距)
   vPaintRegion := CreateRectRgn(
-    APaintInfo.GetScaleX(vPageDrawLeft),
-    APaintInfo.GetScaleX(vPageDrawTop),
-    APaintInfo.GetScaleX(vPageDrawRight),
-    APaintInfo.GetScaleX(vPageDrawBottom));
+    APaintInfo.GetScaleX(vPaperDrawLeft),
+    APaintInfo.GetScaleX(vPaperDrawTop),
+    APaintInfo.GetScaleX(vPaperDrawRight),
+    APaintInfo.GetScaleX(vPaperDrawBottom));
   try
     SelectClipRgn(ACanvas.Handle, vPaintRegion);
 
     if APaintInfo.ViewModel = hvmFilm then
     begin
       FHeader.PaintFloatItems(APageIndex, vPageDrawLeft,
-        vPageDrawTop + GetHeaderPageDrawTop, 0, ACanvas, APaintInfo);
+        vPaperDrawTop + GetHeaderPageDrawTop, 0, ACanvas, APaintInfo);
 
       FFooter.PaintFloatItems(APageIndex, vPageDrawLeft,
         vPageDrawBottom, 0, ACanvas, APaintInfo);
@@ -2462,8 +2453,9 @@ var
   {$ENDREGION}
 
 var
-  i, vPrioDrawItemNo, vFmtPageOffset: Integer;
+  i, j, vPrioDrawItemNo, vFmtPageOffset: Integer;
   vPage: THCPage;
+  vItem: THCCustomItem;
 begin
   // 上一行所在页作为格式化起始页
   vPrioDrawItemNo := AStartDrawItemNo; // FPageData.GetItemLastDrawItemNo(AStartItemNo - 1)  // 上一个最后的DItem
@@ -2492,27 +2484,7 @@ begin
     end;
   end;
 
-//  // 因为行首可能是分页，所以需要从行首开始判断跨页
-//  for i := FPageData.Items[AStartItemNo].FirstDItemNo downto 0 do
-//  begin
-//    if FPageData.DrawItems[i].LineFirst then
-//    begin
-//      vPrioDrawItemNo := i;
-//      Break;
-//    end;
-//  end;
-
-//  if vPrioDrawItemNo = FPages[vPageIndex].StartDrawItemNo then  // 行首是页的第一个DrawItem
-//  begin
-//    FPages.DeleteRange(vPageIndex, FPages.Count - vPageIndex);  // 删除当前页一直到最后
-//
-//    // 从上一页最后开始计算分页
-//    Dec(vPageIndex);
-//    if vPageIndex >= 0 then
-//      FPages[vPageIndex].EndDrawItemNo := -1;
-//  end
-//  else  // 行首不是页的第一个DrawItem
-    FPages.DeleteRange(vPageIndex + 1, FPages.Count - vPageIndex - 1);  // 删除当前页后面的，准备格式化
+  FPages.DeleteRange(vPageIndex + 1, FPages.Count - vPageIndex - 1);  // 删除当前页后面的，准备格式化
 
   if FPages.Count = 0 then  // 删除没了，补充第一个Page
   begin
@@ -2530,11 +2502,15 @@ begin
   begin
     if FPage.DrawItems[i].LineFirst then
     begin
-      if FPage.Items[FPage.DrawItems[i].ItemNo].PageBreak then
+      vItem := FPage.Items[FPage.DrawItems[i].ItemNo];
+      if vItem.PageBreak and (vItem.FirstDItemNo = i) then  // 分页Item只判断第一个DrawItem
       begin
         vFmtPageOffset := vPageDataFmtBottom - FPage.DrawItems[i].Rect.Top;
         if vFmtPageOffset > 0 then  // 整体向下移动了
-          OffsetRect(FPage.DrawItems[i].Rect, 0, vFmtPageOffset);
+        begin
+          for j := i to FPage.DrawItems.Count - 1 do
+            OffsetRect(FPage.DrawItems[j].Rect, 0, vFmtPageOffset);
+        end;
 
         vPageDataFmtTop := vPageDataFmtBottom;
         vPageDataFmtBottom := vPageDataFmtTop + vPageHeight;
@@ -2672,7 +2648,7 @@ begin
   Result := FPage.SaveToText;
 end;
 
-procedure THCCustomSection.SectionCoordToPage(const APageIndex, X, Y: Integer; var APageX,
+procedure THCCustomSection.SectionCoordToPaper(const APageIndex, X, Y: Integer; var APageX,
   APageY: Integer);
 var
   vPageFilmTop{, vMarginLeft, vMarginRight}: Integer;

@@ -141,7 +141,6 @@ type
     procedure SetSymmetryMargin(const Value: Boolean);
     procedure DoVerScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
     procedure DoHorScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
-    procedure DoCaretChange;
     procedure DoSectionDataChange(Sender: TObject);
     procedure DoSectionChangeTopLevelData(Sender: TObject);
 
@@ -236,6 +235,7 @@ type
     procedure Paint; override;
     procedure Resize; override;
     procedure DoChange; virtual;
+    procedure DoCaretChange; virtual;
     procedure DoSectionCreateItem(Sender: TObject); virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
@@ -1145,7 +1145,9 @@ begin
     ASections[i].MarkStyleUsed(False);
 
     vData := ASections[i].ActiveData.GetTopLevelData;
-    vData.CurStyleNo := AStyle.TextStyles[vData.CurStyleNo].TempNo;
+    if vData.CurStyleNo > THCStyle.Null then  // 光标不在RectItem
+      vData.CurStyleNo := AStyle.TextStyles[vData.CurStyleNo].TempNo;
+
     vData.CurParaNo := AStyle.ParaStyles[vData.CurParaNo].TempNo;
   end;
 

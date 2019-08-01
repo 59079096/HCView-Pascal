@@ -3100,6 +3100,9 @@ begin
     FCaret.Hide;
     Exit;
   end;
+
+  FVScrollBar.SetAreaPos(-1, vCaretInfo.Y, vCaretInfo.Height);
+
   FCaret.X := ZoomIn(GetSectionDrawLeft(FActiveSectionIndex) + vCaretInfo.X) - FHScrollBar.Position;
   FCaret.Y := ZoomIn(GetSectionTopFilm(FActiveSectionIndex) + vCaretInfo.Y) - FVScrollBar.Position;
   FCaret.Height := ZoomIn(vCaretInfo.Height);
@@ -4074,7 +4077,7 @@ end;
 procedure THCView.WMKillFocus(var Message: TWMKillFocus);
 begin
   inherited;
-  if Message.FocusedWnd <> Self.Handle then
+  if (Message.FocusedWnd <> Self.Handle) and Assigned(FCaret) then
     FCaret.Hide;
 end;
 

@@ -53,25 +53,10 @@ type
     /// <summary> 是水平还是垂直滚动条 </summary>
     FOrientation: TOrientation;
 
-    FMousePt: TPoint;
-
     /// <summary> 滚动事件 </summary>
     FOnScroll: TScrollEvent;
 
     FMouseDownControl: TBarControl;
-
-    /// <summary> 滑块区域 </summary>
-    FThumRect: TRect;
-
-    /// <summary>
-    /// 水平滚动条对应左按钮，垂直滚动条对应上按钮
-    /// </summary>
-    FLeftBtnRect: TRect;
-
-    /// <summary>
-    /// 水平滚动条对应右按钮，垂直滚动条对应下按钮
-    /// </summary>
-    FRightBtnRect: TRect;
 
     FOnVisibleChanged: TNotifyEvent;
 
@@ -123,6 +108,17 @@ type
 
     procedure UpdateRangRect;
   protected
+    FMouseDownPt: TPoint;
+
+    /// <summary> 滑块区域 </summary>
+    FThumRect: TRect;
+
+    /// <summary> 水平滚动条对应左按钮，垂直滚动条对应上按钮 </summary>
+    FLeftBtnRect: TRect;
+
+    /// <summary> 水平滚动条对应右按钮，垂直滚动条对应下按钮 </summary>
+    FRightBtnRect: TRect;
+
     procedure Resize; override;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
     procedure ScrollStep(ScrollCode: TScrollCode);
@@ -149,6 +145,7 @@ type
     property Orientation: TOrientation read FOrientation write SetOrientation default oriHorizontal;
     property OnScroll: TScrollEvent read FOnScroll write FOnScroll;
     property OnVisibleChanged: TNotifyEvent read FOnVisibleChanged write FOnVisibleChanged;
+    property Color;
   end;
 
 implementation
@@ -159,7 +156,6 @@ uses
 const
   LineColor = clMedGray;
   IconWidth = 16;
-  TitleBackColor = $B3ABAA;
   ThumBackColor = $D5D1D0;
 
 { THCScrollBar }
@@ -173,6 +169,7 @@ begin
   FPageSize := 0;
   FBtnStep := 5;
   //
+  Color := $B3ABAA;
   Width := 20;
   Height := 20;
   Cursor := crArrow;  // crDefault为什么不行？
@@ -193,20 +190,20 @@ procedure THCScrollBar.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited;
-  FMousePt.X := X;
-  FMousePt.Y := Y;
-  if PtInRect(FLeftBtnRect, FMousePt) then  // 判断鼠标是否在滚动条上/左按钮区域
+  FMouseDownPt.X := X;
+  FMouseDownPt.Y := Y;
+  if PtInRect(FLeftBtnRect, FMouseDownPt) then  // 判断鼠标是否在滚动条上/左按钮区域
   begin
     FMouseDownControl := cbcLeftBtn;  // 鼠标所在区域类型
     ScrollStep(scLineUp);  // 数据向上（左）滚动
   end
   else
-  if PtInRect(FThumRect, FMousePt) then  // 鼠标在滑块区域
+  if PtInRect(FThumRect, FMouseDownPt) then  // 鼠标在滑块区域
   begin
     FMouseDownControl := cbcThum;
   end
   else
-  if PtInRect(FRightBtnRect, FMousePt) then  // 鼠标在右/下区域
+  if PtInRect(FRightBtnRect, FMouseDownPt) then  // 鼠标在右/下区域
   begin
     FMouseDownControl := cbcRightBtn;
     ScrollStep(scLineDown);  // 数据向下（右）滚动
@@ -233,18 +230,18 @@ begin
     begin
       if FMouseDownControl = cbcThum then  // 鼠标在水平滚动条滑块区域
       begin
-        vOffs := X - FMousePt.X;
+        vOffs := X - FMouseDownPt.X;
         Position := FPosition + Round(vOffs / FPercent);;
-        FMousePt.X := X;  // 对水平坐标赋值
+        FMouseDownPt.X := X;  // 对水平坐标赋值
       end;
     end
     else  // 垂直
     begin
       if FMouseDownControl = cbcThum then  // 在滑块内拖动
       begin
-        vOffs := Y - FMousePt.Y;  // 拖块在最下面时，往下快速拖动，还是会触发滚动事件，造成闪烁，如何解决？word是限制拖动块附近的范围
+        vOffs := Y - FMouseDownPt.Y;  // 拖块在最下面时，往下快速拖动，还是会触发滚动事件，造成闪烁，如何解决？word是限制拖动块附近的范围
         Position := FPosition + Round(vOffs / FPercent);
-        FMousePt.Y := Y;  // 对垂直坐标赋当前Y值
+        FMouseDownPt.Y := Y;  // 对垂直坐标赋当前Y值
       end;
     end;
   end;
@@ -265,7 +262,7 @@ procedure THCScrollBar.PaintToEx(const ACanvas: TCanvas);
 var
   vRect: TRect;
 begin
-  ACanvas.Brush.Color := TitleBackColor;
+  ACanvas.Brush.Color := Color;
   ACanvas.FillRect(Bounds(0, 0, Width, Height));
   case FOrientation of
     oriHorizontal:  // 水平滚动条

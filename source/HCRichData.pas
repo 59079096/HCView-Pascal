@@ -2517,6 +2517,13 @@ var
 
           if SelectInfo.StartItemOffset = 0 then  // 在首
           begin
+            if (not vNewItem.ParaFirst) and vTextItem.ParaFirst then  // 在段首插入非段首Item
+            begin
+              vNewItem.ParaFirst := True;
+              UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
+              vTextItem.ParaFirst := False;
+            end;
+
             Items.Insert(SelectInfo.StartItemNo, vNewItem);
             UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
           end
@@ -3950,11 +3957,14 @@ var
             GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
             FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
+            Undo_New;
             if (SelectInfo.StartItemNo < Items.Count - 1)  // 不是最后一个
               and (not Items[SelectInfo.StartItemNo + 1].ParaFirst)  // 下一个不是段首
             then
             begin
+              UndoAction_ItemParaFirst(SelectInfo.StartItemNo + 1, 0, True);
               Items[SelectInfo.StartItemNo + 1].ParaFirst := True;
+
               ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
               SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
               SelectInfo.StartItemOffset := 0;
@@ -3965,6 +3975,8 @@ var
               vCurItem := CreateDefaultTextItem;
               vCurItem.ParaFirst := True;
               Items.Insert(SelectInfo.StartItemNo + 1, vCurItem);
+              UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+
               ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
               ReSetSelectAndCaret(SelectInfo.StartItemNo + 1, vCurItem.Length);
             end;
@@ -4119,6 +4131,8 @@ var
   procedure DeleteKeyDown;
   var
     vText, vsDelete: string;
+    vPageBreak: Boolean;
+    vItem: THCCustomItem;
     i, vCurItemNo, vLen, vDelCount, vParaNo: Integer;
     {$IFDEF UNPLACEHOLDERCHAR}
     vCharCount: Integer;
@@ -4323,13 +4337,32 @@ var
             end
             else  // 当前段删除空了
             begin
-              vCurItem.Text := vText;
+              // 防止不支持键盘输入修改内容的数据元是段第一个且用键盘删空内容后
+              // 再用键盘输入时数据元保留空内容的问题(因数据元不支持手动修改内容)
+              // 所以使用先删除为空的Item再插入空Item 20190802001
+              FormatPrepare(vFormatFirstDrawItemNo);
+
+              vPageBreak := vCurItem.PageBreak;
+
+              Undo_New;
+              UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
+              Items.Delete(SelectInfo.StartItemNo);
+
+              vItem := CreateDefaultTextItem;
+              vItem.ParaFirst := True;
+              vItem.PageBreak := vPageBreak;
+
+              Items.Insert(SelectInfo.StartItemNo, vItem);
+              UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+
+              {vCurItem.Text := vText;
 
               Undo_New;
               UndoAction_DeleteText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, vsDelete);
 
-              FormatPrepare(vFormatFirstDrawItemNo);
+              FormatPrepare(vFormatFirstDrawItemNo); }
               SelectInfo.StartItemOffset := 0;
+
               ReFormatData(vFormatFirstDrawItemNo);
             end;
           end;
@@ -4346,6 +4379,7 @@ var
         end;
       end;
     end;
+
     if Key <> 0 then
       CaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   end;
@@ -4356,8 +4390,9 @@ var
   var
     vText: string;
     i, vCurItemNo, vLen, vDelCount, vParaNo: Integer;
-    vParaFirst: Boolean;
+    vParaFirst, vPageBreak: Boolean;
     vParaStyle: THCParaStyle;
+    vItem: THCCustomItem;
   begin
     if SelectInfo.StartItemOffset = 0 then  // 光标在Item最开始
     begin
@@ -4631,15 +4666,31 @@ var
               ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - 1, -1);
               ReSetSelectAndCaret(vCurItemNo, 0);  // 下一个最前面
             end
-            else  // 同段后面没有内容了，保持空行
+            else  // 是段首删除空，同段后面没有内容了，变成空行
             begin
+              // 防止不支持键盘输入修改内容的数据元是段第一个且用键盘Backspace删空内容后
+              // 再用键盘输入时数据元保留空内容的问题(因数据元不支持手动修改内容)
+              // 所以使用先删除为空的Item再插入空Item 20190802001
+              vPageBreak := vCurItem.PageBreak;
+
               Undo_New;
-              UndoAction_DeleteBackText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset,
+              UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
+              Items.Delete(SelectInfo.StartItemNo);
+
+              vItem := CreateDefaultTextItem;
+              vItem.ParaFirst := True;
+              vItem.ParaFirst := vPageBreak;
+
+              Items.Insert(SelectInfo.StartItemNo, vItem);
+              UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+              SelectInfo.StartItemOffset := 0;
+
+              {UndoAction_DeleteBackText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset,
                 vCurItem.Text);  // Copy(vText, SelectInfo.StartItemOffset, 1));
 
               //System.Delete(vText, SelectInfo.StartItemOffset, 1);
               vCurItem.Text := '';  // vText;
-              SelectInfo.StartItemOffset := SelectInfo.StartItemOffset - 1;
+              SelectInfo.StartItemOffset := SelectInfo.StartItemOffset - 1; }
 
               ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);  // 保留空行
             end;

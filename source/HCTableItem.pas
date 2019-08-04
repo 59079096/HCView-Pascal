@@ -699,6 +699,7 @@ end;
 function THCTableItem.DeleteSelected: Boolean;
 var
   vR, vC: Integer;
+  vResult: Boolean;
 begin
   Result := inherited DeleteSelected;
 
@@ -706,7 +707,6 @@ begin
   begin
     if FSelectCellRang.EndRow >= 0 then  // 有选择结束行，说明选中不在同一单元格
     begin
-      Result := True;
       for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
       begin
         for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
@@ -715,9 +715,22 @@ begin
             FRows[vR][vC].CellData.DeleteSelected;
         end;
       end;
+
+      //Self.SizeChanged := True;
+      FLastChangeFormated := False;
+      Result := True;
     end
     else  // 在同一单元格
-      Result := GetEditCell.CellData.DeleteSelected;
+    begin
+      vResult := False;
+      CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+        procedure
+        begin
+          vResult := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.DeleteSelected;
+        end);
+
+      Result := vResult;
+    end;
   end;
 end;
 
@@ -3191,12 +3204,23 @@ end;
 function THCTableItem.InsertStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word): Boolean;
 var
-  vCell: THCTableCell;
+  vResult: Boolean;
 begin
-  Result := False;
-  vCell := GetEditCell;
-  if vCell <> nil then
-    Result := vCell.CellData.InsertStream(AStream, AStyle, AFileVersion);
+  if FSelectCellRang.EditCell then  // 在同一单元格中编辑
+  begin
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      var
+        vEditCell: THCTableCell;
+      begin
+        vEditCell := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol];
+        vResult := vEditCell.CellData.InsertStream(AStream, AStyle, AFileVersion);
+      end);
+
+    Result := vResult;
+  end
+  else
+    Result := inherited InsertStream(AStream, AStyle, AFileVersion);
 end;
 
 function THCTableItem.InsertText(const AText: string): Boolean;

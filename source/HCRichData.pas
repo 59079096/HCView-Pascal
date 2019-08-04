@@ -974,7 +974,7 @@ begin
 
   for i := vAddStartNo to ASrcData.Items.Count - 1 do
   begin
-    if not IsEmptyLine(i) then
+    if not ASrcData.IsEmptyLine(i) then
     begin
       vItem := CreateItemByStyle(ASrcData.Items[i].StyleNo);
       vItem.Assign(ASrcData.Items[i]);
@@ -2084,7 +2084,7 @@ var
   vInsPos, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
   vItem, vAfterItem: THCCustomItem;
   i, vItemCount, vStyleNo, vOffsetStart, vInsetLastNo, vCaretOffse: Integer;
-  vInsertBefor: Boolean;
+  vInsertBefor, vInsertEmptyLine: Boolean;
   vDataSize: Int64;
 begin
   Result := False;
@@ -2093,6 +2093,7 @@ begin
 
   vAfterItem := nil;
   vInsertBefor := False;
+  vInsertEmptyLine := False;
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
@@ -2131,7 +2132,10 @@ begin
       begin
         // 先判断光标是否在最后，防止空Item时SelectInfo.StartItemOffset = 0按其前处理
         if SelectInfo.StartItemOffset = Items[vInsPos].Length then  // 其后
-          vInsPos := vInsPos + 1
+        begin
+          vInsertEmptyLine := IsEmptyLine(vInsPos);
+          vInsPos := vInsPos + 1;
+        end
         else
         if SelectInfo.StartItemOffset = 0 then  // 其前
           vInsertBefor := Items[vInsPos].Length <> 0
@@ -2240,9 +2244,9 @@ begin
 
     if {(vInsPos > vFormatFirstItemNo) and} (vInsPos > 0) then  // 在格式化起始位置后插入且不是第0个位置
     begin
-      if Items[vInsPos - 1].Length = 0 then  // 插入位置前面是空行Item
+      if vInsertEmptyLine then  // 插入位置前面是空行Item
       begin
-        UndoAction_ItemParaFirst(vInsPos, 0, Items[vInsPos - 1].ParaFirst);
+        //UndoAction_ItemParaFirst(vInsPos, 0, Items[vInsPos - 1].ParaFirst);  新插入的没必要记录撤销
         Items[vInsPos].ParaFirst := Items[vInsPos - 1].ParaFirst;
 
         UndoAction_DeleteItem(vInsPos - 1, 0);
@@ -2629,7 +2633,7 @@ var
           CurStyleNo := vItem.StyleNo;
         end;
       end
-      else  // 在其前输入内容
+      else  // 在RectItem前输入内容
       begin
         if (SelectInfo.StartItemNo > 0)
           and (Items[SelectInfo.StartItemNo - 1].StyleNo > THCStyle.Null)
@@ -2641,11 +2645,20 @@ var
           CurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;
           DoInsertText(AText, ANewPara);  // 在前一个后面插入
         end
-        else  // 最前或前一个还是RectItem
+        else  // 在段最前或前一个还是RectItem
         begin
           vItem := CreateDefaultTextItem;
           vItem.Text := AText;
-          vItem.ParaFirst := ANewPara;
+          if ANewPara then  // 新段
+            vItem.ParaFirst := True
+          else  // 未指定段首，适应当前环境
+          if Items[SelectInfo.StartItemNo].ParaFirst then  // 原位置是段首
+          begin
+            UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
+            Items[SelectInfo.StartItemNo].ParaFirst := False;
+            vItem.ParaFirst := True;
+          end;
+
           Items.Insert(SelectInfo.StartItemNo, vItem);  // 在两个RectItem中间插入
           UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
           Inc(vAddCount);
@@ -4679,7 +4692,7 @@ var
 
               vItem := CreateDefaultTextItem;
               vItem.ParaFirst := True;
-              vItem.ParaFirst := vPageBreak;
+              vItem.PageBreak := vPageBreak;
 
               Items.Insert(SelectInfo.StartItemNo, vItem);
               UndoAction_InsertItem(SelectInfo.StartItemNo, 0);

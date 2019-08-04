@@ -1856,6 +1856,7 @@ begin
 
   vMarginLeft := GetPageMarginLeft(APageIndex);
   AX := AX - vMarginLeft;
+  { 水平方向不约束，否则点击在表格右侧认为是要拖动右边框
   if ARestrain then  // 为避免左右边界，不往里约束1，否则无法点到行首光标，尤其是行首是RectItem
   begin
     if AX < 0 then
@@ -1866,7 +1867,7 @@ begin
       if AX > viTemp then
         AX := viTemp;
     end;
-  end;
+  end;}
 
   // 为避免边界(激活正文，在页眉页脚点击时判断仍是在正文位置造成光标错误)约束后都偏移1
   if AData = FHeader then

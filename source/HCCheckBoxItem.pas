@@ -95,6 +95,7 @@ var
 begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
+
   if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
   begin
     ACanvas.Brush.Color := clBtnFace;
@@ -126,6 +127,7 @@ begin
   //else
   //  DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_HOT or DFCS_BUTTONCHECK);
 
+  ACanvas.Pen.Style := psSolid;
   if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
   begin
     ACanvas.Pen.Color := clBlue;

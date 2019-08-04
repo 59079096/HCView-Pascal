@@ -332,42 +332,41 @@ var
   vBmp: TBitmap;
   {$ENDIF}
 begin
-  {ACanvas.StretchDraw(Bounds(ResizeRect.Left, ResizeRect.Top, ResizeWidth, ResizeHeight),
-    FImage);}
+  if Self.Resizing then
+  begin
+    {$IFNDEF BMPIMAGEITEM}
+    vBmp := TBitmap.Create;
+    try
+      WICBitmap2Bitmap(FImage.Handle, vBmp);
+    {$ENDIF}
 
-//  vFactory := FImage.ImagingFactory;
-//  vFactory.CreateBitmap(FImage.Width, FImage.Height, )
-  {$IFNDEF BMPIMAGEITEM}
-  vBmp := TBitmap.Create;
-  try
-    WICBitmap2Bitmap(FImage.Handle, vBmp);
-  {$ENDIF}
-
-  vBlendFunction.BlendOp := AC_SRC_OVER;
-  vBlendFunction.BlendFlags := 0;
-  vBlendFunction.AlphaFormat := AC_SRC_OVER;  // 通常为 0，如果源位图为32位真彩色，可为 AC_SRC_ALPHA
-  vBlendFunction.SourceConstantAlpha := 128; // 透明度
-  Windows.AlphaBlend(ACanvas.Handle,
-                     ResizeRect.Left,
-                     ResizeRect.Top,
-                     ResizeWidth,
-                     ResizeHeight,
-                     {$IFDEF BMPIMAGEITEM}
-                     FImage.Canvas.Handle,
-                     {$ELSE}
-                     vBmp.Canvas.Handle,
-                     {$ENDIF}
-                     0,
-                     0,
-                     FImage.Width,
-                     FImage.Height,
-                     vBlendFunction
-                     );
-  {$IFNDEF BMPIMAGEITEM}
-  finally
-    FreeAndNil(vBmp);
+      vBlendFunction.BlendOp := AC_SRC_OVER;
+      vBlendFunction.BlendFlags := 0;
+      vBlendFunction.AlphaFormat := AC_SRC_OVER;  // 通常为 0，如果源位图为32位真彩色，可为 AC_SRC_ALPHA
+      vBlendFunction.SourceConstantAlpha := 128; // 透明度
+      Windows.AlphaBlend(ACanvas.Handle,
+                         ResizeRect.Left,
+                         ResizeRect.Top,
+                         ResizeWidth,
+                         ResizeHeight,
+                         {$IFDEF BMPIMAGEITEM}
+                         FImage.Canvas.Handle,
+                         {$ELSE}
+                         vBmp.Canvas.Handle,
+                         {$ENDIF}
+                         0,
+                         0,
+                         FImage.Width,
+                         FImage.Height,
+                         vBlendFunction
+                         );
+    {$IFNDEF BMPIMAGEITEM}
+    finally
+      FreeAndNil(vBmp);
+    end;
+    {$ENDIF}
   end;
-  {$ENDIF}
+
   inherited PaintTop(ACanvas);
 end;
 

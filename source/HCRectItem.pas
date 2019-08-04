@@ -1284,6 +1284,9 @@ begin
       then
         Self.Width := 10  // 增加宽度以便输入时光标可方便点击
       else
+      if vItem.ParaFirst then  // 下一个是段首，我是段尾
+        Self.Width := 10  // 增加宽度以便输入时光标可方便点击
+      else
       if vItem.StyleNo > THCStyle.Null then  // 后面是文本，跟随后面的高度
         Self.Height := ARichData.Style.TextStyles[vItem.StyleNo].FontHeight;
     end
@@ -1292,10 +1295,13 @@ begin
   end
   else  // 域结束标识
   begin
-    vItem := ARichData.Items[AItemNo - 1];
+    vItem := ARichData.Items[AItemNo - 1];  // 前一个
     if (vItem.StyleNo = Self.StyleNo)
       and ((vItem as THCDomainItem).MarkType = TMarkType.cmtBeg)
     then  // 前一个是起始标识
+      Self.Width := 10
+    else
+    if Self.ParaFirst then  // 结束标识是段首，增加宽度
       Self.Width := 10
     else
     if vItem.StyleNo > THCStyle.Null then  // 前面是文本，距离前面的高度

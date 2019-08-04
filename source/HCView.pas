@@ -252,6 +252,9 @@ type
     /// <summary> 复制前，便于订制特征数据如内容来源 </summary>
     procedure DoCopyDataBefor(const AStream: TStream); virtual;
 
+    /// <summary> 视图绘制完成后 </summary>
+    procedure DoPaintViewAfter(const ACanvas: TCanvas); virtual;
+
     /// <summary> 粘贴前，便于确认订制特征数据如内容来源 </summary>
     procedure DoPasteDataBefor(const AStream: TStream; const AVersion: Word); virtual;
 
@@ -1349,6 +1352,12 @@ begin
   Result := FUndoList;
 end;
 
+procedure THCView.DoPaintViewAfter(const ACanvas: TCanvas);
+begin
+  if Assigned(FOnPaintViewAfter) then
+    FOnPaintViewAfter(ACanvas);
+end;
+
 procedure THCView.DoPasteDataBefor(const AStream: TStream; const AVersion: Word);
 begin
 end;
@@ -1671,36 +1680,42 @@ end;
 
 function THCView.GetActiveDrawItemClientCoord: TPoint;
 var
+  vSection: THCSection;
   vPageIndex: Integer;
 begin
-  Result := ActiveSection.GetActiveDrawItemCoord;  // 有选中时，以选中结束位置的DrawItem格式化坐标
-  vPageIndex := ActiveSection.GetPageIndexByFormat(Result.Y);
+  vSection := Self.ActiveSection;
+  Result := vSection.GetActiveDrawItemCoord;  // 有选中时，以选中结束位置的DrawItem格式化坐标
+
+  if vSection.ActiveData = vSection.Page then
+    vPageIndex := vSection.GetPageIndexByFormat(Result.Y)
+  else
+    vPageIndex := vSection.ActivePageIndex;
 
   // 映射到节页面(白色区域)
   Result.X := ZoomIn(GetSectionDrawLeft(Self.ActiveSectionIndex)
-    + (ActiveSection.GetPageMarginLeft(vPageIndex) + Result.X)) - FHScrollBar.Position;
+    + (vSection.GetPageMarginLeft(vPageIndex) + Result.X)) - FHScrollBar.Position;
 
-  if ActiveSection.ActiveData = ActiveSection.Header then
+  if vSection.ActiveData = vSection.Header then  // 页眉
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
-      + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
-      + ActiveSection.GetHeaderPageDrawTop
-      + Result.Y
-      - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
+      + vSection.GetPageTopFilm(vPageIndex)  // 20
+      + vSection.GetHeaderPageDrawTop
+      + Result.Y)
+      //- vSection.GetPageDataFmtTop(vPageIndex))  // 0
       - FVScrollBar.Position
   else
-  if ActiveSection.ActiveData = ActiveSection.Footer then
+  if vSection.ActiveData = vSection.Footer then  // 页脚
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
-      + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
-      + ActiveSection.PaperHeightPix - ActiveSection.PaperMarginBottomPix
-      + Result.Y
-      - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
+      + vSection.GetPageTopFilm(vPageIndex)  // 20
+      + vSection.PaperHeightPix - vSection.PaperMarginBottomPix
+      + Result.Y)
+      //- vSection.GetPageDataFmtTop(vPageIndex))  // 0
       - FVScrollBar.Position
-  else
+  else  // 正文
     Result.Y := ZoomIn(GetSectionTopFilm(Self.ActiveSectionIndex)
-      + ActiveSection.GetPageTopFilm(vPageIndex)  // 20
-      + ActiveSection.GetHeaderAreaHeight // 94
+      + vSection.GetPageTopFilm(vPageIndex)  // 20
+      + vSection.GetHeaderAreaHeight // 94
       + Result.Y
-      - ActiveSection.GetPageDataFmtTop(vPageIndex))  // 0
+      - vSection.GetPageDataFmtTop(vPageIndex))  // 0
       - FVScrollBar.Position;
 end;
 
@@ -3954,8 +3969,7 @@ begin
           for i := 0 to vPaintInfo.TopItems.Count - 1 do  // 绘制顶层Item
             vPaintInfo.TopItems[i].PaintTop(FDataBmp.Canvas);
 
-          if Assigned(FOnPaintViewAfter) then  // 本次窗口重绘结束
-            FOnPaintViewAfter(FDataBmp.Canvas);
+          DoPaintViewAfter(FDataBmp.Canvas);  // 本次窗口重绘结束
         finally
           vPaintInfo.RestoreCanvasScale(FDataBmp.Canvas, vScaleInfo);
         end;

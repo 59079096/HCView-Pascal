@@ -362,6 +362,7 @@ begin
   FStyleNo := ANode.Attributes['sno'];
   FParaNo := ANode.Attributes['pno'];
   Self.ParaFirst := ANode.Attributes['parafirst'];
+  Self.PageBreak := ANode.Attributes['pagebreak'];
 end;
 
 procedure THCCustomItem.Redo(const ARedoAction: THCCustomUndoAction);
@@ -394,6 +395,7 @@ begin
   ANode.Attributes['sno'] := FStyleNo;
   ANode.Attributes['pno'] := FParaNo;
   ANode.Attributes['parafirst'] := Self.ParaFirst;
+  ANode.Attributes['pagebreak'] := Self.PageBreak;
 end;
 
 procedure THCCustomItem.Undo(const AUndoAction: THCCustomUndoAction);
@@ -410,6 +412,7 @@ procedure THCCustomItem.SaveToStream(const AStream: TStream; const AStart,
 begin
   AStream.WriteBuffer(FStyleNo, SizeOf(FStyleNo));
   AStream.WriteBuffer(FParaNo, SizeOf(FParaNo));
+  FOptions := FOptions - [ioSelectPart, ioSelectComplate];  // 去掉没必要存的属性
   AStream.WriteBuffer(FOptions, SizeOf(FOptions));
 end;
 

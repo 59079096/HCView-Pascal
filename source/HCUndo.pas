@@ -40,6 +40,8 @@ type
     property Col: Integer read B write B;
   end;
 
+  THCMulCellUndoData = class(THCCellUndoData);
+
   THCColSizeUndoData = class(THCBaseKeysUndoData)  // ╦д╠Дап©М
   private
     FCol: Integer;

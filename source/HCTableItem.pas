@@ -38,6 +38,16 @@ type
     property OnRowAdd: TRowAddEvent read FOnRowAdd write FOnRowAdd;
   end;
 
+  THCMulCellUndo = class(TObject)
+  private
+    FEnable: Boolean;
+    procedure SetEnable(const Value: Boolean);
+  public
+    Row, Col: Integer;
+    procedure Init(const ARow, ACol: Integer);
+    property Enable: Boolean read FEnable write SetEnable;
+  end;
+
   THCCellPaintEvent = procedure(const Sender: TObject; const ACell: THCTableCell;
     const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TPaintInfo;
     var ADrawDefault: Boolean) of object;
@@ -68,9 +78,11 @@ type
       : Integer;
 
     FResizeInfo: TResizeInfo;
+    FMulCellUndo: THCMulCellUndo;
 
     FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto,
-    FLastChangeFormated  // 最后变动已经格式化完了
+    FLastChangeFormated,  // 最后变动已经格式化完了
+    FResizeKeepWidth  // 拖动改变非最右侧边框宽度时，是否保持当前整体宽度不变
       : Boolean;
 
     { 选中信息(只有选中起始和结束行都>=0才说明有选中多个单元格
@@ -169,7 +181,7 @@ type
     procedure DoSelfRedo(const ARedo: THCUndo); override;
     procedure Undo_ColResize(const ACol, AOldWidth, ANewWidth: Integer);
     procedure Undo_RowResize(const ARow, AOldHeight, ANewHeight: Integer);
-    procedure Undo_MergeCells;
+    procedure Undo_Mirror;
 
     function GetRowCount: Integer;
     function GetColCount: Integer;
@@ -502,11 +514,13 @@ begin
   FBorderWidth := 1;
   FBorderColor := clBlack;
   FBorderVisible := True;
+  FResizeKeepWidth := False;
 
   StyleNo := THCStyle.Table;
   ParaNo := OwnerData.CurParaNo;
   CanPageBreak := True;
   FPageBreaks := TObjectList<TPageBreak>.Create;
+  FMulCellUndo := THCMulCellUndo.Create;
 
   //FWidth := FRows[0].ColCount * (MinColWidth + FBorderWidth) + FBorderWidth;
   Height := ARowCount * (MinRowHeight + FBorderWidth) + FBorderWidth;
@@ -522,6 +536,7 @@ begin
     vRow.SetRowWidth(vDataWidth);
     FRows.Add(vRow);
   end;
+
   FColWidths := TList<Integer>.Create;
   for i := 0 to AColCount - 1 do
     FColWidths.Add(FRows[0][i].Width);
@@ -698,6 +713,7 @@ end;
 
 function THCTableItem.DeleteSelected: Boolean;
 var
+  vUndoList: THCUndoList;
   vR, vC: Integer;
   vResult: Boolean;
 begin
@@ -707,13 +723,27 @@ begin
   begin
     if FSelectCellRang.EndRow >= 0 then  // 有选择结束行，说明选中不在同一单元格
     begin
-      for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
-      begin
-        for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
-        begin
-          if FRows[vR][vC].CellData <> nil then
-            FRows[vR][vC].CellData.DeleteSelected;
+      FMulCellUndo.Enable := True;
+      try
+        vUndoList := GetSelfUndoList;
+        vUndoList.UndoGroupBegin(0, 0);
+        try
+          for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
+          begin
+            for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
+            begin
+              if FRows[vR][vC].CellData <> nil then
+              begin
+                FMulCellUndo.Init(vR, vC);
+                FRows[vR][vC].CellData.DeleteSelected;
+              end;
+            end;
+          end;
+        finally
+          vUndoList.UndoGroupEnd(0, 0);
         end;
+      finally
+        FMulCellUndo.Enable := False;
       end;
 
       //Self.SizeChanged := True;
@@ -741,6 +771,7 @@ begin
   FRows.Clear;
   FRows.Free;
   FColWidths.Free;
+  FMulCellUndo.Free;
   //Dispose(FResizeInfo);
   //Dispose(FCaretInfo);
   inherited Destroy;
@@ -809,7 +840,17 @@ end;
 function THCTableItem.DoSelfUndoNew: THCUndo;
 var
   vCellUndoData: THCCellUndoData;
+  vMulCellUndoData: THCMulCellUndoData;
 begin
+  if FMulCellUndo.Enable then
+  begin
+    Result := THCDataUndo.Create;
+    vMulCellUndoData := THCMulCellUndoData.Create;
+    vMulCellUndoData.Row := FMulCellUndo.Row;
+    vMulCellUndoData.Col := FMulCellUndo.Col;
+    Result.Data := vMulCellUndoData;
+  end
+  else
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
     Result := THCDataUndo.Create;
@@ -1330,7 +1371,8 @@ end;
 
 procedure THCTableItem.DoSelfRedo(const ARedo: THCUndo);
 var
-  vRedoCellUndoData: THCCellUndoData;
+  vCellUndoData: THCCellUndoData;
+  vMulCellUndoData: THCMulCellUndoData;
   vColSizeUndoData: THCColSizeUndoData;
   vRowSizeUndoData: THCRowSizeUndoData;
   vMirrorUndoData: THCMirrorUndoData;
@@ -1340,27 +1382,36 @@ begin
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
 
+  if ARedo.Data is THCMulCellUndoData then
+  begin
+    vMulCellUndoData := ARedo.Data as THCMulCellUndoData;
+    FRows[vMulCellUndoData.Row][vMulCellUndoData.Col].CellData.Redo(ARedo);
+    FLastChangeFormated := False;
+  end
+  else
   if ARedo.Data is THCCellUndoData then
   begin
-    vRedoCellUndoData := ARedo.Data as THCCellUndoData;
-    FSelectCellRang.StartRow := vRedoCellUndoData.Row;
-    FSelectCellRang.StartCol := vRedoCellUndoData.Col;
+    vCellUndoData := ARedo.Data as THCCellUndoData;
+    FSelectCellRang.StartRow := vCellUndoData.Row;
+    FSelectCellRang.StartCol := vCellUndoData.Col;
 
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       procedure
       begin
-        FRows[vRedoCellUndoData.Row][vRedoCellUndoData.Col].CellData.Redo(ARedo);
+        FRows[vCellUndoData.Row][vCellUndoData.Col].CellData.Redo(ARedo);
       end);
   end
   else
   if ARedo.Data is THCColSizeUndoData then
   begin
     vColSizeUndoData := ARedo.Data as THCColSizeUndoData;
-    if vColSizeUndoData.Col < FColWidths.Count - 1 then
+
+    if FResizeKeepWidth and (vColSizeUndoData.Col < FColWidths.Count - 1) then
     begin
-      FColWidths[vColSizeUndoData.Col + 1] := FColWidths[vColSizeUndoData.Col + 1] +
-        FColWidths[vColSizeUndoData.Col] - vColSizeUndoData.NewWidth;
+      FColWidths[vColSizeUndoData.Col + 1] := FColWidths[vColSizeUndoData.Col + 1] -
+        vColSizeUndoData.NewWidth - vColSizeUndoData.OldWidth;
     end;
+
     FColWidths[vColSizeUndoData.Col] := vColSizeUndoData.NewWidth;
     FLastChangeFormated := False;
   end
@@ -1410,6 +1461,7 @@ end;
 procedure THCTableItem.DoSelfUndo(const AUndo: THCUndo);
 var
   vCellUndoData: THCCellUndoData;
+  vMulCellUndoData: THCMulCellUndoData;
   vColSizeUndoData: THCColSizeUndoData;
   vRowSizeUndoData: THCRowSizeUndoData;
   vMirrorUndoData: THCMirrorUndoData;
@@ -1419,6 +1471,13 @@ begin
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
 
+  if AUndo.Data is THCMulCellUndoData then
+  begin
+    vMulCellUndoData := AUndo.Data as THCMulCellUndoData;
+    FRows[vMulCellUndoData.Row][vMulCellUndoData.Col].CellData.Undo(AUndo);
+    FLastChangeFormated := False;
+  end
+  else
   if AUndo.Data is THCCellUndoData then
   begin
     vCellUndoData := AUndo.Data as THCCellUndoData;
@@ -1435,11 +1494,12 @@ begin
   if AUndo.Data is THCColSizeUndoData then
   begin
     vColSizeUndoData := AUndo.Data as THCColSizeUndoData;
-    if vColSizeUndoData.Col < FColWidths.Count - 1 then
+    if FResizeKeepWidth and (vColSizeUndoData.Col < FColWidths.Count - 1) then
     begin
       FColWidths[vColSizeUndoData.Col + 1] := FColWidths[vColSizeUndoData.Col + 1] +
-        FColWidths[vColSizeUndoData.Col] - vColSizeUndoData.OldWidth;
+        vColSizeUndoData.NewWidth - vColSizeUndoData.OldWidth;
     end;
+
     FColWidths[vColSizeUndoData.Col] := vColSizeUndoData.OldWidth;
     FLastChangeFormated := False;
   end
@@ -2092,20 +2152,18 @@ begin
                 Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
 
                 FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // 当前列变化
-                {右侧的减少，可实现拖动不改变表格整体宽度
-                if vUpCol < FColWidths.Count - 1 then  // 右侧的弥补变化
-                  FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vPt.X;}
+                // 右侧的减少，实现拖动不改变表格整体宽度
+                if FResizeKeepWidth and (vUpCol < FColWidths.Count - 1) then  // 右侧的弥补变化
+                  FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vCellPt.X;
               end;
             end
             else  // 最右侧列拖宽
             begin
-              {if FColWidths[vUpCol] + vPt.X > PageWidth then  暂时不处理拖动超过页宽
-                vPt.X := Width - FColWidths[vUpCol + 1];
-
-              if vPt.X <> 0 then}
-                FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // 当前列变化
+              if FResizeKeepWidth and (FColWidths[vUpCol] + vCellPt.X > (OwnerData as THCRichData).Width) then
+                vCellPt.X := (OwnerData as THCRichData).Width - FColWidths[vUpCol + 1];
 
               Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
+              FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // 当前列变化
             end;
           end
           else  // 拖窄了
@@ -2118,9 +2176,9 @@ begin
               Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
 
               FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // 当前列变化
-              {右侧的增加，可实现拖动不改变表格整体宽度
-              if vUpCol < FColWidths.Count - 1 then  // 右侧的弥补变化
-                FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vPt.X;}
+              // 右侧的增加，实现拖动不改变表格整体宽度
+              if FResizeKeepWidth and (vUpCol < FColWidths.Count - 1) then  // 右侧的弥补变化
+                FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] + vCellPt.X;
             end;
           end;
         end;
@@ -3486,7 +3544,7 @@ var
 begin
   if (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.EndRow >= 0) then
   begin
-    Undo_MergeCells;
+    Undo_Mirror;
 
     Result := MergeCells(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       FSelectCellRang.EndRow, FSelectCellRang.EndCol);
@@ -4637,7 +4695,7 @@ begin
   end;
 end;
 
-procedure THCTableItem.Undo_MergeCells;
+procedure THCTableItem.Undo_Mirror;
 var
   vUndo: THCUndo;
   vUndoList: THCUndoList;
@@ -5089,6 +5147,24 @@ begin
   begin
     if Assigned(FOnRowAdd) then
       FOnRowAdd(Value);
+  end;
+end;
+
+{ THCMulCellUndo }
+
+procedure THCMulCellUndo.Init(const ARow, ACol: Integer);
+begin
+  Row := ARow;
+  Col := ACol;
+end;
+
+procedure THCMulCellUndo.SetEnable(const Value: Boolean);
+begin
+  if FEnable <> Value then
+  begin
+    FEnable := Value;
+    if FEnable then
+      Init(-1, -1);
   end;
 end;
 

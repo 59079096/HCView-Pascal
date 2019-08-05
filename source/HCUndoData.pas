@@ -466,10 +466,10 @@ var
               Dec(Result);
           end;
         end;
-    else
-      if Result > Items.Count - 1 then
-        Result := Items.Count - 1;
     end;
+
+    if Result > Items.Count - 1 then
+      Result := Items.Count - 1;
   end;
 
 var

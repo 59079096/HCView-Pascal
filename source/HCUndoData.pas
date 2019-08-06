@@ -24,6 +24,8 @@ type
     FForceClearExtra: Boolean;  // 分页情况下强制清除格式化后面的分页偏移量
     procedure DoUndoRedo(const AUndo: THCCustomUndo);
   protected
+    function GetUndoList: THCUndoList; override;
+
     // Item单独保存和读取事件
     procedure SaveItemToStreamAlone(const AItem: THCCustomItem; const AStream: TStream);
 
@@ -99,6 +101,7 @@ begin
         UndoAction_DeleteItem(i, 0);
     end;
   end;
+
   inherited Clear;
 end;
 
@@ -694,6 +697,14 @@ begin
   // 分页时有变动前后参照位置
   SelectInfo.StartItemNo := vCaretItemNo;
   SelectInfo.StartItemOffset := vCaretOffset;
+end;
+
+function THCUndoData.GetUndoList: THCUndoList;
+begin
+  if OperStates.Contain(hosLoading) then
+    Result := nil
+  else
+    Result := inherited GetUndoList;
 end;
 
 procedure THCUndoData.LoadItemFromStreamAlone(const AStream: TStream;

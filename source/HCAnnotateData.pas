@@ -90,6 +90,8 @@ type
 
     function GetDrawItemFirstDataAnnotateAt(const ADrawItemNo, X, Y: Integer): THCDataAnnotate;
   protected
+    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); override;
     procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string;
@@ -110,8 +112,6 @@ type
     procedure Clear; override;
     procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
       AEndItemNo, AEndOffset: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
 
     function InsertAnnotate(const ATitle, AText: string): Boolean;
     property DataAnnotates: THCDataAnnotates read FDataAnnotates;
@@ -608,14 +608,14 @@ begin
     FDataAnnotates.NewDataAnnotate(SelectInfo, ATitle, AText);
 end;
 
-procedure THCAnnotateData.LoadFromStream(const AStream: TStream;
+procedure THCAnnotateData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vAnnCount: Word;
   i: Integer;
   vAnn: THCDataAnnotate;
 begin
-  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
   if AFileVersion > 22 then
   begin
     AStream.ReadBuffer(vAnnCount, SizeOf(vAnnCount));

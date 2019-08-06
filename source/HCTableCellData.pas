@@ -41,6 +41,9 @@ type
     /// <summary> 删除选中 </summary>
     function DeleteSelected: Boolean; override;
 
+    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
+
     procedure SetActive(const Value: Boolean);
   public
     procedure ApplySelectTextStyle(const AMatchStyle: THCStyleMatch); override;
@@ -57,9 +60,6 @@ type
     procedure GetItemAt(const X, Y: Integer; var AItemNo, AOffset, ADrawItemNo: Integer;
       var ARestrain: Boolean); override;
     function GetRootData: THCCustomData; override;
-
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
 
     /// <summary> 选在第一个Item最前面 </summary>
     function SelectFirstItemOffsetBefor: Boolean;
@@ -182,12 +182,12 @@ begin
     Result := inherited GetRootData;
 end;
 
-procedure THCTableCellData.LoadFromStream(const AStream: TStream;
+procedure THCTableCellData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   Self.BeginFormat;
   try
-    inherited LoadFromStream(AStream, AStyle, AFileVersion);
+    inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
   finally
     Self.EndFormat(False);
   end;

@@ -39,6 +39,8 @@ type
     function GetActiveFloatItem: THCCustomFloatItem;
   protected
     procedure SetReadOnly(const Value: Boolean); override;
+    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
   public
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
@@ -56,8 +58,6 @@ type
 
     procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
       AEndItemNo, AEndOffset: Integer); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
 
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -90,7 +90,7 @@ type
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure SaveToStream(const AStream: TStream); override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
@@ -261,11 +261,11 @@ begin
   inherited InsertStream(AStream, AStyle, AFileVersion);
 end;
 
-procedure THCPageData.LoadFromStream(const AStream: TStream;
+procedure THCPageData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   AStream.ReadBuffer(FShowUnderLine, SizeOf(FShowUnderLine));
-  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
 end;
 
 procedure THCPageData.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -447,13 +447,13 @@ begin
     Style.UpdateInfoRePaint;
 end;
 
-procedure THCSectionData.LoadFromStream(const AStream: TStream;
+procedure THCSectionData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vFloatCount, vStyleNo: Integer;
   vFloatItem: THCCustomFloatItem;
 begin
-  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
   if AFileVersion > 12 then
   begin
     AStream.ReadBuffer(vFloatCount, SizeOf(vFloatCount));

@@ -90,6 +90,8 @@ type
     function IsSelectSeekStart: Boolean;
   protected
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
+    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); override;
 
     /// <summary> 是否能删除指定的Item(常用于Data层面Items.Delete(i)前判断是否可删除) </summary>
     function CanDeleteItem(const AItemNo: Integer): Boolean; virtual;
@@ -120,8 +122,6 @@ type
 
     /// <summary> 初始化相关字段和变量 </summary>
     procedure InitializeField; override;
-    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -4883,12 +4883,12 @@ begin
     Items[vItemNo].KillFocus;
 end;
 
-procedure THCRichData.LoadFromStream(const AStream: TStream;
+procedure THCRichData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   if not CanEdit then Exit;
   //Self.InitializeField;  LoadFromStream中的Clear处理了
-  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
 
   Self.BeginFormat;
   try

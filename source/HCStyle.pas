@@ -68,7 +68,7 @@ type
     FUpdateInfo: TUpdateInfo;
     FShowParaLastMark: Boolean;  // 是否显示换行符
     FHtmlFileTempName: Integer;
-    FOperStates: THCOperStates;  // 操作状态
+    FOperStates: THCOperStates;  // 全局操作状态
 
     FOnInvalidateRect: TInvalidateRectEvent;
   protected

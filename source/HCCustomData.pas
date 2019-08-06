@@ -56,7 +56,7 @@ type
     const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
-  THCCustomData = class(TObject)  // 为支持域，所以不能有太多属性，以免和RichData冲突
+  THCCustomData = class(TObject)
   private
     FStyle: THCStyle;
     FCurStyleNo, FCurParaNo: Integer;
@@ -64,12 +64,15 @@ type
     FDrawItems: THCDrawItems;
     FSelectInfo: TSelectInfo;
     FDrawOptions: TDrawOptions;
+    FOperStates: THCOperStates;  // 操作状态(当粘贴时调用InsertStream中有表格时，全局并不是loading但对于单元格来说是loading所以需要单独表示操作状态)
     FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
+
     FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
     FOnGetUndoList: TGetUndoListEvent;
     FOnCurParaNoChange: TNotifyEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
+
     procedure DrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -132,7 +135,7 @@ type
     /// <summary> 计算行高(文本高+行间距) </summary>
     function CalculateLineHeight(const ACanvas: TCanvas;
       const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Integer;
-    function GetUndoList: THCUndoList;
+    function GetUndoList: THCUndoList; virtual;
     procedure DoInsertItem(const AItem: THCCustomItem); virtual;
     procedure DoRemoveItem(const AItem: THCCustomItem); virtual;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); virtual;
@@ -145,6 +148,10 @@ type
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
+    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word); virtual;
+
+    property OperStates: THCOperStates read FOperStates;
   public
     constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
@@ -401,7 +408,7 @@ type
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; virtual;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); virtual;
+      const AFileVersion: Word);
 
     function ToHtml(const APath: string): string;
     procedure ToXml(const ANode: IHCXMLNode); virtual;
@@ -687,6 +694,7 @@ end;
 constructor THCCustomData.Create(const AStyle: THCStyle);
 begin
   FStyle := AStyle;
+  FOperStates := THCOperStates.Create;
   FDrawItems := THCDrawItems.Create;
   FItems := THCItems.Create;
   FItems.OnInsertItem := DoInsertItem;
@@ -729,7 +737,7 @@ begin
   FreeAndNil(FDrawItems);
   FreeAndNil(FItems);
   FreeAndNil(FSelectInfo);
-
+  FreeAndNil(FOperStates);
   inherited Destroy;
 end;
 
@@ -816,6 +824,12 @@ end;
 procedure THCCustomData.DoItemAction(const AItemNo, AOffset: Integer;
   const AAction: THCItemAction);
 begin
+end;
+
+procedure THCCustomData.DoLoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  Clear;
 end;
 
 procedure THCCustomData.DoRemoveItem(const AItem: THCCustomItem);
@@ -1749,7 +1763,12 @@ end;
 procedure THCCustomData.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
-  Clear;
+  OperStates.Include(hosLoading);
+  try
+    DoLoadFromStream(AStream, AStyle, AFileVersion);
+  finally
+    OperStates.Exclude(hosLoading);
+  end;
 end;
 
 procedure THCCustomData.MarkStyleUsed(const AMark: Boolean);

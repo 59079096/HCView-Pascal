@@ -726,7 +726,7 @@ begin
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
-    Self.BeginBatchInsert;
+    Self.Style.OperStates.Include(hosBatchInsert);
     try
       // ≤Â»ÎÕ∑
       vDomainItem := CreateDefaultDomainItem as THCDomainItem;
@@ -752,7 +752,7 @@ begin
         Result := InsertItem(vDomainItem);
       end;
     finally
-      Self.EndBatchInsert;
+      Self.Style.OperStates.Exclude(hosBatchInsert);
     end;
   finally
     Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);

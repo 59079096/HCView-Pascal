@@ -14,7 +14,8 @@ unit HCStyle;
 interface
 
 uses
-  Windows, Classes, Graphics, Generics.Collections, HCTextStyle, HCParaStyle, HCXml;
+  Windows, Classes, Graphics, SysUtils, Generics.Collections, HCTextStyle, HCParaStyle,
+  HCXml, HCCommon;
 
 type
   /// <summary> 全局状态更新控制 </summary>
@@ -30,6 +31,24 @@ type
     Draging  // 全局拖拽标识
       : Boolean;
     constructor Create;
+  end;
+
+  THCStateDictionary = class(TObject)
+    State: THCOperState;
+    Count: Integer;
+  end;
+
+  THCOperStates = class(TObject)
+  private
+    FStates: TList;
+    procedure DeleteState(const AIndex: Integer);
+    function GetStateIndex(const AState: THCOperState): Integer;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Include(const AState: THCOperState);
+    procedure Exclude(const AState: THCOperState);
+    function Contain(const AState: THCOperState): Boolean;
   end;
 
   TInvalidateRectEvent = procedure(const ARect: TRect) of object;
@@ -49,6 +68,7 @@ type
     FUpdateInfo: TUpdateInfo;
     FShowParaLastMark: Boolean;  // 是否显示换行符
     FHtmlFileTempName: Integer;
+    FOperStates: THCOperStates;  // 操作状态
 
     FOnInvalidateRect: TInvalidateRectEvent;
   protected
@@ -120,6 +140,7 @@ type
     property TempCanvas: TCanvas read FTempCanvas;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
+    property OperStates: THCOperStates read FOperStates;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
   end;
 
@@ -129,9 +150,6 @@ type
   end;
 
 implementation
-
-uses
-  SysUtils, HCCommon;
 
 { THCStyle }
 
@@ -171,6 +189,7 @@ begin
   FSelColor := clSkyBlue;
   FLineSpaceMin := 8;
   FShowParaLastMark := True;
+  FOperStates := THCOperStates.Create;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;
   FParaStyles := TObjectList<THCParaStyle>.Create;
@@ -202,6 +221,7 @@ begin
   FTextStyles.Free;
   FParaStyles.Free;
   FUpdateInfo.Free;
+  FOperStates.Free;
   inherited Destroy;
 end;
 
@@ -460,6 +480,82 @@ begin
   ReCaret := False;
   ReStyle := False;
   Draging := False;
+end;
+
+{ THCOperStates }
+
+function THCOperStates.Contain(const AState: THCOperState): Boolean;
+begin
+  Result := GetStateIndex(AState) >= 0;
+end;
+
+constructor THCOperStates.Create;
+begin
+  FStates := TList.Create;
+end;
+
+procedure THCOperStates.DeleteState(const AIndex: Integer);
+begin
+  THCStateDictionary(FStates[AIndex]).Free;
+  FStates.Delete(AIndex);
+end;
+
+destructor THCOperStates.Destroy;
+var
+  i: Integer;
+begin
+  for i := 0 to FStates.Count - 1 do
+    THCStateDictionary(FStates[i]).Free;
+
+  FStates.Clear;
+
+  inherited Destroy;
+end;
+
+procedure THCOperStates.Exclude(const AState: THCOperState);
+var
+  vIndex: Integer;
+begin
+  vIndex := GetStateIndex(AState);
+  if vIndex >= 0 then
+  begin
+    if THCStateDictionary(FStates[vIndex]).Count > 1 then
+      Dec(THCStateDictionary(FStates[vIndex]).Count)
+    else
+      DeleteState(vIndex);
+  end;
+end;
+
+function THCOperStates.GetStateIndex(const AState: THCOperState): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to FStates.Count - 1 do
+  begin
+    if THCStateDictionary(FStates[i]).State = AState then
+    begin
+      Result := i;
+      Break;
+    end;
+  end;
+end;
+
+procedure THCOperStates.Include(const AState: THCOperState);
+var
+  vIndex: Integer;
+  vStateDic: THCStateDictionary;
+begin
+  vIndex := GetStateIndex(AState);
+  if vIndex >= 0 then
+    Inc(THCStateDictionary(FStates[vIndex]).Count)
+  else
+  begin
+    vStateDic := THCStateDictionary.Create;
+    vStateDic.State := AState;
+    vStateDic.Count := 1;
+    FStates.Add(vStateDic);
+  end;
 end;
 
 end.

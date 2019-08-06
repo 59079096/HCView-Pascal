@@ -2175,23 +2175,28 @@ begin
       FUndoList.Enable := False;
       Self.Clear;
 
-      AStream.Position := 0;
-      DoLoadFromStream(AStream, FStyle, procedure(const AFileVersion: Word)
-        var
-          i: Integer;
-          vByte: Byte;
-          vSection: THCSection;
-        begin
-          AStream.ReadBuffer(vByte, 1);  // 节数量
-          // 各节数据
-          FSections[0].LoadFromStream(AStream, FStyle, AFileVersion);
-          for i := 1 to vByte - 1 do
+      FStyle.OperStates.Include(hosLoading);
+      try
+        AStream.Position := 0;
+        DoLoadFromStream(AStream, FStyle, procedure(const AFileVersion: Word)
+          var
+            i: Integer;
+            vByte: Byte;
+            vSection: THCSection;
           begin
-            vSection := NewDefaultSection;
-            vSection.LoadFromStream(AStream, FStyle, AFileVersion);
-            FSections.Add(vSection);
-          end;
-        end);
+            AStream.ReadBuffer(vByte, 1);  // 节数量
+            // 各节数据
+            FSections[0].LoadFromStream(AStream, FStyle, AFileVersion);
+            for i := 1 to vByte - 1 do
+            begin
+              vSection := NewDefaultSection;
+              vSection.LoadFromStream(AStream, FStyle, AFileVersion);
+              FSections.Add(vSection);
+            end;
+          end);
+      finally
+        FStyle.OperStates.Exclude(hosLoading);
+      end;
 
       DoViewResize;
     finally
@@ -2667,7 +2672,12 @@ begin
         vStyle.LoadFromStream(vStream, vFileVersion);
         Self.BeginUpdate;
         try
-          ActiveSection.InsertStream(vStream, vStyle, vFileVersion);
+          FStyle.OperStates.Include(hosPasting);
+          try
+            ActiveSection.InsertStream(vStream, vStyle, vFileVersion);
+          finally
+            FStyle.OperStates.Exclude(hosPasting);
+          end;
         finally
           Self.EndUpdate;
         end;

@@ -21,7 +21,8 @@ type
   public
     constructor Create; virtual;
     destructor Destroy; override;
-    procedure LoadFromStream(const AHCView: THCView; const AStream: TStream); virtual; abstract;
+    procedure LoadFromStream(const AHCView: THCView; const AStream: TStream); virtual;
+    procedure InsertFromStream(const AHCView: THCView; const AStream: TStream); virtual; abstract;
     procedure SaveToStream(const AHCView: THCView; const AStream: TStream); virtual; abstract;
   end;
 
@@ -112,6 +113,17 @@ destructor THCDocumentReader.Destroy;
 begin
 
   inherited Destroy;
+end;
+
+procedure THCDocumentReader.LoadFromStream(const AHCView: THCView;
+  const AStream: TStream);
+begin
+  AHCView.Style.OperStates.Include(hosLoading);
+  try
+    InsertFromStream(AHCView, AStream);
+  finally
+    AHCView.Style.OperStates.Exclude(hosLoading);
+  end;
 end;
 
 end.

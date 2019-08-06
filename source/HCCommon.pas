@@ -19,7 +19,7 @@ interface
 {$I HCView.inc}
 
 uses
-  Windows, Controls, Classes, Graphics;
+  Windows, Controls, Classes, Graphics, SysUtils;
 
 const
   HC_TEXTMAXSIZE = 4294967295;
@@ -108,6 +108,10 @@ type
   THCContentAlign = (tcaTopLeft, tcaTopCenter, tcaTopRight, tcaCenterLeft,
     tcaCenterCenter, tcaCenterRight, tcaBottomLeft, tcaBottomCenter, tcaBottomRight);
 
+  THCOperState = (hosLoading,  // 文档加载
+                  hosPasting,  // 粘贴
+                  hosBatchInsert  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确
+                  );
 
   TCharType = (
     jctBreak,  //  截断点
@@ -273,9 +277,6 @@ var
   HC_FILEFORMAT, CF_HTML, CF_RTF: Word;
 
 implementation
-
-uses
-  SysUtils;
 
 {$IFDEF DEBUG}
 procedure DrawDebugInfo(const ACanvas: TCanvas; const ALeft, ATop: Integer; const AInfo: string);

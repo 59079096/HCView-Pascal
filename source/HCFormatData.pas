@@ -702,7 +702,7 @@ var
     vFirstCharWidth  // 第一个字符的宽度
       : Integer;
   begin
-    vLineFirst := (APos.X = AFmtLeft) or vParaFirst;  // 段左缩进，或首行缩进
+    vLineFirst := vParaFirst or ((APos.X = AFmtLeft) and (DrawItems[ALastDrawItemNo].Width <> 0));  // 段首、最左但不是域后面
     viBreakOffset := 0;  // 换行位置，第几个字符放不下
     vFirstCharWidth := vCharWidths[ACharOffset - 1] - ABasePos;  // 第一个字符的宽度
 
@@ -849,7 +849,7 @@ begin
   else  // 非段第1个
   begin
     vParaFirst := False;
-    vLineFirst := APos.X = AFmtLeft;
+    vLineFirst := (APos.X = AFmtLeft) and (DrawItems[ALastDrawItemNo].Width <> 0);  // 最左但不是域后面
   end;
 
   if not vItem.Visible then  // 不显示的Item

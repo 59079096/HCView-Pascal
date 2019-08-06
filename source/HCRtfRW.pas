@@ -106,7 +106,7 @@ type
   public
     constructor Create; override;
     destructor Destroy; override;
-    procedure LoadFromStream(const AHCView: THCView; const AStream: TStream); override;
+    procedure InsertFromStream(const AHCView: THCView; const AStream: TStream); override;
     procedure SaveToStream(const AHCView: THCView; const AStream: TStream); override;
     class procedure InsertStream(const AHCView: THCView; const AStream: TStream);
     property Data: THCViewData read FData;
@@ -288,7 +288,7 @@ begin
   MergeSameStyleItems(FData);
 end;
 
-procedure THCRtfReader.LoadFromStream(const AHCView: THCView; const AStream: TStream);
+procedure THCRtfReader.InsertFromStream(const AHCView: THCView; const AStream: TStream);
 var
   vMS: TMemoryStream;
 begin

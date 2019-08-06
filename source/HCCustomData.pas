@@ -1116,17 +1116,23 @@ var
 
   function _GetNorAlignDrawItemOffsetWidth: Integer;
   begin
+    Result := 0;
+
     {$IFDEF UNPLACEHOLDERCHAR}
     vText := GetDrawItemText(ADrawItemNo);
-    vLen := Length(vText);
-    SetLength(vCharWArr, vLen);
-    GetTextExtentExPoint(vCanvas.Handle, PChar(vText), vLen, 0,
-      nil, PInteger(vCharWArr), vSize);
-    Result := vCharWArr[ADrawOffs - 1];
-    SetLength(vCharWArr, 0);
+    if vText <> '' then
+    begin
+      vLen := Length(vText);
+      SetLength(vCharWArr, vLen);
+      GetTextExtentExPoint(vCanvas.Handle, PChar(vText), vLen, 0,
+        nil, PInteger(vCharWArr), vSize);
+      Result := vCharWArr[ADrawOffs - 1];
+      SetLength(vCharWArr, 0);
+    end;
     {$ELSE}
     vText := Copy(FItems[vDrawItem.ItemNo].Text, vDrawItem.CharOffs, ADrawOffs);
-    Result := vCanvas.TextWidth(vText);
+    if vText <> '' then
+      Result := vCanvas.TextWidth(vText);
     {$ENDIF}
   end;
 

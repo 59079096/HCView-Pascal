@@ -305,7 +305,7 @@ type
   public
     constructor Create; override;
     destructor Destroy; override;
-    procedure LoadFromStream(const AHCView: THCView; const AStream: TStream); override;
+    procedure InsertFromStream(const AHCView: THCView; const AStream: TStream); override;
     procedure SaveToStream(const AHCView: THCView; const AStream: TStream); override;
   end;
 
@@ -1133,7 +1133,7 @@ begin
   end;
 end;
 
-procedure THCDocxReader.LoadFromStream(const AHCView: THCView;
+procedure THCDocxReader.InsertFromStream(const AHCView: THCView;
   const AStream: TStream);
 var
   vRelations: THCOpenXmlRelations;

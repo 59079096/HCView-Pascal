@@ -32,7 +32,9 @@ type
     hvmPage
   );
 
-  TItemOptions = set of (ioParaFirst, ioSelectPart, ioSelectComplate, ioPageBreak);
+  TItemOptions = set of (ioParaFirst, ioPageBreak);
+
+  TItemSelectState = (issNone, issPart, issComplate);
 
   THCItemAction = (hiaRemove, hiaInsertChar, hiaBackDeleteChar, hiaDeleteChar);
 
@@ -91,6 +93,7 @@ type
     FFirstDItemNo: Integer;
     FActive, FVisible: Boolean;
     FOptions: TItemOptions;
+    FSelectState: TItemSelectState;
   protected
     function GetParaFirst: Boolean;
     procedure SetParaFirst(const Value: Boolean);
@@ -143,6 +146,7 @@ type
     function GetHint: string; virtual;
     procedure SelectComplate; virtual;
     procedure SelectPart;
+    function Selected: Boolean;
     /// <summaryy 在指定的位置是否可接受插入、删除等操作 </summary>
     function CanAccept(const AOffset: Integer; const AAction: THCItemAction): Boolean; virtual;
     /// <summary> 从指定位置将当前item分成前后两部分 </summary>
@@ -236,6 +240,7 @@ begin
   FParaNo := THCStyle.Null;
   FFirstDItemNo := -1;
   FOptions := [];
+  FSelectState := issNone;
   FVisible := True;
   FActive := False;
 end;
@@ -246,7 +251,7 @@ end;
 
 procedure THCCustomItem.DisSelect;
 begin
-  FOptions := Self.Options - [ioSelectPart, ioSelectComplate];  // 处理自己的全选、部分选状态
+  FSelectState := issNone;  // 处理自己的全选、部分选状态
 end;
 
 procedure THCCustomItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -282,12 +287,12 @@ end;
 
 function THCCustomItem.GetSelectComplate: Boolean;
 begin
-  Result := ioSelectComplate in FOptions;
+  Result := FSelectState = issComplate;
 end;
 
 function THCCustomItem.GetSelectPart: Boolean;
 begin
-  Result := ioSelectPart in FOptions;
+  Result := FSelectState = issPart;
 end;
 
 function THCCustomItem.GetText: string;
@@ -369,16 +374,19 @@ procedure THCCustomItem.Redo(const ARedoAction: THCCustomUndoAction);
 begin
 end;
 
+function THCCustomItem.Selected: Boolean;
+begin
+  Result := FSelectState <> issNone;
+end;
+
 procedure THCCustomItem.SelectComplate;
 begin
-  Exclude(FOptions, ioSelectPart);
-  Include(FOptions, ioSelectComplate);
+  FSelectState := issComplate;
 end;
 
 procedure THCCustomItem.SelectPart;
 begin
-  Exclude(FOptions, ioSelectComplate);
-  Include(FOptions, ioSelectPart);
+  FSelectState := issPart;
 end;
 
 procedure THCCustomItem.SetText(const Value: string);
@@ -412,7 +420,6 @@ procedure THCCustomItem.SaveToStream(const AStream: TStream; const AStart,
 begin
   AStream.WriteBuffer(FStyleNo, SizeOf(FStyleNo));
   AStream.WriteBuffer(FParaNo, SizeOf(FParaNo));
-  FOptions := FOptions - [ioSelectPart, ioSelectComplate];  // 去掉没必要存的属性
   AStream.WriteBuffer(FOptions, SizeOf(FOptions));
 end;
 

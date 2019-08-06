@@ -261,19 +261,41 @@ var
 
       if AIsUndo then  // 撤销
       begin
-        Items.Delete(vAction.ItemNo);
-        Dec(FItemAddCount);
+        if vCaretItemNo < Items.Count - 1 then  // 不是最后一个
+        begin
+          if Items[vCaretItemNo].ParaFirst then  // 段首删除了，光标为下一个开始
+          begin
+            vCaretOffset := 0;
+            vCaretDrawItemNo := Items[vCaretItemNo + 1].FirstDItemNo;
+          end
+          else  // 删除的不是段首
+          if Items[vCaretItemNo + 1].ParaFirst then  // 下一个是段首，光标保持在同段最后
+          begin
+            Dec(vCaretItemNo);
+            if Items[vCaretItemNo].StyleNo > THCStyle.Null then
+              vCaretOffset := Items[vCaretItemNo].Length
+            else
+              vCaretOffset := OffsetAfter;
 
-        if vCaretItemNo > 0 then
+            vCaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo - 1;
+          end;
+        end
+        else
+        if vCaretItemNo > 0 then  // 不是第一个
         begin
           Dec(vCaretItemNo);
           if Items[vCaretItemNo].StyleNo > THCStyle.Null then
             vCaretOffset := Items[vCaretItemNo].Length
           else
             vCaretOffset := OffsetAfter;
+
+          vCaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo - 1;
         end
         else
           vCaretOffset := 0;
+
+        Items.Delete(vAction.ItemNo);
+        Dec(FItemAddCount);
       end
       else  // 重做
       begin
@@ -587,7 +609,7 @@ begin
           FFormatFirstItemNo := 0;
 
         if FFormatLastItemNo > Items.Count - 1 then  // 防止在最后插入Item的撤销后恢复访问越界
-          Dec(FFormatLastItemNo);
+          FFormatLastItemNo := Items.Count - 1;
 
         FFormatFirstDrawItemNo := GetFormatFirstDrawItem(Items[FFormatFirstItemNo].FirstDItemNo);
 

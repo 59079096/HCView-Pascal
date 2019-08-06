@@ -1157,7 +1157,7 @@ end;
 
 function THCTextRectItem.SelectExists: Boolean;
 begin
-  Result := ioSelectComplate in Options;
+  Result := GetSelectComplate;
 end;
 
 procedure THCTextRectItem.SetTextStyleNo(const Value: Integer);
@@ -1273,7 +1273,7 @@ var
   vItem: THCCustomItem;
 begin
   Self.Width := 0;
-  Self.Height := 5;  // 默认大小
+  Self.Height := ARichData.Style.TextStyles[0].FontHeight;;  // 默认大小
   if FMarkType = TMarkType.cmtBeg then  // 域起始标识
   begin
     if AItemNo < ARichData.Items.Count - 1 then  // 插入时可能是在Data最后面插入起始，后面不一定有结束

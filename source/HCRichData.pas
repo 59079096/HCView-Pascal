@@ -54,8 +54,6 @@ type
     FSelectSeekNo,
     FSelectSeekOffset  // 选中操作时的游标
       : Integer;
-    /// <summary> 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确 </summary>
-    FBatchInsertCount: Integer;
 
     FReadOnly,
     FSelecting, FDraging: Boolean;
@@ -162,10 +160,6 @@ type
 
     /// <summary> 在Data层面是否可编辑 </summary>
     function CanEdit: Boolean; virtual;
-
-    procedure BeginBatchInsert;
-    procedure EndBatchInsert;
-    function BatchInsert: Boolean;
     //
     procedure DblClick(X, Y: Integer);
     procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
@@ -232,7 +226,6 @@ uses
 constructor THCRichData.Create(const AStyle: THCStyle);
 begin
   inherited Create(AStyle);
-  FBatchInsertCount := 0;
   FReadOnly := False;
   InitializeField;
   SetEmptyData;
@@ -889,11 +882,6 @@ begin
   ReFormat;
   //ReSetSelectAndCaret(0);  // 防止清空后格式化完成后没有选中起始访问出错
   Result := True;
-end;
-
-procedure THCRichData.EndBatchInsert;
-begin
-  Dec(FBatchInsertCount);
 end;
 
 procedure THCRichData.Clear;
@@ -1676,16 +1664,6 @@ begin
     end);
 end;
 
-function THCRichData.BatchInsert: Boolean;
-begin
-  Result := FBatchInsertCount > 0;
-end;
-
-procedure THCRichData.BeginBatchInsert;
-begin
-  Inc(FBatchInsertCount);
-end;
-
 function THCRichData.CanDeleteItem(const AItemNo: Integer): Boolean;
 begin
   Result := CanEdit;
@@ -2081,9 +2059,9 @@ end;
 function THCRichData.InsertStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word): Boolean;
 var
+  i, vItemCount, vStyleNo, vOffsetStart, vInsetLastNo, vCaretOffse, vCaretParaNo,
   vInsPos, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
   vItem, vAfterItem: THCCustomItem;
-  i, vItemCount, vStyleNo, vOffsetStart, vInsetLastNo, vCaretOffse: Integer;
   vInsertBefor, vInsertEmptyLine: Boolean;
   vDataSize: Int64;
 begin
@@ -2094,6 +2072,7 @@ begin
   vAfterItem := nil;
   vInsertBefor := False;
   vInsertEmptyLine := False;
+  vCaretParaNo := CurParaNo;
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
@@ -2177,13 +2156,13 @@ begin
     begin
       AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
       vItem := CreateItemByStyle(vStyleNo);
-      if vStyleNo < THCStyle.Null then
-      begin
+      {if vStyleNo < THCStyle.Null then  // 如果插入第i个仅是源的第i个，不能表示当前文档第i个
+      begin                              // 插入的RectItem撤销也是整体，所以不用自己管理撤销恢复
         if (vItem as THCCustomRectItem).MangerUndo then
           UndoAction_ItemSelf(i, 0)
         else
           UndoAction_ItemMirror(i, OffsetInner);
-      end;
+      end;}
 
       vItem.LoadFromStream(AStream, AStyle, AFileVersion);
       if AStyle <> nil then  // 有样式表
@@ -2191,14 +2170,17 @@ begin
         if vItem.StyleNo > THCStyle.Null then
           vItem.StyleNo := Style.GetStyleNo(AStyle.TextStyles[vItem.StyleNo], True);
 
-        vItem.ParaNo := Style.GetParaNo(AStyle.ParaStyles[vItem.ParaNo], True);
+        if Style.OperStates.Contain(hosPasting) then  // 粘贴时使用光标位置样式
+          vItem.ParaNo := vCaretParaNo
+        else
+          vItem.ParaNo := Style.GetParaNo(AStyle.ParaStyles[vItem.ParaNo], True);
       end
       else  // 无样式表
       begin
         if vItem.StyleNo > THCStyle.Null then
           vItem.StyleNo := CurStyleNo;
 
-        vItem.ParaNo := CurParaNo;
+        vItem.ParaNo := vCaretParaNo;
       end;
 
       if i = 0 then  // 插入的第一个Item
@@ -2246,7 +2228,7 @@ begin
     begin
       if vInsertEmptyLine then  // 插入位置前面是空行Item
       begin
-        //UndoAction_ItemParaFirst(vInsPos, 0, Items[vInsPos - 1].ParaFirst);  新插入的没必要记录撤销
+        UndoAction_ItemParaFirst(vInsPos, 0, Items[vInsPos - 1].ParaFirst);
         Items[vInsPos].ParaFirst := Items[vInsPos - 1].ParaFirst;
 
         UndoAction_DeleteItem(vInsPos - 1, 0);
@@ -4119,14 +4101,16 @@ var
     else  // 光标在Item中间
     begin
       vItem := vCurItem.BreakByOffset(SelectInfo.StartItemOffset);  // 截断当前Item
+
+      Undo_New;
+      UndoAction_DeleteText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, vItem.Text);
+
       vItem.ParaFirst := True;
 
       if APageBreak then
         vItem.PageBreak := True;
 
       Items.Insert(SelectInfo.StartItemNo + 1, vItem);
-
-      Undo_New;
       UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
 
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1, APageBreak);

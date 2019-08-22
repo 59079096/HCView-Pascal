@@ -93,9 +93,9 @@ type
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); override;
-    procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
+    procedure DoDrawItemPaintContent(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string;
-      const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure DoInsertAnnotate(Sender: TObject);
     procedure DoRemoveAnnotate(Sender: TObject);
@@ -104,7 +104,7 @@ type
     destructor Destroy; override;
 
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
-    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset, AFirstDItemNo, ALastDItemNo: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -227,9 +227,9 @@ begin
 end;
 
 procedure THCAnnotateData.DoDrawItemPaintContent(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
-  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
-  ADataScreenBottom: Integer; const ACanvas: TCanvas;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom,
+  ADataScreenTop, ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 var
   i: Integer;
@@ -277,9 +277,9 @@ begin
     end;
   end;
 
-  inherited DoDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect,
-    ADrawText, ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
-    ACanvas, APaintInfo);
+  inherited DoDrawItemPaintContent(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect,
+    ADrawText, ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+    ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
 procedure THCAnnotateData.DoInsertAnnotate(Sender: TObject);
@@ -646,13 +646,14 @@ begin
   end;
 end;
 
-procedure THCAnnotateData.PaintData(const ADataDrawLeft, ADataDrawTop,
+procedure THCAnnotateData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset, AFirstDItemNo,
   ALastDItemNo: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   CheckAnnotateRange(AFirstDItemNo, ALastDItemNo);  // 指定DrawItem范围内的批注获取各自的DrawItem范围
-  inherited PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
-    ADataScreenBottom, AVOffset, AFirstDItemNo, ALastDItemNo, ACanvas, APaintInfo);
+  inherited PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawRight, ADataDrawBottom,
+    ADataScreenTop, ADataScreenBottom, AVOffset, AFirstDItemNo, ALastDItemNo, ACanvas, APaintInfo);
+
   FDrawItemAnnotates.Clear;
 end;
 

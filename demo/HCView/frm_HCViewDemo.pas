@@ -5,7 +5,7 @@ interface
 uses
   Windows, SysUtils, Classes, Graphics, Controls, Messages, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
-  HCCustomData, HCView, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
+  HCCustomData, HCViewTool, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
   HCPrinters, Clipbrd, HCRuler;
 
 type
@@ -141,6 +141,7 @@ type
     mniAlignBottomLeft: TMenuItem;
     mniAlignBottomCenter: TMenuItem;
     mniAlignBottomRight: TMenuItem;
+    ilTool: TImageList;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -219,7 +220,7 @@ type
     { Private declarations }
     FHRuler: THCHorizontalRuler;
     FVRuler: THCVerticalRuler;
-    FHCView: THCView;
+    FHCView: THCViewTool;
     procedure SetFileName(const AFileName: string);
     function SaveFile: Boolean;
     procedure GetPagesAndActive;
@@ -562,7 +563,7 @@ end;
 procedure TfrmHCViewDemo.FormCreate(Sender: TObject);
 begin
   Caption := 'HCViewDemo ' + GetVersionInfo;
-  FHCView := THCView.Create(Self);
+  FHCView := THCViewTool.Create(Self);
   FHCView.OnCaretChange := DoCaretChange;
   FHCView.OnZoomChanged := DoZoomChanged;
 
@@ -574,6 +575,7 @@ begin
   FHCView.Parent := Self;
   FHCView.Align := alClient;
   FHCView.PopupMenu := pmHCView;
+  FHCView.Images := ilTool;
   //
   FHRuler := THCHorizontalRuler.Create(Self);
   FHRuler.Color := FHCView.Color;
@@ -1097,7 +1099,7 @@ begin
         if vExt = '.xml' then
           FHCView.LoadFromXml(vOpenDlg.FileName)
         else
-          FHCView.LoadFromDocumentFile(vOpenDlg.FileName, vExt)
+          FHCView.LoadFromDocumentFile(vOpenDlg.FileName, vExt);
       end;
     end;
   finally
@@ -1264,8 +1266,8 @@ begin
   if vTopData = nil then
     vTopData := vActiveData;
 
-  mniTable.Enabled := vActiveItem.StyleNo = THCStyle.Table;
-  if mniTable.Enabled then
+  mniTable.Visible := vActiveItem.StyleNo = THCStyle.Table;
+  if mniTable.Visible then
   begin
     vTableItem := vActiveItem as THCTableItem;
     mniInsertRowTop.Enabled := vTableItem.GetEditCell <> nil;

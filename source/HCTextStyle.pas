@@ -356,8 +356,12 @@ function THCTextStyle.ToCSS: string;
 begin
   Result := Format(' font-size: %fpt;', [FSize])
     + Format(' font-family: %s;', [FFamily])
-    + Format(' color:rgb(%d, %d, %d);', [GetRValue(FColor), GetGValue(FColor), GetBValue(FColor)])
-    + Format(' background-color:rgb(%d, %d, %d);', [GetRValue(FBackColor), GetGValue(FBackColor), GetBValue(FBackColor)]);
+    + Format(' color:rgb(%d, %d, %d);', [GetRValue(FColor), GetGValue(FColor), GetBValue(FColor)]);
+
+  if (FBackColor <> clWhite) and (FBackColor <> HCTransparentColor) then
+    Result := Result + Format(' background-color:rgb(%d, %d, %d);',
+      [GetRValue(FBackColor), GetGValue(FBackColor), GetBValue(FBackColor)]);
+
   if tsItalic in FFontStyles then
     Result := Result + Format(' font-style: %s;', ['italic'])
   else

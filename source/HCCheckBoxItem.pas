@@ -30,8 +30,8 @@ type
     procedure SetText(const Value: string); override;
     procedure MouseEnter; override;
     procedure MouseLeave; override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -61,7 +61,7 @@ const
 
 function THCCheckBoxItem.GetBoxRect: TRect;
 begin
-  Result := Classes.Bounds(FMargin, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize)
+  Result := Classes.Bounds(FMargin, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize);
 end;
 
 function THCCheckBoxItem.GetText: string;
@@ -175,17 +175,17 @@ begin
   FMouseIn := False;
 end;
 
-procedure THCCheckBoxItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+function THCCheckBoxItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
 begin
-  inherited;
+  Result := inherited MouseMove(Shift, X, Y);
   //if PtInRect(GetBoxRect, Point(X, Y)) then
   GCursor := crArrow;
 end;
 
-procedure THCCheckBoxItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCCheckBoxItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 begin
-  inherited;
+  Result := inherited MouseUp(Button, Shift, X, Y);
   if PtInRect(GetBoxRect, Point(X, Y)) then  // 点在了勾选框中
     Checked := not FChecked;
 end;

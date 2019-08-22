@@ -77,7 +77,7 @@ type
     /// <summary> 删除当前域 </summary>
     function DeleteActiveDomain: Boolean; virtual;
     /// <summary> 删除当前Data指定范围内的Item </summary>
-    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer); virtual;
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean); virtual;
     /// <summary> 直接设置当前TextItem的Text值 </summary>
     procedure SetActiveItemText(const AText: string); virtual;
     procedure MarkStyleUsed(const AMark: Boolean); virtual;
@@ -147,9 +147,9 @@ type
     /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomData类型) </summary>
     function GetActiveData: THCCustomData; virtual;
     procedure TraverseItem(const ATraverse: THCItemTraverse); virtual;
-    procedure SaveToBitmap(var ABitmap: TBitmap); virtual;
+    function SaveToBitmap(var ABitmap: TBitmap): Boolean; virtual;
     //
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
     procedure Assign(Source: THCCustomItem); override;
@@ -195,7 +195,7 @@ type
     function JustifySplit: Boolean; override;
     // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
-
+    function SaveToBitmap(var ABitmap: TBitmap): Boolean; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -262,7 +262,7 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
 
     // 撤销恢复相关方法
     procedure SelfUndo_Resize(const ANewWidth, ANewHeight: Integer);
@@ -280,8 +280,8 @@ type
     function CoordInSelect(const X, Y: Integer): Boolean; override;
     procedure PaintTop(const ACanvas: TCanvas); override;
     // 继承THCCustomItem抽象方法
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function CanDrag: Boolean; override;
 
     /// <summary> 更新光标位置 </summary>
@@ -395,7 +395,8 @@ begin
   Height := AHeight;
 end;
 
-procedure THCCustomRectItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+procedure THCCustomRectItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
+  const AKeepPara: Boolean);
 begin
 end;
 
@@ -595,10 +596,11 @@ procedure THCCustomRectItem.MarkStyleUsed(const AMark: Boolean);
 begin
 end;
 
-procedure THCCustomRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState;
-  X, Y: Integer);
+function THCCustomRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState;
+  X, Y: Integer): Boolean;
 begin
   Self.Active := PtInRect(Rect(0, 0, FWidth, FHeight), Point(X, Y));
+  Result := Self.Active;
 end;
 
 procedure THCCustomRectItem.ReAdaptActiveItem;
@@ -638,10 +640,14 @@ begin
   Result := '';
 end;
 
-procedure THCCustomRectItem.SaveToBitmap(var ABitmap: TBitmap);
+function THCCustomRectItem.SaveToBitmap(var ABitmap: TBitmap): Boolean;
 var
   vPaintInfo: TPaintInfo;
 begin
+  Result := False;
+
+  if (FWidth = 0) or (FHeight = 0) then Exit;
+
   ABitmap.SetSize(FWidth, FHeight);
 
   vPaintInfo := TPaintInfo.Create;
@@ -657,6 +663,8 @@ begin
   finally
     vPaintInfo.Free;
   end;
+
+  Result := True;
 end;
 
 procedure THCCustomRectItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
@@ -695,9 +703,10 @@ var
   vFileName: string;
   vBitmap: TBitmap;
 begin
+  Result := '';
   vBitmap := TBitmap.Create;
   try
-    SaveToBitmap(vBitmap);
+    if not SaveToBitmap(vBitmap) then Exit;
 
     if APath <> '' then  // 保存到指定的文件夹中
     begin
@@ -887,11 +896,11 @@ begin
   Result := FResizing;
 end;
 
-procedure THCResizeRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCResizeRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 begin
   FResizeGrip := gtNone;
-  inherited MouseDown(Button, Shift, X, Y);
+  Result := inherited MouseDown(Button, Shift, X, Y);
   if Active then
   begin
     FResizeGrip := GetGripType(X, Y);
@@ -906,12 +915,12 @@ begin
   end;
 end;
 
-procedure THCResizeRectItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+function THCResizeRectItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
 var
   vW, vH, vTempW, vTempH: Integer;
   vBL: Single;
 begin
-  inherited;
+  Result := inherited MouseMove(Shift, X, Y);
   GCursor := crDefault;
   if Active then
   begin
@@ -1025,10 +1034,10 @@ begin
   end;
 end;
 
-procedure THCResizeRectItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCResizeRectItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 begin
-  inherited;
+  Result := inherited MouseUp(Button, Shift, X, Y);
   if FResizing then
   begin
     FResizing := False;
@@ -1348,6 +1357,11 @@ procedure THCDomainItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
   FMarkType := TMarkType(ANode.Attributes['mark']);
+end;
+
+function THCDomainItem.SaveToBitmap(var ABitmap: TBitmap): Boolean;
+begin
+  Result := False;
 end;
 
 procedure THCDomainItem.SaveToStream(const AStream: TStream; const AStart,

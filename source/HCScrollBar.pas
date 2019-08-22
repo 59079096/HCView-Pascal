@@ -60,53 +60,40 @@ type
 
     FOnVisibleChanged: TNotifyEvent;
 
-    /// <summary>
-    /// 得到鼠标上去要实现改变的区域
-    /// </summary>
+    /// <summary> 得到鼠标上去要实现改变的区域 </summary>
     procedure ReCalcButtonRect;
 
-    /// <summary>
-    /// 计算滑块区域
-    /// </summary>
+    /// <summary> 计算滑块区域 </summary>
     procedure ReCalcThumRect;
 
-    /// <summary>
-    /// 设置滚动条类型（垂直滚动条、水平滚动条）
-    /// </summary>
+    /// <summary> 设置滚动条类型（垂直滚动条、水平滚动条） </summary>
     /// <param name="Value">滚动条类型</param>
     procedure SetOrientation(Value: TOrientation);
 
-    /// <summary>
-    /// 设置滚动条的最小值
-    /// </summary>
+    /// <summary> 设置滚动条的最小值 </summary>
     /// <param name="Value">最小值</param>
     procedure SetMin(const Value: Integer);
 
-    /// <summary>
-    /// 设置滚动条的最大值
-    /// </summary>
+    /// <summary> 设置滚动条的最大值 </summary>
     /// <param name="Value">最大值</param>
     procedure SetMax(const Value: Integer);
 
-    /// <summary>
-    /// 设置滚动条的初始位置
-    /// </summary>
+    /// <summary> 设置滚动条的初始位置 </summary>
     /// <param name="Value">初始位置</param>
     procedure SetPosition(Value: Integer);
 
-    /// <summary>
-    /// 设置滚动条表示的页面大小（相对Max - Min）
-    /// </summary>
+    /// <summary> 设置滚动条表示的页面大小（相对Max - Min） </summary>
     /// <param name="Value">页面大小</param>
     procedure SetPageSize(const Value :Integer);
 
-    /// <summary>
-    /// 点击滚动条按钮页面移动范围
-    /// </summary>
+    /// <summary> 点击滚动条按钮页面移动范围 </summary>
     /// <param name="Value">移动范围</param>
     procedure SetBtnStep(const Value: Integer);
 
     procedure UpdateRangRect;
+
+    function PtInLeftBlankArea(const X, Y: Integer): Boolean;
+    function PtInRightBlankArea(const X, Y: Integer): Boolean;
   protected
     FMouseDownPt: TPoint;
 
@@ -118,6 +105,9 @@ type
 
     /// <summary> 水平滚动条对应右按钮，垂直滚动条对应下按钮 </summary>
     FRightBtnRect: TRect;
+
+    /// <summary> 右下空白区域 </summary>
+    FLeftBlank, FRightBlank: Integer;
 
     procedure Resize; override;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); override;
@@ -135,7 +125,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    procedure PaintToEx(const ACanvas: TCanvas);
+    procedure PaintToEx(const ACanvas: TCanvas); virtual;
     property Max: Integer read FMax write SetMax;
     property Min: Integer read FMin write SetMin;
     property Rang: Integer read FRange;
@@ -168,6 +158,8 @@ begin
   FRange := 100;
   FPageSize := 0;
   FBtnStep := 5;
+  FLeftBlank := 0;
+  FRightBlank := 0;
   //
   Color := $B3ABAA;
   Width := 20;
@@ -209,6 +201,12 @@ begin
     ScrollStep(scLineDown);  // 数据向下（右）滚动
   end
   else  // 鼠标在滚动条的其他区域
+  if PtInLeftBlankArea(X, Y) then  // 左空白区域
+
+  else
+  if PtInRightBlankArea(X, Y) then  // 右空白区域
+
+  else  // 在滚动区域
   begin
     FMouseDownControl := cbcBar;  // 滚动条其他区域类型
     if (FThumRect.Top > Y) or (FThumRect.Left > X) then
@@ -359,18 +357,51 @@ begin
   end;
 end;
 
+function THCScrollBar.PtInLeftBlankArea(const X, Y: Integer): Boolean;
+begin
+  Result := False;
+
+  if FLeftBlank <> 0 then
+  begin
+    case FOrientation of
+      oriHorizontal:
+        Result := PtInRect(Bounds(0, 0, FLeftBlank, Height), Point(X, Y));
+
+      oriVertical:
+        Result := PtInRect(Bounds(0, 0, Width, FLeftBlank), Point(X, Y));
+    end;
+  end;
+end;
+
+function THCScrollBar.PtInRightBlankArea(const X, Y: Integer): Boolean;
+begin
+  Result := False;
+
+  if FRightBlank <> 0 then
+  begin
+    case FOrientation of
+      oriHorizontal:
+        Result := PtInRect(Bounds(Width - FRightBlank, 0, FRightBlank, Height), Point(X, Y));
+
+      oriVertical:
+        Result := PtInRect(Bounds(0, Height - FRightBlank, Width, FRightBlank), Point(X, Y))
+    end;
+  end;
+end;
+
 procedure THCScrollBar.ReCalcButtonRect;
 begin
   case FOrientation of
     oriHorizontal:
       begin
-        FLeftBtnRect := Rect(0, 0, ButtonSize, Height);
-        FRightBtnRect := Rect(Width - ButtonSize, 0, Width, Height);
+        FLeftBtnRect := Bounds(FLeftBlank, 0, ButtonSize, Height);
+        FRightBtnRect := Bounds(Width - FRightBlank - ButtonSize, 0, ButtonSize, Height);
       end;
+
     oriVertical:
       begin
-        FLeftBtnRect := Rect(0, 0, Width, ButtonSize);
-        FRightBtnRect := Rect(0, Height - ButtonSize, Width, Height);
+        FLeftBtnRect := Bounds(0, FLeftBlank, Width, ButtonSize);
+        FRightBtnRect := Bounds(0, Height - FRightBlank - ButtonSize, Width, ButtonSize);
       end;
   end;
 end;
@@ -389,22 +420,22 @@ begin
         begin
           vPer := FPageSize / FRange;  // 计算滑块比例
           // 计算滑块的高度
-          vThumHeight := Round((Width - 2 * ButtonSize) * vPer);
+          vThumHeight := Round((Width - FLeftBlank - FRightBlank - 2 * ButtonSize) * vPer);
           if vThumHeight < ButtonSize then  // 滑块高不能小于默认最小高度
             vThumHeight := ButtonSize;
 
-          FPercent := (Width - 2 * ButtonSize - vThumHeight) / (FRange - FPageSize);  // 界面可滚动范围和实际代表范围的比率
+          FPercent := (Width - FLeftBlank - FRightBlank - 2 * ButtonSize - vThumHeight) / (FRange - FPageSize);  // 界面可滚动范围和实际代表范围的比率
           if FPercent < 0 then Exit;  // 防止vThumHeight小于Leftbtn、RightBtn、ThumBtn默认高度总和 3 * ButtonSize时计算出错
           if FPercent = 0 then
             FPercent := 1;
 
-          FThumRect.Left := ButtonSize + Round(FPosition * FPercent);
+          FThumRect.Left := FLeftBlank + ButtonSize + Round(FPosition * FPercent);
           FThumRect.Right := FThumRect.Left + vThumHeight;
         end
         else  // 滚动轨道大于等于范围
         begin
-          FThumRect.Left := ButtonSize;
-          FThumRect.Right := Width - ButtonSize;
+          FThumRect.Left := FLeftBlank + ButtonSize;
+          FThumRect.Right := Width - FRightBlank - ButtonSize;
         end;
       end;
     oriVertical:
@@ -415,23 +446,23 @@ begin
         begin
           vPer := FPageSize / FRange;  // 计算滑块比例
           // 计算滑块的高度
-          vThumHeight := Round((Height - 2 * ButtonSize) * vPer);
+          vThumHeight := Round((Height - FLeftBlank - FRightBlank - 2 * ButtonSize) * vPer);
           if vThumHeight < ButtonSize then  // 滑块高不能小于默认最小高度
             vThumHeight := ButtonSize;
 
-          FPercent := (Height - 2 * ButtonSize - vThumHeight) / (FRange - FPageSize);  // 界面可滚动范围和实际代表范围的比率
+          FPercent := (Height - FLeftBlank - FRightBlank - 2 * ButtonSize - vThumHeight) / (FRange - FPageSize);  // 界面可滚动范围和实际代表范围的比率
           if FPercent < 0 then Exit;  // 防止vThumHeight小于Leftbtn、RightBtn、ThumBtn默认高度总和 3 * ButtonSize时计算出错
           if FPercent = 0 then
             FPercent := 1;
 
-          FThumRect.Top := ButtonSize + Round(FPosition * FPercent);
+          FThumRect.Top := FLeftBlank + ButtonSize + Round(FPosition * FPercent);
           FThumRect.Bottom := FThumRect.Top + vThumHeight;
           //Scroll(scTrack, FPosition);  //鼠标移动改变滑块的垂直位置
         end
         else  // 滚动轨道大于等于范围
         begin
-          FThumRect.Top := ButtonSize;
-          FThumRect.Bottom := Height - ButtonSize;
+          FThumRect.Top := FLeftBlank + ButtonSize;
+          FThumRect.Bottom := Height - FRightBlank - ButtonSize;
         end;
       end;
   end;

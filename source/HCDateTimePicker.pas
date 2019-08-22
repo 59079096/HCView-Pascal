@@ -41,7 +41,7 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure SetActive(const Value: Boolean); override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
@@ -936,12 +936,13 @@ begin
   AStream.ReadBuffer(FDateTime, SizeOf(FDateTime));
 end;
 
-procedure THCDateTimePicker.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCDateTimePicker.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 var
   vArea: TDateTimeArea;
 begin
   //inherited MouseDown(Button, Shift, X, Y);
+  Result := True;
   Self.Active := PtInRect(Rect(0, 0, Width, Height), Point(X, Y));
 
   vArea := GetAreaAt(X, Y);

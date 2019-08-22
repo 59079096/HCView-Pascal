@@ -28,7 +28,7 @@ uses
 type
   TInsertProc = reference to function(const AItem: THCCustomItem): Boolean;
 
-  TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo: Integer;
+  TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo, AOffset: Integer;
     Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
   TDataItemEvent = procedure(const AData: THCCustomData; const AItemNo: Integer) of object;
@@ -103,7 +103,7 @@ type
     procedure DoItemResized(const AItemNo: Integer);
     function GetHeight: Cardinal; virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
-    procedure DeleteItems(const AStartNo: Integer; const AEndNo: Integer);
+    procedure DeleteItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
     property MouseMoveDrawItemNo: Integer read FMouseMoveDrawItemNo;
   public
     constructor Create(const AStyle: THCStyle); override;
@@ -162,7 +162,8 @@ type
     function CanEdit: Boolean; virtual;
     //
     procedure DblClick(X, Y: Integer);
-    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
+      const AKeepPara: Boolean);
     /// <summary> 添加Data到当前 </summary>
     /// <param name="ASrcData">源Data</param>
     procedure AddData(const ASrcData: THCCustomData);
@@ -175,7 +176,7 @@ type
 
     /// <summary> 在光标处插入指定行列的表格 </summary>
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
-    function InsertImage(const AFile: string): Boolean;
+    function InsertImage(const AImage: TGraphic): Boolean;
     function InsertGifImage(const AFile: string): Boolean;
 
     /// <summary> 在光标处插入直线 </summary>
@@ -333,7 +334,8 @@ begin
   Style.UpdateInfoReCaret(False);
 end;
 
-procedure THCRichData.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+procedure THCRichData.DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
+  const AKeepPara: Boolean);
 var
   vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
   vActiveItem: THCCustomItem;
@@ -355,7 +357,7 @@ begin
     else
       UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
-    vRectItem.DeleteActiveDataItems(AStartNo, AEndNo);
+    vRectItem.DeleteActiveDataItems(AStartNo, AEndNo, AKeepPara);
     if vRectItem.SizeChanged then
     begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
@@ -368,10 +370,10 @@ begin
       Self.FormatInit;
   end
   else
-    DeleteItems(AStartNo, AEndNo);
+    DeleteItems(AStartNo, AEndNo, AKeepPara);
 end;
 
-procedure THCRichData.DeleteItems(const AStartNo: Integer; const AEndNo: Integer);
+procedure THCRichData.DeleteItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
 var
   i, vFormatFirstDrawItemNo, vFormatLastItemNo, vDelCount: Integer;
   vItem: THCCustomItem;
@@ -401,22 +403,41 @@ begin
   if Items.Count = 0 then  // 删除没有了，不用SetEmptyData，因为其无Undo
   begin
     vItem := CreateDefaultTextItem;
+    Self.CurStyleNo := vItem.StyleNo;
     vItem.ParaFirst := True;
     Items.Add(vItem);
-    Inc(vDelCount);
+    Dec(vDelCount);
     UndoAction_InsertItem(0, 0);
   end
   else
-  if vStartParaFirst and (not Items[AStartNo].ParaFirst) then  // 段首删除完了
+  if vStartParaFirst then // 段首删除了
   begin
-    UndoAction_ItemParaFirst(AStartNo, 0, True);
-    Items[AStartNo].ParaFirst := True;
+    if (AStartNo < Items.Count - 1)  // 下一个不是最后一个
+      and (not Items[AStartNo].ParaFirst)  // 下一个不是段首(同段还有内容，置首)
+    then
+    begin
+      UndoAction_ItemParaFirst(AStartNo, 0, True);
+      Items[AStartNo].ParaFirst := True;
+    end
+    else  // 段删除完了
+    if AKeepPara then  // 保持段
+    begin
+      vItem := CreateDefaultTextItem;
+      Self.CurStyleNo := vItem.StyleNo;
+      vItem.ParaFirst := True;
+      Items.Insert(AStartNo, vItem);
+      Dec(vDelCount);
+      UndoAction_InsertItem(AStartNo, 0);
+    end;
   end;
 
   ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
 
+  if vStartParaFirst and AKeepPara then
+    ReSetSelectAndCaret(AStartNo, 0)
+  else
   if AStartNo > 0 then  // 不是从第1个开始删除
     ReSetSelectAndCaret(AStartNo - 1)
   else  // 从第一个开始删除
@@ -466,6 +487,7 @@ var
         if vParaFirstItemNo = vParaLastItemNo then  // 段就一个Item全删除了，补充空Item
         begin
           vNewItem := CreateDefaultTextItem;
+          Self.CurStyleNo := vNewItem.StyleNo;  // 防止RectItem删除插入文本当前样式不正确
           vNewItem.ParaFirst := True;
           Items.Insert(SelectInfo.StartItemNo, vNewItem);
           UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
@@ -718,6 +740,7 @@ begin
             if SelectInfo.EndItemNo = vFormatLastItemNo then  // 选中结束在当前段或后面某段最后(段里内容全删除了)，补充空行
             begin
               vNewItem := CreateDefaultTextItem;
+              Self.CurStyleNo := vNewItem.StyleNo;  // 防止RectItem删除插入文本当前样式不正确
               vNewItem.ParaFirst := True;
               Items.Insert(SelectInfo.StartItemNo, vNewItem);
               UndoAction_InsertItem(SelectInfo.StartItemNo, vNewItem.Length);
@@ -770,9 +793,9 @@ begin
             end;
           end
           else
-          if not vSelEndComplate then  // 起始和结束都没有删除完
+          if (not vSelEndComplate) and (SelectInfo.StartItemNo + 1 = SelectInfo.EndItemNo - vDelCount) then  // 起始和结束都没有删除完且中间没有不可删除的
           begin
-            if MergeItemText(Items[SelectInfo.StartItemNo], Items[SelectInfo.EndItemNo - vDelCount])
+            if MergeItemText(Items[SelectInfo.StartItemNo], Items[SelectInfo.EndItemNo - vDelCount])  // 起始和结束挨在一起了
             then  // 选中起始、结束位置的Item合并成功
             begin
               UndoAction_InsertText(SelectInfo.StartItemNo,
@@ -1728,7 +1751,7 @@ begin
   InitializeMouseField;
 end;
 
-function THCRichData.InsertImage(const AFile: string): Boolean;
+function THCRichData.InsertImage(const AImage: TGraphic): Boolean;
 var
   vTopData: THCRichData;
   vImageItem: THCImageItem;
@@ -1738,7 +1761,9 @@ begin
 
   vTopData := Self.GetTopLevelData as THCRichData;
   vImageItem := THCImageItem.Create(vTopData);
-  vImageItem.LoadFromBmpFile(AFile);
+  vImageItem.Image.Assign(AImage);
+  vImageItem.Width := AImage.Width;
+  vImageItem.Height := AImage.Height;
   vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
   Result := InsertItem(vImageItem);
   InitializeMouseField;
@@ -1806,6 +1831,13 @@ begin
           begin
             UndoAction_ItemParaFirst(AIndex, 0, False);
             Items[AIndex].ParaFirst := False;
+
+            if Items[AIndex].PageBreak then
+            begin
+              UndoAction_ItemPageBreak(AIndex, 0, False);
+              Items[AIndex].PageBreak := False;
+              AItem.PageBreak := True;
+            end;
           end;
         end;
       end
@@ -2231,6 +2263,12 @@ begin
         UndoAction_ItemParaFirst(vInsPos, 0, Items[vInsPos - 1].ParaFirst);
         Items[vInsPos].ParaFirst := Items[vInsPos - 1].ParaFirst;
 
+        if Items[vInsPos - 1].PageBreak then
+        begin
+          UndoAction_ItemPageBreak(vInsPos, 0, True);
+          Items[vInsPos].PageBreak := True;
+        end;
+
         UndoAction_DeleteItem(vInsPos - 1, 0);
         Items.Delete(vInsPos - 1);  // 删除空行
 
@@ -2450,28 +2488,43 @@ var
         begin
           UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
           vTextItem.Text := AText + vTextItem.Text;
-          if ANewPara then
+          if ANewPara and (not vTextItem.ParaFirst) then
+          begin
+            UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
             vTextItem.ParaFirst := True;
+          end;
 
           vLen := Length(AText);
         end
         else
         if SelectInfo.StartItemOffset = vTextItem.Length then  // 在TextItem最后插入
         begin
-          if ANewPara then
+          if ANewPara then  // 另起一段
           begin
-            vNewItem := CreateDefaultTextItem;
-            vNewItem.ParaFirst := True;
-            vNewItem.Text := AText;
+            if (not IsParaLastItem(SelectInfo.StartItemNo))  // 不是段最后一个
+              and (Items[SelectInfo.StartItemNo + 1].StyleNo > THCStyle.Null) // 下一个是文本
+            then
+            begin
+              SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+              SelectInfo.StartItemOffset := 0;
+              Result := DoTextItemInsert(AText, ANewPara);
+              Exit;
+            end
+            else
+            begin
+              vNewItem := CreateDefaultTextItem;
+              vNewItem.ParaFirst := True;
+              vNewItem.Text := AText;
 
-            Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
-            UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-            Inc(vAddCount);
+              Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
+              UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+              Inc(vAddCount);
 
-            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-            vLen := vNewItem.Length;
+              SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+              vLen := vNewItem.Length;
+            end;
           end
-          else
+          else  // TextItem增加字符
           begin
             UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
             vTextItem.Text := vTextItem.Text + AText;
@@ -2480,11 +2533,31 @@ var
         end
         else  // 在Item中间
         begin
-          vLen := SelectInfo.StartItemOffset + Length(AText);
-          vS := vTextItem.Text;
-          Insert(AText, vS, SelectInfo.StartItemOffset + 1);
-          UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
-          vTextItem.Text := vS;
+          if ANewPara then  // 在TextItem中间按新段插入Text
+          begin
+            // 原TextItem打断
+            vS := vTextItem.SubString(SelectInfo.StartItemOffset + 1, vTextItem.Length - SelectInfo.StartItemOffset);
+            UndoAction_DeleteText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, vS);
+            // 原位置后半部分
+            vAfterItem := vTextItem.BreakByOffset(SelectInfo.StartItemOffset);
+            vAfterItem.Text := AText + vAfterItem.Text;
+            vAfterItem.ParaFirst := True;
+            // 插入原TextItem后半部分增加Text后的
+            Items.Insert(SelectInfo.StartItemNo + 1, vAfterItem);
+            UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+            Inc(vAddCount);
+
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+            vLen := Length(AText);
+          end
+          else
+          begin
+            vLen := SelectInfo.StartItemOffset + Length(AText);
+            vS := vTextItem.Text;
+            Insert(AText, vS, SelectInfo.StartItemOffset + 1);
+            UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
+            vTextItem.Text := vS;
+          end;
         end;
 
         SelectInfo.StartItemOffset := vLen;
@@ -2576,6 +2649,8 @@ var
         Inc(vAddCount);
       end;
     end;
+
+    CurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;  // 防止连续插入不同样式的
   end;
   {$ENDREGION}
 
@@ -3625,6 +3700,20 @@ var
               SelectInfo.StartItemOffset := OffsetBefor;
               RectItemKeyDown;
             end;
+
+          VK_LEFT:  // 移出去
+            begin
+              SelectInfo.StartItemOffset := OffsetBefor;
+              vRectItem.Active := False;
+              Style.UpdateInfoRePaint;
+            end;
+
+          VK_RIGHT:  // 移出去
+            begin
+              SelectInfo.StartItemOffset := OffsetAfter;
+              vRectItem.Active := False;
+              Style.UpdateInfoRePaint;
+            end;
         end;
       end;
     end
@@ -3969,6 +4058,8 @@ var
             begin
               vCurItem := CreateDefaultTextItem;
               vCurItem.ParaFirst := True;
+              vCurItem.PageBreak := APageBreak;
+
               Items.Insert(SelectInfo.StartItemNo + 1, vCurItem);
               UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
 
@@ -4922,7 +5013,7 @@ procedure THCRichData.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: 
     Items[AItemNo].MouseDown(Button, Shift, vX, vY);
 
     if Assigned(FOnItemMouseDown) then
-      FOnItemMouseDown(Self, AItemNo, Button, Shift, vX, vY);
+      FOnItemMouseDown(Self, AItemNo, AOffset, Button, Shift, vX, vY);
   end;
   {$ENDREGION}
 
@@ -5167,7 +5258,7 @@ var
     Items[AItemNo].MouseUp(Button, Shift, vX, vY);
 
     if (not vRestrain) and Assigned(FOnItemMouseUp) then
-      FOnItemMouseUp(Self, AItemNo, Button, Shift, vX, vY);
+      FOnItemMouseUp(Self, AItemNo, AOffset, Button, Shift, vX, vY);
   end;
   {$ENDREGION}
 
@@ -5532,6 +5623,19 @@ begin
   end
   else
   begin
+    if Pos(#13#10, AText) > 0 then
+    begin
+      Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+      try
+        DeleteItems(SelectInfo.StartItemNo, SelectInfo.StartItemNo, True);
+        InsertText(AText);
+      finally
+        Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+      end;
+
+      Exit;
+    end;
+
     Undo_New;
     UndoAction_SetItemText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, AText);
     Items[SelectInfo.StartItemNo].Text := AText;

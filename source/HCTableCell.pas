@@ -124,7 +124,7 @@ type
     /// <param name="ADataScreenBottom">屏幕区域Bottom</param>
     /// <param name="AVOffset">指定从哪个位置开始的数据绘制到目标区域的起始位置</param>
     /// <param name="ACanvas">画布</param>
-    procedure PaintTo(const ADrawLeft, ADrawTop, ADataDrawBottom,
+    procedure PaintTo(const ADrawLeft, ADrawTop, ADrawRight, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
       const ACellHPadding, ACellVPadding: Byte;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -282,7 +282,7 @@ begin
   end;
 end;
 
-procedure THCTableCell.PaintTo(const ADrawLeft, ADrawTop, ADataDrawBottom,
+procedure THCTableCell.PaintTo(const ADrawLeft, ADrawTop, ADrawRight, ADataDrawBottom,
   ADataScreenTop, ADataScreenBottom, AVOffset: Integer; const ACellHPadding,
   ACellVPadding: Byte; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -291,8 +291,8 @@ begin
   if Assigned(FCellData) then
   begin
     vTop := ADrawTop + GetCellDataTop(ACellVPadding);
-    FCellData.PaintData(ADrawLeft + ACellHPadding, vTop, ADataDrawBottom, ADataScreenTop,
-      ADataScreenBottom, AVOffset, ACanvas, APaintInfo);
+    FCellData.PaintData(ADrawLeft + ACellHPadding, vTop, ADrawRight - ACellHPadding,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset, ACanvas, APaintInfo);
   end;
 end;
 
@@ -312,7 +312,10 @@ begin
     FCellData := nil;
   end
   else
+  begin
+    FCellData.Width := FWidth;  // 不准确的赋值，应该减去2个水平padding，加载时使用无大碍
     FCellData.ParseXml(ANode.ChildNodes.FindNode('items'));
+  end;
 end;
 
 function THCTableCell.IsMergeDest: Boolean;

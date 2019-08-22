@@ -17,12 +17,13 @@ interface
 
 uses
   Windows, SysUtils, Graphics, Classes, HCStyle, HCItem, HCRectItem, HCCustomData,
-  HCXml{$IFNDEF BMPIMAGEITEM}, Wincodec{$ENDIF};
+  HCXml{$IFNDEF BMPIMAGEITEM}, Wincodec{$ENDIF}, HCShape;
 
 type
   THCImageItem = class(THCResizeRectItem)
   private
     FImage: {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF};
+    FShapeManager: THCShapeManager;
     procedure DoImageChange(Sender: TObject);
   protected
     function GetWidth: Integer; override;
@@ -51,6 +52,7 @@ type
     /// <summary> »Ö¸´µ½Ô­Ê¼³ß´ç </summary>
     procedure RecoverOrigianlSize;
     property Image: {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF} read FImage;
+    property ShapeManager: THCShapeManager read FShapeManager;
   end;
 
 implementation
@@ -149,11 +151,13 @@ begin
   FImage := {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF}.Create;
   FImage.OnChange := DoImageChange;
   StyleNo := THCStyle.Image;
+  FShapeManager := THCShapeManager.Create;
 end;
 
 destructor THCImageItem.Destroy;
 begin
   FImage.Free;
+  FShapeManager.Free;
   inherited Destroy;
 end;
 
@@ -267,6 +271,8 @@ begin
       ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FImage);
   end;
 
+  FShapeManager.PaintTo(ACanvas, ADrawRect, APaintInfo);
+
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 end;
@@ -323,6 +329,9 @@ begin
       {$ENDIF}
     end;
   end;
+
+  if AFileVersion > 26 then
+    FShapeManager.LoadFromStream(AStream);
 end;
 
 procedure THCImageItem.PaintTop(const ACanvas: TCanvas);
@@ -418,6 +427,8 @@ begin
   finally
     vStream.Free;
   end;
+
+  FShapeManager.SaveToStream(AStream);
 end;
 
 function THCImageItem.ToHtml(const APath: string): string;

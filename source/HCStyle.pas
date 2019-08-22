@@ -144,11 +144,6 @@ type
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
   end;
 
-  THCFloatStyle = class(TObject)  // 浮动Item样式
-  public const
-    Line = 1;  // 直线
-  end;
-
 implementation
 
 { THCStyle }
@@ -417,7 +412,7 @@ begin
     Result := Result + sLineBreak + 'a.fs' + IntToStr(i) + ' {';
     Result := Result + FTextStyles[i].ToCSS + ' }';
   end;
-
+  // 注意单倍行间距，文本底色不为白色也不透明时会造成字符看起来叠加的问题
   for i := 0 to FParaStyles.Count - 1 do
   begin
     Result := Result + sLineBreak + 'p.ps' + IntToStr(i) + ' {';

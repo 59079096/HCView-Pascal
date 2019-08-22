@@ -53,10 +53,11 @@ const
    2.4 兼容EmrView保存保护元素属性
    2.5 使用unicode字符集保存文档以便支持藏文等
    2.6 文件保存时直接使用TItemOptions集合变量的值，不再单独判断成员存储
+   2.7 浮动直线改为ShapeLine
   }
 
-  HC_FileVersion = '2.6';
-  HC_FileVersionInt = 26;
+  HC_FileVersion = '2.7';
+  HC_FileVersionInt = 27;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -187,13 +188,15 @@ type
 
   THCCaret = Class(TObject)
   private
+    FReCreate: Boolean;
     FHeight: Integer;
     FOwnHandle: THandle;
+    FX, FY: Integer;
   protected
+    procedure SetX(const Value: Integer);
+    procedure SetY(const Value: Integer);
     procedure SetHeight(const Value: Integer);
   public
-    X, Y: Integer;
-    //Visible: Boolean;
     constructor Create(const AHandle: THandle);
     destructor Destroy; override;
     procedure ReCreate;
@@ -201,6 +204,8 @@ type
     procedure Show; overload;
     procedure Hide;
     property Height: Integer read FHeight write SetHeight;
+    property X: Integer read FX write SetX;
+    property Y: Integer read FY write SetY;
   end;
 
   function SwapBytes(AValue: Word): Word;
@@ -858,6 +863,7 @@ constructor THCCaret.Create(const AHandle: THandle);
 begin
   FOwnHandle := AHandle;
   CreateCaret(FOwnHandle, 0, 2, 20);
+  FReCreate := False;
 end;
 
 destructor THCCaret.Destroy;
@@ -883,19 +889,41 @@ begin
   if FHeight <> Value then
   begin
     FHeight := Value;
-    ReCreate;
+    FReCreate := True;
+  end;
+end;
+
+procedure THCCaret.SetX(const Value: Integer);
+begin
+  if FX <> Value then
+  begin
+    FX := Value;
+    //FReCreate := True;
+    Show;
+  end;
+end;
+
+procedure THCCaret.SetY(const Value: Integer);
+begin
+  if FY <> Value then
+  begin
+    FY := Value;
+    Show;
+    //FReCreate := True;
   end;
 end;
 
 procedure THCCaret.Show;
 begin
-  Self.Show(X, Y);
+  Self.Show(FX, FY);
 end;
 
 
 procedure THCCaret.Show(const AX, AY: Integer);
 begin
-  ReCreate;
+  if FReCreate then
+    ReCreate;
+
   SetCaretPos(AX, AY);
   ShowCaret(FOwnHandle);
 end;

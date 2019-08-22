@@ -36,9 +36,9 @@ type
     function GetOffsetAt(const X: Integer): Integer; override;
     procedure SetActive(const Value: Boolean); override;
     procedure MouseLeave; override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
@@ -344,14 +344,14 @@ begin
   HCLoadTextFromStream(AStream, FBottomText, AFileVersion);
 end;
 
-procedure THCFractionItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCFractionItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 var
   vS: string;
   vX: Integer;
   vOffset: Integer;
 begin
-  inherited;
+  Result := inherited MouseDown(Button, Shift, X, Y);
   FMouseLBDowning := (Button = mbLeft) and (Shift = [ssLeft]);
   FOutSelectInto := False;
 
@@ -398,7 +398,7 @@ begin
   FMouseMoveArea := ceaNone;
 end;
 
-procedure THCFractionItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+function THCFractionItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
 var
   vArea: TExpressArea;
 begin
@@ -417,15 +417,15 @@ begin
   else
     FMouseMoveArea := ceaNone;
 
-  inherited MouseMove(Shift, X, Y);
+  Result := inherited MouseMove(Shift, X, Y);
 end;
 
-procedure THCFractionItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCFractionItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 begin
   FMouseLBDowning := False;
   FOutSelectInto := False;
-  inherited MouseUp(Button, Shift, X, Y);
+  Result := inherited MouseUp(Button, Shift, X, Y);
 end;
 
 procedure THCFractionItem.ParseXml(const ANode: IHCXMLNode);

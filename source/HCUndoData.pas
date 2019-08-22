@@ -133,7 +133,7 @@ var
       if AIsUndo then
       begin
         Insert(vAction.Text, vText, vAction.Offset);
-        vCaretOffset := vAction.Offset + vLen - 1;
+        vCaretOffset := vAction.Offset - 1;  // 不 + vLen - 1，防止Offset超过当前CaretDrawItem范围
       end
       else
       begin
@@ -272,7 +272,7 @@ var
             vCaretDrawItemNo := Items[vCaretItemNo + 1].FirstDItemNo;
           end
           else  // 删除的不是段首
-          if Items[vCaretItemNo + 1].ParaFirst then  // 下一个是段首，光标保持在同段最后
+          //if Items[vCaretItemNo + 1].ParaFirst then  // 下一个是段首，光标保持在同段最后
           begin
             Dec(vCaretItemNo);
             if Items[vCaretItemNo].StyleNo > THCStyle.Null then
@@ -280,7 +280,7 @@ var
             else
               vCaretOffset := OffsetAfter;
 
-            vCaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo - 1;
+            vCaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo;// - 1;
           end;
         end
         else
@@ -498,7 +498,7 @@ var
   end;
 
 var
-  i, vItemNo: Integer;
+  i, vItemNo, vCaretDIItem: Integer;
   vUndoList: THCUndoList;
 begin
   FForceClearExtra := False;
@@ -512,6 +512,12 @@ begin
         vUndoList := GetUndoList;
         FFormatFirstItemNo := (vUndoList[vUndoList.CurGroupBeginIndex] as THCUndoGroupBegin).ItemNo;
         FFormatLastItemNo := (vUndoList[vUndoList.CurGroupEndIndex] as THCUndoGroupEnd).ItemNo;
+
+        // 如果是序号0、1在一行，1删除后，又插入2个，其中第一个和序号0合并，第2个换行，
+        // 撤销时FFormatFirstItemNo为1从而FFormatFirstDrawItemNo为1，而此时1为行首，
+        // 撤销完后格式化会按在行首开始，导致原来的序号1撤销后换行。所以暴力回退1个
+        if FFormatFirstItemNo > 0 then
+          Dec(FFormatFirstItemNo);
 
         // 如果FFormatLastItemNo是从文档最开始插入增加的，撤销时要格式化到原开头，暴力处理直接下一个
         if FFormatLastItemNo < Items.Count - 1 then
@@ -680,11 +686,19 @@ begin
     ReFormatData(FFormatFirstDrawItemNo, FFormatLastItemNo + FItemAddCount,
       FItemAddCount, FForceClearExtra);
 
-    if vCaretDrawItemNo < 0 then
-      vCaretDrawItemNo := GetDrawItemNoByOffset(vCaretItemNo, vCaretOffset)
+    vCaretDIItem := GetDrawItemNoByOffset(vCaretItemNo, vCaretOffset);  // 因为多个Action不一定每个会有有效的CaretDrawItem，所以需要重新计算一下
+    if (vCaretDrawItemNo < 0) or (vCaretDrawItemNo > Self.DrawItems.Count - 1) then
+      vCaretDrawItemNo := vCaretDIItem
     else
-    if vCaretDrawItemNo > Self.DrawItems.Count - 1 then
-      vCaretDrawItemNo := Self.DrawItems.Count - 1;
+    if vCaretDIItem <> vCaretDrawItemNo then
+    begin
+      if (DrawItems[vCaretDrawItemNo].ItemNo = vCaretItemNo)
+        and (DrawItems[vCaretDrawItemNo].CharOffs = vCaretOffset)
+      then  // 换行
+
+      else
+        vCaretDrawItemNo := vCaretDIItem;  // 纠正
+    end;
 
     CaretDrawItemNo := vCaretDrawItemNo;
 

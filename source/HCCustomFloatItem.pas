@@ -17,9 +17,6 @@ uses
   Windows, SysUtils, Classes, Controls, Graphics, Messages, HCItem, HCRectItem,
   HCStyle, HCCustomData, HCXml;
 
-const
-  PointSize = 5;
-
 type
   THCCustomFloatItem = class(THCResizeRectItem)  // ¿É¸¡¶¯Item
   private
@@ -27,8 +24,8 @@ type
     FDrawRect: TRect;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
-    function PtInClient(const APoint: TPoint): Boolean; overload; virtual;
-    function PtInClient(const X, Y: Integer): Boolean; overload;
+    function PointInClient(const APoint: TPoint): Boolean; overload; virtual;
+    function PointInClient(const X, Y: Integer): Boolean; overload;
     procedure Assign(Source: THCCustomItem); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -63,7 +60,7 @@ begin
   //Self.StyleNo := THCStyle.FloatItem;
 end;
 
-function THCCustomFloatItem.PtInClient(const APoint: TPoint): Boolean;
+function THCCustomFloatItem.PointInClient(const APoint: TPoint): Boolean;
 begin
   Result := PtInRect(Bounds(0, 0, Width, Height), APoint);
 end;
@@ -102,9 +99,9 @@ begin
   Height := ANode.Attributes['height'];
 end;
 
-function THCCustomFloatItem.PtInClient(const X, Y: Integer): Boolean;
+function THCCustomFloatItem.PointInClient(const X, Y: Integer): Boolean;
 begin
-  Result := PtInClient(Point(X, Y));
+  Result := PointInClient(Point(X, Y));
 end;
 
 procedure THCCustomFloatItem.SaveToStream(const AStream: TStream; const AStart,

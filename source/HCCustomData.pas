@@ -47,13 +47,13 @@ type
   TDataItemNotifyEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
 
   TDrawItemPaintEvent = procedure(const AData: THCCustomData;
-    const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+    const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+    ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
   TDrawItemPaintContentEvent = procedure(const AData: THCCustomData;
-    const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
-    const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+    const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
+    const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
   THCCustomData = class(TObject)
@@ -73,15 +73,15 @@ type
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
 
-    procedure DrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+    procedure DrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+    procedure DrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
+    procedure DrawItemPaintContent(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string; const ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure SetCurStyleNo(const Value: Integer);
     procedure SetCurParaNo(const Value: Integer);
@@ -139,14 +139,15 @@ type
     procedure DoInsertItem(const AItem: THCCustomItem); virtual;
     procedure DoRemoveItem(const AItem: THCCustomItem); virtual;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); virtual;
-    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
-    procedure DoDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect, AClearRect: TRect; const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
-      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
-    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+    procedure DoDrawItemPaintContent(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect, AClearRect: TRect; const ADrawText: string; const ADataDrawLeft, ADataDrawRight,
+      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer; const ACanvas: TCanvas;
+      const APaintInfo: TPaintInfo); virtual;
+    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
@@ -244,9 +245,8 @@ type
     /// <param name="AOffset"></param>
     /// <returns></returns>
     function OffsetInSelect(const AItemNo, AOffset: Integer): Boolean;
-    /// <summary>
-    /// 获取Data中的坐标X、Y处的Item和Offset，并返回X、Y相对DrawItem的坐标
-    /// </summary>
+
+    /// <summary> 获取Data中的坐标X、Y处的Item和Offset，并返回X、Y相对DrawItem的坐标 </summary>
     /// <param name="X"></param>
     /// <param name="Y"></param>
     /// <param name="AItemNo"></param>
@@ -363,7 +363,7 @@ type
     /// <param name="AFristDItemNo">指定从哪个DrawItem开始绘制</param>
     /// <param name="ALastDItemNo">指定绘制到哪个DrawItem结束</param>
     /// <param name="ACanvas">画布</param>
-    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); overload; virtual;
 
@@ -375,7 +375,7 @@ type
     /// <param name="ADataScreenBottom">屏幕区域Bottom</param>
     /// <param name="AVOffset">指定从哪个位置开始的数据绘制到目标区域的起始位置</param>
     /// <param name="ACanvas">画布</param>
-    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); overload; virtual;
 
@@ -779,39 +779,39 @@ begin
 end;
 
 procedure THCCustomData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintAfter) then
   begin
-    FOnDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    FOnDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCCustomData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintBefor) then
   begin
-    FOnDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    FOnDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCCustomData.DoDrawItemPaintContent(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
-  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintContent) then
   begin
-    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
-      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    FOnDrawItemPaintContent(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
+      ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
@@ -839,16 +839,16 @@ begin
 end;
 
 procedure THCCustomData.DrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vDCState: Integer;
 begin
   vDCState := SaveDC(ACanvas.Handle);
   try
-    DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft, ADataDrawBottom,
-      ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    DoDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
     RestoreDC(ACanvas.Handle, vDCState);
     ACanvas.Refresh;
@@ -856,16 +856,16 @@ begin
 end;
 
 procedure THCCustomData.DrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vDCState: Integer;
 begin
   vDCState := SaveDC(ACanvas.Handle);
   try
-    DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft, ADataDrawBottom,
-      ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    DoDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
     RestoreDC(ACanvas.Handle, vDCState);
     ACanvas.Refresh;
@@ -873,16 +873,16 @@ begin
 end;
 
 procedure THCCustomData.DrawItemPaintContent(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
-  const ADrawText: string; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
   ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vDCState: Integer;
 begin
   vDCState := SaveDC(ACanvas.Handle);
   try
-    DoDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
-      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    DoDrawItemPaintContent(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
+      ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
     RestoreDC(ACanvas.Handle, vDCState);
     ACanvas.Refresh;
@@ -1918,7 +1918,7 @@ begin
   end;
 end;
 
-procedure THCCustomData.PaintData(const ADataDrawLeft, ADataDrawTop,
+procedure THCCustomData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight,
   ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo,
   ALastDItemNo: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -2111,8 +2111,8 @@ begin
         vLineSpace := GetLineBlankSpace(i);
 
       { 绘制内容前 }
-      DrawItemPaintBefor(Self, i, vDrawRect, ADataDrawLeft, ADataDrawBottom,
-        ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+      DrawItemPaintBefor(Self, vDrawItem.ItemNo, i, vDrawRect, ADataDrawLeft,
+        ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
       if vPrioParaNo <> vItem.ParaNo then  // 水平对齐方式
       begin
@@ -2147,8 +2147,8 @@ begin
           vClearRect.Top := vClearRect.Bottom - vRectItem.Height;
         end;
 
-        DrawItemPaintContent(Self, i, vDrawRect, vClearRect, '', ADataDrawLeft,
-          ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+        DrawItemPaintContent(Self, vDrawItem.ItemNo, i, vDrawRect, vClearRect, '', ADataDrawLeft,
+          ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
         if vRectItem.IsSelectComplate then  // 选中背景区域
         begin
@@ -2202,8 +2202,8 @@ begin
         end;
 
         vText := Copy(vItem.Text, vDrawItem.CharOffs, vDrawItem.CharLen);  // 为减少判断，没有直接使用GetDrawItemText(i)
-        DrawItemPaintContent(Self, i, vDrawRect, vClearRect, vText, ADataDrawLeft,
-          ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+        DrawItemPaintContent(Self, vDrawItem.ItemNo, i, vDrawRect, vClearRect, vText, ADataDrawLeft,
+          ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
         {$REGION ' 绘制优先级更高的选中情况下的背景 '}
         if not APaintInfo.Print then  // 不是打印
@@ -2283,8 +2283,8 @@ begin
         end;
       end;
 
-      DrawItemPaintAfter(Self, i, vClearRect, ADataDrawLeft, ADataDrawBottom,
-        ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);  // 绘制内容后
+      DrawItemPaintAfter(Self, vDrawItem.ItemNo, i, vClearRect, ADataDrawLeft,
+        ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);  // 绘制内容后
     end;
   finally
     RestoreDC(ACanvas.Handle, vDCState);
@@ -2292,8 +2292,8 @@ begin
   end;
 end;
 
-procedure THCCustomData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
-  ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
+procedure THCCustomData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight,
+  ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vFirstDItemNo, vLastDItemNo, vVOffset: Integer;
@@ -2305,7 +2305,7 @@ begin
   GetDataDrawItemRang(Max(ADataDrawTop, ADataScreenTop) - vVOffset,  // 可显示出来的DrawItem范围
     Min(ADataDrawBottom, ADataScreenBottom) - vVOffset, vFirstDItemNo, vLastDItemNo);
 
-  PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
+  PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, AVOffset, vFirstDItemNo, vLastDItemNo, ACanvas, APaintInfo);
 end;
 
@@ -2700,6 +2700,7 @@ begin
         Result := Result + sLineBreak + '</p>';
       Result := Result + sLineBreak + '<p class="ps' + IntToStr(Items[i].ParaNo) + '">';
     end;
+
     Result := Result + sLineBreak + Items[i].ToHtml(APath);
   end;
 

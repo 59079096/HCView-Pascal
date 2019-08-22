@@ -52,8 +52,8 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure MouseLeave; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SetItems(const Value: TStrings);
@@ -386,13 +386,16 @@ begin
     Result := Rect(0, 0, FPopupForm.Width, FPopupForm.Height);
 end;
 
-procedure THCComboboxItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCComboboxItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 begin
   if (Button = mbLeft) and PtInRect(FButtonRect, Point(X, Y)) then
-    DoPopup
+  begin
+    Result := True;
+    DoPopup;
+  end
   else
-    inherited MouseDown(Button, Shift, X, Y);
+    Result := inherited MouseDown(Button, Shift, X, Y);
 end;
 
 procedure THCComboboxItem.MouseLeave;
@@ -401,7 +404,7 @@ begin
   FMouseInButton := False;
 end;
 
-procedure THCComboboxItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+function THCComboboxItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
 begin
   if PtInRect(FButtonRect, Point(X, Y)) then
   begin
@@ -412,6 +415,7 @@ begin
     end;
 
     GCursor := crDefault;
+    Result := True;
   end
   else
   begin
@@ -421,7 +425,7 @@ begin
       OwnerData.Style.UpdateInfoRePaint;
     end;
 
-    inherited MouseMove(Shift, X, Y);
+    Result := inherited MouseMove(Shift, X, Y);
   end;
 end;
 

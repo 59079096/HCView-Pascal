@@ -31,16 +31,21 @@ type
   THCRichScrollBar = class(THCScrollBar)
   private
     FAreaMarks: TAreaMarks;  // 适合固定区域的标记
+    FOnPageUpClick, FOnPageDownClick: TNotifyEvent;
     function GetAreaMarkByTag(const ATag: Integer): Integer;
     function GetAreaMarkRect(const AIndex: Integer): TRect;
   protected
     procedure DoDrawThumBefor(const ACanvas: TCanvas; const AThumRect: TRect); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure PaintToEx(const ACanvas: TCanvas); override;
     //
     procedure SetAreaPos(const ATag, APosition, AHeight: Integer);
+    property OnPageUpClick: TNotifyEvent read FOnPageUpClick write FOnPageUpClick;
+    property OnPageDownClick: TNotifyEvent read FOnPageDownClick write FOnPageDownClick;
   end;
 
 implementation
@@ -50,6 +55,7 @@ implementation
 constructor THCRichScrollBar.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  FRightBlank := 40; // 2 + 16 + 2 + 16 + 2 + 2
 end;
 
 destructor THCRichScrollBar.Destroy;
@@ -73,7 +79,7 @@ begin
 
     oriVertical:
       begin
-        if Assigned(FAreaMarks) then
+        if Assigned(FAreaMarks) then  // 有标记区域
         begin
           ACanvas.Brush.Color := $006B5952;
 
@@ -81,8 +87,8 @@ begin
           begin
             vRect := GetAreaMarkRect(i);
 
-            if (vRect.Bottom > HCScrollBar.ButtonSize)
-              and (vRect.Top < Self.Height - HCScrollBar.ButtonSize)
+            if (vRect.Bottom > FLeftBlank + HCScrollBar.ButtonSize)
+              and (vRect.Top < Self.Height - FRightBlank - HCScrollBar.ButtonSize)
             then
               ACanvas.FillRect(vRect);
           end;
@@ -119,7 +125,7 @@ begin
 
     oriVertical:
       begin
-        vTop := ButtonSize + Round(FAreaMarks[AIndex].Position * Percent);
+        vTop := FLeftBlank + ButtonSize + Round(FAreaMarks[AIndex].Position * Percent);
         vHeight := Round(FAreaMarks[AIndex].Height * Percent);
         if vHeight < 2 then
           vHeight := 2;  // 最小高度
@@ -159,6 +165,79 @@ begin
           end;
         end;
       end;
+  end;
+end;
+
+procedure THCRichScrollBar.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer);
+begin
+  inherited;
+
+  if Orientation = oriVertical then  // 垂直滚动条
+  begin
+    if PtInRect(Bounds(2, Height - FRightBlank + 2, 16, 16), Point(X, Y)) then  // 上翻页按钮
+    begin
+      if Assigned(FOnPageUpClick) then
+        FOnPageUpClick(Self);
+    end
+    else
+    if PtInRect(Bounds(2, Height - FRightBlank + 2 + 16 + 2, 16, 16), Point(X, Y)) then  // 下翻页按钮
+    begin
+      if Assigned(FOnPageDownClick) then
+        FOnPageDownClick(Self);
+    end;
+  end;
+end;
+
+procedure THCRichScrollBar.PaintToEx(const ACanvas: TCanvas);
+var
+  vX, vY: Integer;
+begin
+  inherited PaintToEx(ACanvas);
+
+  if Orientation = oriVertical then  // 垂直滚动条
+  begin
+    if FRightBlank > 0 then
+    begin
+      ACanvas.Brush.Color := $006B5952;
+      ACanvas.FillRect(Rect(2, Height - FRightBlank + 2, Width - 2, Height - 2));
+
+      // 上按钮
+      ACanvas.Pen.Color := $00B3ABAA;
+      vX := (Width - 5) div 2;
+      vY := Height - FRightBlank + 2 + ButtonSize - 9;
+      ACanvas.MoveTo(vX, vY);
+      ACanvas.LineTo(vX + 5, vY);
+      ACanvas.MoveTo(vX + 1, vY - 1);
+      ACanvas.LineTo(vX + 4, vY - 1);
+      ACanvas.MoveTo(vX + 2, vY - 2);
+      ACanvas.LineTo(vX + 3, vY - 2);
+
+      vY := vY - 3;
+      ACanvas.MoveTo(vX, vY);
+      ACanvas.LineTo(vX + 5, vY);
+      ACanvas.MoveTo(vX + 1, vY - 1);
+      ACanvas.LineTo(vX + 4, vY - 1);
+      ACanvas.MoveTo(vX + 2, vY - 2);
+      ACanvas.LineTo(vX + 3, vY - 2);
+
+      // 下按钮
+      vY := Height - FRightBlank + 2 + ButtonSize + 2 + 3;
+      ACanvas.MoveTo(vX, vY);
+      ACanvas.LineTo(vX + 5, vY);
+      ACanvas.MoveTo(vX + 1, vY + 1);
+      ACanvas.LineTo(vX + 4, vY + 1);
+      ACanvas.MoveTo(vX + 2, vY + 2);
+      ACanvas.LineTo(vX + 3, vY + 2);
+
+      vY := vY + 3;
+      ACanvas.MoveTo(vX, vY);
+      ACanvas.LineTo(vX + 5, vY);
+      ACanvas.MoveTo(vX + 1, vY + 1);
+      ACanvas.LineTo(vX + 4, vY + 1);
+      ACanvas.MoveTo(vX + 2, vY + 2);
+      ACanvas.LineTo(vX + 3, vY + 2);
+    end;
   end;
 end;
 

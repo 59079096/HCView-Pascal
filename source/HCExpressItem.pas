@@ -26,7 +26,7 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     function GetExpressArea(const X, Y: Integer): TExpressArea; override;
     function InsertText(const AText: string): Boolean; override;
@@ -347,14 +347,14 @@ begin
   HCLoadTextFromStream(AStream, FRightText, AFileVersion);
 end;
 
-procedure THCExpressItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCExpressItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 var
   vS: string;
   vX: Integer;
   vOffset: Integer;
 begin
-  inherited;
+  Result := inherited MouseDown(Button, Shift, X, Y);
   FMouseLBDowning := (Button = mbLeft) and (Shift = [ssLeft]);
   FOutSelectInto := False;
 

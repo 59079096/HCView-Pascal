@@ -189,46 +189,42 @@ begin
     1: FHCView.Print(cbbPrinter.Text, FPageIndex, FPageIndex, StrToIntDef(edtCopies.Text, 1));  // 当前页
     2:  // 奇数页
       begin
-        if edtPrintPageNos.Text <> '' then
-          GetPageRange(vRangeStar, vRangeEnd)
-        else
+        if edtPrintPageNos.Text <> '' then  // 指定了范围
         begin
-          vRangeStar := 0;
-          vRangeEnd := FHCView.PageCount - 1;
-        end;
-
-        for i := vRangeStar to vRangeEnd do
-        begin
-          if not Odd(i) then  // 偶数序号是奇数页
+          GetPageRange(vRangeStar, vRangeEnd);
+          for i := vRangeStar to vRangeEnd do
           begin
-            SetLength(vPages, Length(vPages) + 1);
-            vPages[Length(vPages) - 1] := i;
+            if not Odd(i) then  // 偶数序号是奇数页
+            begin
+              SetLength(vPages, Length(vPages) + 1);
+              vPages[Length(vPages) - 1] := i;
+            end;
           end;
-        end;
 
-        FHCView.Print(cbbPrinter.Text, StrToIntDef(edtCopies.Text, 1), vPages);  // 奇数页
+          FHCView.Print(cbbPrinter.Text, StrToIntDef(edtCopies.Text, 1), vPages);  // 奇数页
+        end
+        else  // 全部奇数页
+          FHCView.PrintOdd(cbbPrinter.Text);
       end;
 
     3:  // 偶数页
       begin
-        if edtPrintPageNos.Text <> '' then
-          GetPageRange(vRangeStar, vRangeEnd)
-        else
+        if edtPrintPageNos.Text <> '' then  // 指定了范围
         begin
-          vRangeStar := 0;
-          vRangeEnd := FHCView.PageCount - 1;
-        end;
-
-        for i := vRangeStar to vRangeEnd do
-        begin
-          if Odd(i) then  // 奇数序号是偶数页
+          GetPageRange(vRangeStar, vRangeEnd);
+          for i := vRangeStar to vRangeEnd do
           begin
-            SetLength(vPages, Length(vPages) + 1);
-            vPages[Length(vPages) - 1] := i;
+            if Odd(i) then  // 奇数序号是偶数页
+            begin
+              SetLength(vPages, Length(vPages) + 1);
+              vPages[Length(vPages) - 1] := i;
+            end;
           end;
-        end;
 
-        FHCView.Print(cbbPrinter.Text, StrToIntDef(edtCopies.Text, 1), vPages);  // 偶数页
+          FHCView.Print(cbbPrinter.Text, StrToIntDef(edtCopies.Text, 1), vPages);  // 偶数页
+        end
+        else  // 全部偶数页
+          FHCView.PrintEven(cbbPrinter.Text);
       end;
     4:
       begin

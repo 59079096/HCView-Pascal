@@ -30,9 +30,12 @@ type
     FOnGetScreenCoord: TGetScreenCoordEvent;
 
     FFloatItems: TObjectList<THCCustomFloatItem>;
-    FFloatItemIndex, FMouseDownIndex, FMouseMoveIndex,
-    FMouseX, FMouseY
-      : Integer;
+    /// <summary> 当前选中的FloatItem </summary>
+    FFloatItemIndex,
+    /// <summary> 当前点击处的FloatItem </summary>
+    FMouseDownIndex,
+    /// <summary> 当前鼠标移动处的FloatItem </summary>
+    FMouseMoveIndex: Integer;
 
     function CreateFloatItemByStyle(const AStyleNo: Integer): THCCustomFloatItem;
     function GetFloatItemAt(const X, Y: Integer): Integer;
@@ -82,11 +85,11 @@ type
     FShowUnderLine: Boolean;  // 下划线
     FShowLineNo: Boolean;  // 行号
   protected
-    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure SaveToStream(const AStream: TStream); override;
@@ -113,7 +116,7 @@ implementation
 {$I HCView.inc}
 
 uses
-  Math, HCTextItem, HCImageItem, HCTableItem, HCFloatLineItem;
+  Math, HCTextItem, HCImageItem, HCTableItem, HCFloatLineItem, HCShape;
 
 { THCPageData }
 
@@ -132,12 +135,12 @@ begin
 end;
 
 procedure THCPageData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
-  inherited DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);;
+  inherited DoDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);;
   {$IFDEF SHOWITEMNO}
   if ADrawItemNo = Items[DrawItems[ADrawItemNo].ItemNo].FirstDItemNo then  //
   {$ENDIF}
@@ -153,16 +156,16 @@ begin
 end;
 
 procedure THCPageData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vTop: Integer;
   vFont: TFont;
   i, vLineNo: Integer;
 begin
-  inherited DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  inherited DoDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
   if not APaintInfo.Print then
   begin
@@ -335,7 +338,7 @@ function THCSectionData.CreateFloatItemByStyle(
 begin
   Result := nil;
   case AStyleNo of
-    THCFloatStyle.Line: Result := THCFloatLineItem.Create(Self);
+    Ord(THCShapeStyle.hssLine): Result := THCFloatLineItem.Create(Self);
   else
     raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建FloatItem代码！');
   end;
@@ -377,7 +380,7 @@ begin
   begin
     vFloatItem := FFloatItems[i];
 
-    if vFloatItem.PtInClient(X - vFloatItem.Left, Y - vFloatItem.Top) then
+    if vFloatItem.PointInClient(X - vFloatItem.Left, Y - vFloatItem.Top) then
     begin
       Result := i;
       Break;
@@ -473,7 +476,7 @@ function THCSectionData.MouseDownFloatItem(Button: TMouseButton; Shift: TShiftSt
 var
   vOldIndex: Integer;
 begin
-  Result := True;
+  Result := False;
 
   FMouseDownIndex := GetFloatItemAt(X, Y);
 
@@ -491,17 +494,12 @@ begin
 
   if FFloatItemIndex >= 0 then
   begin
-    FFloatItems[FFloatItemIndex].MouseDown(Button, Shift,
+    Result := FFloatItems[FFloatItemIndex].MouseDown(Button, Shift,
       X - FFloatItems[FFloatItemIndex].Left, Y - FFloatItems[FFloatItemIndex].Top);
   end;
 
   if (FMouseDownIndex < 0) and (vOldIndex < 0) then
-    Result := False
-  else
-  begin
-    FMouseX := X;
-    FMouseY := Y;
-  end;
+    Result := False;
 end;
 
 function THCSectionData.MouseMoveFloatItem(Shift: TShiftState; X, Y: Integer): Boolean;
@@ -509,23 +507,14 @@ var
   vItemIndex: Integer;
   vFloatItem: THCCustomFloatItem;
 begin
-  Result := True;
+  Result := False;
 
   if (Shift = [ssLeft]) and (FMouseDownIndex >= 0) then  // 按下拖拽
   begin
     vFloatItem := FFloatItems[FMouseDownIndex];
-    vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
-
-    if not vFloatItem.Resizing then
-    begin
-      vFloatItem.Left := vFloatItem.Left + X - FMouseX;
-      vFloatItem.Top := vFloatItem.Top + Y - FMouseY;
-
-      FMouseX := X;
-      FMouseY := Y;
-    end;
-
-    Style.UpdateInfoRePaint;
+    Result := vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
+    if Result then
+      Style.UpdateInfoRePaint;
   end
   else  // 普通鼠标移动
   begin
@@ -543,10 +532,8 @@ begin
     if vItemIndex >= 0 then
     begin
       vFloatItem := FFloatItems[vItemIndex];
-      vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
-    end
-    else
-      Result := False;
+      Result := vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
+    end;
   end;
 end;
 
@@ -554,17 +541,15 @@ function THCSectionData.MouseUpFloatItem(Button: TMouseButton; Shift: TShiftStat
 var
   vFloatItem: THCCustomFloatItem;
 begin
-  Result := True;
+  Result := False;
 
   if FMouseDownIndex >= 0 then
   begin
     vFloatItem := FFloatItems[FMouseDownIndex];
     {if vFloatItem.Resizing then
       Self.Style.UpdateInfoRePaint;}
-    vFloatItem.MouseUp(Button, Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
-  end
-  else
-    Result := False;
+    Result := vFloatItem.MouseUp(Button, Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
+  end;
 end;
 
 procedure THCSectionData.PaintFloatItems(const APageIndex, ADataDrawLeft,

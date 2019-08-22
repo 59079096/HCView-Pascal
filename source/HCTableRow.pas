@@ -179,6 +179,7 @@ begin
     vCell := THCTableCell.Create(AStyle);
     Add(vCell);
   end;
+
   FAutoHeight := True;
 end;
 

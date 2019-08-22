@@ -152,9 +152,9 @@ type
     {procedure ConvertToDrawItems(const AItemNo, AOffs, AContentWidth,
       AContentHeight: Integer; var APos: TPoint; var APageIndex, ALastDNo: Integer);}
 
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure MouseLeave; override;
     procedure KillFocus; override;
 
@@ -227,7 +227,7 @@ type
     procedure ReFormatActiveItem; override;
     procedure ReAdaptActiveItem; override;
     function DeleteActiveDomain: Boolean; override;
-    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer); override;
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean); override;
     procedure SetActiveItemText(const AText: string); override;
     function IsSelectComplateTheory: Boolean; override;
     function SelectExists: Boolean; override;
@@ -573,7 +573,7 @@ begin
     inherited DblClick(X, Y);
 end;
 
-procedure THCTableItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+procedure THCTableItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
 begin
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
@@ -583,7 +583,7 @@ begin
         vEditCell: THCTableCell;
       begin
         vEditCell := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol];
-        vEditCell.CellData.DeleteActiveDataItems(AStartNo, AEndNo);
+        vEditCell.CellData.DeleteActiveDataItems(AStartNo, AEndNo, AKeepPara);
       end);
   end;
 end;
@@ -1109,6 +1109,7 @@ begin
           begin
             FRows[vDestRow][vDestCol].PaintTo(
               vCellDrawLeft, vDestCellDataDrawTop - FCellVPadding,
+              vCellDrawLeft + FColWidths[vC] + GetColSpanWidth(vDestRow, vDestCol),
               ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
               0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
 
@@ -1759,6 +1760,7 @@ begin
       AStream.ReadBuffer(vWidth, SizeOf(Integer));
       FRows[vR].Height := vWidth;
     end;
+
     for vC := 0 to FRows[vR].ColCount - 1 do
     begin
       FRows[vR][vC].CellData.Width := FColWidths[vC] - 2 * FCellHPadding;
@@ -1767,12 +1769,13 @@ begin
   end;
 end;
 
-procedure THCTableItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+function THCTableItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
 var
   vMouseDownRow, vMouseDownCol: Integer;// abstract vBottom;
   vCell: THCTableCell;
   vCellPt: TPoint;
 begin
+  Result := True;
   FMouseLBDowning := (Button = mbLeft) and (Shift = [ssLeft]);
   FOutSelectInto := False;
   FSelecting := False;  // 准备划选
@@ -1855,7 +1858,7 @@ begin
     Self.InitializeMouseInfo;
 end;
 
-procedure THCTableItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+function THCTableItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
 var
   vMoveRow, vMoveCol: Integer;
 
@@ -2013,6 +2016,7 @@ var
   vCellPt: TPoint;
   vResizeInfo: TResizeInfo;
 begin
+  Result := True;
   if ActiveDataResizing then
   begin
     vCellPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
@@ -2109,13 +2113,14 @@ begin
   end;
 end;
 
-procedure THCTableItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+function THCTableItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
 var
   vCellPt: TPoint;
   vUpRow, vUpCol: Integer;
   vResizeInfo: TResizeInfo;
   //vMouseUpInSelect: Boolean;
 begin
+  Result := True;
   FMouseLBDowning := False;
 
   if ActiveDataResizing then
@@ -2306,7 +2311,7 @@ begin
       if vRect.Bottom > ABottom then
         vRect.Bottom := ABottom;
 
-      FRows[vR][vC].PaintTo(vCellLeft, vCellTop, vCellBottom, ATop, ABottom, 0,
+      FRows[vR][vC].PaintTo(vCellLeft, vCellTop, vRect.Right, vCellBottom, ATop, ABottom, 0,
         FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
 
       {$REGION ' 绘制边框线 '}
@@ -2480,7 +2485,7 @@ begin
 
     if vCellDrawBottom - vCellDataDrawTop > FCellVPadding then  // 有可显示的DrawItem
     begin
-      FRows[ARow][vC].PaintTo(vCellDrawLeft, vCellDataDrawTop - FCellVPadding,
+      FRows[ARow][vC].PaintTo(vCellDrawLeft, vCellDataDrawTop - FCellVPadding, vCellRect.Right,
         vCellDrawBottom, ATop, ABottom, 0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
     end;
     {$ENDREGION}
@@ -3066,6 +3071,7 @@ procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
 begin
   ACellData.OnInsertItem := OwnerData.OnInsertItem;
   ACellData.OnRemoveItem := OwnerData.OnRemoveItem;
+  ACellData.OnItemMouseDown := (OwnerData as THCViewData).OnItemMouseDown;
   ACellData.OnItemMouseUp := (OwnerData as THCViewData).OnItemMouseUp;
 
   ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;

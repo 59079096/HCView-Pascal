@@ -54,17 +54,17 @@ type
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; override;
 
-    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+    procedure DoDrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawBottom, ADataScreenTop,
+    procedure DoDrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
   public
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
 
-    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+    procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure InitializeField; override;
@@ -274,14 +274,16 @@ end;
 
 function THCViewData.DeleteDomain(const ADomain: THCDomainInfo): Boolean;
 var
-  i, vFirstDrawItemNo, vParaLastItemNo, vDelCount, vCaretItemNo: Integer;
+  i, vFirstDrawItemNo, vParaLastItemNo, vDelCount, vBeginItemNo: Integer;
+  vBeginPageBreak: Boolean;
+  vItem: THCCustomItem;
 begin
   Result := False;
   if ADomain.BeginNo < 0 then Exit;
 
   Undo_New;
 
-  vCaretItemNo := ADomain.BeginNo;
+  vBeginItemNo := ADomain.BeginNo;
 
   vFirstDrawItemNo := GetFormatFirstDrawItem(Items[ADomain.BeginNo].FirstDItemNo);
   vParaLastItemNo := GetParaLastItemNo(ADomain.EndNo);
@@ -302,6 +304,7 @@ begin
   FormatPrepare(vFirstDrawItemNo, vParaLastItemNo);
 
   vDelCount := 0;
+  vBeginPageBreak := Items[vBeginItemNo].PageBreak;
 
   for i := ADomain.EndNo downto ADomain.BeginNo do  // 删除域及域范围内的Item
   begin
@@ -315,13 +318,25 @@ begin
   end;
 
   FActiveDomain.Clear;
+
+  if vBeginItemNo = 0 then  // 删除完了
+  begin
+    vItem := CreateDefaultTextItem;
+    vItem.ParaFirst := True;
+    vItem.PageBreak := vBeginPageBreak;
+
+    Items.Insert(vBeginItemNo, vItem);
+    UndoAction_InsertItem(vBeginItemNo, 0);
+    Dec(vDelCount);
+  end;
+
   ReFormatData(vFirstDrawItemNo, vParaLastItemNo - vDelCount, -vDelCount);
 
   Self.InitializeField;
-  if vCaretItemNo > Items.Count - 1 then
-    ReSetSelectAndCaret(vCaretItemNo - 1)
+  if vBeginItemNo > Items.Count - 1 then
+    ReSetSelectAndCaret(vBeginItemNo - 1)
   else
-    ReSetSelectAndCaret(vCaretItemNo, 0);
+    ReSetSelectAndCaret(vBeginItemNo, 0);
 
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
@@ -344,8 +359,8 @@ begin
 end;
 
 procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
   {$REGION ' DrawLineLastMrak 段尾的换行符 '}
@@ -397,8 +412,8 @@ procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
   {$ENDREGION}
 
 begin
-  inherited DoDrawItemPaintAfter(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  inherited DoDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
   if not APaintInfo.Print then
   begin
@@ -414,28 +429,26 @@ begin
 end;
 
 procedure THCViewData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vDrawHotDomainBorde, vDrawActiveDomainBorde: Boolean;
-  vItemNo: Integer;
   vDliRGN: HRGN;
 begin
-  inherited DoDrawItemPaintBefor(AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-    ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  inherited DoDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
   if not APaintInfo.Print then  // 拼接域范围
   begin
     vDrawHotDomainBorde := False;
     vDrawActiveDomainBorde := False;
-    vItemNo := DrawItems[ADrawItemNo].ItemNo;
 
     if FHotDomain.BeginNo >= 0 then  // 有Hot域
-      vDrawHotDomainBorde := FHotDomain.Contain(vItemNo);
+      vDrawHotDomainBorde := FHotDomain.Contain(AItemNo);
 
     if FActiveDomain.BeginNo >= 0 then  // 有激活域
-      vDrawActiveDomainBorde := FActiveDomain.Contain(vItemNo);
+      vDrawActiveDomainBorde := FActiveDomain.Contain(AItemNo);
 
     if vDrawHotDomainBorde or vDrawActiveDomainBorde then  // 在Hot域或激活域中
     begin
@@ -814,9 +827,9 @@ begin
   end;
 end;
 
-procedure THCViewData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
-  ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo: Integer;
-  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+procedure THCViewData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight,
+  ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo,
+  ALastDItemNo: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vOldColor: TColor;
 begin
@@ -829,7 +842,7 @@ begin
       FActiveDomainRGN := CreateRectRgn(0, 0, 0, 0);
   end;
 
-  inherited PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawBottom,
+  inherited PaintData(ADataDrawLeft, ADataDrawTop, ADataDrawRight, ADataDrawBottom,
     ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo,
     ACanvas, APaintInfo);
 

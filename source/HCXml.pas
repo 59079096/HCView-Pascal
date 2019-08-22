@@ -21,12 +21,16 @@ type
 
   IHCXMLNode = IXMLNode;
 
-  THCXMLDocument = TXMLDocument;
+  THCXMLDocument = class(TXMLDocument)
+  public
+    constructor Create(AOwner: TComponent); override;
+  end;
 
   function GetEncodingName(const AEncoding: TEncoding): string;
   function GetColorXmlRGB(const AColor: TColor): string;
   function GetXmlRGBColor(const AColorStr: string): TColor;
   //function GetColorHtmlRGB(const AColor: TColor): string;
+  function GetXmlRN(const AText: string): string;
 
   /// <summary> Bitmap×ªÎªBase64×Ö·û </summary>
   function GraphicToBase64(const AGraphic: TGraphic): string;
@@ -136,9 +140,22 @@ begin
   end;
 end;
 
+function GetXmlRN(const AText: string): string;
+begin
+  Result := StringReplace(AText, #10, #13#10, [rfReplaceAll]);
+end;
+
 //function GetColorHtmlRGB(const AColor: TColor): string;
 //begin
 //  Result := 'rgb(' + GetColorXmlRGB(AColor) + ')';
 //end;
+
+{ THCXMLDocument }
+
+constructor THCXMLDocument.Create(AOwner: TComponent);
+begin
+  inherited Create(AOwner);
+  ParseOptions := ParseOptions + [poPreserveWhiteSpace];
+end;
 
 end.

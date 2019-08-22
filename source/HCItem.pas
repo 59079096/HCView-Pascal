@@ -138,9 +138,9 @@ type
     function CanDrag: Boolean; virtual;
     procedure KillFocus; virtual;
     procedure DblClick(const X, Y: Integer); virtual;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); virtual;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; virtual;
+    function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; virtual;
+    function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; virtual;
     procedure MouseEnter; virtual;
     procedure MouseLeave; virtual;
     function GetHint: string; virtual;
@@ -321,9 +321,10 @@ begin
   end;
 end;
 
-procedure THCCustomItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+function THCCustomItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
 begin
   Active := True;
+  Result := FActive;
 end;
 
 procedure THCCustomItem.MouseEnter;
@@ -334,12 +335,14 @@ procedure THCCustomItem.MouseLeave;
 begin
 end;
 
-procedure THCCustomItem.MouseMove(Shift: TShiftState; X, Y: Integer);
+function THCCustomItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
 begin
+  Result := FActive;
 end;
 
-procedure THCCustomItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+function THCCustomItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
 begin
+  Result := FActive;
 end;
 
 procedure THCCustomItem.PaintTo(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -466,6 +469,7 @@ begin
         if Assigned(FOnRemoveItem) then
           FOnRemoveItem(Value);
       end;
+
     cnExtracted: ;
   end;
 
@@ -519,6 +523,8 @@ end;
 procedure TPaintInfo.RestoreCanvasScale(const ACanvas: TCanvas;
   const AOldInfo: TScaleInfo);
 begin
+  if AOldInfo.MapMode = 0 then Exit;
+
   SetViewportOrgEx(ACanvas.Handle, AOldInfo.ViewportOrg.cx, AOldInfo.ViewportOrg.cy, nil);
   SetViewportExtEx(ACanvas.Handle, AOldInfo.ViewportExt.cx, AOldInfo.ViewportExt.cy, nil);
   SetWindowOrgEx(ACanvas.Handle, AOldInfo.WindowOrg.cx, AOldInfo.WindowOrg.cy, nil);
@@ -528,6 +534,12 @@ end;
 
 function TPaintInfo.ScaleCanvas(const ACanvas: TCanvas): TScaleInfo;
 begin
+  if (FScaleX = 1) and (FScaleY = 1) then
+  begin
+    Result.MapMode := 0;
+    Exit;
+  end;
+
   Result.MapMode := GetMapMode(ACanvas.Handle);  // 返回映射方式，零则失败
   SetMapMode(ACanvas.Handle, MM_ANISOTROPIC);  // 逻辑单位转换成具有任意比例轴的任意单位，用SetWindowsEx和SetViewportExtEx函数指定单位、方向和需要的比例
   SetWindowOrgEx(ACanvas.Handle, 0, 0, @Result.WindowOrg);  // 用指定的坐标设置设备环境的窗口原点

@@ -35,8 +35,8 @@ type
   TSectionPaintEvent = procedure(const Sender: TObject; const APageIndex: Integer;
     const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo) of object;
   TSectionDrawItemPaintEvent = procedure(const Sender: TObject; const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect: TRect;
-      const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect;
+      const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   TSectionDataItemNotifyEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem) of object;
@@ -45,7 +45,7 @@ type
   TSectionAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const ADataAnnotate: THCDataAnnotate) of object;
   TSectionDataItemMouseEvent = procedure(const Sender: TObject; const AData: THCCustomData;
-    const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
+    const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
   THCCustomSection = class(TObject)
   private
@@ -89,7 +89,7 @@ type
 
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemNotifyEvent;
-    FOnItemMouseUp: TSectionDataItemMouseEvent;
+    FOnItemMouseDown, FOnItemMouseUp: TSectionDataItemMouseEvent;
     FOnItemResize: TDataItemEvent;
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
@@ -106,16 +106,16 @@ type
     procedure DoDataReadOnlySwitch(Sender: TObject);
     function DoGetScreenCoordEvent(const X, Y: Integer): TPoint;
     procedure DoDataDrawItemPaintBefor(const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure DoDataDrawItemPaintContent(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect, AClearRect: TRect; const ADrawText: string;
-      const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+    procedure DoDataDrawItemPaintContent(const AData: THCCustomData;
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+      const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure DoDataDrawItemPaintAfter(const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
     procedure DoDataInsertAnnotate(const AData: THCCustomData; const ADataAnnotate: THCDataAnnotate);
@@ -125,7 +125,9 @@ type
 
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
-    procedure DoDataItemMouseUp(const AData: THCCustomData; const AItemNo: Integer;
+    procedure DoDataItemMouseDown(const AData: THCCustomData; const AItemNo, AOffset: Integer;
+       Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure DoDataItemMouseUp(const AData: THCCustomData; const AItemNo, AOffset: Integer;
        Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataChanged(Sender: TObject);
 
@@ -242,7 +244,7 @@ type
 
     function InsertText(const AText: string): Boolean;
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
-    function InsertImage(const AFile: string): Boolean;
+    function InsertImage(const AImage: TGraphic): Boolean;
     function InsertGifImage(const AFile: string): Boolean;
     function InsertLine(const ALineHeight: Integer): Boolean;
     function InsertItem(const AItem: THCCustomItem): Boolean; overload;
@@ -330,7 +332,8 @@ type
     function DeleteSelected: Boolean;
     procedure DisSelect;
     function DeleteActiveDomain: Boolean;
-    procedure DeleteActiveDataItems(const AStartNo: Integer; const AEndNo: Integer);
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
+      const AKeepPara: Boolean);
     function MergeTableSelectCells: Boolean;
     procedure ReFormatActiveParagraph;
     procedure ReFormatActiveItem;
@@ -349,7 +352,7 @@ type
       const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
     function SaveToText: string;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word; const ANatural: Boolean = False);
+      const AFileVersion: Word);
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean;
     procedure FormatData;
@@ -410,6 +413,7 @@ type
     property OnInsertItem: TSectionDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TSectionDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
     property OnItemResize: TDataItemEvent read FOnItemResize write FOnItemResize;
+    property OnItemMouseDown: TSectionDataItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TSectionDataItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
     property OnPaintHeader: TSectionPaintEvent read FOnPaintHeader write FOnPaintHeader;
     property OnPaintFooter: TSectionPaintEvent read FOnPaintFooter write FOnPaintFooter;
@@ -663,6 +667,7 @@ var
     AData.OnInsertItem := DoDataInsertItem;
     AData.OnRemoveItem := DoDataRemoveItem;
     AData.OnItemResized := DoDataItemResized;
+    AData.OnItemMouseDown := DoDataItemMouseDown;
     AData.OnItemMouseUp := DoDataItemMouseUp;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
     AData.OnCanEdit := DoDataCanEdit;
@@ -717,11 +722,12 @@ begin
   FPages[0].EndDrawItemNo := 0;
 end;
 
-procedure THCCustomSection.DeleteActiveDataItems(const AStartNo, AEndNo: Integer);
+procedure THCCustomSection.DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
+  const AKeepPara: Boolean);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
-      FActiveData.DeleteActiveDataItems(AStartNo, AEndNo);
+      FActiveData.DeleteActiveDataItems(AStartNo, AEndNo, AKeepPara);
       Result := True;
     end);
 end;
@@ -830,45 +836,53 @@ begin
 end;
 
 procedure THCCustomSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintAfter) then
   begin
-    FOnDrawItemPaintAfter(Self, AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    FOnDrawItemPaintAfter(Self, AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCCustomSection.DoDataDrawItemPaintBefor(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-  ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintBefor) then
   begin
-    FOnDrawItemPaintBefor(Self, AData, ADrawItemNo, ADrawRect, ADataDrawLeft,
-      ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    FOnDrawItemPaintBefor(Self, AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCCustomSection.DoDataDrawItemPaintContent(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
-  const ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADrawText: string;
+  const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintContent) then
-    FOnDrawItemPaintContent(AData, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
-      ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+    FOnDrawItemPaintContent(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
+      ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
+procedure THCCustomSection.DoDataItemMouseDown(const AData: THCCustomData;
+  const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer);
+begin
+  if Assigned(FOnItemMouseDown) then
+    FOnItemMouseDown(Self, AData, AItemNo, AOffset, Button, Shift, X, Y);
 end;
 
 procedure THCCustomSection.DoDataItemMouseUp(const AData: THCCustomData;
-  const AItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X,
+  const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   if Assigned(FOnItemMouseUp) then
-    FOnItemMouseUp(Self, AData, AItemNo, Button, Shift, X, Y);
+    FOnItemMouseUp(Self, AData, AItemNo, AOffset, Button, Shift, X, Y);
 end;
 
 procedure THCCustomSection.DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
@@ -1433,11 +1447,11 @@ begin
     end);
 end;
 
-function THCCustomSection.InsertImage(const AFile: string): Boolean;
+function THCCustomSection.InsertImage(const AImage: TGraphic): Boolean;
 begin
   Result := ActiveDataChangeByAction(function(): Boolean
     begin
-      Result := FActiveData.InsertImage(AFile);
+      Result := FActiveData.InsertImage(AImage);
     end);
 end;
 
@@ -1591,7 +1605,7 @@ begin
 end;
 
 procedure THCCustomSection.LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-  const AFileVersion: Word; const ANatural: Boolean = False);
+  const AFileVersion: Word);
 var
   vDataSize: Int64;
   vArea: Boolean;
@@ -1640,8 +1654,7 @@ begin
   if saPage in vLoadParts then
     FPage.LoadFromStream(AStream, FStyle, AFileVersion);
 
-  if not ANatural then
-    BuildSectionPages(0);
+  BuildSectionPages(0);
 end;
 
 procedure THCCustomSection.MarkStyleUsed(const AMark: Boolean;
@@ -1669,7 +1682,7 @@ procedure THCCustomSection.MouseDown(Button: TMouseButton; Shift: TShiftState; X
   Y: Integer);
 var
   vOldTopData: THCCustomData;
-  vX, vY, vPageIndex: Integer;
+  vX, vY, vX2, vY2, vPageIndex: Integer;
   vNewActiveData: THCSectionData;
   vChangeActiveData: Boolean;
 begin
@@ -1691,11 +1704,13 @@ begin
   {$REGION ' 有FloatItem时短路 '}
   if FActiveData.FloatItems.Count > 0 then  // 有FloatItem时优先
   begin
-    PaperCoordToData(FActivePageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
+    vX2 := vX;  // 使用另外的变量，防止FloatItem不处理时影响下面的正常计算
+    vY2 := vY;
+    PaperCoordToData(FActivePageIndex, FActiveData, vX2, vY2, False);  // 浮动Item不受约束可能在外面
     if FActiveData = FPage then  // FloatItem在PageData中
-      vY := vY + GetPageDataFmtTop(FActivePageIndex);
+      vY2 := vY2 + GetPageDataFmtTop(FActivePageIndex);
 
-    if FActiveData.MouseDownFloatItem(Button, Shift, vX, vY) then Exit;
+    if FActiveData.MouseDownFloatItem(Button, Shift, vX2, vY2) then Exit;
   end;
   {$ENDREGION}
 
@@ -1922,8 +1937,6 @@ procedure THCCustomSection.PaintDisplayPaper(const AFilmOffsetX, AFilmOffsetY: I
 var
   i, vPaperDrawTop, vPaperFilmTop: Integer;
 begin
-  //vPageDrawLeft := AFilmOffsetX;
-  //vHeaderAreaHeight := GetHeaderAreaHeight;  // 页眉区域实际高(内容高度>上边距时取内容高度)
   for i := FDisplayFirstPageIndex to FDisplayLastPageIndex do
   begin
     APaintInfo.PageIndex := i;
@@ -1953,7 +1966,7 @@ var
   begin
     vHeaderDataDrawTop := vPaperDrawTop + GetHeaderPageDrawTop;
 
-    FHeader.PaintData(vPageDrawLeft, vHeaderDataDrawTop,
+    FHeader.PaintData(vPageDrawLeft, vHeaderDataDrawTop, vPageDrawRight,
       vPageDrawTop, Max(vHeaderDataDrawTop, 0),
       Min(vPageDrawTop, APaintInfo.WindowHeight), 0, ACanvas, APaintInfo);
 
@@ -1976,7 +1989,7 @@ var
   var
     vDCState: Integer;
   begin
-    FFooter.PaintData(vPageDrawLeft, vPageDrawBottom, vPaperDrawBottom,
+    FFooter.PaintData(vPageDrawLeft, vPageDrawBottom, vPageDrawRight, vPaperDrawBottom,
       Max(vPageDrawBottom, 0), Min(vPaperDrawBottom, APaintInfo.WindowHeight), 0, ACanvas, APaintInfo);
 
     if Assigned(FOnPaintFooter) then
@@ -2010,6 +2023,7 @@ var
     { 绘制数据，把Data中指定位置的数据，绘制到指定的页区域中，并按照可显示出来的区域约束 }
     FPage.PaintData(vPageDrawLeft,  // 当前页数据要绘制到的Left
       vPageDrawTop,     // 当前页数据要绘制到的Top
+      vPageDrawRight,   // 当前页数据要绘制到的Right
       vPageDrawBottom,  // 当前页数据要绘制的Bottom
       vPageDataScreenTop,     // 界面呈现当前页数据的Top位置
       vPageDataScreenBottom,  // 界面呈现当前页数据Bottom位置
@@ -2818,16 +2832,22 @@ begin
   GetXmlPaper_;
   GetXmlPaperMargin_;
 
+  FPage.Width := GetPageWidth;
+
   for i := 0 to ANode.ChildNodes.Count - 1 do
   begin
     if ANode.ChildNodes[i].NodeName = 'header' then
     begin
       FHeaderOffset := ANode.ChildNodes[i].Attributes['offset'];
+      FHeader.Width := FPage.Width;
       FHeader.ParseXml(ANode.ChildNodes[i]);
     end
     else
     if ANode.ChildNodes[i].NodeName = 'footer' then
-      FFooter.ParseXml(ANode.ChildNodes[i])
+    begin
+      FFooter.Width := FPage.Width;
+      FFooter.ParseXml(ANode.ChildNodes[i]);
+    end
     else
     if ANode.ChildNodes[i].NodeName = 'page' then
       FPage.ParseXml(ANode.ChildNodes[i]);

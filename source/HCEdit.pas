@@ -127,6 +127,9 @@ type
     /// <summary> 获取顶层Data </summary>
     function TopLevelData: THCCustomData;
 
+    /// <summary> 设置当前TextItem的文本内容 </summary>
+    procedure SetActiveItemText(const AText: string);
+
     /// <summary> 全选 </summary>
     procedure SelectAll;
     procedure SaveToFile(const AFileName: string);
@@ -136,9 +139,12 @@ type
     procedure Clear;
     /// <summary> 撤销 </summary>
     procedure Undo;
-
     /// <summary> 重做 </summary>
     procedure Redo;
+    /// <summary> 开始一组撤销操作 </summary>
+    procedure UndoGroupBegin;
+    /// <summary> 结束一组撤销操作 </summary>
+    procedure UndoGroupEnd;
 
     procedure UpdateView;
     procedure BeginUpdate;
@@ -966,6 +972,12 @@ begin
   CheckUpdateInfo;
 end;
 
+procedure THCEdit.SetActiveItemText(const AText: string);
+begin
+  FData.SetActiveItemText(AText);
+  CheckUpdateInfo;
+end;
+
 procedure THCEdit.SetBounds(ALeft, ATop, AWidth, AHeight: Integer);
 begin
   inherited;
@@ -1002,6 +1014,18 @@ begin
   end;
 end;
 
+procedure THCEdit.UndoGroupBegin;
+begin
+  if FUndoList.Enable then
+    FUndoList.UndoGroupBegin(FData.SelectInfo.StartItemNo, FData.SelectInfo.StartItemOffset);
+end;
+
+procedure THCEdit.UndoGroupEnd;
+begin
+  if FUndoList.Enable then
+    FUndoList.UndoGroupEnd(FData.SelectInfo.StartItemNo, FData.SelectInfo.StartItemOffset);
+end;
+
 procedure THCEdit.UpdateView;
 var
   i, vViewWidth, vViewHeight: Integer;
@@ -1022,6 +1046,7 @@ begin
       try
         FData.PaintData(Self.Padding.Left - FHScrollBar.Position,  // 当前页数据要绘制到的Left
           Self.Padding.Top,     // 当前页数据要绘制到的Top
+          Self.Width - FHScrollBar.Position - Self.Padding.Right,
           Self.Padding.Top + FData.Height,  // 当前页数据要绘制的Bottom
           Self.Padding.Top,     // 界面呈现当前页数据的Top位置
           Self.Height - FHScrollBar.Height,  // 界面呈现当前页数据Bottom位置

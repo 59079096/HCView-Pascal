@@ -35,12 +35,10 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     function GetOffsetAt(const X: Integer): Integer; override;
-
+    procedure SetActive(const Value: Boolean); override;
     procedure MouseEnter; override;
     procedure MouseLeave; override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
@@ -175,6 +173,12 @@ var
   vSize: TSize;
   vS: string;
 begin
+  if FCaretOffset < 0 then
+  begin
+    ACaretInfo.Visible := False;
+    Exit;
+  end;
+
   vS := Copy(FText, 1, FCaretOffset);
   OwnerData.Style.ApplyTempStyle(TextStyleNo);
 
@@ -283,13 +287,13 @@ begin
     inherited KeyPress(Key);
 end;
 
-procedure THCEditItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCEditItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 var
   vX: Integer;
   vOffset: Integer;
 begin
-  inherited MouseDown(Button, Shift, X, Y);
+  Result := inherited MouseDown(Button, Shift, X, Y);
   OwnerData.Style.ApplyTempStyle(TextStyleNo);
   vX := X - FMargin;// - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   vOffset := GetNorAlignCharOffsetAt(OwnerData.Style.TempCanvas, FText, vX);
@@ -310,18 +314,6 @@ procedure THCEditItem.MouseLeave;
 begin
   inherited MouseLeave;
   FMouseIn := False;
-end;
-
-procedure THCEditItem.MouseMove(Shift: TShiftState; X, Y: Integer);
-begin
-  inherited MouseMove(Shift, X, Y);
-  //GCursor := crIBeam;
-end;
-
-procedure THCEditItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
-begin
-  inherited MouseUp(Button, Shift, X, Y);
 end;
 
 procedure THCEditItem.ParseXml(const ANode: IHCXMLNode);
@@ -357,6 +349,13 @@ begin
   AStream.WriteBuffer(FBorderWidth, SizeOf(FBorderWidth));
 end;
 
+procedure THCEditItem.SetActive(const Value: Boolean);
+begin
+  inherited SetActive(Value);
+  if not Value then
+    FCaretOffset := -1;
+end;
+
 procedure THCEditItem.SetText(const Value: string);
 begin
   if (not FReadOnly) and (FText <> Value) then
@@ -381,7 +380,33 @@ end;
 function THCEditItem.WantKeyDown(const Key: Word;
   const Shift: TShiftState): Boolean;
 begin
-  Result := True;
+  Result := False;
+
+  if Key = VK_LEFT then
+  begin
+    if FCaretOffset = 0 then  // 最左再次向左，移出
+
+    else
+    if FCaretOffset < 0 then  // 外面左键移入
+    begin
+      FCaretOffset := System.Length(FText);
+      Result := True;
+    end;
+  end
+  else
+  if Key = VK_RIGHT then
+  begin
+    if FCaretOffset = System.Length(FText) then  // 最右再次向右，移出
+
+    else
+    if FCaretOffset < 0 then  // 外面右键移入
+    begin
+      FCaretOffset := 0;
+      Result := True;
+    end;
+  end
+  else
+    Result := True;
 end;
 
 end.

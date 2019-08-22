@@ -212,7 +212,7 @@ type
     /// <summary> 在指定的位置插入一个Item </summary>
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
     function InsertTable(const ARowCount, AColCount: Integer): Boolean;
-    function InsertImage(const AFile: string): Boolean;
+    function InsertImage(const AImage: TGraphic): Boolean;
     function InsertGifImage(const AFile: string): Boolean;
     /// <summary> 插入水平线 </summary>
     function InsertLine(const ALineHeight: Integer): Boolean;
@@ -1072,11 +1072,11 @@ begin
     end);
 end;
 
-function THCCustomGridView.InsertImage(const AFile: string): Boolean;
+function THCCustomGridView.InsertImage(const AImage: TGraphic): Boolean;
 begin
   Result := ChangeByAction(function(): Boolean
     begin
-      FPage.InsertImage(AFile);
+      FPage.InsertImage(AImage);
     end);
 end;
 
@@ -1406,7 +1406,7 @@ begin
 
   //OffsetRect(vRect, -FHScrollBar.Position, -FVScrollBar.Position);
   //FTable.PaintTo(FStyle, vRect, 0, FTable.Height, 0, FViewHeight, ACanvas, APaintInfo);
-  FPage.PaintData(-FHScrollBar.Position, -FVScrollBar.Position,
+  FPage.PaintData(-FHScrollBar.Position, -FVScrollBar.Position, FPage.Width - FHScrollBar.Position,
     FPage.Height, 0, FViewHeight, 0, ACanvas, APaintInfo);
 
   if not APaintInfo.Print then  // 非打印时绘制页面边界

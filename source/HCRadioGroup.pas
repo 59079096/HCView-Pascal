@@ -35,8 +35,8 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
-    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure MouseEnter; override;
     procedure MouseLeave; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
@@ -256,12 +256,12 @@ begin
   end;
 end;
 
-procedure THCRadioGroup.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+function THCRadioGroup.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 var
   i, vIndex: Integer;
 begin
-  inherited MouseDown(Button, Shift, X, Y);
+  Result := inherited MouseDown(Button, Shift, X, Y);
   if Button = mbLeft then
   begin
     vIndex := GetItemAt(X, Y);
@@ -292,9 +292,9 @@ begin
   FMouseIn := False;
 end;
 
-procedure THCRadioGroup.MouseMove(Shift: TShiftState; X, Y: Integer);
+function THCRadioGroup.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
 begin
-  inherited MouseMove(Shift, X, Y);
+  Result := inherited MouseMove(Shift, X, Y);
   GCursor := crDefault;
 end;
 

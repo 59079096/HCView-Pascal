@@ -1260,6 +1260,7 @@ begin
     else
       FVScrollBar.Position := FVScrollBar.Position - WheelDelta;
   end;
+
   Result := True;
 end;
 
@@ -2162,7 +2163,7 @@ end;
 procedure THCView.KeyPress(var Key: Char);
 begin
   inherited KeyPress(Key);
-  if (GetKeyState(VK_CONTROL) < 0) or (GetKeyState(VK_SHIFT) < 0) then  // 按下ctrl或shift
+  if GetKeyState(VK_CONTROL) < 0 then  // 按下ctrl，不阻止shift，放过上挡键
     Exit;
 
   ActiveSection.KeyPress(Key);
@@ -4114,6 +4115,15 @@ begin
             vPaintInfo.TopItems[i].PaintTop(FDataBmp.Canvas);
 
           DoPaintViewAfter(FDataBmp.Canvas, vPaintInfo);  // 本次窗口重绘结束
+
+          if (not vPaintInfo.Print) and Assigned(FCaret) and FCaret.DisFocus then  // 伪光标
+          begin
+            FDataBmp.Canvas.Pen.Color := clGray;
+            FDataBmp.Canvas.Pen.Style := psSolid;
+            FDataBmp.Canvas.Pen.Width := FCaret.Width;
+            FDataBmp.Canvas.MoveTo(FCaret.X, FCaret.Y);
+            FDataBmp.Canvas.LineTo(FCaret.X, FCaret.Y + FCaret.Height);
+          end;
         finally
           vPaintInfo.RestoreCanvasScale(FDataBmp.Canvas, vScaleInfo);
         end;
@@ -4238,7 +4248,10 @@ procedure THCView.WMKillFocus(var Message: TWMKillFocus);
 begin
   inherited;
   if (Message.FocusedWnd <> Self.Handle) and Assigned(FCaret) then
-    FCaret.Hide;
+  begin
+    FCaret.Hide(True);
+    UpdateView(Bounds(FCaret.X - 1, FCaret.Y, FCaret.Width + 1, FCaret.Height));
+  end;
 end;
 
 procedure THCView.WMLButtonDblClk(var Message: TWMLButtonDblClk);

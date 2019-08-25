@@ -143,7 +143,9 @@ begin
       end
       else  // 域起始标记
         Result := FDomainStartDeletes.IndexOf(AItemNo) >= 0;  // 结束标识已经被标记为可删除
-    end;
+    end
+    else
+      Result := Items[AItemNo].CanAccept(0, THCItemAction.hiaRemove);
   end;
 end;
 

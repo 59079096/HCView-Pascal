@@ -188,24 +188,28 @@ type
 
   THCCaret = Class(TObject)
   private
-    FReCreate: Boolean;
+    FReCreate, FDisFocus: Boolean;
     FHeight: Integer;
     FOwnHandle: THandle;
     FX, FY: Integer;
+    FWidth: Byte;
   protected
     procedure SetX(const Value: Integer);
     procedure SetY(const Value: Integer);
     procedure SetHeight(const Value: Integer);
+    procedure SetWidth(const Value: Byte);
   public
     constructor Create(const AHandle: THandle);
     destructor Destroy; override;
     procedure ReCreate;
     procedure Show(const AX, AY: Integer); overload;
     procedure Show; overload;
-    procedure Hide;
+    procedure Hide(const ADisFocus: Boolean = False);
     property Height: Integer read FHeight write SetHeight;
+    property Width: Byte read FWidth write SetWidth;
     property X: Integer read FX write SetX;
     property Y: Integer read FY write SetY;
+    property DisFocus: Boolean read FDisFocus;
   end;
 
   function SwapBytes(AValue: Word): Word;
@@ -862,26 +866,29 @@ end;
 constructor THCCaret.Create(const AHandle: THandle);
 begin
   FOwnHandle := AHandle;
-  CreateCaret(FOwnHandle, 0, 2, 20);
+  FWidth := 2;
+  CreateCaret(FOwnHandle, 0, FWidth, 20);
   FReCreate := False;
+  FDisFocus := False;
 end;
 
 destructor THCCaret.Destroy;
 begin
   DestroyCaret;
   FOwnHandle := 0;
-  inherited;
+  inherited Destroy;
 end;
 
-procedure THCCaret.Hide;
+procedure THCCaret.Hide(const ADisFocus: Boolean = False);
 begin
+  FDisFocus := ADisFocus;
   HideCaret(FOwnHandle);
 end;
 
 procedure THCCaret.ReCreate;
 begin
   DestroyCaret;
-  CreateCaret(FOwnHandle, 0, 2, FHeight);
+  CreateCaret(FOwnHandle, 0, FWidth, FHeight);
 end;
 
 procedure THCCaret.SetHeight(const Value: Integer);
@@ -889,6 +896,15 @@ begin
   if FHeight <> Value then
   begin
     FHeight := Value;
+    FReCreate := True;
+  end;
+end;
+
+procedure THCCaret.SetWidth(const Value: Byte);
+begin
+  if FWidth <> Value then
+  begin
+    FWidth := Value;
     FReCreate := True;
   end;
 end;
@@ -921,6 +937,8 @@ end;
 
 procedure THCCaret.Show(const AX, AY: Integer);
 begin
+  FDisFocus := False;
+
   if FReCreate then
     ReCreate;
 

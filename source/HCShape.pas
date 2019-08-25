@@ -113,12 +113,13 @@ type
   public
     constructor Create; override;
     procedure PaintTo(const ACanvas: TCanvas; const ARect: TRect; const APaintInfo: TPaintInfo); override;
-    function PointInClient(const APoint: TPoint): Boolean; override;
 
     property BackColor: TColor read FBackColor write FBackColor;
   end;
 
   THCShapeEllipse = class(THCShapeRectangle)
+  protected
+    function GetObjAt(const X, Y: Integer): THCShapeLineObj; override;
   public
     constructor Create; override;
     procedure PaintTo(const ACanvas: TCanvas; const ARect: TRect; const APaintInfo: TPaintInfo); override;
@@ -129,6 +130,7 @@ type
     X, Y: Integer;
     constructor Create(const AX, AY: Integer);
     procedure Init(const AX, AY: Integer);
+    procedure Offset(const AX, AY: Integer);
   end;
 
   THCShapePolygon = class(THCShape)
@@ -137,8 +139,9 @@ type
     FPoints: TObjectList<THCPoint>;
     FWidth: Byte;
     FLineStyle: TPenStyle;
-    FActiveIndex: Integer;
+    FActivePointIndex, FActiveLineIndex: Integer;
 
+    procedure OffsetPoints(const X, Y: Integer);
     procedure SetWidth(const Value: Byte);
     procedure SetLineStyle(const Value: TPenStyle);
   protected
@@ -921,23 +924,54 @@ begin
     PaintAnchor(ACanvas, ARect);
 end;
 
-function THCShapeRectangle.PointInClient(const APoint: TPoint): Boolean;
-var
-  vRect: TRect;
-begin
-  vRect := ClientRect;
-  if Self.Active then
-    InflateRect(vRect, PointSize, PointSize);
-
-  Result := PtInRect(vRect, APoint);
-end;
-
 { THCShapeEllipse }
 
 constructor THCShapeEllipse.Create;
 begin
   inherited Create;
   Style := THCShapeStyle.hssEllipse;
+end;
+
+function THCShapeEllipse.GetObjAt(const X, Y: Integer): THCShapeLineObj;
+var
+  vRect: TRect;
+  vRgn1, vRgn2: HRGN;
+begin
+  Result := sloNone;
+
+  if PtInRect(Rect(StartPt.X - PointSize, StartPt.Y - PointSize,
+                   StartPt.X + PointSize, StartPt.Y + PointSize),
+              Point(X, Y))
+  then
+    Result := sloStart
+  else
+  if PtInRect(Rect(EndPt.X - PointSize, EndPt.Y - PointSize,
+                   EndPt.X + PointSize, EndPt.Y + PointSize),
+              Point(X, Y))
+  then
+    Result := sloEnd
+  else
+  //if PointInClient(Point(X, Y)) then  // 粗暴判断
+  begin
+    vRect := ClientRect;
+    InflateRect(vRect, PointSize, PointSize);
+    vRgn1 := CreateEllipticRgnIndirect(vRect);
+    try
+      if PtInRegion(vRgn1, X, Y) then  // 在外围
+      begin
+        InflateRect(vRect, -PointSize - PointSize, -PointSize - PointSize);
+        vRgn2 := CreateEllipticRgnIndirect(vRect);
+        try
+          if not PtInRegion(vRgn2, X, Y) then  // 不在内围
+            Result := sloLine;
+        finally
+          DeleteObject(vRgn2);
+        end;
+      end;
+    finally
+      DeleteObject(vRgn1);
+    end;
+  end;
 end;
 
 procedure THCShapeEllipse.PaintTo(const ACanvas: TCanvas; const ARect: TRect;
@@ -988,7 +1022,8 @@ begin
   FWidth := 1;
   FLineStyle := TPenStyle.psSolid;
   FPoints := TObjectList<THCPoint>.Create;
-  FActiveIndex := -1;
+  FActivePointIndex := -1;
+  FActiveLineIndex := -1;
 end;
 
 destructor THCShapePolygon.Destroy;
@@ -1059,12 +1094,12 @@ begin
   Result := False;
   if Key in [VK_BACK, VK_DELETE] then
   begin
-    if (StructState = THCStructState.hstcStop) and (FActiveIndex >= 0) then  // 删除当前点
+    if (StructState = THCStructState.hstcStop) and (FActivePointIndex >= 0) then  // 删除当前点
     begin
       if FPoints.Count > 2 then
       begin
-        FPoints.Delete(FActiveIndex);
-        FActiveIndex := -1;
+        FPoints.Delete(FActivePointIndex);
+        FActivePointIndex := -1;
         Result := True;
       end;
     end;
@@ -1103,14 +1138,14 @@ begin
       FPoints.Add(vPoint);
 
       vPoint := THCPoint.Create(X, Y);
-      FActiveIndex := FPoints.Add(vPoint);
+      FActivePointIndex := FPoints.Add(vPoint);
       StructState := THCStructState.hstcStructing;
     end
     else
     if StructState = THCStructState.hstcStructing then
     begin
       vPoint := THCPoint.Create(X, Y);
-      FActiveIndex := FPoints.Add(vPoint);
+      FActivePointIndex := FPoints.Add(vPoint);
     end
     else  // 构建进行中按下，完成构建
       StructOver;
@@ -1120,14 +1155,27 @@ begin
   else
   begin
     vIndex := GetPointAt(X, Y);
-    if FActiveIndex <> vIndex then
+    if FActivePointIndex <> vIndex then
     begin
-      FActiveIndex := vIndex;
-      Active := FActiveIndex >= 0;
+      FActivePointIndex := vIndex;
+      Active := FActivePointIndex >= 0;
       Result := Active;
     end
     else
       Result := vIndex >= 0;
+
+    if not Result then  // 是否在线段上
+    begin
+      vIndex := GetLineAt(X, Y);
+      if FActiveLineIndex <> vIndex then
+      begin
+        FActiveLineIndex := vIndex;
+        Active := FActiveLineIndex >= 0;
+        Result := Active;
+      end
+      else
+        Result := vIndex >= 0;
+    end;
 
     if Result then
     begin
@@ -1145,15 +1193,28 @@ begin
 
   if StructState = THCStructState.hstcStructing then  // 构建中
   begin
-    FPoints[FActiveIndex].Init(X, Y);
+    FPoints[FActivePointIndex].Init(X, Y);
     Result := True;
     Exit;
   end;
 
-  if (Shift = [ssLeft]) and (FActiveIndex >= 0) then  // 左键按下
+  if Shift = [ssLeft] then  // 左键按下
   begin
-    FPoints[FActiveIndex].Init(X, Y);
-    Result := True;
+    if FActivePointIndex >= 0 then
+    begin
+      FPoints[FActivePointIndex].Init(X, Y);
+      Result := True;
+    end
+    else
+    if FActiveLineIndex >= 0 then  // 整体移动
+    begin
+      OffsetPoints(X - FMousePt.X, Y - FMousePt.Y);
+
+      FMousePt.X := X;
+      FMousePt.Y := Y;
+
+      Result := True;
+    end;
   end
   else
   begin
@@ -1181,6 +1242,14 @@ begin
   Result := False;
 end;
 
+procedure THCShapePolygon.OffsetPoints(const X, Y: Integer);
+var
+  i: Integer;
+begin
+  for i := 0 to FPoints.Count - 1 do
+    FPoints[i].Offset(X, Y);
+end;
+
 procedure THCShapePolygon.PaintAnchor(const ACanvas: TCanvas;
   const ARect: TRect);
 var
@@ -1197,17 +1266,17 @@ begin
       FPoints[i].X + ARect.Left + PointSize, FPoints[i].Y + ARect.Top + PointSize);
   end;
 
-  if FActiveIndex >= 0 then
+  if FActivePointIndex >= 0 then
   begin
     ACanvas.Pen.Color := clRed;
     if StructState = THCStructState.hstcStructing then
       ACanvas.Pen.Style := psDot;
 
     ACanvas.Rectangle(
-      FPoints[FActiveIndex].X + ARect.Left - PointSize,
-      FPoints[FActiveIndex].Y + ARect.Top - PointSize,
-      FPoints[FActiveIndex].X + ARect.Left + PointSize,
-      FPoints[FActiveIndex].Y + ARect.Top + PointSize);
+      FPoints[FActivePointIndex].X + ARect.Left - PointSize,
+      FPoints[FActivePointIndex].Y + ARect.Top - PointSize,
+      FPoints[FActivePointIndex].X + ARect.Left + PointSize,
+      FPoints[FActivePointIndex].Y + ARect.Top + PointSize);
   end;
 end;
 
@@ -1238,8 +1307,18 @@ begin
 end;
 
 function THCShapePolygon.PointInClient(const APoint: TPoint): Boolean;
+var
+  vIndex: Integer;
 begin
-  Result := inherited;
+  vIndex := GetPointAt(APoint.X, APoint.Y);
+  if vIndex >= 0 then
+    Result := True
+  else
+  begin
+    vIndex := GetLineAt(APoint.X, APoint.Y);
+    if vIndex >= 0 then
+      Result := True;
+  end;
 end;
 
 procedure THCShapePolygon.SaveToStream(const AStream: TStream);
@@ -1252,7 +1331,10 @@ procedure THCShapePolygon.SetActive(const Value: Boolean);
 begin
   inherited SetActive(Value);
   if not Self.Active then
-    FActiveIndex := -1;
+  begin
+    FActivePointIndex := -1;
+    FActiveLineIndex := -1;
+  end;
 end;
 
 procedure THCShapePolygon.SetLineStyle(const Value: TPenStyle);
@@ -1269,7 +1351,8 @@ end;
 
 procedure THCShapePolygon.StructOver;
 begin
-  FActiveIndex := -1;
+  FActivePointIndex := -1;
+  FActiveLineIndex := -1;
   if FPoints.Count > 2 then
     FPoints.Delete(FPoints.Count - 1);
 
@@ -1294,6 +1377,12 @@ procedure THCPoint.Init(const AX, AY: Integer);
 begin
   X := AX;
   Y := AY;
+end;
+
+procedure THCPoint.Offset(const AX, AY: Integer);
+begin
+  X := X + AX;
+  Y := Y + AY;
 end;
 
 end.

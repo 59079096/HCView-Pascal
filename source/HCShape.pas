@@ -406,8 +406,30 @@ begin
 end;
 
 procedure THCShapeManager.ParseXml(const ANode: IHCXMLNode);
+var
+  i: Integer;
+  vShapeNode: IHCXMLNode;
+  vShape: THCShape;
+  vStyle: THCShapeStyle;
 begin
+  Self.Clear;
 
+  for i := 0 to ANode.ChildNodes.Count - 1 do
+  begin
+    vShapeNode := ANode.ChildNodes[i];
+    vStyle := vShapeNode.Attributes['style'];
+    case vStyle of
+      THCShapeStyle.hssNone: raise Exception.Create('THCShape读取失败，无效的样式值！');
+
+      THCShapeStyle.hssLine: vShape := THCShapeLine.Create;
+      THCShapeStyle.hssRectangle: vShape := THCShapeRectangle.Create;
+      THCShapeStyle.hssEllipse: vShape := THCShapeEllipse.Create;
+      THCShapeStyle.hssPolygon: vShape := THCShapePolygon.Create;
+    end;
+
+    vShape.ParseXml(vShapeNode);
+    Self.Add(vShape);
+  end;
 end;
 
 procedure THCShapeManager.SaveToStream(const AStream: TStream);
@@ -452,8 +474,15 @@ begin
 end;
 
 procedure THCShapeManager.ToXml(const ANode: IHCXMLNode);
+var
+  i: Integer;
+  vShapeNode: IHCXMLNode;
 begin
-
+  for i := 0 to Count - 1 do
+  begin
+    vShapeNode := ANode.AddChild('shape');
+    Self[i].ToXml(vShapeNode);
+  end;
 end;
 
 { THCShapeLine }
@@ -505,7 +534,7 @@ end;
 
 constructor THCShapeLine.CreateEx(const AStartPt, AEndPt: TPoint);
 begin
-  inherited Create;
+  Create;
   FStartPt := AStartPt;
   FEndPt := AEndPt;
 end;
@@ -692,7 +721,7 @@ begin
   FLineStyle := ANode.Attributes['ls'];
   FStartPt.X := ANode.Attributes['sx'];
   FStartPt.Y := ANode.Attributes['sy'];
-  FEndPt.Y := ANode.Attributes['ex'];
+  FEndPt.X := ANode.Attributes['ex'];
   FEndPt.Y := ANode.Attributes['ey'];
 end;
 
@@ -738,7 +767,7 @@ begin
   ANode.Attributes['ls'] := FLineStyle;
   ANode.Attributes['sx'] := FStartPt.X;
   ANode.Attributes['sy'] := FStartPt.Y;
-  ANode.Attributes['ex'] := FEndPt.Y;
+  ANode.Attributes['ex'] := FEndPt.X;
   ANode.Attributes['ey'] := FEndPt.Y;
 end;
 
@@ -1107,9 +1136,24 @@ begin
 end;
 
 procedure THCShapePolygon.LoadFromStream(const AStream: TStream);
+var
+  i, vCount, vX, vY: Integer;
+  vPoint: THCPoint;
 begin
-  inherited;
+  FPoints.Clear;
 
+  inherited LoadFromStream(AStream);
+  AStream.ReadBuffer(FWidth, SizeOf(FWidth));
+  AStream.ReadBuffer(FLineStyle, SizeOf(FLineStyle));
+
+  AStream.ReadBuffer(vCount, SizeOf(vCount));
+  for i := 0 to vCount - 1 do
+  begin
+    AStream.ReadBuffer(vX, SizeOf(vX));
+    AStream.ReadBuffer(vY, SizeOf(vY));
+    vPoint := THCPoint.Create(vX, vY);
+    FPoints.Add(vPoint);
+  end;
 end;
 
 function THCShapePolygon.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -1301,9 +1345,23 @@ begin
 end;
 
 procedure THCShapePolygon.ParseXml(const ANode: IHCXMLNode);
+var
+  i: Integer;
+  vPoint: THCPoint;
 begin
-  inherited;
+  FPoints.Clear;
 
+  inherited ParseXml(ANode);
+  FWidth := ANode.Attributes['width'];
+  FLineStyle := ANode.Attributes['ls'];
+
+  for i := 0 to ANode.ChildNodes.Count - 1 do
+  begin
+    vPoint := THCPoint.Create(ANode.ChildNodes[i].Attributes['x'],
+      ANode.ChildNodes[i].Attributes['y']);
+
+    FPoints.Add(vPoint);
+  end;
 end;
 
 function THCShapePolygon.PointInClient(const APoint: TPoint): Boolean;
@@ -1322,9 +1380,20 @@ begin
 end;
 
 procedure THCShapePolygon.SaveToStream(const AStream: TStream);
+var
+  i: Integer;
 begin
-  inherited;
+  inherited SaveToStream(AStream);
 
+  AStream.WriteBuffer(FWidth, SizeOf(FWidth));
+  AStream.WriteBuffer(FLineStyle, SizeOf(FLineStyle));
+
+  AStream.WriteBuffer(FPoints.Count, SizeOf(Integer));
+  for i := 0 to FPoints.Count - 1 do
+  begin
+    AStream.WriteBuffer(FPoints[i].X, SizeOf(Integer));
+    AStream.WriteBuffer(FPoints[i].Y, SizeOf(Integer));
+  end;
 end;
 
 procedure THCShapePolygon.SetActive(const Value: Boolean);
@@ -1360,9 +1429,20 @@ begin
 end;
 
 procedure THCShapePolygon.ToXml(const ANode: IHCXMLNode);
+var
+  vNode: IHCXMLNode;
+  i: Integer;
 begin
-  inherited;
+  inherited ToXml(ANode);
+  ANode.Attributes['width'] := FWidth;
+  ANode.Attributes['ls'] := FLineStyle;
 
+  for i := 0 to FPoints.Count - 1 do
+  begin
+    vNode := ANode.AddChild('pt');
+    vNode.Attributes['x'] := FPoints[i].X;
+    vNode.Attributes['y'] := FPoints[i].Y;
+  end;
 end;
 
 { THCPoint }

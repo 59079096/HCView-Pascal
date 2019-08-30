@@ -1804,7 +1804,7 @@ begin
     FMoveData := vMoveData;
   end;
 
-  PaperCoordToData(FMousePageIndex, FActiveData, vX, vY);
+  PaperCoordToData(FMousePageIndex, FActiveData, vX, vY, Shift <> []);  // 普通移出正文不Hot任何Item
 
   if FActiveData = FPage then
     vY := vY + GetPageDataFmtTop(FMousePageIndex);

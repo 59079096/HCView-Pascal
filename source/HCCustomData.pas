@@ -1348,10 +1348,10 @@ begin
         end
         else  // 相差1
         begin
-          if Y > FDrawItems[vEndDItemNo].Rect.Bottom then  // 第二个下面
+          if Y >= FDrawItems[vEndDItemNo].Rect.Bottom then  // 第二个下面，下边界算当前的，这样在划选到页底部时不至于选中下一页的
             vStartDItemNo := vEndDItemNo
           else
-          if Y >= FDrawItems[vEndDItemNo].Rect.Top then  // 第二个
+          if Y > FDrawItems[vEndDItemNo].Rect.Top then  // 第二个
             vStartDItemNo := vEndDItemNo;
           //else 不处理即第一个
           Break;

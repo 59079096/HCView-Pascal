@@ -196,7 +196,7 @@ uses
   HCSupSubScriptItem, HCCheckBoxItem, HCEditItem, HCComboboxItem, HCDateTimePicker,
   HCRadioGroup, HCBarCodeItem, HCQRCodeItem, HCTextItem, frm_Annotate, frm_TableProperty,
   frm_TableBorderBackColor, frm_PrintView, frm_Paragraph, frm_ControlItemProperty,
-  frm_InsertTable, frm_PageSet, CFBalloonHint;
+  frm_InsertTable, frm_PageSet, CFBalloonHint, HCImageItem, HCRichData;
 
 {$R *.dfm}
 
@@ -365,17 +365,28 @@ end;
 procedure TfrmGridViewDemo.mniN12Click(Sender: TObject);
 var
   vOpenDlg: TOpenDialog;
+  vImageItem: THCImageItem;
+  vTopData: THCRichData;
 begin
   vOpenDlg := TOpenDialog.Create(Self);
   try
     vOpenDlg.Filter := '图像文件|*.bmp; *.jpg; *.jpeg; *.png|Windows Bitmap|*.bmp|JPEG 文件|*.jpg; *.jpge|可移植网络图形|*.png';
-    if vOpenDlg.Execute then
-    begin
-      if vOpenDlg.FileName <> '' then
+    FGridView.Enabled := False;
+    try
+      if vOpenDlg.Execute then
       begin
-        Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
-        FGridView.InsertImage(vOpenDlg.FileName);
+        if vOpenDlg.FileName <> '' then
+        begin
+          vTopData := FGridView.TopLevelData as THCRichData;
+          vImageItem := THCImageItem.Create(vTopData);
+          vImageItem.LoadFromBmpFile(vOpenDlg.FileName);
+          vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
+          Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
+          FGridView.InsertItem(vImageItem);
+        end;
       end;
+    finally
+      FGridView.Enabled := True;
     end;
   finally
     FreeAndNil(vOpenDlg);

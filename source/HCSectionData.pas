@@ -587,7 +587,7 @@ begin
   for i := 0 to vItemsNode.ChildNodes.Count - 1 do
   begin
     vNode := vItemsNode.ChildNodes[i];
-    vFloatItem := CreateFloatItemByStyle(vNode.Attributes['sno']);
+    vFloatItem := CreateFloatItemByStyle(vNode.Attributes['style']);
     vFloatItem.ParseXml(vNode);
     FFloatItems.Add(vFloatItem);
   end;

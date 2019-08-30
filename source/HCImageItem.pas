@@ -380,9 +380,21 @@ begin
 end;
 
 procedure THCImageItem.ParseXml(const ANode: IHCXMLNode);
+var
+  vNode: IHCXMLNode;
 begin
   inherited ParseXml(ANode);
-  Base64ToGraphic(ANode.Text, FImage);
+
+  vNode := ANode.ChildNodes.FindNode('img');
+  if Assigned(vNode) then  // 兼容27之前的文件
+  begin
+    Base64ToGraphic(vNode.Text, FImage);
+
+    vNode := ANode.ChildNodes.FindNode('shapes');
+    FShapeManager.ParseXml(vNode);
+  end
+  else
+    Base64ToGraphic(ANode.Text, FImage);
 end;
 
 procedure THCImageItem.RecoverOrigianlSize;
@@ -452,9 +464,16 @@ begin
 end;
 
 procedure THCImageItem.ToXml(const ANode: IHCXMLNode);
+var
+  vNode: IHCXMLNode;
 begin
   inherited ToXml(ANode);
-  ANode.Text := GraphicToBase64(FImage);
+
+  vNode := ANode.AddChild('img');
+  vNode.Text := GraphicToBase64(FImage);
+
+  vNode := ANode.AddChild('shapes');
+  FShapeManager.ToXml(vNode);
 end;
 
 end.

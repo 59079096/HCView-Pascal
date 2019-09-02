@@ -2545,25 +2545,35 @@ begin
   begin
     if AStartItemNo <> AEndItemNo then
     begin
-      // 起始
-      if FItems[AStartItemNo].StyleNo > THCStyle.Null then
-        Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
-      else
-        Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText;
+      if DoSaveItem(FItems[AStartItemNo]) then // 起始
+      begin
+        if FItems[AStartItemNo].StyleNo > THCStyle.Null then
+          Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
+        else
+          Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText;
+      end;
 
       for i := AStartItemNo + 1 to AEndItemNo - 1 do  // 中间
-        Result := Result + FItems[i].Text;
+      begin
+        if DoSaveItem(FItems[i]) then
+          Result := Result + FItems[i].Text;
+      end;
 
-      // 结尾
-      if FItems[AEndItemNo].StyleNo > THCStyle.Null then
-        Result := Result + (FItems[AEndItemNo] as THCTextItem).SubString(1, AEndOffset)
-      else
-        Result := (FItems[AEndItemNo] as THCCustomRectItem).SaveSelectToText;
+      if DoSaveItem(FItems[AEndItemNo]) then  // 结尾
+      begin
+        if FItems[AEndItemNo].StyleNo > THCStyle.Null then
+          Result := Result + (FItems[AEndItemNo] as THCTextItem).SubString(1, AEndOffset)
+        else
+          Result := (FItems[AEndItemNo] as THCCustomRectItem).SaveSelectToText;
+      end;
     end
     else  // 选中在同一Item
     begin
-      if FItems[AStartItemNo].StyleNo > THCStyle.Null then
-        Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, AEndOffset - AStartOffset);
+      if DoSaveItem(FItems[AStartItemNo]) then
+      begin
+        if FItems[AStartItemNo].StyleNo > THCStyle.Null then
+          Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, AEndOffset - AStartOffset);
+      end;
     end;
   end;
 end;

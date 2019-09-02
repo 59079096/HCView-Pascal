@@ -162,7 +162,7 @@ var
   i, vDelCount: Integer;
 begin
   Result := inherited CheckInsertItemCount(AStartNo, AEndNo);
-
+  Exit;  // 目前的稳定性应该不会出现不匹配的问题了
   // 检查加载或粘贴等从流插入Items不匹配的域起始结束标识并删除
   vDelCount := 0;
   for i := AStartNo to AEndNo do  // 从前往后找没有插入起始标识的域，删除单独的域结束标识
@@ -741,7 +741,7 @@ begin
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
-    Self.Style.OperStates.Include(hosBatchInsert);
+    Self.Style.States.Include(hosBatchInsert);
     try
       // 插入头
       vDomainItem := CreateDefaultDomainItem as THCDomainItem;
@@ -767,7 +767,7 @@ begin
         Result := InsertItem(vDomainItem);
       end;
     finally
-      Self.Style.OperStates.Exclude(hosBatchInsert);
+      Self.Style.States.Exclude(hosBatchInsert);
     end;
   finally
     Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);

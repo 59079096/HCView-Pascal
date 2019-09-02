@@ -38,8 +38,10 @@ type
       const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect;
       const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
-  TSectionDataItemNotifyEvent = procedure(const Sender: TObject; const AData: THCCustomData;
+  TSectionDataItemEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem) of object;
+  TSectionDataItemFunEvent = function(const Sender: TObject; const AData: THCCustomData;
+    const AItem: THCCustomItem): Boolean of object;
   TSectionDrawItemAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate) of object;
   TSectionAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
@@ -88,9 +90,10 @@ type
     FOnDrawItemAnnotate: TSectionDrawItemAnnotateEvent;
 
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
-    FOnInsertItem, FOnRemoveItem: TSectionDataItemNotifyEvent;
+    FOnInsertItem, FOnRemoveItem: TSectionDataItemEvent;
+    FOnSaveItem, FOnDeleteItem: TSectionDataItemFunEvent;
     FOnItemMouseDown, FOnItemMouseUp: TSectionDataItemMouseEvent;
-    FOnItemResize: TDataItemEvent;
+    FOnItemResize: TDataItemNoEvent;
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
@@ -125,6 +128,8 @@ type
 
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
+    function DoDataSaveItem(const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
+    function DoDataDeleteItem(const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
     procedure DoDataItemMouseDown(const AData: THCCustomData; const AItemNo, AOffset: Integer;
        Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataItemMouseUp(const AData: THCCustomData; const AItemNo, AOffset: Integer;
@@ -335,6 +340,7 @@ type
     procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
       const AKeepPara: Boolean);
     function MergeTableSelectCells: Boolean;
+    function TableApplyContentAlign(const AAlign: THCContentAlign): Boolean;
     procedure ReFormatActiveParagraph;
     procedure ReFormatActiveItem;
     function GetHeaderAreaHeight: Integer;
@@ -410,9 +416,10 @@ type
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
     property OnCheckUpdateInfo: TNotifyEvent read FOnCheckUpdateInfo write FOnCheckUpdateInfo;
-    property OnInsertItem: TSectionDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
-    property OnRemoveItem: TSectionDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
-    property OnItemResize: TDataItemEvent read FOnItemResize write FOnItemResize;
+    property OnInsertItem: TSectionDataItemEvent read FOnInsertItem write FOnInsertItem;
+    property OnRemoveItem: TSectionDataItemEvent read FOnRemoveItem write FOnRemoveItem;
+    property OnSaveItem: TSectionDataItemFunEvent read FOnSaveItem write FOnSaveItem;
+    property OnItemResize: TDataItemNoEvent read FOnItemResize write FOnItemResize;
     property OnItemMouseDown: TSectionDataItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TSectionDataItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
     property OnPaintHeader: TSectionPaintEvent read FOnPaintHeader write FOnPaintHeader;
@@ -427,6 +434,7 @@ type
     property OnRemoveAnnotate: TSectionAnnotateEvent read FOnRemoveAnnotate write FOnRemoveAnnotate;
     property OnDrawItemAnnotate: TSectionDrawItemAnnotateEvent read FOnDrawItemAnnotate write FOnDrawItemAnnotate;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
+    property OnDeleteItem: TSectionDataItemFunEvent read FOnDeleteItem write FOnDeleteItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
@@ -666,6 +674,8 @@ var
     AData.Width := vWidth;
     AData.OnInsertItem := DoDataInsertItem;
     AData.OnRemoveItem := DoDataRemoveItem;
+    AData.OnSaveItem := DoDataSaveItem;
+    AData.OnDeleteItem := DoDataDeleteItem;
     AData.OnItemResized := DoDataItemResized;
     AData.OnItemMouseDown := DoDataItemMouseDown;
     AData.OnItemMouseUp := DoDataItemMouseUp;
@@ -828,6 +838,15 @@ begin
     FOnInsertItem(Self, AData, AItem);
 end;
 
+function THCCustomSection.DoDataDeleteItem(const AData: THCCustomData;
+  const AItem: THCCustomItem): Boolean;
+begin
+  if Assigned(FOnDeleteItem) then
+    Result := FOnDeleteItem(Self, AData, AItem)
+  else
+    Result := True;
+end;
+
 procedure THCCustomSection.DoDataDrawItemAnnotate(const AData: THCCustomData;
   const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
 begin
@@ -927,6 +946,15 @@ procedure THCCustomSection.DoDataRemoveItem(const AData: THCCustomData; const AI
 begin
   if Assigned(FOnRemoveItem) then
     OnRemoveItem(Self, AData, AItem);
+end;
+
+function THCCustomSection.DoDataSaveItem(const AData: THCCustomData;
+  const AItem: THCCustomItem): Boolean;
+begin
+  if Assigned(FOnSaveItem) then
+    Result := FOnSaveItem(Self, AData, AItem)
+  else
+    Result := True;
 end;
 
 function THCCustomSection.DoGetScreenCoordEvent(const X, Y: Integer): TPoint;
@@ -2740,6 +2768,15 @@ begin
   FHeader.ReadOnly := Value;
   FFooter.ReadOnly := Value;
   FPage.ReadOnly := Value;
+end;
+
+function THCCustomSection.TableApplyContentAlign(
+  const AAlign: THCContentAlign): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.TableApplyContentAlign(AAlign);
+    end);
 end;
 
 procedure THCCustomSection.Undo(const AUndo: THCUndo);

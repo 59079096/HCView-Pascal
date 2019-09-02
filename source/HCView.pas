@@ -119,7 +119,8 @@ type
       : TNotifyEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
     FOnSectionCanEdit: TOnCanEditEvent;
-    FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemNotifyEvent;
+    FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemEvent;
+    FOnSectionSaveItem, FOnSectionDeleteItem: TSectionDataItemFunEvent;
     FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent;
 
     FOnSectionPaintHeader, FOnSectionPaintFooter, FOnSectionPaintPage,
@@ -243,9 +244,11 @@ type
     procedure DoChange; virtual;
     procedure DoCaretChange; virtual;
     procedure DoSectionCreateItem(Sender: TObject); virtual;
+    function DoSectionDeleteItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem): Boolean; virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
+    function DoSectionSaveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem): Boolean; virtual;
     function DoSectionCanEdit(const Sender: TObject): Boolean; virtual;
     procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
@@ -642,6 +645,7 @@ type
 
     /// <summary> 合并表格选中的单元格 </summary>
     function MergeTableSelectCells: Boolean;
+    function TableApplyContentAlign(const AAlign: THCContentAlign): Boolean;
 
     /// <summary> 撤销 </summary>
     procedure Undo;
@@ -733,10 +737,13 @@ type
     property OnSectionCreateItem: TNotifyEvent read FOnSectionCreateItem write FOnSectionCreateItem;
 
     /// <summary> 节有新的Item插入时触发 </summary>
-    property OnSectionItemInsert: TSectionDataItemNotifyEvent read FOnSectionInsertItem write FOnSectionInsertItem;
+    property OnSectionItemInsert: TSectionDataItemEvent read FOnSectionInsertItem write FOnSectionInsertItem;
 
     /// <summary> 节有新的Item删除时触发 </summary>
-    property OnSectionRemoveItem: TSectionDataItemNotifyEvent read FOnSectionRemoveItem write FOnSectionRemoveItem;
+    property OnSectionRemoveItem: TSectionDataItemEvent read FOnSectionRemoveItem write FOnSectionRemoveItem;
+
+    /// <summary> 节保存Item前触发，控制是否允许保存该Item </summary>
+    property OnSectionSaveItem: TSectionDataItemFunEvent read FOnSectionSaveItem write FOnSectionSaveItem;
 
     /// <summary> Item绘制开始前触发 </summary>
     property OnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent read FOnSectionDrawItemPaintBefor write FOnSectionDrawItemPaintBefor;
@@ -987,34 +994,39 @@ var
 begin
   if ActiveSection.SelectExists then
   begin
-    vStream := TMemoryStream.Create;
+    FStyle.States.Include(THCState.hosCopying);
     try
-      _SaveFileFormatAndVersion(vStream);  // 保存文件格式和版本
-      DoCopyDataBefor(vStream);  // 通知保存事件
-      //DeleteUnUsedStyle(FStyle, FSections);  // 删除不使用的样式 大文档有点耗时
-      FStyle.SaveToStream(vStream);
-      Self.ActiveSectionTopLevelData.SaveSelectToStream(vStream);
-      vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
+      vStream := TMemoryStream.Create;
       try
-        if vMem = 0 then
-          raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
-        vPtr := GlobalLock(vMem);
-        Move(vStream.Memory^, vPtr^, vStream.Size);
+        _SaveFileFormatAndVersion(vStream);  // 保存文件格式和版本
+        DoCopyDataBefor(vStream);  // 通知保存事件
+        //DeleteUnUsedStyle(FStyle, FSections);  // 删除不使用的样式 大文档有点耗时
+        FStyle.SaveToStream(vStream);
+        Self.ActiveSectionTopLevelData.SaveSelectToStream(vStream);
+        vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
+        try
+          if vMem = 0 then
+            raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
+          vPtr := GlobalLock(vMem);
+          Move(vStream.Memory^, vPtr^, vStream.Size);
+        finally
+          GlobalUnlock(vMem);
+        end;
       finally
-        GlobalUnlock(vMem);
+        vStream.Free;
+      end;
+
+      Clipboard.Open;
+      try
+        Clipboard.Clear;
+
+        Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);  // HC格式
+        Clipboard.AsText := Self.ActiveSectionTopLevelData.SaveSelectToText;  // 文本格式
+      finally
+        Clipboard.Close;
       end;
     finally
-      vStream.Free;
-    end;
-
-    Clipboard.Open;
-    try
-      Clipboard.Clear;
-
-      Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);  // HC格式
-      Clipboard.AsText := Self.ActiveSectionTopLevelData.SaveSelectToText;  // 文本格式
-    finally
-      Clipboard.Close;
+      FStyle.States.Exclude(THCState.hosCopying);
     end;
   end;
 end;
@@ -1364,6 +1376,15 @@ begin
     FOnSectionRemoveItem(Sender, AData, AItem);
 end;
 
+function THCView.DoSectionSaveItem(const Sender: TObject;
+  const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
+begin
+  if Assigned(FOnSectionSaveItem) then
+    Result := FOnSectionSaveItem(Sender, AData, AItem)
+  else
+    Result := True;
+end;
+
 function THCView.DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
 begin
   Result := ClientToScreen(Point(X, Y));
@@ -1488,6 +1509,15 @@ end;
 procedure THCView.DoSectionDataCheckUpdateInfo(Sender: TObject);
 begin
   CheckUpdateInfo;
+end;
+
+function THCView.DoSectionDeleteItem(const Sender: TObject; const AData: THCCustomData;
+  const AItem: THCCustomItem): Boolean;
+begin
+  if Assigned(FOnSectionDeleteItem) then
+    Result := FOnSectionDeleteItem(Sender, AData, AItem)
+  else
+    Result := True;
 end;
 
 procedure THCView.DoAnnotatePreUpdateView(Sender: TObject);
@@ -2244,7 +2274,7 @@ begin
       FUndoList.Enable := False;
       Self.Clear;
 
-      FStyle.OperStates.Include(hosLoading);
+      FStyle.States.Include(hosLoading);
       try
         AStream.Position := 0;
         DoLoadFromStream(AStream, FStyle, procedure(const AFileVersion: Word)
@@ -2264,7 +2294,7 @@ begin
             end;
           end);
       finally
-        FStyle.OperStates.Exclude(hosLoading);
+        FStyle.States.Exclude(hosLoading);
       end;
 
       DoViewResize;
@@ -2356,7 +2386,7 @@ begin
         vVersion := vXml.DocumentElement.Attributes['ver'];
         vLang := vXml.DocumentElement.Attributes['lang'];
 
-        FStyle.OperStates.Include(hosLoading);
+        FStyle.States.Include(hosLoading);
         try
           for i := 0 to vXml.DocumentElement.ChildNodes.Count - 1 do
           begin
@@ -2378,7 +2408,7 @@ begin
 
           DoMapChanged;
         finally
-          FStyle.OperStates.Exclude(hosLoading);
+          FStyle.States.Exclude(hosLoading);
         end;
 
         DoViewResize;
@@ -2528,10 +2558,12 @@ begin
   Result.OnChangeTopLevelData := DoSectionChangeTopLevelData;
   Result.OnCheckUpdateInfo := DoSectionDataCheckUpdateInfo;
   Result.OnCreateItem := DoSectionCreateItem;
+  Result.OnDeleteItem := DoSectionDeleteItem;
   Result.OnCreateItemByStyle := DoSectionCreateStyleItem;
   Result.OnCanEdit := DoSectionCanEdit;
   Result.OnInsertItem := DoSectionInsertItem;
   Result.OnRemoveItem := DoSectionRemoveItem;
+  Result.OnSaveItem := DoSectionSaveItem;
   Result.OnItemMouseDown := DoSectionItemMouseDown;
   Result.OnItemMouseUp := DoSectionItemMouseUp;
   Result.OnItemResize := DoSectionItemResize;
@@ -2764,11 +2796,11 @@ begin
         vStyle.LoadFromStream(vStream, vFileVersion);
         Self.BeginUpdate;
         try
-          FStyle.OperStates.Include(hosPasting);
+          FStyle.States.Include(hosPasting);
           try
             ActiveSection.InsertStream(vStream, vStyle, vFileVersion);
           finally
-            FStyle.OperStates.Exclude(hosPasting);
+            FStyle.States.Exclude(hosPasting);
           end;
         finally
           Self.EndUpdate;
@@ -3871,6 +3903,11 @@ begin
     DoMapChanged;
     DoViewResize;
   end;
+end;
+
+function THCView.TableApplyContentAlign(const AAlign: THCContentAlign): Boolean;
+begin
+  Result := ActiveSection.TableApplyContentAlign(AAlign);
 end;
 
 procedure THCView.ApplyParaAlignHorz(const AAlign: TParaAlignHorz);

@@ -715,7 +715,7 @@ end;
 
 function THCUndoData.GetUndoList: THCUndoList;
 begin
-  if OperStates.Contain(hosLoading) then
+  if Self.Loading then
     Result := nil
   else
     Result := inherited GetUndoList;

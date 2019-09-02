@@ -34,21 +34,21 @@ type
   end;
 
   THCStateDictionary = class(TObject)
-    State: THCOperState;
+    State: THCState;
     Count: Integer;
   end;
 
-  THCOperStates = class(TObject)
+  THCStates = class(TObject)
   private
     FStates: TList;
     procedure DeleteState(const AIndex: Integer);
-    function GetStateIndex(const AState: THCOperState): Integer;
+    function GetStateIndex(const AState: THCState): Integer;
   public
     constructor Create;
     destructor Destroy; override;
-    procedure Include(const AState: THCOperState);
-    procedure Exclude(const AState: THCOperState);
-    function Contain(const AState: THCOperState): Boolean;
+    procedure Include(const AState: THCState);
+    procedure Exclude(const AState: THCState);
+    function Contain(const AState: THCState): Boolean;
   end;
 
   TInvalidateRectEvent = procedure(const ARect: TRect) of object;
@@ -68,7 +68,7 @@ type
     FUpdateInfo: TUpdateInfo;
     FShowParaLastMark: Boolean;  // 是否显示换行符
     FHtmlFileTempName: Integer;
-    FOperStates: THCOperStates;  // 全局操作状态
+    FStates: THCStates;  // 全局操作状态
 
     FOnInvalidateRect: TInvalidateRectEvent;
   protected
@@ -140,7 +140,7 @@ type
     property TempCanvas: TCanvas read FTempCanvas;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
-    property OperStates: THCOperStates read FOperStates;
+    property States: THCStates read FStates;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
   end;
 
@@ -184,7 +184,7 @@ begin
   FSelColor := clSkyBlue;
   FLineSpaceMin := 8;
   FShowParaLastMark := True;
-  FOperStates := THCOperStates.Create;
+  FStates := THCStates.Create;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;
   FParaStyles := TObjectList<THCParaStyle>.Create;
@@ -216,7 +216,7 @@ begin
   FTextStyles.Free;
   FParaStyles.Free;
   FUpdateInfo.Free;
-  FOperStates.Free;
+  FStates.Free;
   inherited Destroy;
 end;
 
@@ -477,25 +477,25 @@ begin
   Draging := False;
 end;
 
-{ THCOperStates }
+{ THCStates }
 
-function THCOperStates.Contain(const AState: THCOperState): Boolean;
+function THCStates.Contain(const AState: THCState): Boolean;
 begin
   Result := GetStateIndex(AState) >= 0;
 end;
 
-constructor THCOperStates.Create;
+constructor THCStates.Create;
 begin
   FStates := TList.Create;
 end;
 
-procedure THCOperStates.DeleteState(const AIndex: Integer);
+procedure THCStates.DeleteState(const AIndex: Integer);
 begin
   THCStateDictionary(FStates[AIndex]).Free;
   FStates.Delete(AIndex);
 end;
 
-destructor THCOperStates.Destroy;
+destructor THCStates.Destroy;
 var
   i: Integer;
 begin
@@ -507,7 +507,7 @@ begin
   inherited Destroy;
 end;
 
-procedure THCOperStates.Exclude(const AState: THCOperState);
+procedure THCStates.Exclude(const AState: THCState);
 var
   vIndex: Integer;
 begin
@@ -521,7 +521,7 @@ begin
   end;
 end;
 
-function THCOperStates.GetStateIndex(const AState: THCOperState): Integer;
+function THCStates.GetStateIndex(const AState: THCState): Integer;
 var
   i: Integer;
 begin
@@ -536,7 +536,7 @@ begin
   end;
 end;
 
-procedure THCOperStates.Include(const AState: THCOperState);
+procedure THCStates.Include(const AState: THCState);
 var
   vIndex: Integer;
   vStateDic: THCStateDictionary;

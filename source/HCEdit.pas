@@ -37,7 +37,7 @@ type
     FOnCaretChange: TNotifyEvent;
     FOnMouseDown: TMouseEvent;
     FOnCreateStyleItem: TStyleItemEvent;
-    FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
+    FOnInsertItem, FOnRemoveItem: TDataItemEvent;
     //
     function GetViewWidth: Integer;
     function GetViewHeight: Integer;

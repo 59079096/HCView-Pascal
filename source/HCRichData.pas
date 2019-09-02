@@ -31,8 +31,6 @@ type
   TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo, AOffset: Integer;
     Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
-  TDataItemEvent = procedure(const AData: THCCustomData; const AItemNo: Integer) of object;
-
   THCRichData = class(THCUndoData)
   strict private
     /// <summary> 鼠标左键按下(打开文件对话框双击文件后会触发MouseMouse，MouseUp) </summary>
@@ -58,9 +56,10 @@ type
     FReadOnly,
     FSelecting, FDraging: Boolean;
 
-    FOnItemResized: TDataItemEvent;
+    FOnItemResized: TDataItemNoEvent;
     FOnItemMouseDown, FOnItemMouseUp: TItemMouseEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
+    FOnDeleteItem: TDataItemFunEvent;
 
     /// <summary> Shift按键按下时鼠标点击，根据按下位置适配选择范围 </summary>
     /// <param name="AMouseDonwItemNo"></param>
@@ -191,6 +190,7 @@ type
     function TableInsertColBefor(const AColCount: Byte): Boolean;
     function ActiveTableDeleteCurCol: Boolean;
     function MergeTableSelectCells: Boolean;
+    function TableApplyContentAlign(const AAlign: THCContentAlign): Boolean;
 
     /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
     procedure ReAdaptActiveItem;
@@ -209,10 +209,11 @@ type
     property Height: Cardinal read GetHeight;  // 实际内容的高
     property ReadOnly: Boolean read FReadOnly write SetReadOnly;
     property Selecting: Boolean read FSelecting;
-    property OnItemResized: TDataItemEvent read FOnItemResized write FOnItemResized;
+    property OnItemResized: TDataItemNoEvent read FOnItemResized write FOnItemResized;
     property OnItemMouseDown: TItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
+    property OnDeleteItem: TDataItemFunEvent read FOnDeleteItem write FOnDeleteItem;
   end;
 
 implementation
@@ -1690,6 +1691,8 @@ end;
 function THCRichData.CanDeleteItem(const AItemNo: Integer): Boolean;
 begin
   Result := CanEdit;
+  if Result and Assigned(FOnDeleteItem) then
+    Result := FOnDeleteItem(Self, Self.Items[AItemNo]);
 end;
 
 function THCRichData.CanEdit: Boolean;
@@ -2022,6 +2025,17 @@ begin
   InitializeMouseField;  // 201807311101
 end;
 
+function THCRichData.TableApplyContentAlign(const AAlign: THCContentAlign): Boolean;
+begin
+  if not CanEdit then Exit(False);
+
+  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+    begin
+      (AItem as THCTableItem).ApplyContentAlign(AAlign);
+      Result := True;
+    end);
+end;
+
 function THCRichData.TableInsertColAfter(const AColCount: Byte): Boolean;
 begin
   if not CanEdit then Exit(False);
@@ -2092,7 +2106,7 @@ function THCRichData.InsertStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word): Boolean;
 var
   i, vItemCount, vStyleNo, vOffsetStart, vInsetLastNo, vCaretOffse, vCaretParaNo,
-  vInsPos, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
+  vInsPos, vFormatFirstDrawItemNo, vFormatLastItemNo, vItemCountAct, vIgnoreCount: Integer;
   vItem, vAfterItem: THCCustomItem;
   vInsertBefor, vInsertEmptyLine: Boolean;
   vDataSize: Int64;
@@ -2183,6 +2197,8 @@ begin
       vFormatLastItemNo := -1;
     end;
 
+    vItemCountAct := 0;  // 实际插入的数量
+    vIgnoreCount := 0;  // 忽略掉的数据
     Undo_New;
     for i := 0 to vItemCount - 1 do
     begin
@@ -2202,7 +2218,7 @@ begin
         if vItem.StyleNo > THCStyle.Null then
           vItem.StyleNo := Style.GetStyleNo(AStyle.TextStyles[vItem.StyleNo], True);
 
-        if Style.OperStates.Contain(hosPasting) then  // 粘贴时使用光标位置样式
+        if Style.States.Contain(hosPasting) then  // 粘贴时使用光标位置样式
           vItem.ParaNo := vCaretParaNo
         else
           vItem.ParaNo := Style.GetParaNo(AStyle.ParaStyles[vItem.ParaNo], True);
@@ -2229,13 +2245,21 @@ begin
         end
         else
           vItem.ParaFirst := False;
+      end
+      else  // 插入非第一个Item
+      if (not vItem.ParaFirst) and MergeItemText(Items[vInsPos + i - 1 - vIgnoreCount], vItem) then  // 和插入位置前一个能合并，有些不允许复制的粘贴时会造成前后可合并
+      begin
+        Inc(vIgnoreCount);
+        FreeAndNil(vItem);
+        Continue;
       end;
 
-      Items.Insert(vInsPos + i, vItem);
-      UndoAction_InsertItem(vInsPos + i, 0);
+      Items.Insert(vInsPos + i - vIgnoreCount, vItem);
+      UndoAction_InsertItem(vInsPos + i - vIgnoreCount, 0);
+      Inc(vItemCountAct);
     end;
 
-    vItemCount := CheckInsertItemCount(vInsPos, vInsPos + vItemCount - 1);  // 检查插入的Item是否合格并删除不合格
+    vItemCount := CheckInsertItemCount(vInsPos, vInsPos + vItemCountAct - 1);  // 检查插入的Item是否合格并删除不合格
 
     vInsetLastNo := vInsPos + vItemCount - 1;  // 光标在最后一个Item
     vCaretOffse := GetItemOffsetAfter(vInsetLastNo);  // 最后一个Item后面
@@ -5269,14 +5293,16 @@ var
     begin
       SelectInfo.StartItemNo := vUpItemNo;
       SelectInfo.StartItemOffset := vUpItemOffset;
+      CaretDrawItemNo := vDrawItemNo;
     end
     else
     begin
       SelectInfo.StartItemNo := FMouseMoveItemNo;
       SelectInfo.StartItemOffset := FMouseMoveItemOffset;
+      CaretDrawItemNo := FMouseMoveDrawItemNo;
     end;
 
-    CaretDrawItemNo := vDrawItemNo;
+
     Style.UpdateInfoRePaint;
 
     if not FMouseDownReCaret then  // 避免重复获取光标位置

@@ -865,6 +865,10 @@ begin
   begin
     vRectItem := vItem as THCCustomRectItem;
     DoFormatRectItemToDrawItem;
+    // 如果进入表格前是样式1，进入表格里有把Style的全局TempStyleNo改成0，表格后面
+    // 是样式0的格式化时，由于此时Data的FItemFormatHeight还是样式1的，应用样式0的
+    // StyleNo时和全局的并没有变化，并不能应用修改FItemFormatHeight，所以需要清除一下。
+    Style.ApplyTempStyle(THCStyle.Null);
   end
   else  // 文本
   begin

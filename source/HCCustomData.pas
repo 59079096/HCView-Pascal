@@ -44,7 +44,9 @@ type
 
   THCCustomData = class;
 
-  TDataItemNotifyEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
+  TDataItemEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
+  TDataItemFunEvent = function(const AData: THCCustomData; const AItem: THCCustomItem): Boolean of object;
+  TDataItemNoEvent = procedure(const AData: THCCustomData; const AItemNo: Integer) of object;
 
   TDrawItemPaintEvent = procedure(const AData: THCCustomData;
     const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
@@ -64,10 +66,11 @@ type
     FDrawItems: THCDrawItems;
     FSelectInfo: TSelectInfo;
     FDrawOptions: TDrawOptions;
-    FOperStates: THCOperStates;  // 操作状态(当粘贴时调用InsertStream中有表格时，全局并不是loading但对于单元格来说是loading所以需要单独表示操作状态)
+    FLoading: Boolean;  // 当粘贴时调用InsertStream中有表格时，全局并不是loading但对于单元格来说是loading所以需要单独表示操作状态，如果将来需要更多状态可以考虑使用THCStates
     FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
 
-    FOnInsertItem, FOnRemoveItem: TDataItemNotifyEvent;
+    FOnInsertItem, FOnRemoveItem: TDataItemEvent;
+    FOnSaveItem: TDataItemFunEvent;
     FOnGetUndoList: TGetUndoListEvent;
     FOnCurParaNoChange: TNotifyEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
@@ -136,6 +139,8 @@ type
     function CalculateLineHeight(const ACanvas: TCanvas;
       const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Integer;
     function GetUndoList: THCUndoList; virtual;
+    /// <summary> 是否允许保存该Item </summary>
+    function DoSaveItem(const AItem: THCCustomItem): Boolean; virtual;
     procedure DoInsertItem(const AItem: THCCustomItem); virtual;
     procedure DoRemoveItem(const AItem: THCCustomItem); virtual;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); virtual;
@@ -152,7 +157,7 @@ type
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
 
-    property OperStates: THCOperStates read FOperStates;
+    property Loading: Boolean read FLoading;
   public
     constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
@@ -304,7 +309,7 @@ type
     /// <returns></returns>
     function GetSelectEndDrawItemNo: Integer;
 
-    /// <summary> 获取选中内容是否在同一个DItem中 </summary>
+    /// <summary> 获取选中内容是否在同一个DrawItem中 </summary>
     /// <returns></returns>
     function SelectInSameDItem: Boolean;
 
@@ -427,8 +432,9 @@ type
     property OnDrawItemPaintBefor: TDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
     property OnDrawItemPaintAfter: TDrawItemPaintEvent read FOnDrawItemPaintAfter write FOnDrawItemPaintAfter;
     property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
-    property OnInsertItem: TDataItemNotifyEvent read FOnInsertItem write FOnInsertItem;
-    property OnRemoveItem: TDataItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
+    property OnInsertItem: TDataItemEvent read FOnInsertItem write FOnInsertItem;
+    property OnRemoveItem: TDataItemEvent read FOnRemoveItem write FOnRemoveItem;
+    property OnSaveItem: TDataItemFunEvent read FOnSaveItem write FOnSaveItem;
   end;
 
 type
@@ -694,12 +700,12 @@ end;
 constructor THCCustomData.Create(const AStyle: THCStyle);
 begin
   FStyle := AStyle;
-  FOperStates := THCOperStates.Create;
   FDrawItems := THCDrawItems.Create;
   FItems := THCItems.Create;
   FItems.OnInsertItem := DoInsertItem;
   FItems.OnRemoveItem := DoRemoveItem;
 
+  FLoading := False;
   FCurStyleNo := 0;
   FCurParaNo := 0;
   FCaretDrawItemNo := -1;
@@ -730,6 +736,7 @@ end;
 
 function THCCustomData.DeleteSelected: Boolean;
 begin
+  Result := False;
 end;
 
 destructor THCCustomData.Destroy;
@@ -737,7 +744,6 @@ begin
   FreeAndNil(FDrawItems);
   FreeAndNil(FItems);
   FreeAndNil(FSelectInfo);
-  FreeAndNil(FOperStates);
   inherited Destroy;
 end;
 
@@ -817,6 +823,9 @@ end;
 
 procedure THCCustomData.DoInsertItem(const AItem: THCCustomItem);
 begin
+  //if AItem is THCTextItem then
+  //  (AItem as THCTextItem).OwnerData := Self;
+
   if Assigned(FOnInsertItem) then
     FOnInsertItem(Self, AItem);
 end;
@@ -836,6 +845,14 @@ procedure THCCustomData.DoRemoveItem(const AItem: THCCustomItem);
 begin
   if Assigned(FOnRemoveItem) then
     FOnRemoveItem(Self, AItem);
+end;
+
+function THCCustomData.DoSaveItem(const AItem: THCCustomItem): Boolean;
+begin
+  if Assigned(FOnSaveItem) then
+    Result := FOnSaveItem(Self, AItem)
+  else
+    Result := True;
 end;
 
 procedure THCCustomData.DrawItemPaintAfter(const AData: THCCustomData;
@@ -1763,11 +1780,11 @@ end;
 procedure THCCustomData.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
-  OperStates.Include(hosLoading);
+  FLoading := True;
   try
     DoLoadFromStream(AStream, AStyle, AFileVersion);
   finally
-    OperStates.Exclude(hosLoading);
+    FLoading := False;
   end;
 end;
 
@@ -2463,33 +2480,57 @@ end;
 procedure THCCustomData.SaveToStream(const AStream: TStream; const AStartItemNo,
   AStartOffset, AEndItemNo, AEndOffset: Integer);
 var
-  i: Integer;
+  i, vCount, vCountAct: Integer;
   vBegPos, vEndPos: Int64;
 begin
   vBegPos := AStream.Position;
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位，便于越过
   //
   { if IsEmpty then i := 0 else 空Item也要存，CellData加载时高度可由此Item样式计算 }
-  i := AEndItemNo - AStartItemNo + 1;
-  AStream.WriteBuffer(i, SizeOf(i));  // 数量
-  if i > 0 then
+  vCount := AEndItemNo - AStartItemNo + 1;
+  AStream.WriteBuffer(vCount, SizeOf(vCount));  // 默认数量
+  if vCount > 0 then
   begin
+    vCountAct := 0;
+
     if AStartItemNo <> AEndItemNo then
     begin
-      FItems[AStartItemNo].SaveToStream(AStream, AStartOffset, FItems[AStartItemNo].Length);
-      for i := AStartItemNo + 1 to AEndItemNo - 1 do
-        FItems[i].SaveToStream(AStream);
+      if DoSaveItem(FItems[AStartItemNo]) then
+      begin
+        FItems[AStartItemNo].SaveToStream(AStream, AStartOffset, FItems[AStartItemNo].Length);
+        Inc(vCountAct);
+      end;
 
-      FItems[AEndItemNo].SaveToStream(AStream, 0, AEndOffset);
+      for i := AStartItemNo + 1 to AEndItemNo - 1 do
+      begin
+        if DoSaveItem(FItems[i]) then
+        begin
+          FItems[i].SaveToStream(AStream);
+          Inc(vCountAct);
+        end;
+      end;
+
+      if DoSaveItem(FItems[AEndItemNo]) then
+      begin
+        FItems[AEndItemNo].SaveToStream(AStream, 0, AEndOffset);
+        Inc(vCountAct);
+      end;
     end
     else
+    if DoSaveItem(FItems[AStartItemNo]) then
+    begin
       FItems[AStartItemNo].SaveToStream(AStream, AStartOffset, AEndOffset);
+      Inc(vCountAct);
+    end;
   end;
   //
   vEndPos := AStream.Position;
   AStream.Position := vBegPos;
   vBegPos := vEndPos - vBegPos - SizeOf(vBegPos);
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 当前页数据大小
+  if vCount <> vCountAct then
+    AStream.WriteBuffer(vCountAct, SizeOf(vCountAct));  // 实际数量
+
   AStream.Position := vEndPos;
 end;
 
@@ -2666,6 +2707,9 @@ begin
           FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True
       end
       else
+      if (FSelectInfo.StartItemOffset > 0)  // 在Item上
+        and (FSelectInfo.StartItemOffset < FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Length)
+      then
         FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;  // 激活新的
     end;
   end;

@@ -118,11 +118,11 @@ end;
 procedure THCDocumentReader.LoadFromStream(const AHCView: THCView;
   const AStream: TStream);
 begin
-  AHCView.Style.OperStates.Include(hosLoading);
+  AHCView.Style.States.Include(hosLoading);
   try
     InsertFromStream(AHCView, AStream);
   finally
-    AHCView.Style.OperStates.Exclude(hosLoading);
+    AHCView.Style.States.Exclude(hosLoading);
   end;
 end;
 

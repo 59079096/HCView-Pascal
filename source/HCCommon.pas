@@ -109,7 +109,7 @@ type
   THCContentAlign = (tcaTopLeft, tcaTopCenter, tcaTopRight, tcaCenterLeft,
     tcaCenterCenter, tcaCenterRight, tcaBottomLeft, tcaBottomCenter, tcaBottomRight);
 
-  THCOperState = (hosLoading,  // 文档加载
+  THCState = (hosLoading,  // 文档加载
                   hosCopying,  // 复制
                   hosPasting,  // 粘贴
                   hosBatchInsert  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确

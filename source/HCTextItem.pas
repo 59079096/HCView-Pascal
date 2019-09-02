@@ -22,6 +22,7 @@ type
   THCTextItem = class(THCCustomItem)
   private
     FText, FHyperLink: string;
+    //FOwnerData: THCCustomData;
   protected
     function GetText: string; override;
     procedure SetText(const Value: string); override;
@@ -46,6 +47,7 @@ type
     /// <param name="ALength">众起始位置起复制的长度</param>
     /// <returns>文本内容</returns>
     function SubString(const AStartOffs, ALength: Integer): string;
+    //property OwnerData: THCCustomData read FOwnerData write FOwnerData;
   end;
 
 var

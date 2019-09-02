@@ -3071,6 +3071,8 @@ procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
 begin
   ACellData.OnInsertItem := OwnerData.OnInsertItem;
   ACellData.OnRemoveItem := OwnerData.OnRemoveItem;
+  ACellData.OnSaveItem := OwnerData.OnSaveItem;
+  ACellData.OnDeleteItem := (OwnerData as THCRichData).OnDeleteItem;
   ACellData.OnItemMouseDown := (OwnerData as THCViewData).OnItemMouseDown;
   ACellData.OnItemMouseUp := (OwnerData as THCViewData).OnItemMouseUp;
 
@@ -4005,14 +4007,48 @@ end;
 procedure THCTableItem.SaveSelectToStream(const AStream: TStream);
 var
   vCellData: THCCustomData;
+
+  vData: THCTableCellData;
+  //vTable: THCTableItem;
+  vRow, vCol: Integer;
 begin
   if Self.IsSelectComplate then  // 全选择了
     raise Exception.Create('保存选中内容出错，表格不应该由内部处理全选中的保存！')
   else
+  if FSelectCellRang.EditCell then
   begin
     vCellData := GetActiveData;
     if vCellData <> nil then
       vCellData.SaveSelectToStream(AStream);
+  end
+  else
+  if FSelectCellRang.SelectExists then  // 多选单元格
+  begin
+    //vWidth := 0;
+    //for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
+    //  vWidth := vWidth + FColWidths[vCol];
+
+    vData := THCTableCellData.Create(OwnerData.Style);
+    try
+      vData.BeginFormat;
+      //vData.Width := vWidth;
+      vData.OnSaveItem := OwnerData.OnSaveItem;
+      //vTable := vData.CreateItemByStyle(Self.StyleNo);
+      for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
+      begin
+        for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
+        begin
+          vCellData := FRows[vRow][vCol].CellData;
+          if Assigned(vCellData) then
+            vData.AddData(vCellData);
+        end;
+      end;
+
+      //vData.InsertItem(vTable);
+      vData.SaveToStream(AStream);
+    finally
+      FreeAndNil(vData);
+    end;
   end;
 end;
 

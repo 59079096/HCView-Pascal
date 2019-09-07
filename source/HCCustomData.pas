@@ -276,8 +276,8 @@ type
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData;
     function GetActiveDrawItemNo: Integer;
     function GetActiveDrawItem: THCCustomDrawItem;
-    function GetActiveItemNo: Integer;
-    function GetActiveItem: THCCustomItem;
+    function GetActiveItemNo: Integer; virtual;
+    function GetActiveItem: THCCustomItem; virtual;
     function GetTopLevelItem: THCCustomItem;
     function GetTopLevelDrawItem: THCCustomDrawItem;
     function GetActiveDrawItemCoord: TPoint;

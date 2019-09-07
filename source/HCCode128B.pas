@@ -22,6 +22,10 @@ uses
   Classes, SysUtils, Graphics;
 
 const
+  // A字符集仅包含数字和大写字母
+  //CodeATable: array[0..106, 0..2] of PChar = ();
+
+  // B字符集包含大小写字母和数字
   CodeBTable: array[0..106, 0..2] of PChar = (
     ('0', '', '212222'),   ('1', '!', '222122'),  ('2', '"', '222221'),  ('3', '#', '121223'),  ('4', '$', '121322'),
     ('5', '%', '131222'),  ('6', '&', '122213'),  ('7', '''', '122312'), ('8', '(', '132212'),  ('9', ')', '221213'),
@@ -47,6 +51,7 @@ const
     ('103', 'Start A', '211412'), ('104', 'Start B', '211214'), ('105', 'Start C', '211232'), ('106', 'Stop', '2331112')
     );
 
+  // C字符集仅包含从00-99的100个两位数数字
   CodeCTable: array[0..106, 0..2] of PChar = (
     ('0', '0', '212222'),   ('1', '1', '222122'),   ('2', '2', '222221'),   ('3', '3', '121223'),   ('4', '4', '121322'),
     ('5', '5', '131222'),   ('6', '6', '122213'),   ('7', '7', '122312'),   ('8', '8', '132212'),   ('9', '9', '221213'),
@@ -93,6 +98,7 @@ type
     property ShowCodeKey: Boolean read FShowCodeKey write FShowCodeKey;
     property Width: Integer read FWidth;
     property Height: Integer read FHeight write FHeight;
+    property Margin: Integer read FMargin write FMargin;
   end;
 
 implementation

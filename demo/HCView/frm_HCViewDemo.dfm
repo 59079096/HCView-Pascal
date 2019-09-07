@@ -121,7 +121,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       Left = 247
       Top = 0
       Width = 65
-      Height = 22
+      Height = 21
       Style = csDropDownList
       DropDownCount = 20
       TabOrder = 1
@@ -1835,10 +1835,14 @@ object frmHCViewDemo: TfrmHCViewDemo
         end
       end
       object mniN38: TMenuItem
-        Caption = #24418#29366
-        object mniN39: TMenuItem
+        Caption = #28014#21160#23545#35937
+        object mniFloatLine: TMenuItem
           Caption = #30452#32447
-          OnClick = mniN39Click
+          OnClick = mniFloatLineClick
+        end
+        object mniFloatBarCode: TMenuItem
+          Caption = #19968#32500#30721
+          OnClick = mniFloatBarCodeClick
         end
       end
       object mniHyperLink: TMenuItem

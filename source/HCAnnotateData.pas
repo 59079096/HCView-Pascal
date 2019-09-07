@@ -616,7 +616,7 @@ var
   vAnn: THCDataAnnotate;
 begin
   inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
-  if AFileVersion > 22 then
+  if CanEdit and (AFileVersion > 22) then
   begin
     AStream.ReadBuffer(vAnnCount, SizeOf(vAnnCount));
     if vAnnCount > 0 then

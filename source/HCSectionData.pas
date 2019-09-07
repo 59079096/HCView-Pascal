@@ -14,13 +14,16 @@ unit HCSectionData;
 interface
 
 uses
-  Windows, Classes, Graphics, SysUtils, Controls, Generics.Collections, HCRichData,
+  Windows, Classes, Graphics, SysUtils, Controls, HCRichData,
   HCCustomData, HCPage, HCItem, HCDrawItem, HCCommon, HCStyle, HCParaStyle, HCTextStyle,
   HCViewData, HCCustomFloatItem, HCRectItem, HCXml;
 
 type
-  TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
+  THCSectionData = class;
 
+  TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
+  TFloatStyleItemEvent = function (const AData: THCSectionData; const AStyleNo: Integer): THCCustomFloatItem of object;
+  TDataFloatItemEvent = procedure(const AData: THCSectionData; const AItem: THCCustomFloatItem) of object;
   // 用于文档页眉、页脚、页面Data基类，主要用于处理文档级Data变化时特有的属性或事件
   // 如只读状态切换，页眉、页脚、页面切换时需要通知外部控件以做界面控件状态变化，
   // 而单元格只读切换时不需要
@@ -28,8 +31,10 @@ type
   private
     FOnReadOnlySwitch: TNotifyEvent;
     FOnGetScreenCoord: TGetScreenCoordEvent;
+    FOnCreateFloatItemByStyle: TFloatStyleItemEvent;
+    FOnInsertFloatItem: TDataFloatItemEvent;
 
-    FFloatItems: TObjectList<THCCustomFloatItem>;
+    FFloatItems: THCFloatItems;
     /// <summary> 当前选中的FloatItem </summary>
     FFloatItemIndex,
     /// <summary> 当前点击处的FloatItem </summary>
@@ -39,11 +44,12 @@ type
 
     function CreateFloatItemByStyle(const AStyleNo: Integer): THCCustomFloatItem;
     function GetFloatItemAt(const X, Y: Integer): Integer;
-    function GetActiveFloatItem: THCCustomFloatItem;
+    procedure DoInsertFloatItem(const AItem: THCCustomFloatItem);
   protected
     procedure SetReadOnly(const Value: Boolean); override;
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
+    procedure UndoAction_FloatItemMirror(const AItemNo: Integer);
   public
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
@@ -56,6 +62,11 @@ type
     procedure Clear; override;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
     function GetScreenCoord(const X, Y: Integer): TPoint; override;
+    procedure TraverseFloatItem(const ATraverse: THCItemTraverse);
+
+    function GetActiveItemNo: Integer; override;
+    function GetActiveItem: THCCustomItem; override;
+    function GetActiveFloatItem: THCCustomFloatItem;
     /// <summary> 插入浮动Item </summary>
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 
@@ -70,9 +81,11 @@ type
 
     property FloatItemIndex: Integer read FFloatItemIndex;
     property ActiveFloatItem: THCCustomFloatItem read GetActiveFloatItem;
-    property FloatItems: TObjectList<THCCustomFloatItem> read FFloatItems;
+    property FloatItems: THCFloatItems read FFloatItems;
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
+    property OnCreateFloatItemByStyle: TFloatStyleItemEvent read FOnCreateFloatItemByStyle write FOnCreateFloatItemByStyle;
+    property OnInsertFloatItem: TDataFloatItemEvent read FOnInsertFloatItem write FOnInsertFloatItem;
   end;
 
   THCHeaderData = class(THCSectionData);
@@ -116,7 +129,8 @@ implementation
 {$I HCView.inc}
 
 uses
-  Math, HCTextItem, HCImageItem, HCTableItem, HCFloatLineItem, HCShape;
+  Math, HCUndo, HCTextItem, HCImageItem, HCTableItem, HCFloatBarCodeItem,
+  HCFloatLineItem, HCShape;
 
 { THCPageData }
 
@@ -303,8 +317,6 @@ begin
     begin
       vFloatItem.DrawRect := Bounds(vFloatItem.Left, vFloatItem.Top, vFloatItem.Width, vFloatItem.Height);
       vFloatItem.DrawRect.Offset(ADataDrawLeft, ADataDrawTop - AVOffset);  // 将数据起始位置映射到绘制位置
-      //APaintInfo.TopItems.Add(vFloatItem);
-      //vFloatItem.PaintTop(ACanvas);
       vFloatItem.PaintTo(Self.Style, vFloatItem.DrawRect, ADataDrawTop, 0,
         0, 0, ACanvas, APaintInfo);
     end;
@@ -325,7 +337,8 @@ end;
 
 constructor THCSectionData.Create(const AStyle: THCStyle);
 begin
-  FFloatItems := TObjectList<THCCustomFloatItem>.Create;
+  FFloatItems := THCFloatItems.Create;
+  FFloatItems.OnInsertItem := DoInsertFloatItem;
   FFloatItemIndex := -1;
   FMouseDownIndex := -1;
   FMouseMoveIndex := -1;
@@ -337,10 +350,18 @@ function THCSectionData.CreateFloatItemByStyle(
   const AStyleNo: Integer): THCCustomFloatItem;
 begin
   Result := nil;
-  case AStyleNo of
-    Ord(THCShapeStyle.hssLine): Result := THCFloatLineItem.Create(Self);
-  else
-    raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建FloatItem代码！');
+
+  if Assigned(FOnCreateFloatItemByStyle) then
+    Result := FOnCreateFloatItemByStyle(Self, AStyleNo);
+
+  if not Assigned(Result) then
+  begin
+    case AStyleNo of
+      THCStyle.FloatLine: Result := THCFloatLineItem.Create(Self);
+      THCStyle.FloatBarCode: Result := THCFloatBarCodeItem.Create(Self);
+    else
+      raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建FloatItem代码！');
+    end;
   end;
 end;
 
@@ -356,6 +377,22 @@ begin
     Result := nil
   else
     Result := FFloatItems[FFloatItemIndex];
+end;
+
+function THCSectionData.GetActiveItem: THCCustomItem;
+begin
+  if FFloatItemIndex < 0 then
+    Result := inherited GetActiveItem
+  else
+    Result := nil;
+end;
+
+function THCSectionData.GetActiveItemNo: Integer;
+begin
+  if FFloatItemIndex < 0 then
+    Result := inherited GetActiveItemNo
+  else
+    Result := -1;
 end;
 
 procedure THCSectionData.GetCaretInfo(const AItemNo, AOffset: Integer;
@@ -450,6 +487,12 @@ begin
     Style.UpdateInfoRePaint;
 end;
 
+procedure THCSectionData.DoInsertFloatItem(const AItem: THCCustomFloatItem);
+begin
+  if Assigned(FOnInsertFloatItem) then
+    FOnInsertFloatItem(Self, AItem);
+end;
+
 procedure THCSectionData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
@@ -463,7 +506,12 @@ begin
     while vFloatCount > 0 do
     begin
       AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
-      vFloatItem := CreateFloatItemByStyle(vStyleNo);
+
+      if (AFileVersion < 28) and (vStyleNo = Ord(THCShapeStyle.hssLine)) then
+        vFloatItem := THCFloatLineItem.Create(Self)
+      else
+        vFloatItem := CreateFloatItemByStyle(vStyleNo);
+
       vFloatItem.LoadFromStream(AStream, AStyle, AFileVersion);
       FFloatItems.Add(vFloatItem);
 
@@ -545,10 +593,13 @@ begin
 
   if FMouseDownIndex >= 0 then
   begin
+    Undo_New;
+    UndoAction_FloatItemMirror(FMouseDownIndex);
+
     vFloatItem := FFloatItems[FMouseDownIndex];
-    {if vFloatItem.Resizing then
-      Self.Style.UpdateInfoRePaint;}
     Result := vFloatItem.MouseUp(Button, Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
+    if Result then
+      Style.UpdateInfoRePaint;
   end;
 end;
 
@@ -566,8 +617,6 @@ begin
     begin
       vFloatItem.DrawRect := Bounds(vFloatItem.Left, vFloatItem.Top, vFloatItem.Width, vFloatItem.Height);
       vFloatItem.DrawRect.Offset(ADataDrawLeft, ADataDrawTop - AVOffset);  // 将数据起始位置映射到绘制位置
-      //APaintInfo.TopItems.Add(vFloatItem);
-      //vFloatItem.PaintTop(ACanvas, APaintInfo);
       vFloatItem.PaintTo(Self.Style, vFloatItem.DrawRect, ADataDrawTop, 0,
         0, 0, ACanvas, APaintInfo);
     end;
@@ -630,6 +679,37 @@ begin
   vNode.Attributes['count'] := FFloatItems.Count;
   for i := 0 to FFloatItems.Count - 1 do
     FFloatItems[i].ToXml(vNode.AddChild('floatitem'));
+end;
+
+procedure THCSectionData.TraverseFloatItem(const ATraverse: THCItemTraverse);
+var
+  i: Integer;
+begin
+  if ATraverse <> nil then
+  begin
+    for i := 0 to FFloatItems.Count - 1 do
+    begin
+      if ATraverse.Stop then Break;
+
+      ATraverse.Process(Self, i, ATraverse.Tag, ATraverse.Stop);
+      //if FFloatItems[i].StyleNo < THCStyle.Null then
+      //  (FFloatItems[i] as THCCustomRectItem).TraverseItem(ATraverse);
+    end;
+  end;
+end;
+
+procedure THCSectionData.UndoAction_FloatItemMirror(const AItemNo: Integer);
+{var
+  vUndo: THCUndo;
+  vUndoList: THCUndoList;}
+begin
+  {vUndoList := GetUndoList;
+  if Assigned(vUndoList) and vUndoList.Enable then
+  begin
+    vUndo := vUndoList.Last;
+    if vUndo <> nil then
+      vUndo.ActionAppend(uatItemMirror, AItemNo, 0, False);
+  end;}
 end;
 
 end.

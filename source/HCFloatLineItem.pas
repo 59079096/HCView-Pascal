@@ -22,6 +22,7 @@ type
   private
     FLeftTop: TPoint;
     FShapeLine: THCShapeLine;
+    function GetShapeLeftTop: TPoint;
   protected
     procedure SetActive(const Value: Boolean); override;
   public
@@ -56,7 +57,7 @@ end;
 constructor THCFloatLineItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  Self.StyleNo := Ord(THCShapeStyle.hssLine);
+  Self.StyleNo := THCStyle.FloatLine;
   Width := 100;
   Height := 70;
   FShapeLine := THCShapeLine.CreateEx(Point(0, 0), Point(Width, Height));
@@ -68,6 +69,19 @@ procedure THCFloatLineItem.DoPaint(const AStyle: THCStyle;
   const APaintInfo: TPaintInfo);
 begin
   FShapeLine.PaintTo(ACanvas, ADrawRect, APaintInfo);  // 用Self.DrawRect？
+end;
+
+function THCFloatLineItem.GetShapeLeftTop: TPoint;
+begin
+  if FShapeLine.StartPt.X < FShapeLine.EndPt.X then
+    Result.X := FShapeLine.StartPt.X
+  else
+    Result.X := FShapeLine.EndPt.X;
+
+  if FShapeLine.StartPt.Y < FShapeLine.EndPt.Y then
+    Result.Y := FShapeLine.StartPt.Y
+  else
+    Result.Y := FShapeLine.EndPt.Y;
 end;
 
 procedure THCFloatLineItem.LoadFromStream(const AStream: TStream;
@@ -96,27 +110,21 @@ function THCFloatLineItem.MouseDown(Button: TMouseButton; Shift: TShiftState;
 begin
   // inherited
   Result := FShapeLine.MouseDown(Button, Shift, X, Y);
-  Active := FShapeLine.ActiveObj <> sloNone;
+  Active := FShapeLine.ActiveObj <> THCShapeLineObj.sloNone;
   if Active then
   begin
-    Self.Resizing := (Button = mbLeft) and (Shift = [ssLeft])
-      and (FShapeLine.ActiveObj in [sloStart, sloEnd]);
-
-    if Self.Resizing then  // 开始缩放
+    if Button = mbLeft then
     begin
-      Self.FResizeX := X;
-      Self.FResizeY := Y;
-
-      // 缩放前的Rect的LeftTop
-      if FShapeLine.StartPt.X < FShapeLine.EndPt.X then
-        FLeftTop.X := FShapeLine.StartPt.X
+      Self.Resizing := FShapeLine.ActiveObj in [sloStart, sloEnd];
+      if Self.Resizing then  // 开始缩放
+      begin
+        Self.FResizeX := X;
+        Self.FResizeY := Y;
+        FLeftTop := GetShapeLeftTop;  // 缩放前的Rect的LeftTop
+      end
       else
-        FLeftTop.X := FShapeLine.EndPt.X;
-
-      if FShapeLine.StartPt.Y < FShapeLine.EndPt.Y then
-        FLeftTop.Y := FShapeLine.StartPt.Y
-      else
-        FLeftTop.Y := FShapeLine.EndPt.Y;
+      if FShapeLine.ActiveObj = sloLine then  // 按下在直线上，拖拽开始，记录鼠标点
+        FLeftTop := GetShapeLeftTop;  // 移动前的Rect的LeftTop
     end;
   end;
 end;
@@ -140,37 +148,34 @@ end;
 
 function THCFloatLineItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
-var
-  vNewLeftTop: TPoint;
+
+  procedure _CalcNewLeftTop;
+  var
+    vNewLeftTop: TPoint;
+  begin
+    vNewLeftTop := GetShapeLeftTop; // 缩放后的Rect的LeftTop
+
+    Self.Left := Self.Left + vNewLeftTop.X - FLeftTop.X;
+    Self.Top := Self.Top + vNewLeftTop.Y - FLeftTop.Y;
+
+    // 线的点坐标以新LeftTop为原点
+    FShapeLine.StartPt.Offset(-vNewLeftTop.X, -vNewLeftTop.Y);
+    FShapeLine.EndPt.Offset(-vNewLeftTop.X, -vNewLeftTop.Y);
+  end;
+
 begin
   // inherited;
   if Self.Resizing then
   begin
     Self.Resizing := False;
-
-    // 缩放后的Rect的LeftTop
-    if FShapeLine.StartPt.X < FShapeLine.EndPt.X then
-      vNewLeftTop.X := FShapeLine.StartPt.X
-    else
-      vNewLeftTop.X := FShapeLine.EndPt.X;
-
-    if FShapeLine.StartPt.Y < FShapeLine.EndPt.Y then
-      vNewLeftTop.Y := FShapeLine.StartPt.Y
-    else
-      vNewLeftTop.Y := FShapeLine.EndPt.Y;
-
-    vNewLeftTop.X := vNewLeftTop.X - FLeftTop.X;
-    vNewLeftTop.Y := vNewLeftTop.Y - FLeftTop.Y;
-
-    Self.Left := Self.Left + vNewLeftTop.X;
-    Self.Top := Self.Top + vNewLeftTop.Y;
-    // 线的点坐标以新LeftTop为原点
-    FShapeLine.StartPt.Offset(-vNewLeftTop.X, -vNewLeftTop.Y);
-    FShapeLine.EndPt.Offset(-vNewLeftTop.X, -vNewLeftTop.Y);
+    _CalcNewLeftTop;  // 计算新的LeftTop
 
     Self.Width := Abs(FShapeLine.EndPt.X - FShapeLine.StartPt.X);
     Self.Height := Abs(FShapeLine.EndPt.Y - FShapeLine.StartPt.Y);
-  end;
+  end
+  else
+  if FShapeLine.ActiveObj = THCShapeLineObj.sloLine then  // 按下是拖动
+    _CalcNewLeftTop;  // 计算新的LeftTop
 
   Result := FShapeLine.MouseUp(Button, Shift, X, Y);
 end;

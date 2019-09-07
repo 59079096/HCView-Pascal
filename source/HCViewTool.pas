@@ -460,7 +460,7 @@ begin
     if FActiveItem is THCImageItem then
       FImageToolBar.Visible := False;
 
-    if Value.Active then
+    if Assigned(Value) and Value.Active then
     begin
       if Value is THCTableItem then
       begin

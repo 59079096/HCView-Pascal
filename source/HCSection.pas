@@ -40,6 +40,8 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   TSectionDataItemEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem) of object;
+  TSectionDataFloatItemEvent = procedure(const Sender: TObject; const AData: THCSectionData;
+    const AItem: THCCustomFloatItem) of object;
   TSectionDataItemFunEvent = function(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem): Boolean of object;
   TSectionDrawItemAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
@@ -90,12 +92,14 @@ type
     FOnDrawItemAnnotate: TSectionDrawItemAnnotateEvent;
 
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
+    FOnInsertFloatItem: TSectionDataFloatItemEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemEvent;
     FOnSaveItem, FOnDeleteItem: TSectionDataItemFunEvent;
     FOnItemMouseDown, FOnItemMouseUp: TSectionDataItemMouseEvent;
     FOnItemResize: TDataItemNoEvent;
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
+    FOnCreateFloatItemByStyle: TFloatStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
     FOnGetUndoList: TGetUndoListEvent;
 
@@ -126,6 +130,7 @@ type
     procedure DoDataDrawItemAnnotate(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
 
+    procedure DoDataInsertFloatItem(const AData: THCSectionData; const AItem: THCCustomFloatItem);
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
     function DoDataSaveItem(const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
@@ -139,6 +144,7 @@ type
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
+    function DoDataCreateFloatStyleItem(const AData: THCSectionData; const AStyleNo: Integer): THCCustomFloatItem;
     function DoDataCanEdit(const Sender: TObject): Boolean;
     procedure DoDataCreateItem(Sender: TObject);
     procedure DoDataCurParaNoChange(Sender: TObject);
@@ -416,6 +422,7 @@ type
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
     property OnCheckUpdateInfo: TNotifyEvent read FOnCheckUpdateInfo write FOnCheckUpdateInfo;
+    property OnInsertFloatItem: TSectionDataFloatItemEvent read FOnInsertFloatItem write FOnInsertFloatItem;
     property OnInsertItem: TSectionDataItemEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TSectionDataItemEvent read FOnRemoveItem write FOnRemoveItem;
     property OnSaveItem: TSectionDataItemFunEvent read FOnSaveItem write FOnSaveItem;
@@ -436,6 +443,7 @@ type
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnDeleteItem: TSectionDataItemFunEvent read FOnDeleteItem write FOnDeleteItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
+    property OnCreateFloatItemByStyle: TFloatStyleItemEvent read FOnCreateFloatItemByStyle write FOnCreateFloatItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
     property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
@@ -672,6 +680,7 @@ var
   procedure SetDataProperty(const AData: THCSectionData);
   begin
     AData.Width := vWidth;
+    AData.OnInsertFloatItem := DoDataInsertFloatItem;
     AData.OnInsertItem := DoDataInsertItem;
     AData.OnRemoveItem := DoDataRemoveItem;
     AData.OnSaveItem := DoDataSaveItem;
@@ -680,6 +689,7 @@ var
     AData.OnItemMouseDown := DoDataItemMouseDown;
     AData.OnItemMouseUp := DoDataItemMouseUp;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
+    AData.OnCreateFloatItemByStyle := DoDataCreateFloatStyleItem;
     AData.OnCanEdit := DoDataCanEdit;
     AData.OnCreateItem := DoDataCreateItem;
     AData.OnReadOnlySwitch := DoDataReadOnlySwitch;
@@ -804,6 +814,15 @@ begin
     FOnDataChange(Sender);
 end;
 
+function THCCustomSection.DoDataCreateFloatStyleItem(const AData: THCSectionData;
+  const AStyleNo: Integer): THCCustomFloatItem;
+begin
+  if Assigned(FOnCreateFloatItemByStyle) then
+    Result := FOnCreateFloatItemByStyle(AData, AStyleNo)
+  else
+    Result := nil;
+end;
+
 procedure THCCustomSection.DoDataCreateItem(Sender: TObject);
 begin
   if Assigned(FOnCreateItem) then
@@ -830,6 +849,13 @@ procedure THCCustomSection.DoDataInsertAnnotate(const AData: THCCustomData;
 begin
   if Assigned(FOnInsertAnnotate) then
     FOnInsertAnnotate(Self, AData, ADataAnnotate);
+end;
+
+procedure THCCustomSection.DoDataInsertFloatItem(const AData: THCSectionData;
+  const AItem: THCCustomFloatItem);
+begin
+  if Assigned(FOnInsertFloatItem) then
+    FOnInsertFloatItem(Self, AData, AItem);
 end;
 
 procedure THCCustomSection.DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
@@ -1681,6 +1707,8 @@ begin
 
   if saPage in vLoadParts then
     FPage.LoadFromStream(AStream, FStyle, AFileVersion);
+  // 20190906001 FloatItem不能通过GetPageIndexByFormat(FPage.FloatItems[0].Top)来计算FloatItem
+  // 的页序号，因为正文的可能拖到页眉页脚处，按Top算GetPageIndexByFormat并不在当前页中
 
   BuildSectionPages(0);
 end;
@@ -1785,7 +1813,7 @@ begin
     if (Shift = [ssLeft]) and (FActiveData.FloatItemIndex >= 0) then  // 拖拽移动FloatItem
     begin
       if not FActiveData.ActiveFloatItem.Resizing then  // 非缩放
-        FActiveData.ActiveFloatItem.PageIndex := FMousePageIndex;
+        FActiveData.ActiveFloatItem.PageIndex := FMousePageIndex;  // 记录鼠标页为FloatItem所在见
     end;
 
     if FActiveData = FPage then  // FloatItem在PageData中
@@ -1796,7 +1824,7 @@ begin
         PaperCoordToData(FActiveData.ActiveFloatItem.PageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
         vY := vY + GetPageDataFmtTop(FActiveData.ActiveFloatItem.PageIndex);
       end
-      else
+      else  // 以鼠标所在页为准
       begin
         SectionCoordToPaper(FMousePageIndex, X, Y, vX, vY);
         PaperCoordToData(FMousePageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
@@ -1810,7 +1838,7 @@ begin
         SectionCoordToPaper(FActivePageIndex, X, Y, vX, vY);
         PaperCoordToData(FActivePageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面
       end
-      else
+      else  // 以鼠标所在页为准
       begin
         SectionCoordToPaper(FMousePageIndex, X, Y, vX, vY);
         PaperCoordToData(FMousePageIndex, FActiveData, vX, vY, False);  // 浮动Item不受约束可能在外面

@@ -103,7 +103,7 @@ type
     mniN37: TMenuItem;
     mniTableProperty: TMenuItem;
     mniN38: TMenuItem;
-    mniN39: TMenuItem;
+    mniFloatLine: TMenuItem;
     mniN40: TMenuItem;
     actSearch: TAction;
     mniN42: TMenuItem;
@@ -142,6 +142,7 @@ type
     mniAlignBottomCenter: TMenuItem;
     mniAlignBottomRight: TMenuItem;
     ilTool: TImageList;
+    mniFloatBarCode: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -192,7 +193,7 @@ type
     procedure mniN36Click(Sender: TObject);
     procedure mniN37Click(Sender: TObject);
     procedure mniTablePropertyClick(Sender: TObject);
-    procedure mniN39Click(Sender: TObject);
+    procedure mniFloatLineClick(Sender: TObject);
     procedure actSearchExecute(Sender: TObject);
     procedure mniN42Click(Sender: TObject);
     procedure actCutExecute(Sender: TObject);
@@ -216,6 +217,7 @@ type
     procedure mniViewFilmClick(Sender: TObject);
     procedure mniViewPageClick(Sender: TObject);
     procedure mniAlignTopLeftClick(Sender: TObject);
+    procedure mniFloatBarCodeClick(Sender: TObject);
   private
     { Private declarations }
     FHRuler: THCHorizontalRuler;
@@ -249,7 +251,7 @@ uses
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
   HCDateTimePicker, HCSupSubScriptItem, HCRadioGroup, frm_Paragraph, frm_TableProperty,
   frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_Annotate,
-  frm_TableBorderBackColor, CFBalloonHint;
+  frm_TableBorderBackColor, CFBalloonHint, HCFloatBarCodeItem;
 
 {$R *.dfm}
 
@@ -954,7 +956,15 @@ begin
   FHCView.PrintCurPageSelected(False, False);
 end;
 
-procedure TfrmHCViewDemo.mniN39Click(Sender: TObject);
+procedure TfrmHCViewDemo.mniFloatBarCodeClick(Sender: TObject);
+var
+  vFloatBarCodeItem: THCFloatBarCodeItem;
+begin
+  vFloatBarCodeItem := THCFloatBarCodeItem.Create(FHCView.ActiveSection.ActiveData);
+  FHCView.InsertFloatItem(vFloatBarCodeItem);
+end;
+
+procedure TfrmHCViewDemo.mniFloatLineClick(Sender: TObject);
 var
   vFloatLineItem: THCFloatLineItem;
 begin

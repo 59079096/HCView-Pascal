@@ -4343,6 +4343,7 @@ var
           SelectInfo.StartItemNo := vCurItemNo + 1;
           SelectInfo.StartItemOffset := 0;
           vCurItem := GetActiveItem;
+          CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;  // GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
           {if vCurItem.StyleNo < THCStyle.RsNull then
             RectItemKeyDown
           else

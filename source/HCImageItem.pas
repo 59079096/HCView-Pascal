@@ -249,9 +249,15 @@ begin
     try
       vStream := TMemoryStream.Create;
       try
+        {$IFDEF BMPIMAGEITEM}
         FImage.SaveToStream(vStream);
         vStream.Position := 0;
         vBitmap.LoadFromStream(vStream);
+        {$ELSE}
+        WICBitmap2Bitmap(FImage.Handle, vBitmap);
+        vBitmap.AlphaFormat := TAlphaFormat.afIgnored;
+        {$ENDIF}
+
         if (vBitmap.Width <> Width) or (vBitmap.Height <> Height) then
           ACanvas.StretchDraw(ADrawRect, vBitmap)
         else

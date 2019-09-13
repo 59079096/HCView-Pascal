@@ -89,6 +89,7 @@ type
   end;
 
   TPaintEvent = procedure(const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
+  THCCopyPasteEvent = function(const AFormat: Word): Boolean of object;
 
   THCView = class(TCustomControl)
   private
@@ -261,17 +262,23 @@ type
     /// <summary> 实现插入文本 </summary>
     function DoInsertText(const AText: string): Boolean; virtual;
 
+    /// <summary> 复制前，便于控制是否允许复制 </summary>
+    function DoCopyRequest(const AFormat: Word): Boolean; virtual;
+
+    /// <summary> 粘贴前，便于控制是否允许粘贴 </summary>
+    function DoPasteRequest(const AFormat: Word): Boolean; virtual;
+
     /// <summary> 复制前，便于订制特征数据如内容来源 </summary>
-    procedure DoCopyDataBefor(const AStream: TStream); virtual;
+    procedure DoCopyAsStream(const AStream: TStream); virtual;
+
+    /// <summary> 粘贴前，便于确认订制特征数据如内容来源 </summary>
+    function DoPasteFromStream(const AStream: TStream): Boolean; virtual;
 
     /// <summary> 视图绘制开始 </summary>
     procedure DoPaintViewBefor(const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
     /// <summary> 视图绘制完成 </summary>
     procedure DoPaintViewAfter(const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
-
-    /// <summary> 粘贴前，便于确认订制特征数据如内容来源 </summary>
-    procedure DoPasteDataBefor(const AStream: TStream; const AVersion: Word); virtual;
 
     /// <summary> 保存文档前触发事件，便于订制特征数据 </summary>
     procedure DoSaveStreamBefor(const AStream: TStream); virtual;
@@ -1002,10 +1009,11 @@ begin
   begin
     FStyle.States.Include(THCState.hosCopying);
     try
+      //if DoCopyAllow(HC_FILEFORMAT) then  为避免下面重复调用，牺牲掉此处判断
       vStream := TMemoryStream.Create;
       try
         _SaveFileFormatAndVersion(vStream);  // 保存文件格式和版本
-        DoCopyDataBefor(vStream);  // 通知保存事件
+        DoCopyAsStream(vStream);  // 通知保存事件
         //DeleteUnUsedStyle(FStyle, FSections);  // 删除不使用的样式 大文档有点耗时
         FStyle.SaveToStream(vStream);
         Self.ActiveSectionTopLevelData.SaveSelectToStream(vStream);
@@ -1026,8 +1034,11 @@ begin
       try
         Clipboard.Clear;
 
-        Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);  // HC格式
-        Clipboard.AsText := Self.ActiveSectionTopLevelData.SaveSelectToText;  // 文本格式
+        if DoCopyRequest(HC_FILEFORMAT) then
+          Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);  // HC格式
+
+        if DoCopyRequest(CF_UNICODETEXT) then
+          Clipboard.AsText := Self.ActiveSectionTopLevelData.SaveSelectToText;  // 文本格式
       finally
         Clipboard.Close;
       end;
@@ -1039,7 +1050,8 @@ end;
 
 procedure THCView.CopyAsText;
 begin
-  Clipboard.AsText := Self.ActiveSectionTopLevelData.SaveSelectToText;
+  if DoCopyRequest(CF_UNICODETEXT) then
+    Clipboard.AsText := Self.ActiveSectionTopLevelData.SaveSelectToText;
 end;
 
 constructor THCView.Create(AOwner: TComponent);
@@ -1431,8 +1443,14 @@ begin
     FOnPaintViewBefor(ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoPasteDataBefor(const AStream: TStream; const AVersion: Word);
+function THCView.DoPasteRequest(const AFormat: Word): Boolean;
 begin
+  Result := True;
+end;
+
+function THCView.DoPasteFromStream(const AStream: TStream): Boolean;
+begin
+  Result := True;
 end;
 
 procedure THCView.DoRedo(const Sender: THCUndo);
@@ -1560,7 +1578,12 @@ begin
     FOnChange(Self);
 end;
 
-procedure THCView.DoCopyDataBefor(const AStream: TStream);
+function THCView.DoCopyRequest(const AFormat: Word): Boolean;
+begin
+  Result := True;
+end;
+
+procedure THCView.DoCopyAsStream(const AStream: TStream);
 begin
 end;
 
@@ -1906,7 +1929,7 @@ begin
     begin
       Result := i;  // 找到节序号
       ASectionPageIndex := APageIndex - vPageCount;  // 节中页序号
-      
+
       Break;
     end
     else
@@ -2646,7 +2669,7 @@ begin
     if FSections[vSectionIndex].ViewModel = hvmFilm then
       Result := Result + vPageIndex * (FPagePadding + FSections[vSectionIndex].PaperHeightPix)
     else
-      Result := Result + vPageIndex * (FPagePadding + FSections[vSectionIndex].GetPageHeight);  
+      Result := Result + vPageIndex * (FPagePadding + FSections[vSectionIndex].GetPageHeight);
   end;
 end;
 
@@ -2796,7 +2819,7 @@ var
   vLang: Byte;
   vStyle: THCStyle;
 begin
-  if Clipboard.HasFormat(HC_FILEFORMAT) then
+  if Clipboard.HasFormat(HC_FILEFORMAT) and DoPasteRequest(HC_FILEFORMAT) then
   begin
     vStream := TMemoryStream.Create;
     try
@@ -2814,7 +2837,8 @@ begin
       //
       vStream.Position := 0;
       _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
-      DoPasteDataBefor(vStream, vFileVersion);
+      if not DoPasteFromStream(vStream) then Exit;
+
       vStyle := THCStyle.Create;
       try
         vStyle.LoadFromStream(vStream, vFileVersion);
@@ -2837,16 +2861,19 @@ begin
     end;
   end
   else
-  if Clipboard.HasFormat(CF_RTF) then
+  if Clipboard.HasFormat(CF_RTF) and DoPasteRequest(CF_RTF) then
     PasteRtf
   else
-  if Clipboard.HasFormat(CF_HTML) then
+  if Clipboard.HasFormat(CF_HTML) and DoPasteRequest(CF_HTML) then
     PasteHtml
   else
-  if Clipboard.HasFormat(CF_TEXT) then
+  if Clipboard.HasFormat(CF_TEXT) and DoPasteRequest(CF_TEXT) then
     InsertText(Clipboard.AsText)
   else
-  if Clipboard.HasFormat(CF_BITMAP) then
+  if Clipboard.HasFormat(CF_UNICODETEXT) and DoPasteRequest(CF_UNICODETEXT) then
+    InsertText(Clipboard.AsText)
+  else
+  if Clipboard.HasFormat(CF_BITMAP) and DoPasteRequest(CF_BITMAP) then
     PasteBitmapImage;
 end;
 

@@ -3471,6 +3471,7 @@ var
   i: Integer;
   vPath: string;
 begin
+  FUndoList.Clear; // 防止删除样式后的撤销找不到原样式
   DeleteUnUsedStyle(FStyle, FSections, [saHeader, saPage, saFooter]);
 
   FStyle.GetHtmlFileTempName(True);
@@ -3536,6 +3537,8 @@ begin
 
     vDPI := PixelsPerInchX;
     vPDF.ScreenLogPixels := vDPI;
+    //vPDF.VCLCanvas.Font.Charset = ANSI_CHARSET
+    //https://synopse.info/forum/viewtopic.php?id=2494
 
     vPaintInfo := TSectionPaintInfo.Create;
     try
@@ -3624,7 +3627,10 @@ begin
   DoSaveStreamBefor(AStream);
 
   if not AQuick then
+  begin
+    FUndoList.Clear; // 防止删除样式后的撤销找不到原样式
     DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
+  end;
 
   FStyle.SaveToStream(AStream);
   // 节数量
@@ -3643,6 +3649,7 @@ var
   vNode: IHCXMLNode;
   i: Integer;
 begin
+  FUndoList.Clear; // 防止删除样式后的撤销找不到原样式
   DeleteUnUsedStyle(FStyle, FSections, [saHeader, saPage, saFooter]);
 
   vXml := THCXMLDocument.Create(nil);

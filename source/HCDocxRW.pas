@@ -895,7 +895,7 @@ begin
   vG := Byte(AColor shr 8);
   vB := Byte(AColor shr 16);
 
-  Result := Copy(IntToHex(vR or (vG shl 8) or (vB shl 16){$IFNDEF DELPHIXE}, 8{$ENDIF}), 3, 6);
+  Result := Copy(IntToHex(vR or (vG shl 8) or (vB shl 16){$IFNDEF DELPHIXE10}, 8{$ENDIF}), 3, 6);
 end;
 
 function GetAttributeAsString(const ANode: IHCXMLNode; const AttrName: string): string;

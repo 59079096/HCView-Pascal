@@ -59,6 +59,7 @@ type
     /// <param name="AOffset">操作发生时的Offset</param>
     procedure UndoAction_InsertItem(const AItemNo, AOffset: Integer);
     procedure UndoAction_ItemStyle(const AItemNo, AOffset, ANewStyleNo: Integer);
+    procedure UndoAction_ItemParaNo(const AItemNo, AOffset, ANewParaNo: Integer);
 
     /// <summary> 修改Item的段起始属性(修改前调用) </summary>
     /// <param name="AItemNo">要修改的ItemNo</param>
@@ -323,6 +324,7 @@ var
     var
       vAction: THCItemPropertyUndoAction;
       vItem: THCCustomItem;
+      i, vParaLastItemNo: Integer;
     begin
       vAction := AAction as THCItemPropertyUndoAction;
       vCaretItemNo := vAction.ItemNo;
@@ -340,10 +342,17 @@ var
 
         uipParaNo:
           begin
+            vParaLastItemNo := GetParaLastItemNo(vAction.ItemNo);
             if AIsUndo then
-              vItem.ParaNo := (vAction as THCItemParaUndoAction).OldParaNo
+            begin
+              for i := vAction.ItemNo to vParaLastItemNo do
+                Items[i].ParaNo := (vAction as THCItemParaUndoAction).OldParaNo;
+            end
             else
-              vItem.ParaNo := (vAction as THCItemParaUndoAction).NewParaNo;
+            begin
+              for i := vAction.ItemNo to vParaLastItemNo do
+                Items[i].ParaNo := (vAction as THCItemParaUndoAction).NewParaNo;
+            end;
           end;
 
         uipParaFirst:
@@ -949,6 +958,30 @@ begin
       vItemAction.Offset := AOffset;
       vItemAction.OldParaFirst := Items[AItemNo].ParaFirst;
       vItemAction.NewParaFirst := ANewParaFirst;
+
+      vUndo.Actions.Add(vItemAction);
+    end;
+  end;
+end;
+
+procedure THCUndoData.UndoAction_ItemParaNo(const AItemNo, AOffset,
+  ANewParaNo: Integer);
+var
+  vUndo: THCUndo;
+  vUndoList: THCUndoList;
+  vItemAction: THCItemParaUndoAction;
+begin
+  vUndoList := GetUndoList;
+  if Assigned(vUndoList) and vUndoList.Enable then
+  begin
+    vUndo := vUndoList.Last;
+    if vUndo <> nil then
+    begin
+      vItemAction := THCItemParaUndoAction.Create;
+      vItemAction.ItemNo := AItemNo;
+      vItemAction.Offset := AOffset;
+      vItemAction.OldParaNo := Items[AItemNo].ParaNo;
+      vItemAction.NewParaNo := ANewParaNo;
 
       vUndo.Actions.Add(vItemAction);
     end;

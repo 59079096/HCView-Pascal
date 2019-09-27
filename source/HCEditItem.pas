@@ -134,14 +134,14 @@ begin
 
   if cbsRight in FBorderSides then
   begin
-    ACanvas.MoveTo(ADrawRect.Right, ADrawRect.Top);
-    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom);
+    ACanvas.MoveTo(ADrawRect.Right - 1, ADrawRect.Top);
+    ACanvas.LineTo(ADrawRect.Right - 1, ADrawRect.Bottom);
   end;
 
   if cbsBottom in FBorderSides then
   begin
-    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Bottom);
-    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom);
+    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Bottom - 1);
+    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom - 1);
   end;
 end;
 
@@ -391,7 +391,9 @@ begin
     begin
       FCaretOffset := System.Length(FText);
       Result := True;
-    end;
+    end
+    else  // > 0
+      Result := True;
   end
   else
   if Key = VK_RIGHT then
@@ -403,7 +405,9 @@ begin
     begin
       FCaretOffset := 0;
       Result := True;
-    end;
+    end
+    else  // < Length
+      Result := True;
   end
   else
     Result := True;

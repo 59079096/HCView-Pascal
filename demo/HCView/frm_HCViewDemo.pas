@@ -251,7 +251,7 @@ uses
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
   HCDateTimePicker, HCSupSubScriptItem, HCRadioGroup, frm_Paragraph, frm_TableProperty,
   frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_Annotate,
-  frm_TableBorderBackColor, CFBalloonHint, HCFloatBarCodeItem;
+  frm_TableBorderBackColor, HCFloatBarCodeItem;
 
 {$R *.dfm}
 
@@ -1183,7 +1183,7 @@ end;
 procedure TfrmHCViewDemo.mniSaveClick(Sender: TObject);
 begin
   if SaveFile then
-    BalloonMessage('保存成功！');
+    ShowMessage('保存成功！');
 end;
 
 procedure TfrmHCViewDemo.mniTablePropertyClick(Sender: TObject);

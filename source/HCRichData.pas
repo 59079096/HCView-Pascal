@@ -1183,6 +1183,7 @@ procedure THCRichData.ApplySelectParaStyle(const AMatchStyle: THCParaMatch);
     vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
     if GetItemParaStyle(vFirstNo) <> vParaNo then
     begin
+      UndoAction_ItemParaNo(vFirstNo, 0, vParaNo);
       for i := vFirstNo to vLastNo do
         Items[i].ParaNo := vParaNo;
     end;
@@ -1217,6 +1218,7 @@ begin
 
   //GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
   //vFormatFirstItemNo := GetParaFirstItemNo(SelectInfo.StartItemNo);
+  Undo_New;
 
   if SelectInfo.EndItemNo >= 0 then  // 有选中内容
   begin
@@ -1232,6 +1234,11 @@ begin
       and (SelectInfo.StartItemOffset = OffsetInner)
     then  // 当前是RectItem
     begin
+      if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).MangerUndo then
+        UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+      else
+        UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
       vFormatFirstDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
       FormatPrepare(vFormatFirstDrawItemNo, SelectInfo.StartItemNo);
       (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ApplySelectParaStyle(Self.Style, AMatchStyle);
@@ -3833,16 +3840,29 @@ var
 
                 Undo_New;
 
-                UndoAction_ItemParaFirst(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, False);
-                vCurItem.ParaFirst := False;
-
-                if vCurItem.PageBreak then
+                if IsEmptyLine(SelectInfo.StartItemNo - 1) then  // 上一行是空行
                 begin
-                  UndoAction_ItemPageBreak(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, False);
-                  vCurItem.PageBreak := False;
-                end;
+                  UndoAction_DeleteItem(SelectInfo.StartItemNo - 1, 0);
+                  Items.Delete(SelectInfo.StartItemNo - 1);
 
-                ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+                  SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+
+                  ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - 1, -1);
+                  ReSetSelectAndCaret(SelectInfo.StartItemNo, 0);
+                end
+                else  // 上一行不是空行
+                begin
+                  UndoAction_ItemParaFirst(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, False);
+                  vCurItem.ParaFirst := False;
+
+                  if vCurItem.PageBreak then
+                  begin
+                    UndoAction_ItemPageBreak(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, False);
+                    vCurItem.PageBreak := False;
+                  end;
+
+                  ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+                end;
               end;
             end
             else  // 不是段首
@@ -5210,7 +5230,11 @@ begin
     FSelectSeekNo := FMouseMoveItemNo;
     FSelectSeekOffset := FMouseMoveItemOffset;
 
-    MatchItemSelectState;  // 设置选中范围内的Item选中状态
+    if Self.SelectExists then
+      MatchItemSelectState  // 设置选中范围内的Item选中状态
+    else
+      CaretDrawItemNo := FMouseMoveDrawItemNo;  // 按下上一个DrawItem最后，划选到下一个开始时，没有选中内容，要更换CaretDrawIemNo
+
     Style.UpdateInfoRePaint;
     Style.UpdateInfoReCaret;
 

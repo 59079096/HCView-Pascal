@@ -269,7 +269,7 @@ begin
       FreeAndNil(vBitmap);
     end;
   end
-  else
+  else  // ∑«¥Ú”°
   begin
     if (FImage.Width <> Width) or (FImage.Height <> Height) then
       ACanvas.StretchDraw(ADrawRect, FImage)

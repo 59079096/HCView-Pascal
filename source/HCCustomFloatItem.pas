@@ -47,16 +47,14 @@ type
     property PageIndex: Integer read FPageIndex write FPageIndex;
   end;
 
-  TFloatItemNotifyEvent = procedure(const AItem: THCCustomFloatItem) of object;
-
   THCFloatItems = class(TObjectList<THCCustomFloatItem>)
   private
-    FOnInsertItem, FOnRemoveItem: TFloatItemNotifyEvent;
+    FOnInsertItem, FOnRemoveItem: TItemNotifyEvent;
   protected
     procedure Notify(const Value: THCCustomFloatItem; Action: TCollectionNotification); override;
   public
-    property OnInsertItem: TFloatItemNotifyEvent read FOnInsertItem write FOnInsertItem;
-    property OnRemoveItem: TFloatItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
+    property OnInsertItem: TItemNotifyEvent read FOnInsertItem write FOnInsertItem;
+    property OnRemoveItem: TItemNotifyEvent read FOnRemoveItem write FOnRemoveItem;
   end;
 
 implementation

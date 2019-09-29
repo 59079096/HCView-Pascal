@@ -40,8 +40,6 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   TSectionDataItemEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem) of object;
-  TSectionDataFloatItemEvent = procedure(const Sender: TObject; const AData: THCSectionData;
-    const AItem: THCCustomFloatItem) of object;
   TSectionDataItemFunEvent = function(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem): Boolean of object;
   TSectionDrawItemAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
@@ -92,14 +90,12 @@ type
     FOnDrawItemAnnotate: TSectionDrawItemAnnotateEvent;
 
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
-    FOnInsertFloatItem: TSectionDataFloatItemEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemEvent;
     FOnSaveItem, FOnDeleteItem: TSectionDataItemFunEvent;
     FOnItemMouseDown, FOnItemMouseUp: TSectionDataItemMouseEvent;
     FOnItemResize: TDataItemNoEvent;
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
-    FOnCreateFloatItemByStyle: TFloatStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
     FOnGetUndoList: TGetUndoListEvent;
 
@@ -130,7 +126,6 @@ type
     procedure DoDataDrawItemAnnotate(const AData: THCCustomData; const ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
 
-    procedure DoDataInsertFloatItem(const AData: THCSectionData; const AItem: THCCustomFloatItem);
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
     function DoDataSaveItem(const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
@@ -144,7 +139,6 @@ type
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
-    function DoDataCreateFloatStyleItem(const AData: THCSectionData; const AStyleNo: Integer): THCCustomFloatItem;
     function DoDataCanEdit(const Sender: TObject): Boolean;
     procedure DoDataCreateItem(Sender: TObject);
     procedure DoDataCurParaNoChange(Sender: TObject);
@@ -422,7 +416,6 @@ type
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
     property OnCheckUpdateInfo: TNotifyEvent read FOnCheckUpdateInfo write FOnCheckUpdateInfo;
-    property OnInsertFloatItem: TSectionDataFloatItemEvent read FOnInsertFloatItem write FOnInsertFloatItem;
     property OnInsertItem: TSectionDataItemEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TSectionDataItemEvent read FOnRemoveItem write FOnRemoveItem;
     property OnSaveItem: TSectionDataItemFunEvent read FOnSaveItem write FOnSaveItem;
@@ -443,7 +436,6 @@ type
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnDeleteItem: TSectionDataItemFunEvent read FOnDeleteItem write FOnDeleteItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
-    property OnCreateFloatItemByStyle: TFloatStyleItemEvent read FOnCreateFloatItemByStyle write FOnCreateFloatItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
     property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
@@ -680,7 +672,6 @@ var
   procedure SetDataProperty(const AData: THCSectionData);
   begin
     AData.Width := vWidth;
-    AData.OnInsertFloatItem := DoDataInsertFloatItem;
     AData.OnInsertItem := DoDataInsertItem;
     AData.OnRemoveItem := DoDataRemoveItem;
     AData.OnSaveItem := DoDataSaveItem;
@@ -689,7 +680,6 @@ var
     AData.OnItemMouseDown := DoDataItemMouseDown;
     AData.OnItemMouseUp := DoDataItemMouseUp;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
-    AData.OnCreateFloatItemByStyle := DoDataCreateFloatStyleItem;
     AData.OnCanEdit := DoDataCanEdit;
     AData.OnCreateItem := DoDataCreateItem;
     AData.OnReadOnlySwitch := DoDataReadOnlySwitch;
@@ -814,15 +804,6 @@ begin
     FOnDataChange(Sender);
 end;
 
-function THCCustomSection.DoDataCreateFloatStyleItem(const AData: THCSectionData;
-  const AStyleNo: Integer): THCCustomFloatItem;
-begin
-  if Assigned(FOnCreateFloatItemByStyle) then
-    Result := FOnCreateFloatItemByStyle(AData, AStyleNo)
-  else
-    Result := nil;
-end;
-
 procedure THCCustomSection.DoDataCreateItem(Sender: TObject);
 begin
   if Assigned(FOnCreateItem) then
@@ -849,13 +830,6 @@ procedure THCCustomSection.DoDataInsertAnnotate(const AData: THCCustomData;
 begin
   if Assigned(FOnInsertAnnotate) then
     FOnInsertAnnotate(Self, AData, ADataAnnotate);
-end;
-
-procedure THCCustomSection.DoDataInsertFloatItem(const AData: THCSectionData;
-  const AItem: THCCustomFloatItem);
-begin
-  if Assigned(FOnInsertFloatItem) then
-    FOnInsertFloatItem(Self, AData, AItem);
 end;
 
 procedure THCCustomSection.DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
@@ -1337,6 +1311,9 @@ begin
     end
     else
     begin
+      if FViewModel = hvmPage then
+        ACaretInfo.X := ACaretInfo.X + FPaper.MarginLeftPix;
+
       ACaretInfo.Y := ACaretInfo.Y + GetPageTop(vPageIndex);
       if FActiveData = FPage then
         ACaretInfo.Y := ACaretInfo.Y - GetPageDataFmtTop(vPageIndex);  // - 页起始数据在Data中的位置
@@ -1383,12 +1360,21 @@ end;
 procedure THCCustomSection.GetPageMarginLeftAndRight(const APageIndex: Integer;
   var AMarginLeft, AMarginRight: Integer);
 begin
-  if FSymmetryMargin and Odd(APageIndex) then
+  if FViewModel = hvmFilm then
   begin
-    AMarginLeft := FPaper.MarginRightPix;
-    AMarginRight := FPaper.MarginLeftPix;
+    if FSymmetryMargin and Odd(APageIndex) then
+    begin
+      AMarginLeft := FPaper.MarginRightPix;
+      AMarginRight := FPaper.MarginLeftPix;
+    end
+    else
+    begin
+      AMarginLeft := FPaper.MarginLeftPix;
+      AMarginRight := FPaper.MarginRightPix;
+    end;
   end
   else
+  if FViewModel = hvmPage then
   begin
     AMarginLeft := FPaper.MarginLeftPix;
     AMarginRight := FPaper.MarginRightPix;
@@ -1923,10 +1909,13 @@ procedure THCCustomSection.PaperCoordToData(const APageIndex: Integer;
 var
   viTemp, vMarginLeft: Integer;
 begin
-  if FViewModel <> hvmFilm then Exit;
+  if FViewModel = hvmEdit then Exit;  // hvmTrim
 
   vMarginLeft := GetPageMarginLeft(APageIndex);
   AX := AX - vMarginLeft;
+
+  if FViewModel = hvmPage then Exit;
+
   { 水平方向不约束，否则点击在表格右侧认为是要拖动右边框
   if ARestrain then  // 为避免左右边界，不往里约束1，否则无法点到行首光标，尤其是行首是RectItem
   begin
@@ -2018,13 +2007,19 @@ var
   {$REGION ' 绘制页眉数据 '}
   procedure PaintHeader;
   var
-    vHeaderDataDrawTop, vDCState: Integer;
+    vHeaderDataDrawTop, vDCState, vScreenBottom: Integer;
   begin
-    vHeaderDataDrawTop := vPaperDrawTop + GetHeaderPageDrawTop;
+    // 计算ScreenBottom时，如果缩放变小的情况，APaintInfo.WindowHeight比vPageDrawTop还小，
+    // 传入PaintData计算显示不出来Item，所以不能用Min(vPageDrawTop, APaintInfo.WindowHeight),
+    if vPaperDrawTop > 0 then
+      vScreenBottom := vPaperDrawTop + vHeaderAreaHeight
+    else
+      vScreenBottom := vHeaderAreaHeight + vPaperDrawTop;
 
+    vHeaderDataDrawTop := vPaperDrawTop + GetHeaderPageDrawTop;
     FHeader.PaintData(vPageDrawLeft, vHeaderDataDrawTop, vPageDrawRight,
       vPageDrawTop, Max(vHeaderDataDrawTop, 0),
-      Min(vPageDrawTop, APaintInfo.WindowHeight), 0, ACanvas, APaintInfo);
+      vScreenBottom, 0, ACanvas, APaintInfo);
 
     if Assigned(FOnPaintHeader) then
     begin
@@ -2043,10 +2038,20 @@ var
   {$REGION ' 绘制页脚数据 '}
   procedure PaintFooter;
   var
-    vDCState: Integer;
+    vDCState, vScreenBottom: Integer;
   begin
+    // 计算ScreenBottom时，如果缩放变小的情况，APaintInfo.WindowHeight比vPageDrawBottom还小，
+    // 传入PaintData计算显示不出来Item，所以不能用Min(vPaperDrawBottom, APaintInfo.WindowHeight),
+    vScreenBottom := APaintInfo.WindowHeight - APaintInfo.GetScaleY(vPageDrawBottom);
+    if vScreenBottom > FPaper.MarginBottomPix then
+      vScreenBottom := vPaperDrawBottom
+    else
+      vScreenBottom := APaintInfo.WindowHeight;
+
     FFooter.PaintData(vPageDrawLeft, vPageDrawBottom, vPageDrawRight, vPaperDrawBottom,
-      Max(vPageDrawBottom, 0), Min(vPaperDrawBottom, APaintInfo.WindowHeight), 0, ACanvas, APaintInfo);
+      Max(vPageDrawBottom, 0),
+      vPageDrawBottom + vScreenBottom,
+      0, ACanvas, APaintInfo);
 
     if Assigned(FOnPaintFooter) then
     begin
@@ -2111,35 +2116,45 @@ begin
   vScaleWidth := Round(APaintInfo.WindowWidth / APaintInfo.ScaleX);
   vScaleHeight := Round(APaintInfo.WindowHeight / APaintInfo.ScaleY);
 
+  vPaperDrawLeft := ALeft;
+  vPaperDrawTop := ATop;
+
   if APaintInfo.ViewModel = hvmFilm then
   begin
-    vPaperDrawLeft := ALeft;
-    vPaperDrawRight := ALeft + FPaper.WidthPix;
-    vPaperDrawTop := ATop;
+    vPaperDrawRight := vPaperDrawLeft + FPaper.WidthPix;
     vPaperDrawBottom := vPaperDrawTop + FPaper.HeightPix;
 
     GetPageMarginLeftAndRight(APageIndex, vMarginLeft, vMarginRight);  // 获取页左右边距绘制位置
-    vPageDrawLeft := vPaperDrawLeft + vMarginLeft;
-    vPageDrawRight := vPaperDrawRight - vMarginRight;
     vHeaderAreaHeight := GetHeaderAreaHeight;  // 页眉区域实际高 = 页眉数据顶部偏移 + 内容高度，大于上边距时以此为准
     vPageDrawTop := vPaperDrawTop + vHeaderAreaHeight;  // 映射到当前页面左上角为原点的起始位置(可为负数)
     vPageDrawBottom := vPaperDrawBottom - FPaper.MarginBottomPix;  // 页面结束位置(可为负数)
   end
   else
   begin
-    vPaperDrawLeft := ALeft;
-    vPaperDrawRight := ALeft + GetPageWidth;
-    vPaperDrawTop := ATop;
-    vPaperDrawBottom := ATop + GetPageHeight;
+    if APaintInfo.ViewModel = hvmPage then
+    begin
+      vPaperDrawRight := vPaperDrawLeft + FPaper.WidthPix;
+      vPaperDrawBottom := vPaperDrawTop + GetPageHeight;
+      //GetPageMarginLeftAndRight(APageIndex, vMarginLeft, vMarginRight);  // 获取页左右边距绘制位置
+      vMarginLeft := FPaper.MarginLeftPix;
+      vMarginRight := FPaper.MarginRightPix;
+    end
+    else
+    begin
+      vPaperDrawRight := vPaperDrawLeft + GetPageWidth;
+      vPaperDrawBottom := vPaperDrawTop + GetPageHeight;
 
-    vPageDrawLeft := vPaperDrawLeft;
-    vPageDrawRight := vPaperDrawRight;
+      vMarginLeft := 0;
+      vMarginRight := 0;
+    end;
+
     vHeaderAreaHeight := 0;
-    vMarginLeft := 0;
-    vMarginRight := 0;
     vPageDrawTop := vPaperDrawTop;  // 映射到当前页面左上角为原点的起始位置(可为负数)
     vPageDrawBottom := vPaperDrawBottom - 1;  // 页面结束位置(可为负数)
   end;
+
+  vPageDrawLeft := vPaperDrawLeft + vMarginLeft;
+  vPageDrawRight := vPaperDrawRight - vMarginRight;
 
   // 当前页数据能显示出来的区域边界
   vPageDataScreenTop := Max(vPageDrawTop, 0);
@@ -2192,7 +2207,7 @@ begin
       {$ENDREGION}
 
       {$REGION ' 页脚边距指示符 '}
-      if vPageDrawBottom < APaintInfo.WindowHeight then  // 页脚可显示
+      if APaintInfo.GetScaleY(vPageDrawBottom) < APaintInfo.WindowHeight then  // 页脚可显示
       begin
         ACanvas.Pen.Width := 1;
         ACanvas.Pen.Style := TPenStyle.psSolid;
@@ -2216,10 +2231,20 @@ begin
     end
     else
     begin
-      if vPageDrawBottom < APaintInfo.WindowHeight then  // 页脚结束可显示
+      if vPageDrawTop > 0 then  // 页眉可显示
       begin
         ACanvas.Pen.Width := 1;
-        ACanvas.Pen.Style := TPenStyle.psDashDot;
+        ACanvas.Pen.Style := TPenStyle.psSolid;  // TPenStyle.psDashDot;
+        ACanvas.Pen.Color := clGray;
+
+        ACanvas.MoveTo(vPaperDrawLeft, vPageDrawTop);
+        ACanvas.LineTo(vPaperDrawRight, vPageDrawTop);
+      end;
+
+      if APaintInfo.GetScaleY(vPageDrawBottom) < APaintInfo.WindowHeight then  // 页脚结束可显示
+      begin
+        ACanvas.Pen.Width := 1;
+        ACanvas.Pen.Style := TPenStyle.psSolid;  // TPenStyle.psDashDot;
         ACanvas.Pen.Color := clGray;
 
         ACanvas.MoveTo(vPaperDrawLeft, vPageDrawBottom);

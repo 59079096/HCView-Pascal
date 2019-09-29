@@ -22,8 +22,6 @@ type
   THCSectionData = class;
 
   TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
-  TFloatStyleItemEvent = function (const AData: THCSectionData; const AStyleNo: Integer): THCCustomFloatItem of object;
-  TDataFloatItemEvent = procedure(const AData: THCSectionData; const AItem: THCCustomFloatItem) of object;
   // 用于文档页眉、页脚、页面Data基类，主要用于处理文档级Data变化时特有的属性或事件
   // 如只读状态切换，页眉、页脚、页面切换时需要通知外部控件以做界面控件状态变化，
   // 而单元格只读切换时不需要
@@ -31,8 +29,6 @@ type
   private
     FOnReadOnlySwitch: TNotifyEvent;
     FOnGetScreenCoord: TGetScreenCoordEvent;
-    FOnCreateFloatItemByStyle: TFloatStyleItemEvent;
-    FOnInsertFloatItem: TDataFloatItemEvent;
 
     FFloatItems: THCFloatItems;
     /// <summary> 当前选中的FloatItem </summary>
@@ -42,9 +38,8 @@ type
     /// <summary> 当前鼠标移动处的FloatItem </summary>
     FMouseMoveIndex: Integer;
 
-    function CreateFloatItemByStyle(const AStyleNo: Integer): THCCustomFloatItem;
     function GetFloatItemAt(const X, Y: Integer): Integer;
-    procedure DoInsertFloatItem(const AItem: THCCustomFloatItem);
+    procedure DoInsertFloatItem(const AItem: THCCustomItem);
   protected
     procedure SetReadOnly(const Value: Boolean); override;
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -84,8 +79,6 @@ type
     property FloatItems: THCFloatItems read FFloatItems;
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
-    property OnCreateFloatItemByStyle: TFloatStyleItemEvent read FOnCreateFloatItemByStyle write FOnCreateFloatItemByStyle;
-    property OnInsertFloatItem: TDataFloatItemEvent read FOnInsertFloatItem write FOnInsertFloatItem;
   end;
 
   THCHeaderData = class(THCSectionData);
@@ -346,25 +339,6 @@ begin
   inherited Create(AStyle);
 end;
 
-function THCSectionData.CreateFloatItemByStyle(
-  const AStyleNo: Integer): THCCustomFloatItem;
-begin
-  Result := nil;
-
-  if Assigned(FOnCreateFloatItemByStyle) then
-    Result := FOnCreateFloatItemByStyle(Self, AStyleNo);
-
-  if not Assigned(Result) then
-  begin
-    case AStyleNo of
-      THCStyle.FloatLine: Result := THCFloatLineItem.Create(Self);
-      THCStyle.FloatBarCode: Result := THCFloatBarCodeItem.Create(Self);
-    else
-      raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建FloatItem代码！');
-    end;
-  end;
-end;
-
 destructor THCSectionData.Destroy;
 begin
   FFloatItems.Free;
@@ -487,10 +461,10 @@ begin
     Style.UpdateInfoRePaint;
 end;
 
-procedure THCSectionData.DoInsertFloatItem(const AItem: THCCustomFloatItem);
+procedure THCSectionData.DoInsertFloatItem(const AItem: THCCustomItem);
 begin
-  if Assigned(FOnInsertFloatItem) then
-    FOnInsertFloatItem(Self, AItem);
+  if Assigned(OnInsertItem) then
+    OnInsertItem(Self, AItem);
 end;
 
 procedure THCSectionData.DoLoadFromStream(const AStream: TStream;
@@ -510,7 +484,7 @@ begin
       if (AFileVersion < 28) and (vStyleNo = Ord(THCShapeStyle.hssLine)) then
         vFloatItem := THCFloatLineItem.Create(Self)
       else
-        vFloatItem := CreateFloatItemByStyle(vStyleNo);
+        vFloatItem := CreateItemByStyle(vStyleNo) as THCCustomFloatItem;
 
       vFloatItem.LoadFromStream(AStream, AStyle, AFileVersion);
       FFloatItems.Add(vFloatItem);
@@ -636,7 +610,7 @@ begin
   for i := 0 to vItemsNode.ChildNodes.Count - 1 do
   begin
     vNode := vItemsNode.ChildNodes[i];
-    vFloatItem := CreateFloatItemByStyle(vNode.Attributes['style']);
+    vFloatItem := CreateItemByStyle(vNode.Attributes['style']) as THCCustomFloatItem;
     vFloatItem.ParseXml(vNode);
     FFloatItems.Add(vFloatItem);
   end;

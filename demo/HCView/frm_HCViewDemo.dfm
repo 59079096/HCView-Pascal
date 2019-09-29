@@ -1869,6 +1869,10 @@ object frmHCViewDemo: TfrmHCViewDemo
         Caption = #39029#38754
         OnClick = mniViewPageClick
       end
+      object mniViewText: TMenuItem
+        Caption = #25991#26412
+        OnClick = mniViewTextClick
+      end
     end
   end
   object xpmnfst: TXPManifest

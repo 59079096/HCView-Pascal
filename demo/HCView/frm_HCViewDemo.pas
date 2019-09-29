@@ -143,6 +143,7 @@ type
     mniAlignBottomRight: TMenuItem;
     ilTool: TImageList;
     mniFloatBarCode: TMenuItem;
+    mniViewText: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnAlignLeftClick(Sender: TObject);
@@ -218,6 +219,7 @@ type
     procedure mniViewPageClick(Sender: TObject);
     procedure mniAlignTopLeftClick(Sender: TObject);
     procedure mniFloatBarCodeClick(Sender: TObject);
+    procedure mniViewTextClick(Sender: TObject);
   private
     { Private declarations }
     FHRuler: THCHorizontalRuler;
@@ -1208,6 +1210,13 @@ end;
 procedure TfrmHCViewDemo.mniViewPageClick(Sender: TObject);
 begin
   FHCView.ViewModel := THCViewModel.hvmPage;
+  FHRuler.Visible := False;
+  FVRuler.Visible := False;
+end;
+
+procedure TfrmHCViewDemo.mniViewTextClick(Sender: TObject);
+begin
+  FHCView.ViewModel := THCViewModel.hvmEdit;
   FHRuler.Visible := False;
   FVRuler.Visible := False;
 end;

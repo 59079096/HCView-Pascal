@@ -119,7 +119,6 @@ type
     FOnSectionReadOnlySwitch, FOnSectionCurParaNoChange, FOnSectionActivePageChange
       : TNotifyEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
-    FOnSectionCreateFloatStyleItem: TFloatStyleItemEvent;
     FOnSectionCanEdit: TOnCanEditEvent;
     FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemEvent;
     FOnSectionSaveItem, FOnSectionDeleteItem: TSectionDataItemFunEvent;
@@ -248,8 +247,6 @@ type
     procedure DoSectionCreateItem(Sender: TObject); virtual;
     function DoSectionDeleteItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem): Boolean; virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
-    function DoSectionCreateFloatStyleItem(const AData: THCSectionData; const AStyleNo: Integer): THCCustomFloatItem; virtual;
-    procedure DoSectionInsertFloatItem(const Sender: TObject; const AData: THCSectionData; const AItem: THCCustomFloatItem); virtual;
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     function DoSectionSaveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem): Boolean; virtual;
@@ -824,9 +821,6 @@ type
     /// <summary> 创建指定样式的Item时触发 </summary>
     property OnSectionCreateStyleItem: TStyleItemEvent read FOnSectionCreateStyleItem write FOnSectionCreateStyleItem;
 
-    /// <summary> 创建指定样式的FloatItem时触发 </summary>
-    property OnSectionCreateFloatStyleItem: TFloatStyleItemEvent read FOnSectionCreateFloatStyleItem write FOnSectionCreateFloatStyleItem;
-
     /// <summary> 当编辑只读状态的Data时触发 </summary>
     property OnSectionCanEdit: TOnCanEditEvent read FOnSectionCanEdit write FOnSectionCanEdit;
 
@@ -931,12 +925,19 @@ begin
   end
   else
   begin
-    vHMax := FSections[0].GetPageWidth;
+    if FViewModel = hvmPage then
+      vHMax := FSections[0].PaperWidthPix
+    else
+      vHMax := FSections[0].GetPageWidth;
+
     for i := 0 to FSections.Count - 1 do  //  计算节垂直总和，以及节中最宽的页宽度
     begin
       vVMax := vVMax + FSections[i].GetFilmHeight;
 
-      vWidth := FSections[i].GetPageWidth;
+      if FViewModel = hvmPage then
+        vWidth := FSections[i].PaperWidthPix
+      else
+        vWidth := FSections[i].GetPageWidth;
 
       if vWidth > vHMax then
         vHMax := vWidth;
@@ -946,8 +947,14 @@ begin
   if FAnnotatePre.Visible then
     vHMax := vHMax + AnnotationWidth;
 
-  vVMax := ZoomIn(vVMax + FPagePadding);  // 补充最后一页后面的PagePadding
-  vHMax := ZoomIn(vHMax + FPagePadding + FPagePadding);
+  if FViewModel = hvmFilm then
+  begin
+    vVMax := ZoomIn(vVMax + FPagePadding);  // 补充最后一页后面的PagePadding
+    vHMax := ZoomIn(vHMax + FPagePadding + FPagePadding);
+  end
+  else
+  if FViewModel = hvmPage then
+    vHMax := ZoomIn(vHMax + FPagePadding + FPagePadding);
 
   FVScrollBar.Max := vVMax;
   FHScrollBar.Max := vHMax;
@@ -1505,15 +1512,6 @@ begin
   DoViewResize;
 end;
 
-function THCView.DoSectionCreateFloatStyleItem(const AData: THCSectionData;
-  const AStyleNo: Integer): THCCustomFloatItem;
-begin
-  if Assigned(FOnSectionCreateFloatStyleItem) then
-    Result := FOnSectionCreateFloatStyleItem(AData, AStyleNo)
-  else
-    Result := nil;
-end;
-
 procedure THCView.DoSectionCreateItem(Sender: TObject);
 begin
   if Assigned(FOnSectionCreateItem) then
@@ -1637,13 +1635,6 @@ procedure THCView.DoSectionInsertAnnotate(const Sender: TObject;
   const AData: THCCustomData; const ADataAnnotate: THCDataAnnotate);
 begin
   FAnnotatePre.InsertDataAnnotate(ADataAnnotate);
-end;
-
-procedure THCView.DoSectionInsertFloatItem(const Sender: TObject;
-  const AData: THCSectionData; const AItem: THCCustomFloatItem);
-begin
-  if Assigned(FOnSectionInsertItem) then
-    FOnSectionInsertItem(Sender, AData, AItem);
 end;
 
 procedure THCView.DoSectionInsertItem(const Sender: TObject;
@@ -1910,6 +1901,9 @@ begin
     else
       Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PaperWidthPix)) div 2, ZoomIn(FPagePadding));
   end
+  else
+  if FViewModel = hvmPage then
+    Result := Max((FViewWidth - ZoomIn(FSections[ASectionIndex].PaperWidthPix)) div 2, ZoomIn(FPagePadding))
   else
     Result := 0;
 
@@ -2605,12 +2599,10 @@ begin
   Result.OnCreateItem := DoSectionCreateItem;
   Result.OnDeleteItem := DoSectionDeleteItem;
   Result.OnCreateItemByStyle := DoSectionCreateStyleItem;
-  Result.OnCreateFloatItemByStyle := DoSectionCreateFloatStyleItem;
   Result.OnCanEdit := DoSectionCanEdit;
   Result.OnInsertItem := DoSectionInsertItem;
   Result.OnRemoveItem := DoSectionRemoveItem;
   Result.OnSaveItem := DoSectionSaveItem;
-  Result.OnInsertFloatItem := DoSectionInsertFloatItem;
   Result.OnItemMouseDown := DoSectionItemMouseDown;
   Result.OnItemMouseUp := DoSectionItemMouseUp;
   Result.OnItemResize := DoSectionItemResize;
@@ -2667,6 +2659,9 @@ begin
   if vPageIndex > 0 then
   begin
     if FSections[vSectionIndex].ViewModel = hvmFilm then
+      Result := Result + vPageIndex * (FPagePadding + FSections[vSectionIndex].PaperHeightPix)
+    else
+    if FSections[vSectionIndex].ViewModel = hvmPage then
       Result := Result + vPageIndex * (FPagePadding + FSections[vSectionIndex].PaperHeightPix)
     else
       Result := Result + vPageIndex * (FPagePadding + FSections[vSectionIndex].GetPageHeight);
@@ -4085,7 +4080,7 @@ procedure THCView.UpdateView(const ARect: TRect);
         if FSections[i].ViewModel = hvmFilm then
           vPos := vPos + ZoomIn(FPagePadding + FSections[i].PaperHeightPix)
         else
-          vPos := vPos + ZoomIn(FPagePadding + FSections[i].GetPageHeight);
+          vPos := vPos + ZoomIn(FSections[i].GetPageHeight);
 
         if vPos > FVScrollBar.Position then
         begin
@@ -4172,6 +4167,9 @@ begin
 
       // 控件背景
       if FViewModel = hvmFilm then
+        FDataBmp.Canvas.Brush.Color := Self.Color
+      else
+      if FViewModel = hvmPage then
         FDataBmp.Canvas.Brush.Color := Self.Color
       else
         FDataBmp.Canvas.Brush.Color := FStyle.BackgroudColor;

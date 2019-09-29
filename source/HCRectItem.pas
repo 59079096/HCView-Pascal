@@ -1053,9 +1053,16 @@ end;
 procedure THCResizeRectItem.PaintTop(const ACanvas: TCanvas);
 begin
   inherited;
-  //ACanvas.DrawFocusRect(ADrawRect);  // 焦点框，为啥画不出来呢
-  ACanvas.Brush.Style := bsClear;
-  ACanvas.Rectangle(FResizeRect);
+  if FResizing then
+  begin
+    //ACanvas.DrawFocusRect(ADrawRect);  // 焦点框，为啥画不出来呢
+    ACanvas.Brush.Style := bsClear;
+    ACanvas.Rectangle(FResizeRect);
+    ACanvas.Brush.Color := clWhite;
+    ACanvas.Font.Size := 8;
+    ACanvas.TextOut(FResizeRect.Left + 2, FResizeRect.Top + 2,
+      IntToStr(FResizeWidth) + ' x ' + IntToStr(FResizeHeight));
+  end;
 end;
 
 procedure THCResizeRectItem.RestrainSize(const AWidth, AHeight: Integer);

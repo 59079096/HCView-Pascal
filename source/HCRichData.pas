@@ -220,8 +220,9 @@ implementation
 
 uses
   Math, HCTableItem, HCImageItem, HCCheckBoxItem, HCTabItem, HCLineItem, HCExpressItem,
-  HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem,
-  HCFractionItem, HCDateTimePicker, HCRadioGroup, HCSupSubScriptItem, HCUnitConversion;
+  HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFloatLineItem,
+  HCFractionItem, HCDateTimePicker, HCRadioGroup, HCSupSubScriptItem, HCUnitConversion,
+  HCFloatBarCodeItem;
 
 { THCRichData }
 
@@ -257,6 +258,9 @@ begin
       THCStyle.DateTimePicker: Result := THCDateTimePicker.Create(Self, Now);
       THCStyle.RadioGroup: Result := THCRadioGroup.Create(Self);
       THCStyle.SupSubScript: Result := THCSupSubScriptItem.Create(Self, '', '');
+      // FloatItem
+      THCStyle.FloatLine: Result := THCFloatLineItem.Create(Self);
+      THCStyle.FloatBarCode: Result := THCFloatBarCodeItem.Create(Self);
     else
       raise Exception.Create('未找到类型 ' + IntToStr(AStyleNo) + ' 对应的创建Item代码！');
     end;

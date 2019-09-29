@@ -28,8 +28,10 @@ type
   THCViewModel = (
     /// <summary> Ω∫æÌ ”Õº£¨œ‘ æ“≥√º°¢“≥Ω≈ </summary>
     hvmFilm,
-    /// <summary> Page ”Õº£¨≤ªœ‘ æ“≥√º°¢“≥Ω≈ </summary>
-    hvmPage
+    /// <summary> Page ”Õº£¨œ‘ æ◊Û”“±ﬂæ‡ </summary>
+    hvmPage,
+    /// <summary> Text ”Õº£¨≤ªœ‘ æ“≥±ﬂæ‡ </summary>
+    hvmEdit
   );
 
   TItemOptions = set of (ioParaFirst, ioPageBreak);

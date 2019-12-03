@@ -56,10 +56,14 @@ const
    2.7 浮动直线改为ShapeLine
    2.8 浮动Item都使用HCStyle的样式定义(负数)，这样便于统一按Item处理遍历等操作
    2.9 浮动Item保存PageIndex，原因见 20190906001
+   3.0 表格增加边框宽度的存储
+   3.1 增加行间距 最小值、固定值、多倍的存储
+   3.2 表格边框改用磅为单位、段样式增加BreakRough处理截断、兼容EmrView使用TDeImageItem类处理ImageItem
+   3.3 兼容32版本图片保存时没有按DeImageItem保存，读取时不正确的问题
   }
 
-  HC_FileVersion = '2.9';
-  HC_FileVersionInt = 29;
+  HC_FileVersion = '3.3';
+  HC_FileVersionInt = 33;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -112,10 +116,10 @@ type
     tcaCenterCenter, tcaCenterRight, tcaBottomLeft, tcaBottomCenter, tcaBottomRight);
 
   THCState = (hosLoading,  // 文档加载
-                  hosCopying,  // 复制
-                  hosPasting,  // 粘贴
-                  hosBatchInsert  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确
-                  );
+              hosCopying,  // 复制
+              hosPasting,  // 粘贴
+              hosBatchInsert  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确
+              );
 
   TCharType = (
     jctBreak,  //  截断点
@@ -274,6 +278,9 @@ type
   procedure HCSaveColorToStream(const AStream: TStream; const AColor: TColor);
   procedure HCLoadColorFromStream(const AStream: TStream; var AColor: TColor);
 
+  procedure BitmapSaveAsJPGE(const ABitmap: TBitmap; const AFile: string);
+  procedure BitmapSaveAsPNG(const ABitmap: TBitmap; const AFile: string);
+
   /// <summary> 保存文件格式、版本 </summary>
   procedure _SaveFileFormatAndVersion(const AStream: TStream);
   /// <summary> 读取文件格式、版本 </summary>
@@ -323,7 +330,7 @@ begin
   vPenParams.lbStyle := PenStyles[APen.Style];
   vPenParams.lbColor := APen.Color;
   vPenParams.lbHatch := 0;
-  Result := ExtCreatePen(PenTypes[APen.Width <> 1] or PS_ENDCAP_SQUARE,
+  Result := ExtCreatePen({PenTypes[APen.Width <> 1]}PS_GEOMETRIC or PS_ENDCAP_SQUARE,
     APen.Width, vPenParams, 0, nil);
 end;
 
@@ -730,6 +737,50 @@ begin
   else
   if vA = 255 then
     AColor := vB shl 16 + vG shl 8 + vR;
+end;
+
+procedure BitmapSaveAsJPGE(const ABitmap: TBitmap; const AFile: string);
+var
+  vSM: TMemoryStream;
+  vImage: TWICImage;
+begin
+  vSM := TMemoryStream.Create;
+  try
+    ABitmap.SaveToStream(vSM);
+    vSM.Position := 0;
+    vImage := TWICImage.Create;
+    try
+      vImage.LoadFromStream(vSM);
+      vImage.ImageFormat := TWICImageFormat.wifJpeg;
+      vImage.SaveToFile(AFile);
+    finally
+      FreeAndNil(vImage);
+    end;
+  finally
+    FreeAndNil(vSM);
+  end;
+end;
+
+procedure BitmapSaveAsPNG(const ABitmap: TBitmap; const AFile: string);
+var
+  vSM: TMemoryStream;
+  vImage: TWICImage;
+begin
+  vSM := TMemoryStream.Create;
+  try
+    ABitmap.SaveToStream(vSM);
+    vSM.Position := 0;
+    vImage := TWICImage.Create;
+    try
+      vImage.LoadFromStream(vSM);
+      vImage.ImageFormat := TWICImageFormat.wifPng;
+      vImage.SaveToFile(AFile);
+    finally
+      FreeAndNil(vImage);
+    end;
+  finally
+    FreeAndNil(vSM);
+  end;
 end;
 
 {$IFDEF UNPLACEHOLDERCHAR}

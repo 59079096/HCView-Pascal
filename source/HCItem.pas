@@ -28,9 +28,9 @@ type
   THCViewModel = (
     /// <summary> 胶卷视图，显示页眉、页脚 </summary>
     hvmFilm,
-    /// <summary> Page视图，显示左右边距 </summary>
+    /// <summary> Page视图，显示左右边距，不显示页眉、页脚 </summary>
     hvmPage,
-    /// <summary> Text视图，不显示页边距 </summary>
+    /// <summary> Text视图，不显示页边距和页眉页脚 </summary>
     hvmEdit
   );
 
@@ -49,7 +49,7 @@ type
     FPrint: Boolean;
     FViewModel: THCViewModel;
     FTopItems: TObjectList<THCCustomItem>;
-    FWindowWidth, FWindowHeight: Integer;
+    FWindowWidth, FWindowHeight, FDPI: Integer;
     FScaleX, FScaleY,  // 目标画布和显示器画布dpi比例(打印机dpi和显示器dpi不一致时的缩放比例)
     FZoom  // 视图设置的放大比例
       : Single;
@@ -63,8 +63,8 @@ type
     procedure RestoreCanvasScale(const ACanvas: TCanvas; const AOldInfo: TScaleInfo);
     function GetScaleX(const AValue: Integer): Integer;
     function GetScaleY(const AValue: Integer): Integer;
-    procedure DrawNoScaleLine(const ACanvas: TCanvas; const APoints: array of TPoint);
-
+    procedure DrawNoScaleLine(const ACanvas: TCanvas; const APoints: array of TPoint); overload;
+    procedure DrawNoScaleLine(const ACanvas: TCanvas; const AX1, AY1, AX2, AY2: Integer); overload;
     property Print: Boolean read FPrint write FPrint;
 
     /// <summary> 界面显示模式：页面、Web </summary>
@@ -86,6 +86,8 @@ type
     property ScaleY: Single read FScaleY write FScaleY;
 
     property Zoom: Single read FZoom write FZoom;
+
+    property DPI: Integer read FDPI write FDPi;
   end;
 
   THCCustomItem = class(TObject)
@@ -493,6 +495,21 @@ destructor TPaintInfo.Destroy;
 begin
   FTopItems.Free;
   inherited Destroy;
+end;
+
+procedure TPaintInfo.DrawNoScaleLine(const ACanvas: TCanvas; const AX1, AY1,
+  AX2, AY2: Integer);
+var
+  vPt: TPoint;
+begin
+  SetViewportExtEx(ACanvas.Handle, FWindowWidth, FWindowHeight, @vPt);
+  try
+    ACanvas.MoveTo(GetScaleX(AX1), GetScaleY(AY1));
+    ACanvas.LineTo(GetScaleX(AX2), GetScaleY(AY2));
+  finally
+    SetViewportExtEx(ACanvas.Handle, Round(FWindowWidth * FScaleX),
+      Round(FWindowHeight * FScaleY), @vPt);
+  end;
 end;
 
 procedure TPaintInfo.DrawNoScaleLine(const ACanvas: TCanvas;

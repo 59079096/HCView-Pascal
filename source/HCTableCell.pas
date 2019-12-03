@@ -86,7 +86,6 @@ type
     FBackgroundColor: TColor;
     FAlignVert: THCAlignVert;
     FBorderSides: TBorderSides;
-    function GetCellDataTop(const ACellVPadding: Byte): Integer;
   protected
     function GetActive: Boolean;
     procedure SetActive(const Value: Boolean);
@@ -112,7 +111,7 @@ type
       const AFileVersion: Word);
     procedure ToXml(const ANode: IHCXMLNode);
     procedure ParseXml(const ANode: IHCXMLNode);
-
+    function GetCellDataTop(const ACellVPadding: Byte): Integer;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer;
       const ACellHPadding, ACellVPadding: Byte; var ACaretInfo: THCCaretInfo);
 
@@ -195,7 +194,7 @@ function THCTableCell.GetCellDataTop(const ACellVPadding: Byte): Integer;
 begin
   case FAlignVert of
     cavTop: Result := ACellVPadding;
-    cavCenter: Result := (FHeight - ACellVPadding - FCellData.Height - ACellVPadding) div 2;
+    cavCenter: Result := ACellVPadding + (FHeight - ACellVPadding - FCellData.Height - ACellVPadding) div 2;
     cavBottom: Result := FHeight - ACellVPadding - FCellData.Height;
   end;
 end;
@@ -237,6 +236,7 @@ begin
     FCellData.CellHeight := FHeight;
   end
   else
+  if (FRowSpan < 0) or (FColSpan < 0) then  // 修正表格合并处理不准确造成的错误，容错打不开的情况
   begin
     FCellData.Free;
     FCellData := nil;

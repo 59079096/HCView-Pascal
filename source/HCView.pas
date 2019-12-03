@@ -121,7 +121,8 @@ type
     FOnSectionCreateStyleItem: TStyleItemEvent;
     FOnSectionCanEdit: TOnCanEditEvent;
     FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemEvent;
-    FOnSectionSaveItem, FOnSectionDeleteItem: TSectionDataItemFunEvent;
+    FOnSectionSaveItem: TSectionDataItemNoFunEvent;
+    FOnSectionDeleteItem: TSectionDataItemFunEvent;
     FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent;
 
     FOnSectionPaintHeader, FOnSectionPaintFooter, FOnSectionPaintPage,
@@ -156,6 +157,7 @@ type
     function DoUndoGroupEnd(const AItemNo, AOffset: Integer): THCUndoGroupEnd;
     procedure DoUndo(const Sender: THCUndo);
     procedure DoRedo(const Sender: THCUndo);
+    procedure DoUndoDestroy(const Sender: THCUndo);
 
     procedure DoViewResize;
     /// <summary> 文档"背板"变动(数据无变化，如对称边距，缩放视图) </summary>
@@ -167,16 +169,6 @@ type
     procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoSectionItemResize(const AData: THCCustomData; const AItemNo: Integer);
-    procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
-      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
-      const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-
-    procedure DoSectionDrawItemPaintContent(const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
-      const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
-      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-
     procedure DoSectionPaintHeader(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionPaintFooter(const Sender: TObject; const APageIndex: Integer;
@@ -244,13 +236,22 @@ type
     procedure Resize; override;
     procedure DoChange; virtual;
     procedure DoCaretChange; virtual;
+    procedure DoKillFocus; virtual;
     procedure DoSectionCreateItem(Sender: TObject); virtual;
     function DoSectionDeleteItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem): Boolean; virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
-    function DoSectionSaveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem): Boolean; virtual;
+    function DoSectionSaveItem(const Sender: TObject; const AData: THCCustomData; const AItemNo: Integer): Boolean; virtual;
     function DoSectionCanEdit(const Sender: TObject): Boolean; virtual;
+    procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
+    procedure DoSectionDrawItemPaintContent(const AData: THCCustomData;
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+      const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -433,8 +434,11 @@ type
     /// <summary> 修改当前光标所在段背景色 </summary>
     procedure ApplyParaBackColor(const AColor: TColor);
 
+    /// <summary> 修改当前光标所在段换行截断方式 </summary>
+    procedure ApplyParaBreakRough(const ARough: Boolean);
+
     /// <summary> 修改当前光标所在段行间距 </summary>
-    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
+    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode; const ASpace: Single = 1);
 
     /// <summary> 修改当前光标所在段左缩进 </summary>
     procedure ApplyParaLeftIndent(const Add: Boolean = True); overload;
@@ -525,9 +529,14 @@ type
     /// <summary> 返回指定节页面绘制时Left位置 </summary>
     function GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
 
+    /// <summary> 返回格式化位置相对当前页显示的窗体坐标 </summary>
+    function GetFormatPointToViewCoord(const APoint: TPoint): TPoint;
+
     /// <summary> 返回光标处DrawItem相对当前页显示的窗体坐标 </summary>
     /// <returns>坐标</returns>
-    function GetActiveDrawItemViewCoord: TPoint;
+    function GetTopLevelDrawItemViewCoord: TPoint;
+
+    function GetTopLevelRectDrawItemViewCoord: TPoint;
 
     /// <summary> 设置当前TextItem的文本内容 </summary>
     procedure SetActiveItemText(const AText: string);
@@ -595,6 +604,15 @@ type
     /// <param name="ASeparateSrc">True：图片等保存到文件夹，False以base64方式存储到页面中</param>
     procedure SaveToHtml(const AFileName: string; const ASeparateSrc: Boolean = False);
 
+    /// <summary>
+    /// 将文档每一页保存为图片
+    /// </summary>
+    /// <param name="APath">图片路径</param>
+    /// <param name="APrefix">单张图片时文件名，多图片时每一张名称的前缀</param>
+    /// <param name="AImageType">图片格式如 BMP, JPG, PNG</param>
+    /// <param name="AOnePaper">True单张图片</param>
+    procedure SaveToImage(const APath, APrefix, AImageType: string; const AOnePaper: Boolean = True);
+
     /// <summary> 获取指定页所在的节和相对此节的页序号 </summary>
     /// <param name="APageIndex">页序号</param>
     /// <param name="ASectionPageIndex">返回节第一页相对所有页的序号</param>
@@ -637,18 +655,18 @@ type
     /// <summary> 从当前行打印当前页(仅限正文) </summary>
     /// <param name="APrintHeader"> 是否打印页眉 </param>
     /// <param name="APrintFooter"> 是否打印页脚 </param>
-    function PrintCurPageByActiveLine(const APrintHeader, APrintFooter: Boolean): TPrintResult;
+    function PrintCurPageByActiveLine(const APrinter: string; const APrintHeader, APrintFooter: Boolean): TPrintResult;
 
     /// <summary> 打印当前页指定的起始、结束Item(仅限正文) </summary>
     /// <param name="APrintHeader"> 是否打印页眉 </param>
     /// <param name="APrintFooter"> 是否打印页脚 </param>
-    function PrintCurPageByItemRange(const APrintHeader, APrintFooter: Boolean;
+    function PrintCurPageByItemRange(const APrinter: string; const APrintHeader, APrintFooter: Boolean;
       const AStartItemNo, AStartOffset, AEndItemNo, AEndOffset: Integer): TPrintResult;
 
     /// <summary> 打印当前页选中的起始、结束Item(仅限正文) </summary>
     /// <param name="APrintHeader"> 是否打印页眉 </param>
     /// <param name="APrintFooter"> 是否打印页脚 </param>
-    function PrintCurPageSelected(const APrintHeader, APrintFooter: Boolean): TPrintResult;
+    function PrintCurPageSelected(const APrinter: string; const APrintHeader, APrintFooter: Boolean): TPrintResult;
 
     /// <summary> 合并表格选中的单元格 </summary>
     function MergeTableSelectCells: Boolean;
@@ -750,7 +768,7 @@ type
     property OnSectionRemoveItem: TSectionDataItemEvent read FOnSectionRemoveItem write FOnSectionRemoveItem;
 
     /// <summary> 节保存Item前触发，控制是否允许保存该Item </summary>
-    property OnSectionSaveItem: TSectionDataItemFunEvent read FOnSectionSaveItem write FOnSectionSaveItem;
+    property OnSectionSaveItem: TSectionDataItemNoFunEvent read FOnSectionSaveItem write FOnSectionSaveItem;
 
     /// <summary> Item绘制开始前触发 </summary>
     property OnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent read FOnSectionDrawItemPaintBefor write FOnSectionDrawItemPaintBefor;
@@ -1073,6 +1091,7 @@ begin
   FUndoList.OnUndoNew := DoUndoNew;
   FUndoList.OnUndoGroupStart := DoUndoGroupBegin;
   FUndoList.OnUndoGroupEnd := DoUndoGroupEnd;
+  FUndoList.OnUndoDestroy := DoUndoDestroy;
 
   FAnnotatePre := THCAnnotatePre.Create;
   FAnnotatePre.OnUpdateView := DoAnnotatePreUpdateView;
@@ -1354,7 +1373,7 @@ procedure THCView.DoSectionPaintPaperAfter(const Sender: TObject; const APageInd
   const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 begin
   // HCView广告信息，如介意可以删掉
-  if (FViewModel = THCViewModel.hvmFilm) and ((Sender as THCSection).PagePadding > 10) then
+  if (not APaintInfo.Print) and (FViewModel = THCViewModel.hvmFilm) and ((Sender as THCSection).PagePadding > 10) then
   begin
     ACanvas.Brush.Style := bsClear;
     ACanvas.Font.Size := 10;
@@ -1402,10 +1421,10 @@ begin
 end;
 
 function THCView.DoSectionSaveItem(const Sender: TObject;
-  const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
+  const AData: THCCustomData; const AItemNo: Integer): Boolean;
 begin
   if Assigned(FOnSectionSaveItem) then
-    Result := FOnSectionSaveItem(Sender, AData, AItem)
+    Result := FOnSectionSaveItem(Sender, AData, AItemNo)
   else
     Result := True;
 end;
@@ -1608,6 +1627,15 @@ begin
   Result := ActiveSection.InsertText(AText);
 end;
 
+procedure THCView.DoKillFocus;
+begin
+  if Assigned(FCaret) then
+  begin
+    FCaret.Hide(True);
+    UpdateView(Bounds(FCaret.X - 1, FCaret.Y, FCaret.Width + 1, FCaret.Height));
+  end;
+end;
+
 procedure THCView.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const ALoadSectionProc: TLoadSectionProc);
 var
@@ -1734,6 +1762,11 @@ begin
   ActiveSection.Undo(Sender);
 end;
 
+procedure THCView.DoUndoDestroy(const Sender: THCUndo);
+begin
+  //Sender的Data是ActiveSection.ActiveData，所以不需要释放
+end;
+
 function THCView.DoUndoGroupBegin(const AItemNo,
   AOffset: Integer): THCUndoGroupBegin;
 begin
@@ -1797,13 +1830,56 @@ begin
   Result := ActiveSection.GetTopLevelItem;
 end;
 
-function THCView.GetActiveDrawItemViewCoord: TPoint;
+function THCView.GetTopLevelRectDrawItemViewCoord: TPoint;
+begin
+  Result := Self.ActiveSection.GetTopLevelRectDrawItemCoord;  // 有选中时，以选中结束位置的DrawItem格式化坐标
+  Result := Self.GetFormatPointToViewCoord(Result);
+end;
+
+function THCView.GetTopLevelDrawItemViewCoord: TPoint;
+begin
+  Result := Self.ActiveSection.GetTopLevelDrawItemCoord;  // 有选中时，以选中结束位置的DrawItem格式化坐标
+  Result := Self.GetFormatPointToViewCoord(Result);
+end;
+
+function THCView.GetActiveItem: THCCustomItem;
+begin
+  Result := ActiveSection.GetActiveItem;
+end;
+
+function THCView.GetActivePageIndex: Integer;
+var
+  i: Integer;
+begin
+  Result := 0;
+  for i := 0 to FActiveSectionIndex - 1 do
+    Result := Result + FSections[i].PageCount;
+
+  Result := Result + ActiveSection.ActivePageIndex;
+end;
+
+function THCView.GetActiveSection: THCSection;
+begin
+  Result := FSections[FActiveSectionIndex];
+end;
+
+function THCView.GetCurParaNo: Integer;
+begin
+  Result := ActiveSection.CurParaNo;
+end;
+
+function THCView.GetCurStyleNo: Integer;
+begin
+  Result := ActiveSection.CurStyleNo;
+end;
+
+function THCView.GetFormatPointToViewCoord(const APoint: TPoint): TPoint;
 var
   vSection: THCSection;
   vPageIndex: Integer;
 begin
+  Result := Point(APoint.X, APoint.Y);
   vSection := Self.ActiveSection;
-  Result := vSection.GetActiveDrawItemCoord;  // 有选中时，以选中结束位置的DrawItem格式化坐标
 
   if vSection.ActiveData = vSection.Page then
     vPageIndex := vSection.GetPageIndexByFormat(Result.Y)
@@ -1836,37 +1912,6 @@ begin
       + Result.Y
       - vSection.GetPageDataFmtTop(vPageIndex))  // 0
       - FVScrollBar.Position;
-end;
-
-function THCView.GetActiveItem: THCCustomItem;
-begin
-  Result := ActiveSection.GetActiveItem;
-end;
-
-function THCView.GetActivePageIndex: Integer;
-var
-  i: Integer;
-begin
-  Result := 0;
-  for i := 0 to FActiveSectionIndex - 1 do
-    Result := Result + FSections[i].PageCount;
-
-  Result := Result + ActiveSection.ActivePageIndex;
-end;
-
-function THCView.GetActiveSection: THCSection;
-begin
-  Result := FSections[FActiveSectionIndex];
-end;
-
-function THCView.GetCurParaNo: Integer;
-begin
-  Result := ActiveSection.CurParaNo;
-end;
-
-function THCView.GetCurStyleNo: Integer;
-begin
-  Result := ActiveSection.CurStyleNo;
 end;
 
 procedure THCView.GetSectionByCrood(const X, Y: Integer;
@@ -2922,6 +2967,7 @@ begin
           vSectionIndex := GetSectionPageIndexByPageIndex(APages[i], vFirstPageIndex);
           if vPaintInfo.SectionIndex <> vSectionIndex then
           begin
+            vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
             vPaintInfo.SectionIndex := vSectionIndex;
 
             SetPrintBySectionInfo(vSectionIndex);
@@ -2992,7 +3038,7 @@ begin
   Result := Print(APrinter, ACopies, vPages);
 end;
 
-function THCView.PrintCurPageByActiveLine(const APrintHeader,
+function THCView.PrintCurPageByActiveLine(const APrinter: string; const APrintHeader,
   APrintFooter: Boolean): TPrintResult;
 var
   vPt: TPoint;
@@ -3005,12 +3051,20 @@ var
 begin
   Result := TPrintResult.prError;
 
+  if APrinter <> '' then
+    HCPrinter.PrinterIndex := HCPrinter.Printers.IndexOf(APrinter);
+
+  if HCPrinter.PrinterIndex < 0 then Exit;
+
+  HCPrinter.Title := FFileName;
+
   vPrintOffsetX := GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETX);  // 90
   vPrintOffsetY := GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETY);  // 99
 
   vPaintInfo := TSectionPaintInfo.Create;
   try
     vPaintInfo.Print := True;
+    vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
     vPaintInfo.SectionIndex := Self.ActiveSectionIndex;
     vPaintInfo.PageIndex := Self.ActiveSection.ActivePageIndex;
 
@@ -3051,7 +3105,7 @@ begin
 
           if Self.ActiveSection.ActiveData = Self.ActiveSection.Page then
           begin
-            vPt := Self.ActiveSection.GetActiveDrawItemCoord;
+            vPt := Self.ActiveSection.GetTopLevelDrawItemCoord;
             vPt.Y := vPt.Y - ActiveSection.GetPageDataFmtTop(Self.ActiveSection.ActivePageIndex);
           end
           else
@@ -3071,17 +3125,18 @@ begin
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight,  // 页眉下边
               Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight, vPt.Y)
           else  // 不打印页眉
-            vRect := Bounds(vPrintOffsetX + vMarginLeft, vPrintOffsetY,
-              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
+            vRect := Bounds(vPrintOffsetX,// + vMarginLeft, 防止页眉浮动Item在页边距中
+              vPrintOffsetY,
+              Self.ActiveSection.PaperWidthPix,// - vMarginLeft - vMarginRight,
               Self.ActiveSection.GetHeaderAreaHeight + vPt.Y);
 
           vPrintCanvas.FillRect(vRect);
 
           if not APrintFooter then  // 不打印页脚
           begin
-            vRect := Bounds(vPrintOffsetX + vMarginLeft,
+            vRect := Bounds(vPrintOffsetX,// + vMarginLeft, 防止页脚浮动Item在页边距中
               vPrintOffsetY + Self.ActiveSection.PaperHeightPix - Self.ActiveSection.PaperMarginBottomPix,
-              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
+              Self.ActiveSection.PaperWidthPix,// - vMarginLeft - vMarginRight,
               Self.ActiveSection.PaperMarginBottomPix);
 
             vPrintCanvas.FillRect(vRect);
@@ -3103,7 +3158,7 @@ begin
   Result := TPrintResult.prOk;
 end;
 
-function THCView.PrintCurPageByItemRange(const APrintHeader, APrintFooter: Boolean;
+function THCView.PrintCurPageByItemRange(const APrinter: string; const APrintHeader, APrintFooter: Boolean;
   const AStartItemNo, AStartOffset, AEndItemNo, AEndOffset: Integer): TPrintResult;
 var
   vData: THCRichData;
@@ -3118,12 +3173,20 @@ begin
   // 注意：此方法需要起始Item格式化第一个DrawItem和结束ItemNo格式化最后一个DrawItem在同一页
   Result := TPrintResult.prError;
 
+  if APrinter <> '' then
+    HCPrinter.PrinterIndex := HCPrinter.Printers.IndexOf(APrinter);
+
+  if HCPrinter.PrinterIndex < 0 then Exit;
+
+  HCPrinter.Title := FFileName;
+
   vPrintOffsetX := GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETX);  // 90
   vPrintOffsetY := GetDeviceCaps(HCPrinter.Handle, PHYSICALOFFSETY);  // 99
 
   vPaintInfo := TSectionPaintInfo.Create;
   try
     vPaintInfo.Print := True;
+    vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
     vPaintInfo.SectionIndex := Self.ActiveSectionIndex;
     vPaintInfo.PageIndex := Self.ActiveSection.ActivePageIndex;
 
@@ -3187,7 +3250,8 @@ begin
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight,  // 页眉下边
               Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight, vPt.Y)
           else  // 不打印页眉
-            vRect := Bounds(vPrintOffsetX + vMarginLeft, vPrintOffsetY,
+            vRect := Bounds(vPrintOffsetX, // + vMarginLeft, 防止页眉浮动Item在页边距中
+              vPrintOffsetY,
               Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
               Self.ActiveSection.GetHeaderAreaHeight + vPt.Y);
 
@@ -3217,9 +3281,9 @@ begin
           // 抹选中内容下面
           if not APrintFooter then  // 不打印页脚
           begin
-            vRect := Rect(vPrintOffsetX + vMarginLeft,
+            vRect := Rect(vPrintOffsetX,// + vMarginLeft, 防止页脚浮动Item在页边距中
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
-              vPrintOffsetX + Self.ActiveSection.PaperWidthPix - vMarginRight,
+              vPrintOffsetX + Self.ActiveSection.PaperWidthPix,// - vMarginRight,
               vPrintOffsetY + Self.ActiveSection.PaperHeightPix);
 
             vPrintCanvas.FillRect(vRect);
@@ -3250,12 +3314,12 @@ begin
   Result := TPrintResult.prOk;
 end;
 
-function THCView.PrintCurPageSelected(const APrintHeader,
+function THCView.PrintCurPageSelected(const APrinter: string; const APrintHeader,
   APrintFooter: Boolean): TPrintResult;
 begin
   if Self.ActiveSection.ActiveData.SelectExists(False) then
   begin
-    Result := PrintCurPageByItemRange(APrintHeader, APrintFooter,
+    Result := PrintCurPageByItemRange(APrinter, APrintHeader, APrintFooter,
       Self.ActiveSection.ActiveData.SelectInfo.StartItemNo,
       Self.ActiveSection.ActiveData.SelectInfo.StartItemOffset,
       Self.ActiveSection.ActiveData.SelectInfo.EndItemNo,
@@ -3500,6 +3564,117 @@ begin
   end;
 end;
 
+procedure THCView.SaveToImage(const APath, APrefix, AImageType: string;
+  const AOnePaper: Boolean);
+var
+  vPaintInfo: TSectionPaintInfo;
+  vScaleInfo: TScaleInfo;
+  i, vWidth, vHeight, vSectionIndex, vSectionPageIndex, vTop: Integer;
+  vBmp: TBitmap;
+begin
+  vPaintInfo := TSectionPaintInfo.Create;
+  try
+    vPaintInfo.ScaleX := 1;
+    vPaintInfo.ScaleY := 1;
+    vPaintInfo.Zoom := 1;
+    vPaintInfo.Print := True;
+    vPaintInfo.DPI := HCUnitConversion.PixelsPerInchX;
+    vPaintInfo.ViewModel := THCViewModel.hvmFilm;
+
+    if AOnePaper then
+    begin
+      vWidth := 0;
+      vHeight := 0;
+
+      for i := 0 to FSections.Count - 1 do
+      begin
+        vHeight := vHeight + FSections[i].PaperHeightPix * FSections[i].PageCount;
+        if vWidth < FSections[i].PaperWidthPix then
+          vWidth := FSections[i].PaperWidthPix;
+      end;
+
+      vPaintInfo.WindowWidth := vWidth;
+      vPaintInfo.WindowHeight := vHeight;
+
+      vBmp := TBitmap.Create;
+      try
+        vBmp.SetSize(vWidth, vHeight);
+
+        vSectionIndex := 0;
+        vSectionPageIndex := 0;
+        vTop := 0;
+
+        for i := 0 to Self.PageCount - 1 do
+        begin
+          vSectionIndex := GetSectionPageIndexByPageIndex(i, vSectionPageIndex);
+          //vWidth := FSections[vSectionIndex].PaperWidthPix;
+          vHeight := FSections[vSectionIndex].PaperHeightPix;
+
+          vBmp.Canvas.Brush.Color := clWhite;
+          vBmp.Canvas.FillRect(Rect(0, vTop, vWidth, vTop + vHeight));
+
+          vScaleInfo := vPaintInfo.ScaleCanvas(vBmp.Canvas);
+          try
+            FSections[vSectionIndex].PaintPaper(vSectionPageIndex, 0, vTop, vBmp.Canvas, vPaintInfo);
+            vTop := vTop + vHeight;
+          finally
+            vPaintInfo.RestoreCanvasScale(vBmp.Canvas, vScaleInfo);
+          end;
+        end;
+
+        if AImageType = 'BMP' then
+          vBmp.SaveToFile(APath + APrefix + '.bmp')
+        else
+        if AImageType = 'JPG' then
+          BitmapSaveAsJPGE(vBmp, APath + APrefix + '.jpg')
+        else
+          BitmapSaveAsPNG(vBmp, APath + APrefix + '.png');
+      finally
+        FreeAndNil(vBmp);
+      end;
+    end
+    else
+    begin
+      vSectionIndex := 0;
+      vSectionPageIndex := 0;
+      for i := 0 to Self.PageCount - 1 do
+      begin
+        vSectionIndex := GetSectionPageIndexByPageIndex(i, vSectionPageIndex);
+
+        vBmp := TBitmap.Create;
+        try
+          vBmp.SetSize(FSections[vSectionIndex].PaperWidthPix, FSections[vSectionIndex].PaperHeightPix);
+          vBmp.Canvas.Brush.Color := clWhite;
+          vBmp.Canvas.FillRect(Rect(0, 0, vBmp.Width, vBmp.Height));
+
+          vPaintInfo.WindowWidth := vBmp.Width;
+          vPaintInfo.WindowHeight := vBmp.Height;
+          vScaleInfo := vPaintInfo.ScaleCanvas(vBmp.Canvas);
+          try
+            vBmp.Canvas.Brush.Color := clWhite;
+            vBmp.Canvas.FillRect(Rect(0, 0, vBmp.Width, vBmp.Height));
+            FSections[vSectionIndex].PaintPaper(vSectionPageIndex, 0, 0, vBmp.Canvas, vPaintInfo);
+          finally
+            vPaintInfo.RestoreCanvasScale(vBmp.Canvas, vScaleInfo);
+          end;
+
+          if AImageType = 'BMP' then
+            vBmp.SaveToFile(APath + APrefix + IntToStr(i + 1) + '.bmp')
+          else
+          if AImageType = 'JPG' then
+            BitmapSaveAsJPGE(vBmp, aPath + APrefix + IntToStr(i + 1) + '.jpg')
+          else
+            BitmapSaveAsPNG(vBmp, APath + APrefix + IntToStr(i + 1) + '.png')
+        finally
+          FreeAndNil(vBmp);
+        end;
+      end;
+    end;
+  finally
+    FreeAndNil(vPaintInfo);
+  end;
+end;
+
 procedure THCView.SaveToPDF(const AFileName: string);
 var
   i, j, vDPI: Integer;
@@ -3690,7 +3865,7 @@ begin
   Result := Self.ActiveSection.Search(AKeyword, AForward, AMatchCase);
   if Result then
   begin
-    vPt := GetActiveDrawItemViewCoord;  // 返回光标处DrawItem相对当前页显示的窗体坐标，有选中时，以选中结束位置的DrawItem格式化坐标
+    vPt := GetTopLevelDrawItemViewCoord;  // 返回光标处DrawItem相对当前页显示的窗体坐标，有选中时，以选中结束位置的DrawItem格式化坐标
 
     vTopData := ActiveSectionTopLevelData;
     with vTopData do
@@ -3978,6 +4153,11 @@ begin
   ActiveSection.ApplyParaBackColor(AColor);
 end;
 
+procedure THCView.ApplyParaBreakRough(const ARough: Boolean);
+begin
+  ActiveSection.ApplyParaBreakRough(ARough);
+end;
+
 procedure THCView.ApplyParaFirstIndent(const AIndent: Single);
 begin
   ActiveSection.ApplyParaFirstIndent(AIndent);
@@ -3996,9 +4176,9 @@ begin
     ActiveSection.ApplyParaLeftIndent(FStyle.ParaStyles[CurParaNo].LeftIndent - PixXToMillimeter(TabCharWidth));
 end;
 
-procedure THCView.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
+procedure THCView.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode; const ASpace: Single = 1);
 begin
-  ActiveSection.ApplyParaLineSpace(ASpaceMode);
+  ActiveSection.ApplyParaLineSpace(ASpaceMode, ASpace);
 end;
 
 procedure THCView.ApplyParaRightIndent(const AIndent: Single);
@@ -4187,6 +4367,7 @@ begin
         vPaintInfo.ViewModel := FViewModel;
         vPaintInfo.WindowWidth := FViewWidth;
         vPaintInfo.WindowHeight := FViewHeight;
+        vPaintInfo.DPI := HCUnitConversion.PixelsPerInchX;
 
         vScaleInfo := vPaintInfo.ScaleCanvas(FDataBmp.Canvas);
         try
@@ -4340,11 +4521,8 @@ end;
 procedure THCView.WMKillFocus(var Message: TWMKillFocus);
 begin
   inherited;
-  if (Message.FocusedWnd <> Self.Handle) and Assigned(FCaret) then
-  begin
-    FCaret.Hide(True);
-    UpdateView(Bounds(FCaret.X - 1, FCaret.Y, FCaret.Width + 1, FCaret.Height));
-  end;
+  if Message.FocusedWnd <> Self.Handle then
+    DoKillFocus;
 end;
 
 procedure THCView.WMLButtonDblClk(var Message: TWMLButtonDblClk);

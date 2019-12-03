@@ -17,8 +17,8 @@ uses
   HCCustomData, HCTableCell, HCTableCellData, HCStyle, HCXml;
 
 const
-  MinRowHeight = 20;
-  MinColWidth = 20;  // 如果修改要和左缩进离边距的最小值匹配
+  MinRowHeight = 10;
+  MinColWidth = 10;  // 如果修改要和左缩进离边距的最小值匹配
   MaxListSize = Maxint div 16;
 
 type

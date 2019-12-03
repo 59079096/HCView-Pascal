@@ -504,8 +504,7 @@ begin
   for i := 0 to FStates.Count - 1 do
     THCStateDictionary(FStates[i]).Free;
 
-  FStates.Clear;
-
+  FStates.Free;
   inherited Destroy;
 end;
 

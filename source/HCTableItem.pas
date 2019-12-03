@@ -1,11 +1,11 @@
-{*******************************************************}
+ï»¿{*******************************************************}
 {                                                       }
-{               HCView V1.1  ×÷Õß£º¾£Í¨                 }
+{               HCView V1.1  ä½œè€…ï¼šè†é€š                 }
 {                                                       }
-{      ±¾´úÂë×ñÑ­BSDĞ­Òé£¬Äã¿ÉÒÔ¼ÓÈëQQÈº 649023932      }
-{            À´»ñÈ¡¸ü¶àµÄ¼¼Êõ½»Á÷ 2018-5-4              }
+{      æœ¬ä»£ç éµå¾ªBSDåè®®ï¼Œä½ å¯ä»¥åŠ å…¥QQç¾¤ 649023932      }
+{            æ¥è·å–æ›´å¤šçš„æŠ€æœ¯äº¤æµ 2018-5-4              }
 {                                                       }
-{                     ±í¸ñÊµÏÖµ¥Ôª                      }
+{                     è¡¨æ ¼å®ç°å•å…ƒ                      }
 {                                                       }
 {*******************************************************}
 
@@ -17,15 +17,15 @@ uses
   Classes, SysUtils, Types, Graphics, Controls, Generics.Collections, HCDrawItem,
   HCRectItem, HCTableRow, HCCustomData, HCRichData, HCTableCell, HCTableCellData,
   HCViewData, HCTextStyle, HCCommon, HCParaStyle, HCStyleMatch, HCItem, HCStyle,
-  HCList, HCUndo, HCXml;
+  HCList, HCUndo, HCXml, HCUnitConversion;
 
 type
-  TPageBreak = class  // ·ÖÒ³ĞÅÏ¢
-    /// <summary> ÔÚ´ËÒ³½áÎ²·ÖÒ³ </summary>
+  TPageBreak = class  // åˆ†é¡µä¿¡æ¯
+    /// <summary> åœ¨æ­¤é¡µç»“å°¾åˆ†é¡µ </summary>
     PageIndex,
-    Row,  // ·ÖÒ³ĞĞ
-    BreakSeat,  // ·ÖÒ³Ê±£¬´ËĞĞ¸÷ÁĞ·ÖÒ³½Ø¶ÏÎ»ÖÃ¾àÀë±í¸ñ¶¥²¿¾àÀë×î´óµÄ
-    BreakBottom  // ·ÖÒ³Ê±£¬Ò³µ×²¿Î»ÖÃ¾à´ËÒ³±í¸ñ×î¶¥²¿µÄ¾àÀë(´ËÒ³ÓĞ¶àÉÙ¿Õ¼äÓÃÀ´·Å±í¸ñ)
+    Row,  // åˆ†é¡µè¡Œ
+    BreakSeat,  // åˆ†é¡µæ—¶ï¼Œæ­¤è¡Œå„åˆ—åˆ†é¡µæˆªæ–­ä½ç½®è·ç¦»è¡¨æ ¼é¡¶éƒ¨è·ç¦»æœ€å¤§çš„
+    BreakBottom  // åˆ†é¡µæ—¶ï¼Œé¡µåº•éƒ¨ä½ç½®è·æ­¤é¡µè¡¨æ ¼æœ€é¡¶éƒ¨çš„è·ç¦»(æ­¤é¡µæœ‰å¤šå°‘ç©ºé—´ç”¨æ¥æ”¾è¡¨æ ¼)
       : Integer;
   end;
 
@@ -58,18 +58,20 @@ type
 
   THCTableItem = class(THCResizeRectItem)
   private
-    FBorderWidth,  // ±ß¿ò¿í¶È(½¨ÒéÎªÅ¼ÊıÒªÇó²»´óÓÚ×îĞ¡ĞĞ¸ß£¬·ñÔò·ÖÒ³¼ÆËã»áÓĞÎÊÌâ)
-    FCellHPadding,  // µ¥Ôª¸ñÄÚÈİË®Æ½Æ«ÒÆ
-    FCellVPadding,   // µ¥Ôª¸ñÄÚÈİ´¹Ö±Æ«ÒÆ(²»ÄÜ´óÓÚ×îµÍµÄDrawItem¸ß¶È£¬·ñÔò»áÓ°Ïì¿çÒ³)
-    FFixRowCount,  // ¹Ì¶¨ĞĞÊıÁ¿ > 0ÓĞĞ§
-    FFixColCount   // ¹Ì¶¨ÁĞÊıÁ¿ > 0ÓĞĞ§
-      : Byte;  // µ¥Ôª¸ñÊı¾İºÍµ¥Ôª¸ñ±ß¿òµÄ¾àÀë
+    FBorderWidthPix,  // è¾¹æ¡†å®½åº¦(å»ºè®®ä¸ºå¶æ•°è¦æ±‚ä¸å¤§äºæœ€å°è¡Œé«˜ï¼Œå¦åˆ™åˆ†é¡µè®¡ç®—ä¼šæœ‰é—®é¢˜)
+    FCellHPadding,  // å•å…ƒæ ¼å†…å®¹æ°´å¹³åç§»
+    FCellVPadding,   // å•å…ƒæ ¼å†…å®¹å‚ç›´åç§»(ä¸èƒ½å¤§äºæœ€ä½çš„DrawItemé«˜åº¦ï¼Œå¦åˆ™ä¼šå½±å“è·¨é¡µ)
+    FFixRowCount,  // å›ºå®šè¡Œæ•°é‡ > 0æœ‰æ•ˆ
+    FFixColCount   // å›ºå®šåˆ—æ•°é‡ > 0æœ‰æ•ˆ
+      : Byte;  // å•å…ƒæ ¼æ•°æ®å’Œå•å…ƒæ ¼è¾¹æ¡†çš„è·ç¦»
 
-    FFixCol,  // ´ÓÄÄÁĞ¿ªÊ¼¹Ì¶¨ÁĞ
-    FFixRow  // ´ÓÄÄĞĞ¿ªÊ¼¹Ì¶¨ĞĞ
+    FBorderWidthPt: Single;
+
+    FFixCol,  // ä»å“ªåˆ—å¼€å§‹å›ºå®šåˆ—
+    FFixRow  // ä»å“ªè¡Œå¼€å§‹å›ºå®šè¡Œ
       : ShortInt;
 
-    FOutsideInfo: TOutsideInfo;  // µã»÷ÔÚ±í¸ñ×óÓÒ±ßÊ±¶ÔÓ¦µÄĞĞĞÅÏ¢
+    FOutsideInfo: TOutsideInfo;  // ç‚¹å‡»åœ¨è¡¨æ ¼å·¦å³è¾¹æ—¶å¯¹åº”çš„è¡Œä¿¡æ¯
 
     FMouseDownRow, FMouseDownCol,
     FMouseMoveRow, FMouseMoveCol,
@@ -81,17 +83,17 @@ type
     FMulCellUndo: THCMulCellUndo;
 
     FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto,
-    FLastChangeFormated,  // ×îºó±ä¶¯ÒÑ¾­¸ñÊ½»¯ÍêÁË
-    FResizeKeepWidth  // ÍÏ¶¯¸Ä±ä·Ç×îÓÒ²à±ß¿ò¿í¶ÈÊ±£¬ÊÇ·ñ±£³Öµ±Ç°ÕûÌå¿í¶È²»±ä
+    FLastChangeFormated,  // æœ€åå˜åŠ¨å·²ç»æ ¼å¼åŒ–å®Œäº†
+    FResizeKeepWidth  // æ‹–åŠ¨æ”¹å˜éæœ€å³ä¾§è¾¹æ¡†å®½åº¦æ—¶ï¼Œæ˜¯å¦ä¿æŒå½“å‰æ•´ä½“å®½åº¦ä¸å˜
       : Boolean;
 
-    { Ñ¡ÖĞĞÅÏ¢(Ö»ÓĞÑ¡ÖĞÆğÊ¼ºÍ½áÊøĞĞ¶¼>=0²ÅËµÃ÷ÓĞÑ¡ÖĞ¶à¸öµ¥Ôª¸ñ
-     ÔÚµ¥¸öµ¥Ôª¸ñÖĞÑ¡ÔñÊ±½áÊøĞĞ¡¢ÁĞĞÅÏ¢Îª-1 }
+    { é€‰ä¸­ä¿¡æ¯(åªæœ‰é€‰ä¸­èµ·å§‹å’Œç»“æŸè¡Œéƒ½>=0æ‰è¯´æ˜æœ‰é€‰ä¸­å¤šä¸ªå•å…ƒæ ¼
+     åœ¨å•ä¸ªå•å…ƒæ ¼ä¸­é€‰æ‹©æ—¶ç»“æŸè¡Œã€åˆ—ä¿¡æ¯ä¸º-1 }
     FSelectCellRang: TSelectCellRang;
-    FBorderColor: TColor;  // ±ß¿òÑÕÉ«
-    FRows: THCTableRows;  // ĞĞ
-    FColWidths: TList<Integer>;  // ¼ÇÂ¼¸÷ÁĞ¿í¶È(³ı±ß¿ò¡¢º¬FCellHPadding * 2)£¬·½±ãÓĞºÏ²¢µÄµ¥Ôª¸ñ»ñÈ¡×Ô¼ºË®Æ½¿ªÊ¼´¦µÄÎ»ÖÃ
-    FPageBreaks: TObjectList<TPageBreak>;  // ¼ÇÂ¼¸÷ĞĞ·ÖÒ³Ê±µÄĞÅÏ¢
+    FBorderColor: TColor;  // è¾¹æ¡†é¢œè‰²
+    FRows: THCTableRows;  // è¡Œ
+    FColWidths: TList<Integer>;  // è®°å½•å„åˆ—å®½åº¦(é™¤è¾¹æ¡†ã€å«FCellHPadding * 2)ï¼Œæ–¹ä¾¿æœ‰åˆå¹¶çš„å•å…ƒæ ¼è·å–è‡ªå·±æ°´å¹³å¼€å§‹å¤„çš„ä½ç½®
+    FPageBreaks: TObjectList<TPageBreak>;  // è®°å½•å„è¡Œåˆ†é¡µæ—¶çš„ä¿¡æ¯
     FOnCellPaintBK: THCCellPaintEvent;
     FOnCellPaintData: THCCellPaintDataEvent;
     procedure InitializeMouseInfo;
@@ -100,21 +102,21 @@ type
 
     function DoCellDataGetRootData: THCCustomData;
 
-    /// <summary> ±í¸ñĞĞÓĞÌí¼ÓÊ± </summary>
+    /// <summary> è¡¨æ ¼è¡Œæœ‰æ·»åŠ æ—¶ </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
 
     procedure CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure);
 
-    /// <summary> »ñÈ¡µ±Ç°±í¸ñ¸ñÊ½»¯¸ß¶È </summary>
+    /// <summary> è·å–å½“å‰è¡¨æ ¼æ ¼å¼åŒ–é«˜åº¦ </summary>
     /// <returns></returns>
     function GetFormatHeight: Integer;
-    /// <summary> »ñÈ¡ĞĞÖĞ×î¸ßµ¥Ôª¸ñ¸ß¶È£¬²¢ÉèÖÃÎªĞĞÖĞÆäËûµ¥Ôª¸ñµÄ¸ß¶ÈºÍĞĞ¸ß </summary>
+    /// <summary> è·å–è¡Œä¸­æœ€é«˜å•å…ƒæ ¼é«˜åº¦ï¼Œå¹¶è®¾ç½®ä¸ºè¡Œä¸­å…¶ä»–å•å…ƒæ ¼çš„é«˜åº¦å’Œè¡Œé«˜ </summary>
     procedure CalcRowCellHeight(const ARow: Integer);
-    /// <summary> ¼ÆËãÓĞºÏ²¢µÄµ¥Ôª¸ñ¸ß¶ÈÓ°Ïìµ½µÄĞĞ¸ß¶È </summary>
+    /// <summary> è®¡ç®—æœ‰åˆå¹¶çš„å•å…ƒæ ¼é«˜åº¦å½±å“åˆ°çš„è¡Œé«˜åº¦ </summary>
     procedure CalcMergeRowHeightFrom(const ARow: Integer);
     function SrcCellDataTopDistanceToDest(const ASrcRow, ADestRow: Integer): Integer;
 
-    /// <summary> ·µ»ØÖ¸¶¨µ¥Ôª¸ñÏà¶Ô±í¸ñµÄÆğÊ¼Î»ÖÃ×ø±ê(Èç¹û±»ºÏ²¢·µ»ØºÏ²¢µ½µ¥Ôª¸ñµÄ×ø±ê) </summary>
+    /// <summary> è¿”å›æŒ‡å®šå•å…ƒæ ¼ç›¸å¯¹è¡¨æ ¼çš„èµ·å§‹ä½ç½®åæ ‡(å¦‚æœè¢«åˆå¹¶è¿”å›åˆå¹¶åˆ°å•å…ƒæ ¼çš„åæ ‡) </summary>
     /// <param name="ARow"></param>
     /// <param name="ACol"></param>
     /// <returns></returns>
@@ -122,10 +124,10 @@ type
 
     function ActiveDataResizing: Boolean;
 
-    /// <summary> È¡ÏûÑ¡ÖĞ·¶Î§ÄÚ³ıARow, AColÖ®Íâµ¥Ôª¸ñµÄÑ¡ÖĞ×´Ì¬(-1±íÊ¾È«²¿È¡Ïû) </summary>
+    /// <summary> å–æ¶ˆé€‰ä¸­èŒƒå›´å†…é™¤ARow, AColä¹‹å¤–å•å…ƒæ ¼çš„é€‰ä¸­çŠ¶æ€(-1è¡¨ç¤ºå…¨éƒ¨å–æ¶ˆ) </summary>
     procedure DisSelectSelectedCell(const ARow: Integer = -1; const ACol: Integer = -1);
 
-    procedure SetBorderWidth(const Value: Byte);
+    procedure SetBorderWidthPt(const Value: Single);
     procedure SetCellVPadding(const Value: Byte);
   protected
     function CanDrag: Boolean; override;
@@ -134,13 +136,13 @@ type
     function GetResizing: Boolean; override;
     procedure SetResizing(const Value: Boolean); override;
 
-    /// <summary> ÔÚÖ¸¶¨µÄÎ»ÖÃ»æÖÆ±í¸ñ </summary>
+    /// <summary> åœ¨æŒ‡å®šçš„ä½ç½®ç»˜åˆ¶è¡¨æ ¼ </summary>
     /// <param name="AStyle"></param>
-    /// <param name="ADrawRect">»æÖÆÊ±µÄRect(Ïà¶ÔADataScreenTop)</param>
-    /// <param name="ADataDrawTop">TableËùÊôµÄData»æÖÆÆğÊ¼Î»ÖÃ(Ïà¶ÔADataScreenTop£¬¿ÉÎª¸ºÊı)</param>
-    /// <param name="ADataDrawBottom">TableËùÊôµÄData»æÖÆÆğÊ¼Î»ÖÃ(Ïà¶ÔADataScreenTop£¬¿É³¬¹ıADataScreenBottom)</param>
-    /// <param name="ADataScreenTop">µ±Ç°Ò³ÆÁÏÔÆğÊ¼Î»ÖÃ(Ïà¶ÔÓÚµã0, 0£¬>=0)</param>
-    /// <param name="ADataScreenBottom">µ±Ç°Ò³ÆÁÄ»µ×²¿Î»ÖÃ(Ïà¶ÔÓÚµã0, 0£¬<=´°¿Ú¸ß¶È)</param>
+    /// <param name="ADrawRect">ç»˜åˆ¶æ—¶çš„Rect(ç›¸å¯¹ADataScreenTop)</param>
+    /// <param name="ADataDrawTop">Tableæ‰€å±çš„Dataç»˜åˆ¶èµ·å§‹ä½ç½®(ç›¸å¯¹ADataScreenTopï¼Œå¯ä¸ºè´Ÿæ•°)</param>
+    /// <param name="ADataDrawBottom">Tableæ‰€å±çš„Dataç»˜åˆ¶èµ·å§‹ä½ç½®(ç›¸å¯¹ADataScreenTopï¼Œå¯è¶…è¿‡ADataScreenBottom)</param>
+    /// <param name="ADataScreenTop">å½“å‰é¡µå±æ˜¾èµ·å§‹ä½ç½®(ç›¸å¯¹äºç‚¹0, 0ï¼Œ>=0)</param>
+    /// <param name="ADataScreenBottom">å½“å‰é¡µå±å¹•åº•éƒ¨ä½ç½®(ç›¸å¯¹äºç‚¹0, 0ï¼Œ<=çª—å£é«˜åº¦)</param>
     /// <param name="ACanvas"></param>
     /// <param name="APaintInfo"></param>
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -158,23 +160,24 @@ type
     procedure MouseLeave; override;
     procedure KillFocus; override;
 
-    /// <summary> Çå³ı²¢·µ»ØÎª´¦Àí·ÖÒ³ĞĞºÍĞĞÖĞ¼äÓĞÏòÏÂÆ«ÒÆºó£¬±È¾»¸ßÔö¼ÓµÄ¸ß¶È(ÎªÖØĞÂ¸ñÊ½»¯Ê±ºóÃæ¼ÆËãÆ«ÒÆÓÃ) </summary>
+    /// <summary> æ¸…é™¤å¹¶è¿”å›ä¸ºå¤„ç†åˆ†é¡µè¡Œå’Œè¡Œä¸­é—´æœ‰å‘ä¸‹åç§»åï¼Œæ¯”å‡€é«˜å¢åŠ çš„é«˜åº¦(ä¸ºé‡æ–°æ ¼å¼åŒ–æ—¶åé¢è®¡ç®—åç§»ç”¨) </summary>
     function ClearFormatExtraHeight: Integer; override;
     function DeleteSelected: Boolean; override;
     procedure DisSelect; override;
+    procedure FormatDirty; override;
     procedure MarkStyleUsed(const AMark: Boolean); override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SetActive(const Value: Boolean); override;
 
-    /// <summary> »ñÈ¡±í¸ñÔÚÖ¸¶¨¸ß¶ÈÄÚµÄ½áÊøÎ»ÖÃ´¦ĞĞÖĞ×îÏÂ¶Ë(ÔİÊ±Ã»ÓÃµ½×¢ÊÍÁË) </summary>
-    /// <param name="AHeight">Ö¸¶¨µÄ¸ß¶È·¶Î§</param>
-    /// <param name="ADItemMostBottom">×îºóÒ»ĞĞ×îµ×¶ËDItemµÄµ×²¿Î»ÖÃ</param>
+    /// <summary> è·å–è¡¨æ ¼åœ¨æŒ‡å®šé«˜åº¦å†…çš„ç»“æŸä½ç½®å¤„è¡Œä¸­æœ€ä¸‹ç«¯(æš‚æ—¶æ²¡ç”¨åˆ°æ³¨é‡Šäº†) </summary>
+    /// <param name="AHeight">æŒ‡å®šçš„é«˜åº¦èŒƒå›´</param>
+    /// <param name="ADItemMostBottom">æœ€åä¸€è¡Œæœ€åº•ç«¯DItemçš„åº•éƒ¨ä½ç½®</param>
     //procedure GetPageFmtBottomInfo(const AHeight: Integer; var ADItemMostBottom: Integer); override;
 
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
 
-    // ³·ÏúÖØ×öÏà¹Ø·½·¨
+    // æ’¤é”€é‡åšç›¸å…³æ–¹æ³•
     function DoSelfUndoNew: THCUndo; override;
     procedure DoSelfUndoDestroy(const AUndo: THCUndo); override;
     procedure DoSelfUndo(const AUndo: THCUndo); override;
@@ -187,7 +190,7 @@ type
     function GetColCount: Integer;
     procedure CheckFixColSafe(const ACol: Integer);
     procedure CheckFixRowSafe(const ARow: Integer);
-    /// <summary> »ñÈ¡Ö¸¶¨ĞĞÁĞ·¶Î§Êµ¼Ê¶ÔÓ¦µÄĞĞÁĞ·¶Î§ </summary>
+    /// <summary> è·å–æŒ‡å®šè¡Œåˆ—èŒƒå›´å®é™…å¯¹åº”çš„è¡Œåˆ—èŒƒå›´ </summary>
     /// <param name="AStartRow"></param>
     /// <param name="AStartCol"></param>
     /// <param name="AEndRow"></param>
@@ -217,8 +220,10 @@ type
     function GetActiveData: THCCustomData; override;
     function GetActiveItem: THCCustomItem; override;
     function GetTopLevelItem: THCCustomItem; override;
-    function GetActiveDrawItem: THCCustomDrawItem; override;
-    function GetActiveDrawItemCoord: TPoint; override;
+    function GetTopLevelDrawItem: THCCustomDrawItem; override;
+    function GetTopLevelDrawItemCoord: TPoint; override;
+    function GetTopLevelRectDrawItem: THCCustomDrawItem; override;
+    function GetTopLevelRectDrawItemCoord: TPoint; override;
     function GetHint: string; override;
     function InsertText(const AText: string): Boolean; override;
     function InsertItem(const AItem: THCCustomItem): Boolean; override;
@@ -233,37 +238,37 @@ type
     function SelectExists: Boolean; override;
     procedure TraverseItem(const ATraverse: THCItemTraverse); override;
 
-    /// <summary> µ±Ç°Î»ÖÃ¿ªÊ¼²éÕÒÖ¸¶¨µÄÄÚÈİ </summary>
-    /// <param name="AKeyword">Òª²éÕÒµÄ¹Ø¼ü×Ö</param>
-    /// <param name="AForward">True£ºÏòÇ°£¬False£ºÏòºó</param>
-    /// <param name="AMatchCase">True£ºÇø·Ö´óĞ¡Ğ´£¬False£º²»Çø·Ö´óĞ¡Ğ´</param>
-    /// <returns>True£ºÕÒµ½</returns>
+    /// <summary> å½“å‰ä½ç½®å¼€å§‹æŸ¥æ‰¾æŒ‡å®šçš„å†…å®¹ </summary>
+    /// <param name="AKeyword">è¦æŸ¥æ‰¾çš„å…³é”®å­—</param>
+    /// <param name="AForward">Trueï¼šå‘å‰ï¼ŒFalseï¼šå‘å</param>
+    /// <param name="AMatchCase">Trueï¼šåŒºåˆ†å¤§å°å†™ï¼ŒFalseï¼šä¸åŒºåˆ†å¤§å°å†™</param>
+    /// <returns>Trueï¼šæ‰¾åˆ°</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; override;
 
     procedure CheckFormatPageBreakBefor; override;
 
     procedure ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch); override;
     procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: THCParaMatch); override;
-    /// <summary> RectItemÄÚÈİ¶ÔÆë·½Ê½ </summary>
+    /// <summary> RectItemå†…å®¹å¯¹é½æ–¹å¼ </summary>
     procedure ApplyContentAlign(const AAlign: THCContentAlign); override;
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
-    /// <summary> ÕıÔÚÆäÉÏÊ±ÄÚ²¿ÊÇ·ñ´¦ÀíÖ¸¶¨µÄKeyºÍShif </summary>
+    /// <summary> æ­£åœ¨å…¶ä¸Šæ—¶å†…éƒ¨æ˜¯å¦å¤„ç†æŒ‡å®šçš„Keyå’ŒShif </summary>
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
 
-    /// <summary> ±í¸ñ·ÖÒ³ </summary>
-    /// <param name="ADrawItemRectTop">±í¸ñ¶ÔÓ¦µÄDrawItemµÄRect.Top</param>
-    /// <param name="ADrawItemRectTop">±í¸ñ¶ÔÓ¦µÄDrawItemµÄRect.Bottom</param>
-    /// <param name="APageDataFmtTop">µ±Ç°Ò³µÄÊı¾İ¶¥²¿Î»ÖÃ</param>
-    /// <param name="APageDataFmtBottom">µ±Ç°Ò³µÄÊı¾İµ×²¿Î»ÖÃ</param>
-    /// <param name="ACheckRow">µ±Ç°Ò³´ÓÄÄĞĞ¿ªÊ¼ÅÅ°æ</param>
-    /// <param name="ABreakRow">µ±Ç°Ò³×îºó·ÖÒ³ÓÚÄÄĞĞ</param>
-    /// <param name="AFmtOffset">±í¸ñ¶ÔÓ¦µÄDrawItemÏòÏÂÕûÌåÆ«ÒÆµÄÁ¿</param>
-    /// <param name="ACellMaxInc">·µ»Øµ±Ç°Ò³¸÷ÁĞÎªÁË±Ü¿ª·ÖÒ³Î»ÖÃ¶îÍâÆ«ÒÆµÄ×î´ó¸ß¶È(²ÎÊıÔ­ÃûAFmtHeightIncÎª±ãÓÚ·ÖÎöÖØÃüÃû)</param>
+    /// <summary> è¡¨æ ¼åˆ†é¡µ </summary>
+    /// <param name="ADrawItemRectTop">è¡¨æ ¼å¯¹åº”çš„DrawItemçš„Rect.Top</param>
+    /// <param name="ADrawItemRectTop">è¡¨æ ¼å¯¹åº”çš„DrawItemçš„Rect.Bottom</param>
+    /// <param name="APageDataFmtTop">å½“å‰é¡µçš„æ•°æ®é¡¶éƒ¨ä½ç½®</param>
+    /// <param name="APageDataFmtBottom">å½“å‰é¡µçš„æ•°æ®åº•éƒ¨ä½ç½®</param>
+    /// <param name="ACheckRow">å½“å‰é¡µä»å“ªè¡Œå¼€å§‹æ’ç‰ˆ</param>
+    /// <param name="ABreakRow">å½“å‰é¡µæœ€ååˆ†é¡µäºå“ªè¡Œ</param>
+    /// <param name="AFmtOffset">è¡¨æ ¼å¯¹åº”çš„DrawItemå‘ä¸‹æ•´ä½“åç§»çš„é‡</param>
+    /// <param name="ACellMaxInc">è¿”å›å½“å‰é¡µå„åˆ—ä¸ºäº†é¿å¼€åˆ†é¡µä½ç½®é¢å¤–åç§»çš„æœ€å¤§é«˜åº¦(å‚æ•°åŸåAFmtHeightIncä¸ºä¾¿äºåˆ†æé‡å‘½å)</param>
     procedure CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
       ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartRow: Integer;
       var ABreakRow, AFmtOffset, ACellMaxInc: Integer); override;
 
-    // ±£´æºÍ¶ÁÈ¡
+    // ä¿å­˜å’Œè¯»å–
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure SaveSelectToStream(const AStream: TStream); override;  // inherited TCustomRect
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -275,15 +280,15 @@ type
 
     procedure ReSetRowCol(const ARowCount, AColCount: Integer);
 
-    /// <summary> »ñÈ¡µ±Ç°±í¸ñ¸ñÊ½»¯¿í¶È </summary>
+    /// <summary> è·å–å½“å‰è¡¨æ ¼æ ¼å¼åŒ–å®½åº¦ </summary>
     function GetFormatWidth: Integer;
 
-    /// <summary> »ñÈ¡Ö¸¶¨Î»ÖÃ´¦µÄĞĞ¡¢ÁĞ(Èç¹ûÊÇ±»ºÏ²¢µ¥Ôª¸ñÔò·µ»ØÄ¿±êµ¥Ôª¸ñĞĞ¡¢ÁĞ) </summary>
-    /// <param name="X">ºá×ø±ê</param>
-    /// <param name="Y">×İ×ø±ê</param>
-    /// <param name="ARow">×ø±ê´¦µÄĞĞ</param>
-    /// <param name="ACol">×ø±ê´¦µÄÁĞ</param>
-    ///  <param name="AReDest">Èç¹û×ø±êÊÇºÏ²¢Ô´£¬·µ»ØÄ¿±ê</param>
+    /// <summary> è·å–æŒ‡å®šä½ç½®å¤„çš„è¡Œã€åˆ—(å¦‚æœæ˜¯è¢«åˆå¹¶å•å…ƒæ ¼åˆ™è¿”å›ç›®æ ‡å•å…ƒæ ¼è¡Œã€åˆ—) </summary>
+    /// <param name="X">æ¨ªåæ ‡</param>
+    /// <param name="Y">çºµåæ ‡</param>
+    /// <param name="ARow">åæ ‡å¤„çš„è¡Œ</param>
+    /// <param name="ACol">åæ ‡å¤„çš„åˆ—</param>
+    ///  <param name="AReDest">å¦‚æœåæ ‡æ˜¯åˆå¹¶æºï¼Œè¿”å›ç›®æ ‡</param>
     /// <returns></returns>
     function GetCellAt(const X, Y : Integer; var ARow, ACol: Integer;
       const AReDest: Boolean = True): TResizeInfo;
@@ -302,12 +307,12 @@ type
     procedure PaintFixCols(const ATableDrawTop, ALeft, ATop, ABottom: Integer; const ACanvas: TCanvas;
       const APaintInfo: TPaintInfo);
 
-    /// <summary> ¼ÆËãĞĞÖĞµ¥Ôª¸ñ¿í¶È²¢¸ñÊ½»¯ĞĞ </summary>
+    /// <summary> è®¡ç®—è¡Œä¸­å•å…ƒæ ¼å®½åº¦å¹¶æ ¼å¼åŒ–è¡Œ </summary>
     procedure FormatRow(const ARow: Cardinal);
 
     function GetColSpanWidth(const ARow, ACol: Integer): Integer;
 
-    /// <summary> ÅĞ¶ÏÖ¸¶¨·¶Î§ÄÚµÄµ¥Ôª¸ñÊÇ·ñ¿ÉÒÔºÏ²¢(ÎªÁË¸ø½çÃæºÏ²¢²Ëµ¥¿ØÖÆ¿ÉÓÃ×´Ì¬·Åµ½publicÓòÖĞ) </summary>
+    /// <summary> åˆ¤æ–­æŒ‡å®šèŒƒå›´å†…çš„å•å…ƒæ ¼æ˜¯å¦å¯ä»¥åˆå¹¶(ä¸ºäº†ç»™ç•Œé¢åˆå¹¶èœå•æ§åˆ¶å¯ç”¨çŠ¶æ€æ”¾åˆ°publicåŸŸä¸­) </summary>
     /// <param name="AStartRow"></param>
     /// <param name="AStartCol"></param>
     /// <param name="AEndRow"></param>
@@ -315,15 +320,15 @@ type
     /// <returns></returns>
     function CellsCanMerge(const AStartRow, AStartCol, AEndRow, AEndCol: Integer): Boolean;
 
-    /// <summary> Ö¸¶¨ĞĞÊÇ·ñÄÜÉ¾³ı </summary>
+    /// <summary> æŒ‡å®šè¡Œæ˜¯å¦èƒ½åˆ é™¤ </summary>
     function RowCanDelete(const ARow: Integer): Boolean;
     function CurRowCanDelete: Boolean;
 
-    /// <summary> Ö¸¶¨ÁĞÊÇ·ñÄÜÉ¾³ı </summary>
+    /// <summary> æŒ‡å®šåˆ—æ˜¯å¦èƒ½åˆ é™¤ </summary>
     function ColCanDelete(const ACol: Integer): Boolean;
     function CurColCanDelete: Boolean;
 
-    /// <summary> »ñÈ¡Ö¸¶¨µ¥Ôª¸ñºÏ²¢ºóµ¥Ôª¸ñµÄData </summary>
+    /// <summary> è·å–æŒ‡å®šå•å…ƒæ ¼åˆå¹¶åå•å…ƒæ ¼çš„Data </summary>
     //function GetMergeDestCellData(const ARow, ACol: Integer): THCTableCellData;
 
     function MergeSelectCells: Boolean;
@@ -355,14 +360,15 @@ type
     property ColCount: Integer read GetColCount;
     property SelectCellRang: TSelectCellRang read FSelectCellRang;
     property BorderVisible: Boolean read FBorderVisible write FBorderVisible;
-    property BorderWidth: Byte read FBorderWidth write SetBorderWidth;
+    property BorderWidthPix: Byte read FBorderWidthPix;
+    property BorderWidthPt: Single read FBorderWidthPt write SetBorderWidthPt;
     property CellHPadding: Byte read FCellHPadding write FCellHPadding;
     property CellVPadding: Byte read FCellVPadding write SetCellVPadding;
     property FixCol: ShortInt read FFixCol write FFixCol;
-    /// <summary> ¹Ì¶¨ÁĞ¿ç¶È </summary>
+    /// <summary> å›ºå®šåˆ—è·¨åº¦ </summary>
     property FixColCount: Byte read FFixColCount write FFixColCount;
     property FixRow: ShortInt read FFixRow write FFixRow;
-    /// <summary> ¹Ì¶¨ĞĞ¿ç¶È </summary>
+    /// <summary> å›ºå®šè¡Œè·¨åº¦ </summary>
     property FixRowCount: Byte read FFixRowCount write FFixRowCount;
 
     property OnCellPaintBK: THCCellPaintEvent read FOnCellPaintBK write FOnCellPaintBK;
@@ -375,12 +381,12 @@ uses
   Math, Windows;
 
 type
-  /// <summary> ĞĞ¿çÒ³ĞÅÏ¢ </summary>
+  /// <summary> è¡Œè·¨é¡µä¿¡æ¯ </summary>
   TColCross = class(TObject)
   public
-    Col,  // µ¥Ôª¸ñËùÔÚµÄÁĞ
-    DrawItemNo,  // ¿çÒ³µÄDrawItem
-    VDrawOffset  // ¿çÒ³DrawItemµÄÆ«ÒÆ
+    Col,  // å•å…ƒæ ¼æ‰€åœ¨çš„åˆ—
+    DrawItemNo,  // è·¨é¡µçš„DrawItem
+    VDrawOffset  // è·¨é¡µDrawItemçš„åç§»
       : Integer;
     //MergeSrc: Boolean;
     constructor Create;
@@ -395,45 +401,45 @@ var
   i, vR, vC, vExtraHeight, vDestRow, vDestCol, vH,
   vDestRow2, vDestCol2: Integer;
 begin
-  // Îª¼æÈİ·ÖÒ³Ê±ÖØĞÂ¸ñÊ½»¯µ÷ÓÃ´Ë·½·¨£¬ËùÒÔÓĞ¶ÔFmtOffsetµÄ´¦Àí£¬·ñÔò²»ĞèÒª¹ÜFmtOffset
-  for vR := ARow to RowCount - 1 do  // ¼ÆËãÓĞĞĞºÏ²¢Çé¿öÏÂ¸÷ĞĞµÄ¸ß¶È
+  // ä¸ºå…¼å®¹åˆ†é¡µæ—¶é‡æ–°æ ¼å¼åŒ–è°ƒç”¨æ­¤æ–¹æ³•ï¼Œæ‰€ä»¥æœ‰å¯¹FmtOffsetçš„å¤„ç†ï¼Œå¦åˆ™ä¸éœ€è¦ç®¡FmtOffset
+  for vR := ARow to RowCount - 1 do  // è®¡ç®—æœ‰è¡Œåˆå¹¶æƒ…å†µä¸‹å„è¡Œçš„é«˜åº¦
   begin
     for vC := 0 to FRows[vR].ColCount - 1 do
     begin
-      if FRows[vR][vC].CellData = nil then  // µ±Ç°µ¥Ôª¸ñ±»ºÏ²¢ÁË
+      if FRows[vR][vC].CellData = nil then  // å½“å‰å•å…ƒæ ¼è¢«åˆå¹¶äº†
       begin
-        if FRows[vR][vC].ColSpan < 0 then  // ºÏ²¢Ä¿±êÖ»ĞèÓÉÕıÏÂ·½µÄµ¥Ôª¸ñ´¦ÀíºÏ²¢ÄÚÈİ£¬²»ÓÃÖØ¸´´¦Àí
+        if FRows[vR][vC].ColSpan < 0 then  // åˆå¹¶ç›®æ ‡åªéœ€ç”±æ­£ä¸‹æ–¹çš„å•å…ƒæ ¼å¤„ç†åˆå¹¶å†…å®¹ï¼Œä¸ç”¨é‡å¤å¤„ç†
           Continue;
 
-        GetDestCell(vR, vC, vDestRow, vDestCol);  // »ñÈ¡µ½ºÏ²¢Ä¿±êµ¥Ôª¸ñËùÔÚĞĞºÅ
+        GetDestCell(vR, vC, vDestRow, vDestCol);  // è·å–åˆ°åˆå¹¶ç›®æ ‡å•å…ƒæ ¼æ‰€åœ¨è¡Œå·
 
-        if vDestRow + FRows[vDestRow][vC].RowSpan = vR then  // Ä¿±êµ¥Ôª¸ñĞĞºÏ²¢µ½´Ë½áÊø
+        if vDestRow + FRows[vDestRow][vC].RowSpan = vR then  // ç›®æ ‡å•å…ƒæ ¼è¡Œåˆå¹¶åˆ°æ­¤ç»“æŸ
         begin
-          vExtraHeight := FCellVPadding + FRows[vDestRow][vC].CellData.Height + FCellVPadding;  // Ä¿±êµ¥Ôª¸ñ³ıÉÏÏÂ±ß¿òºóµÄ¸ß¶È
-          FRows[vDestRow][vC].Height := vExtraHeight;  // Ä¿±êµ¥Ôª¸ñ³ıÉÏÏÂ±ß¿òºóµÄ¸ß¶È
-          vExtraHeight := vExtraHeight - FRows[vDestRow].Height - FBorderWidth;  // ¡°Ïû¼õ¡±×Ô¼ºËùÔÚĞĞ
+          vExtraHeight := FCellVPadding + FRows[vDestRow][vC].CellData.Height + FCellVPadding;  // ç›®æ ‡å•å…ƒæ ¼é™¤ä¸Šä¸‹è¾¹æ¡†åçš„é«˜åº¦
+          FRows[vDestRow][vC].Height := vExtraHeight;  // ç›®æ ‡å•å…ƒæ ¼é™¤ä¸Šä¸‹è¾¹æ¡†åçš„é«˜åº¦
+          vExtraHeight := vExtraHeight - FRows[vDestRow].Height - FBorderWidthPix;  // â€œæ¶ˆå‡â€è‡ªå·±æ‰€åœ¨è¡Œ
 
-          for i := vDestRow + 1 to vR - 1 do  // ´ÓÄ¿±êÏÂÒ»ĞĞµ½´Ë£¬¾­¹ı¸÷ĞĞºó¡°Ïû¼õ¡±µô¶àÉÙ
-            vExtraHeight := vExtraHeight - FRows[i].FmtOffset - FRows[i].Height - FBorderWidth;
+          for i := vDestRow + 1 to vR - 1 do  // ä»ç›®æ ‡ä¸‹ä¸€è¡Œåˆ°æ­¤ï¼Œç»è¿‡å„è¡Œåâ€œæ¶ˆå‡â€æ‰å¤šå°‘
+            vExtraHeight := vExtraHeight - FRows[i].FmtOffset - FRows[i].Height - FBorderWidthPix;
 
-          if vExtraHeight > FRows[vR].FmtOffset + FRows[vR].Height then  // Ïû¼õºóÊ£ÓàµÄ±Èµ±Ç°ĞĞ¸ß
+          if vExtraHeight > FRows[vR].FmtOffset + FRows[vR].Height then  // æ¶ˆå‡åå‰©ä½™çš„æ¯”å½“å‰è¡Œé«˜
           begin
-            vH := vExtraHeight - FRows[vR].FmtOffset - FRows[vR].Height;  // ¸ß¶àÉÙ
-            FRows[vR].Height := vExtraHeight - FRows[vR].FmtOffset;  // µ±Ç°ĞĞ¸ß¸³ÖµĞÂÖµ(ÄÚ²¿¸÷µ¥Ôª¸ñ¸ß¶È»á´¦Àí)
+            vH := vExtraHeight - FRows[vR].FmtOffset - FRows[vR].Height;  // é«˜å¤šå°‘
+            FRows[vR].Height := vExtraHeight - FRows[vR].FmtOffset;  // å½“å‰è¡Œé«˜èµ‹å€¼æ–°å€¼(å†…éƒ¨å„å•å…ƒæ ¼é«˜åº¦ä¼šå¤„ç†)
 
-            for i := 0 to FRows[vR].ColCount - 1 do  // µ±Ç°ĞĞÖĞÔ´ÁĞÒªÓ°ÏìÄ¿±êµ¥Ôª¸ñ
+            for i := 0 to FRows[vR].ColCount - 1 do  // å½“å‰è¡Œä¸­æºåˆ—è¦å½±å“ç›®æ ‡å•å…ƒæ ¼
             begin
-              if FRows[vR][i].CellData = nil then  // Ô´ÁĞ
+              if FRows[vR][i].CellData = nil then  // æºåˆ—
               begin
-                GetDestCell(vR, i, vDestRow2, vDestCol2);  // »ñÈ¡Ä¿±êµ¥Ôª¸ñ
-                if (vDestRow2 <> vDestRow) and (vDestCol2 <> vDestCol) then  // ²»ÊÇµ±Ç°Òª´¦ÀíµÄÄ¿±êµ¥Ôª¸ñ
+                GetDestCell(vR, i, vDestRow2, vDestCol2);  // è·å–ç›®æ ‡å•å…ƒæ ¼
+                if (vDestRow2 <> vDestRow) and (vDestCol2 <> vDestCol) then  // ä¸æ˜¯å½“å‰è¦å¤„ç†çš„ç›®æ ‡å•å…ƒæ ¼
                   FRows[vDestRow2][i].Height := FRows[vDestRow2][i].Height + vH;
               end;
             end;
           end
-          else  // Ïû¼õºóÊ£ÓàµÄÃ»ÓĞµ±Ç°ĞĞ¸ß£¬¸ß¶ÈÔö¼Óµ½µ±Ç°ĞĞµ×²¿£¬´¦Àí·ÇºÏ²¢µÄµ¥Ôª¸ñÄÚÈİ£¬´óÓÚºÏ²¢½áÊøµ½´ËĞĞµ«Êı¾İµ×²¿Ã»ÓĞ´ËĞĞ¸ßµÄÇé¿ö
+          else  // æ¶ˆå‡åå‰©ä½™çš„æ²¡æœ‰å½“å‰è¡Œé«˜ï¼Œé«˜åº¦å¢åŠ åˆ°å½“å‰è¡Œåº•éƒ¨ï¼Œå¤„ç†éåˆå¹¶çš„å•å…ƒæ ¼å†…å®¹ï¼Œå¤§äºåˆå¹¶ç»“æŸåˆ°æ­¤è¡Œä½†æ•°æ®åº•éƒ¨æ²¡æœ‰æ­¤è¡Œé«˜çš„æƒ…å†µ
           begin
-            FRows[vDestRow][vC].Height :=  // 2017-1-15_1.bmpÖĞ[1, 1]ÊäÈëcÊ±[1, 0]ºÍ[1, 2]µÄÇé¿ö
+            FRows[vDestRow][vC].Height :=  // 2017-1-15_1.bmpä¸­[1, 1]è¾“å…¥cæ—¶[1, 0]å’Œ[1, 2]çš„æƒ…å†µ
               FRows[vDestRow][vC].Height + FRows[vR].FmtOffset + FRows[vR].Height - vExtraHeight;
           end;
         end;
@@ -442,14 +448,20 @@ begin
   end;
 end;
 
+procedure THCTableItem.FormatDirty;
+begin
+  FLastChangeFormated := False;
+  inherited FormatDirty;
+end;
+
 procedure THCTableItem.FormatRow(const ARow: Cardinal);
 var
   vC, vWidth: Integer;
   vRow: THCTableRow;
 begin
   vRow := FRows[ARow];
-  vRow.FmtOffset := 0;  // »Ö¸´ÉÏ´Î¸ñÊ½»¯¿ÉÄÜµÄÆ«ÒÆ
-  // ¸ñÊ½»¯¸÷µ¥Ôª¸ñÖĞµÄData
+  vRow.FmtOffset := 0;  // æ¢å¤ä¸Šæ¬¡æ ¼å¼åŒ–å¯èƒ½çš„åç§»
+  // æ ¼å¼åŒ–å„å•å…ƒæ ¼ä¸­çš„Data
   for vC := 0 to vRow.ColCount - 1 do
   begin
     if vRow[vC].CellData <> nil then
@@ -476,17 +488,17 @@ begin
     Exit;
   end;
 
-  for vR := 0 to RowCount - 1 do  // ¸ñÊ½»¯¸÷ĞĞ
+  for vR := 0 to RowCount - 1 do  // æ ¼å¼åŒ–å„è¡Œ
   begin
-    FormatRow(vR);  // ¸ñÊ½»¯ĞĞ£¬²¢¼ÆËãĞĞ¸ß¶È
-    CalcRowCellHeight(vR);  // ÒÔĞĞÖĞËùÓĞÎŞĞĞºÏ²¢²Ù×÷ÁĞÖĞ×î´ó¸ß¶È¸üĞÂÆäËûÁĞ
+    FormatRow(vR);  // æ ¼å¼åŒ–è¡Œï¼Œå¹¶è®¡ç®—è¡Œé«˜åº¦
+    CalcRowCellHeight(vR);  // ä»¥è¡Œä¸­æ‰€æœ‰æ— è¡Œåˆå¹¶æ“ä½œåˆ—ä¸­æœ€å¤§é«˜åº¦æ›´æ–°å…¶ä»–åˆ—
   end;
 
   FLastChangeFormated := True;
 
   CalcMergeRowHeightFrom(0);
-  Self.Height := GetFormatHeight;  // ¼ÆËãÕûÌå¸ß¶È
-  Self.Width := GetFormatWidth;  // ¼ÆËãÕûÌå¿í¶È
+  Self.Height := GetFormatHeight;  // è®¡ç®—æ•´ä½“é«˜åº¦
+  Self.Width := GetFormatWidth;  // è®¡ç®—æ•´ä½“å®½åº¦
 end;
 
 constructor THCTableItem.Create(const AOwnerData: THCCustomData;
@@ -498,9 +510,9 @@ begin
   inherited Create(AOwnerData);
 
   if ARowCount = 0 then
-    raise Exception.Create('Òì³££º²»ÄÜ´´½¨ĞĞÊıÎª0µÄ±í¸ñ£¡');
+    raise Exception.Create('å¼‚å¸¸ï¼šä¸èƒ½åˆ›å»ºè¡Œæ•°ä¸º0çš„è¡¨æ ¼ï¼');
   if AColCount = 0 then
-    raise Exception.Create('Òì³££º²»ÄÜ´´½¨ÁĞÊıÎª0µÄ±í¸ñ£¡');
+    raise Exception.Create('å¼‚å¸¸ï¼šä¸èƒ½åˆ›å»ºåˆ—æ•°ä¸º0çš„è¡¨æ ¼ï¼');
 
   GripSize := 2;
   FFixCol := -1;
@@ -511,7 +523,7 @@ begin
   FCellVPadding := 2;
   FFormatHeight := 0;
   FDraging := False;
-  FBorderWidth := 1;
+  BorderWidthPt := 0.5;
   FBorderColor := clBlack;
   FBorderVisible := True;
   FResizeKeepWidth := False;
@@ -523,13 +535,13 @@ begin
   FMulCellUndo := THCMulCellUndo.Create;
 
   //FWidth := FRows[0].ColCount * (MinColWidth + FBorderWidth) + FBorderWidth;
-  Height := ARowCount * (MinRowHeight + FBorderWidth) + FBorderWidth;
+  Height := ARowCount * (MinRowHeight + FBorderWidthPix) + FBorderWidthPix;
   FRows := THCTableRows.Create;
-  FRows.OnRowAdd := DoRowAdd;  // Ìí¼ÓĞĞÊ±´¥·¢µÄÊÂ¼ş
+  FRows.OnRowAdd := DoRowAdd;  // æ·»åŠ è¡Œæ—¶è§¦å‘çš„äº‹ä»¶
   FSelectCellRang := TSelectCellRang.Create;
   Self.InitializeMouseInfo;
   //
-  vDataWidth := AWidth - (AColCount + 1) * FBorderWidth;
+  vDataWidth := AWidth - (AColCount + 1) * FBorderWidthPix;
   for i := 0 to ARowCount - 1 do
   begin
     vRow := THCTableRow.Create(OwnerData.Style, AColCount);
@@ -541,7 +553,7 @@ begin
   for i := 0 to AColCount - 1 do
     FColWidths.Add(FRows[0][i].Width);
 
-  FMangerUndo := True;  // ×Ô¼º¹ÜÀí×Ô¼ºµÄ³·ÏúºÍ»Ö¸´²Ù×÷
+  FMangerUndo := True;  // è‡ªå·±ç®¡ç†è‡ªå·±çš„æ’¤é”€å’Œæ¢å¤æ“ä½œ
   FLastChangeFormated := False;
 end;
 
@@ -575,7 +587,7 @@ end;
 
 procedure THCTableItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
 begin
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       procedure
@@ -594,7 +606,7 @@ var
 begin
   Result := inherited DeleteActiveDomain;
 
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       procedure
@@ -620,17 +632,17 @@ begin
 
   for vRow := 0 to RowCount - 1 do
   begin
-    if FRows[vRow][ACol].ColSpan < 0 then  // ºÏ²¢Ô´
+    if FRows[vRow][ACol].ColSpan < 0 then  // åˆå¹¶æº
     begin
-      GetDestCell(vRow, ACol, viDestRow, viDestCol);  // Ä¿±êĞĞ¡¢ÁĞ
-      for i := ACol + 1 to viDestCol + FRows[viDestRow][viDestCol].ColSpan do  // µ±Ç°ÁĞÓÒÃæµÄºÏ²¢Ô´ÁĞÀëÄ¿±ê½ü1
+      GetDestCell(vRow, ACol, viDestRow, viDestCol);  // ç›®æ ‡è¡Œã€åˆ—
+      for i := ACol + 1 to viDestCol + FRows[viDestRow][viDestCol].ColSpan do  // å½“å‰åˆ—å³é¢çš„åˆå¹¶æºåˆ—ç¦»ç›®æ ‡è¿‘1
         FRows[vRow][i].ColSpan := FRows[vRow][i].ColSpan + 1;
 
-      if vRow = viDestRow + FRows[viDestRow][viDestCol].RowSpan then  // ×îºóÒ»Ô´ĞĞ£¬×îºóÒ»Ô´ÁĞ´¦ÀíÍêºó£¬Ä¿±êĞĞÁĞ¿ç¶È¼õÉÙ1
+      if vRow = viDestRow + FRows[viDestRow][viDestCol].RowSpan then  // æœ€åä¸€æºè¡Œï¼Œæœ€åä¸€æºåˆ—å¤„ç†å®Œåï¼Œç›®æ ‡è¡Œåˆ—è·¨åº¦å‡å°‘1
         FRows[viDestRow][viDestCol].ColSpan := FRows[viDestRow][viDestCol].ColSpan - 1;
     end
     else
-    if FRows[vRow][ACol].ColSpan > 0 then  // ºÏ²¢Ä¿±ê
+    if FRows[vRow][ACol].ColSpan > 0 then  // åˆå¹¶ç›®æ ‡
     begin
 
     end;
@@ -686,17 +698,17 @@ begin
 
   for vCol := 0 to FColWidths.Count - 1 do
   begin
-    if FRows[ARow][vCol].RowSpan < 0 then  // ºÏ²¢Ô´
+    if FRows[ARow][vCol].RowSpan < 0 then  // åˆå¹¶æº
     begin
-      GetDestCell(ARow, vCol, viDestRow, viDestCol);  // Ä¿±êĞĞ¡¢ÁĞ
-      for i := ARow + 1 to viDestRow + FRows[viDestRow][viDestCol].RowSpan do  // µ±Ç°ĞĞÏÂÃæµÄºÏ²¢Ô´ĞĞÀëÄ¿±ê½ü1
+      GetDestCell(ARow, vCol, viDestRow, viDestCol);  // ç›®æ ‡è¡Œã€åˆ—
+      for i := ARow + 1 to viDestRow + FRows[viDestRow][viDestCol].RowSpan do  // å½“å‰è¡Œä¸‹é¢çš„åˆå¹¶æºè¡Œç¦»ç›®æ ‡è¿‘1
         FRows[i][vCol].RowSpan := FRows[i][vCol].RowSpan + 1;
 
-      if vCol = viDestCol + FRows[viDestRow][viDestCol].ColSpan then  // ×îºóÒ»Ô´ĞĞ£¬×îºóÒ»Ô´ÁĞ´¦ÀíÍêºó£¬´¦ÀíÄ¿±êÁĞĞĞ¿ç¶È¼õÉÙ1
+      if vCol = viDestCol + FRows[viDestRow][viDestCol].ColSpan then  // æœ€åä¸€æºè¡Œï¼Œæœ€åä¸€æºåˆ—å¤„ç†å®Œåï¼Œå¤„ç†ç›®æ ‡åˆ—è¡Œè·¨åº¦å‡å°‘1
         FRows[viDestRow][viDestCol].RowSpan := FRows[viDestRow][viDestCol].RowSpan - 1;
     end
     else
-    if FRows[ARow][vCol].ColSpan > 0 then  // ºÏ²¢Ä¿±ê
+    if FRows[ARow][vCol].ColSpan > 0 then  // åˆå¹¶ç›®æ ‡
     begin
 
     end;
@@ -719,9 +731,9 @@ var
 begin
   Result := inherited DeleteSelected;
 
-  if FSelectCellRang.StartRow >= 0 then  // ÓĞÑ¡ÔñÆğÊ¼ĞĞ
+  if FSelectCellRang.StartRow >= 0 then  // æœ‰é€‰æ‹©èµ·å§‹è¡Œ
   begin
-    if FSelectCellRang.EndRow >= 0 then  // ÓĞÑ¡Ôñ½áÊøĞĞ£¬ËµÃ÷Ñ¡ÖĞ²»ÔÚÍ¬Ò»µ¥Ôª¸ñ
+    if FSelectCellRang.EndRow >= 0 then  // æœ‰é€‰æ‹©ç»“æŸè¡Œï¼Œè¯´æ˜é€‰ä¸­ä¸åœ¨åŒä¸€å•å…ƒæ ¼
     begin
       FMulCellUndo.Enable := True;
       try
@@ -750,7 +762,7 @@ begin
       FLastChangeFormated := False;
       Result := True;
     end
-    else  // ÔÚÍ¬Ò»µ¥Ôª¸ñ
+    else  // åœ¨åŒä¸€å•å…ƒæ ¼
     begin
       vResult := False;
       CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
@@ -799,7 +811,7 @@ var
 begin
   if FSelectCellRang.StartRow >= 0 then
   begin
-    // ÏÈÇåÆğÊ¼£¬È·±£µ±Ç°µ¥Ôª¸ñ¿ÉÖ´ĞĞDisSelect Óë201805172309ÏàËÆ
+    // å…ˆæ¸…èµ·å§‹ï¼Œç¡®ä¿å½“å‰å•å…ƒæ ¼å¯æ‰§è¡ŒDisSelect ä¸201805172309ç›¸ä¼¼
     if (FSelectCellRang.StartRow = ARow) and (FSelectCellRang.StartCol = ACol) then
 
     else
@@ -851,7 +863,7 @@ begin
     Result.Data := vMulCellUndoData;
   end
   else
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     Result := THCDataUndo.Create;
     vCellUndoData := THCCellUndoData.Create;
@@ -870,60 +882,60 @@ var
   vR, vC,
   vCellScreenTop,
   vCellScreenBottom,
-  vDestCellDataDrawTop,  // µ±Ç°Ä¿±êµ¥Ôª¸ñÊı¾İ»æÖÆ¶¥²¿Î»ÖÃ£¨°´µ¥Ôª¸ñ¶¥¶ÔÆë£©
-  vCellDataDrawTop,  // µ±Ç°µ¥Ôª¸ñÊı¾İ»æÖÆ¶¥²¿Î»ÖÃ£¨°´µ¥Ôª¸ñ¶¥¶ÔÆë£©
-  vCellDataDrawBottom,  // µ±Ç°µ¥Ôª¸ñÊı¾İ»æÖÆµ×²¿Î»ÖÃ
-  vCellDrawLeft,  // µ¥Ôª¸ñ»æÖÆÊ±×ó±ßÆğÊ¼Î»ÖÃ(×ó±ß¿òÓÒ±ß)
+  vDestCellDataDrawTop,  // å½“å‰ç›®æ ‡å•å…ƒæ ¼æ•°æ®ç»˜åˆ¶é¡¶éƒ¨ä½ç½®ï¼ˆæŒ‰å•å…ƒæ ¼é¡¶å¯¹é½ï¼‰
+  vCellDataDrawTop,  // å½“å‰å•å…ƒæ ¼æ•°æ®ç»˜åˆ¶é¡¶éƒ¨ä½ç½®ï¼ˆæŒ‰å•å…ƒæ ¼é¡¶å¯¹é½ï¼‰
+  vCellDataDrawBottom,  // å½“å‰å•å…ƒæ ¼æ•°æ®ç»˜åˆ¶åº•éƒ¨ä½ç½®
+  vCellDrawLeft,  // å•å…ƒæ ¼ç»˜åˆ¶æ—¶å·¦è¾¹èµ·å§‹ä½ç½®(å·¦è¾¹æ¡†å³è¾¹)
   vBorderLeft,
   vBorderTop,
   vBorderRight,
   vBorderBottom,
   vShouLian,
   vDestRow, vDestCol, vDestRow2, vDestCol2, vSrcRowBorderTop,
-  vFirstDrawRow  // ±¾´Î»æÖÆµÄµÚÒ»ĞĞ
+  vFirstDrawRow  // æœ¬æ¬¡ç»˜åˆ¶çš„ç¬¬ä¸€è¡Œ
     : Integer;
 
   vDrawBorder,
-  vDrawCellData,  // ´Ëµ¥Ôª¸ñÊı¾İÊÇ·ñĞèÒª»æÖÆ£¬ºÏ²¢Ô´µÄÖ»ÔÚºÏ²¢Ä¿±êÊ±»æÖÆÒ»´Î£¬±ÜÃâ¶à´Î»æÖÆ
+  vDrawCellData,  // æ­¤å•å…ƒæ ¼æ•°æ®æ˜¯å¦éœ€è¦ç»˜åˆ¶ï¼Œåˆå¹¶æºçš„åªåœ¨åˆå¹¶ç›®æ ‡æ—¶ç»˜åˆ¶ä¸€æ¬¡ï¼Œé¿å…å¤šæ¬¡ç»˜åˆ¶
   vDrawDefault
     : Boolean;
 
   vCellData: THCTableCellData;
 
-  {$REGION ' CheckRowBorderShouLian ÕÒµ±Ç°ĞĞ¸÷ÁĞ·ÖÒ³Ê±µÄÊÕÁ²Î»ÖÃ'}
+  {$REGION ' CheckRowBorderShouLian æ‰¾å½“å‰è¡Œå„åˆ—åˆ†é¡µæ—¶çš„æ”¶æ•›ä½ç½®'}
   procedure CheckRowBorderShouLian(const ARow: Integer);
   var
     vC, i, vRowDataDrawTop, vDestCellDataDrawTop, vBreakBottom: Integer;
     vRect: TRect;
   begin
-    if vShouLian = 0 then  // Ã»ÓĞ¼ÆËã¹ıµ±Ç°ĞĞÓĞ¿çÒ³µÄËùÓĞÁĞÖĞ×î¼Ñ¿çÒ³Ê±ÊÕÁ²Î»ÖÃ
+    if vShouLian = 0 then  // æ²¡æœ‰è®¡ç®—è¿‡å½“å‰è¡Œæœ‰è·¨é¡µçš„æ‰€æœ‰åˆ—ä¸­æœ€ä½³è·¨é¡µæ—¶æ”¶æ•›ä½ç½®
     begin
-      vRowDataDrawTop := ADrawRect.Top + FBorderWidth;  // ÒòÎª±ß¿òÔÚADrawRect.TopÒ²Õ¼1ÏñËØ£¬ËùÒÔÒª¼õµô
+      vRowDataDrawTop := ADrawRect.Top + FBorderWidthPix;  // å› ä¸ºè¾¹æ¡†åœ¨ADrawRect.Topä¹Ÿå 1åƒç´ ï¼Œæ‰€ä»¥è¦å‡æ‰
       for i := 0 to ARow - 1 do
-        vRowDataDrawTop := vRowDataDrawTop + FRows[i].FmtOffset + FRows[i].Height + FBorderWidth;
+        vRowDataDrawTop := vRowDataDrawTop + FRows[i].FmtOffset + FRows[i].Height + FBorderWidthPix;
 
-      if (FRows[ARow].FmtOffset > 0)  // ·ÖÒ³ĞĞÕûÌåÏÂÒÆÁË
-        and (ARow <> vFirstDrawRow)  // ²»ÊÇµÚÒ»´Î»æÖÆÕûÌåÏÂÒÆµÄ·ÖÒ³ĞĞ
-      then  // ÒÔÉÏÒ»ĞĞ×îµÍÎªÊÕÁ²
+      if (FRows[ARow].FmtOffset > 0)  // åˆ†é¡µè¡Œæ•´ä½“ä¸‹ç§»äº†
+        and (ARow <> vFirstDrawRow)  // ä¸æ˜¯ç¬¬ä¸€æ¬¡ç»˜åˆ¶æ•´ä½“ä¸‹ç§»çš„åˆ†é¡µè¡Œ
+      then  // ä»¥ä¸Šä¸€è¡Œæœ€ä½ä¸ºæ”¶æ•›
       begin
-        vShouLian := vRowDataDrawTop - FBorderWidth;  // ÉÏÒ»ĞĞµ×²¿±ß¿òÎ»ÖÃ
+        vShouLian := vRowDataDrawTop - FBorderWidthPix;  // ä¸Šä¸€è¡Œåº•éƒ¨è¾¹æ¡†ä½ç½®
         Exit;
       end;
 
-      // ·ÖÒ³ĞĞData»æÖÆÆğÊ¼Î»ÖÃ£¬µÚÒ»´Î»æÖÆÕûÌåÏÂÒÆ·ÖÒ³ĞĞÊ±ÒªÔö¼ÓÆ«ÒÆ£¬·ñÔò²»Ôö¼Ó(ºÍÉÏÒ»ĞĞ½áÎ²ÏàÍ¬)×öÎªÊÕÁ²Î»ÖÃ(¼ûÇ°ÉÏĞĞExit´¦)
+      // åˆ†é¡µè¡ŒDataç»˜åˆ¶èµ·å§‹ä½ç½®ï¼Œç¬¬ä¸€æ¬¡ç»˜åˆ¶æ•´ä½“ä¸‹ç§»åˆ†é¡µè¡Œæ—¶è¦å¢åŠ åç§»ï¼Œå¦åˆ™ä¸å¢åŠ (å’Œä¸Šä¸€è¡Œç»“å°¾ç›¸åŒ)åšä¸ºæ”¶æ•›ä½ç½®(è§å‰ä¸Šè¡ŒExitå¤„)
       vRowDataDrawTop := vRowDataDrawTop + FRows[ARow].FmtOffset + FCellVPadding;
 
       vBreakBottom := 0;
-      for vC := 0 to FRows[ARow].ColCount - 1 do  // ±éÀúÍ¬ĞĞ¸÷ÁĞ£¬»ñÈ¡½Ø¶ÏÎ»ÖÃ(ÒòÎª¸÷ĞĞÔÚCheckFormatPageÒÑ¾­ËãºÃ·ÖÒ³Î»ÖÃ£¬ËùÒÔ´Ë´¦Ö»ÒªÒ»¸öµ¥Ôª¸ñ¿çÒ³Î»ÖÃÍ¬Ê±ÊÊÓÃµ±Ç°ĞĞËùÓĞµ¥Ôª¸ñ¿çÒ³Î»ÖÃ)
+      for vC := 0 to FRows[ARow].ColCount - 1 do  // éå†åŒè¡Œå„åˆ—ï¼Œè·å–æˆªæ–­ä½ç½®(å› ä¸ºå„è¡Œåœ¨CheckFormatPageå·²ç»ç®—å¥½åˆ†é¡µä½ç½®ï¼Œæ‰€ä»¥æ­¤å¤„åªè¦ä¸€ä¸ªå•å…ƒæ ¼è·¨é¡µä½ç½®åŒæ—¶é€‚ç”¨å½“å‰è¡Œæ‰€æœ‰å•å…ƒæ ¼è·¨é¡µä½ç½®)
       begin
         vDestCellDataDrawTop := vRowDataDrawTop;//vCellDataDrawTop;
-        GetDestCell(ARow, vC, vDestRow2, vDestCol2);  // »ñÈ¡µ½Ä¿±êµ¥Ôª¸ñËùÔÚĞĞºÅ
+        GetDestCell(ARow, vC, vDestRow2, vDestCol2);  // è·å–åˆ°ç›®æ ‡å•å…ƒæ ¼æ‰€åœ¨è¡Œå·
 
-        if vC <> vDestCol2 + FRows[vDestRow2][vDestCol2].ColSpan then  // Ö»ÔÚµ±Ç°Ò³·ÖÒ³Î»ÖÃµÄºÏ²¢×îºóÔ´´¦ÀíÒ»´Î
+        if vC <> vDestCol2 + FRows[vDestRow2][vDestCol2].ColSpan then  // åªåœ¨å½“å‰é¡µåˆ†é¡µä½ç½®çš„åˆå¹¶æœ€åæºå¤„ç†ä¸€æ¬¡
           Continue;
 
-        vCellData := FRows[vDestRow2][vDestCol2].CellData;  // ÏÈ¸³ÖµÄ¿±êµ¥Ôª¸ñData
-        if vDestRow2 <> ARow then  // ÊÇÔ´ĞĞ£¬ÏÈÈ¡Ä¿±êÎ»ÖÃ£¬ÔÙÈ¡µ½´ËĞĞÏû¼õµôºóµÄÎ»ÖÃ
+        vCellData := FRows[vDestRow2][vDestCol2].CellData;  // å…ˆèµ‹å€¼ç›®æ ‡å•å…ƒæ ¼Data
+        if vDestRow2 <> ARow then  // æ˜¯æºè¡Œï¼Œå…ˆå–ç›®æ ‡ä½ç½®ï¼Œå†å–åˆ°æ­¤è¡Œæ¶ˆå‡æ‰åçš„ä½ç½®
           vDestCellDataDrawTop := vDestCellDataDrawTop - SrcCellDataTopDistanceToDest(ARow, vDestRow2);
 
         for i := 0 to vCellData.DrawItems.Count - 1 do
@@ -931,24 +943,24 @@ var
           if vCellData.DrawItems[i].LineFirst then
           begin
             vRect := vCellData.DrawItems[i].Rect;
-            //if DrawiInLastLine(i) then  // µ¥Ôª¸ñÄÚ×îºóÒ»ĞĞÄÚÈİ²¹³äFCellVPadding
-            vRect.Bottom := vRect.Bottom + FCellVPadding; // Ã¿Ò»ĞĞ¿ÉÄÜÊÇÒª½Ø¶ÏµÄ£¬½Ø¶ÏÊ±ÏÂÃæÒªÄÜ·ÅÏÂFCellVPadding
-            if vDestCellDataDrawTop + vRect.Bottom > ADataDrawBottom then  // ´ËDrawItem³¬¹ıµ±Ç°Ò³ÁË
+            //if DrawiInLastLine(i) then  // å•å…ƒæ ¼å†…æœ€åä¸€è¡Œå†…å®¹è¡¥å……FCellVPadding
+            vRect.Bottom := vRect.Bottom + FCellVPadding; // æ¯ä¸€è¡Œå¯èƒ½æ˜¯è¦æˆªæ–­çš„ï¼Œæˆªæ–­æ—¶ä¸‹é¢è¦èƒ½æ”¾ä¸‹FCellVPadding
+            if vDestCellDataDrawTop + vRect.Bottom > ADataDrawBottom then  // æ­¤DrawItemè¶…è¿‡å½“å‰é¡µäº†
             begin
-              if i > 0 then  // ¿çÒ³µÄDraw²»ÊÇµÚÒ»ĞĞ
+              if i > 0 then  // è·¨é¡µçš„Drawä¸æ˜¯ç¬¬ä¸€è¡Œ
               begin
                 if ADataDrawBottom - vDestCellDataDrawTop - vCellData.DrawItems[i - 1].Rect.Bottom > FCellVPadding then
                   vShouLian := Max(vShouLian, vDestCellDataDrawTop + vCellData.DrawItems[i - 1].Rect.Bottom + FCellVPadding)
                 else
-                  vShouLian := Max(vShouLian, vDestCellDataDrawTop + vCellData.DrawItems[i - 1].Rect.Bottom);  // ÉÏÒ»¸ö×îÏÂÃæ×öÎª½Ø¶ÏÎ»ÖÃ
+                  vShouLian := Max(vShouLian, vDestCellDataDrawTop + vCellData.DrawItems[i - 1].Rect.Bottom);  // ä¸Šä¸€ä¸ªæœ€ä¸‹é¢åšä¸ºæˆªæ–­ä½ç½®
               end
-              else  // µÚÒ»ĞĞ¾ÍÔÚµ±Ç°Ò³·Å²»ÏÂ
-                vShouLian := Max(vShouLian, vDestCellDataDrawTop - FCellVPadding - FBorderWidth);
+              else  // ç¬¬ä¸€è¡Œå°±åœ¨å½“å‰é¡µæ”¾ä¸ä¸‹
+                vShouLian := Max(vShouLian, vDestCellDataDrawTop - FCellVPadding - FBorderWidthPix);
 
               Break;
             end
-            else  // ´ËDrawItemÃ»ÓĞ³¬¹ıµ±Ç°Ò³
-              vBreakBottom := Max(vBreakBottom, vDestCellDataDrawTop + vRect.Bottom);  // ¼ÇÂ¼Îª¿É·ÅÏÂµÄ×îºóÒ»¸öÏÂÃæ(ÓĞµÄµ¥Ôª¸ñÔÚµ±Ç°Ò³ÄÜÈ«²¿ÏÔÊ¾£¬²¢²»¿çÒ³)
+            else  // æ­¤DrawItemæ²¡æœ‰è¶…è¿‡å½“å‰é¡µ
+              vBreakBottom := Max(vBreakBottom, vDestCellDataDrawTop + vRect.Bottom);  // è®°å½•ä¸ºå¯æ”¾ä¸‹çš„æœ€åä¸€ä¸ªä¸‹é¢(æœ‰çš„å•å…ƒæ ¼åœ¨å½“å‰é¡µèƒ½å…¨éƒ¨æ˜¾ç¤ºï¼Œå¹¶ä¸è·¨é¡µ)
           end;
         end;
       end;
@@ -957,14 +969,14 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION ' DoDrawPageBreakMark »æÖÆ·ÖÒ³±êÊ¶·û '}
+  {$REGION ' DoDrawPageBreakMark ç»˜åˆ¶åˆ†é¡µæ ‡è¯†ç¬¦ '}
   procedure DoDrawPageBreakMark(const APageEnd: Boolean);
   begin
     ACanvas.Pen.Color := clGray;
     ACanvas.Pen.Style := psDot;
     ACanvas.Pen.Width := 1;
 
-    if APageEnd then  // ·ÖÒ³·û(Ò³½áÊøÎ»ÖÃ)
+    if APageEnd then  // åˆ†é¡µç¬¦(é¡µç»“æŸä½ç½®)
     begin
       ACanvas.MoveTo(vBorderRight + 5, vBorderBottom - 1);  // vBorderBottom
       ACanvas.LineTo(vBorderRight + 20, vBorderBottom - 1);
@@ -975,7 +987,7 @@ var
       ACanvas.LineTo(vBorderRight + 5, vBorderBottom - 10);
       ACanvas.LineTo(vBorderRight + 5, vBorderBottom - 2);
     end
-    else  // ·ÖÒ³·û(Ò³ÆğÊ¼Î»ÖÃ)
+    else  // åˆ†é¡µç¬¦(é¡µèµ·å§‹ä½ç½®)
     begin
       ACanvas.MoveTo(vBorderRight + 5, ADataDrawTop + 1);  // vBorderTop
       ACanvas.LineTo(vBorderRight + 20, ADataDrawTop + 1);
@@ -999,17 +1011,17 @@ var
   vCellRect: TRect;
 begin
   vFixHeight := GetFixRowHeight;
-  vBorderOffs := FBorderWidth div 2;
+  vBorderOffs := FBorderWidthPix div 2;
   vFirstDrawRowIsBreak := False;
   vFirstDrawRow := -1;
-  vCellDataDrawTop := ADrawRect.Top + FBorderWidth;  // µÚ1ĞĞÊı¾İ»æÖÆÆğÊ¼Î»ÖÃ£¬ÒòÎª±ß¿òÔÚADrawRect.TopÒ²Õ¼1ÏñËØ£¬ËùÒÔÒª¼õµô
+  vCellDataDrawTop := ADrawRect.Top + FBorderWidthPix;  // ç¬¬1è¡Œæ•°æ®ç»˜åˆ¶èµ·å§‹ä½ç½®ï¼Œå› ä¸ºè¾¹æ¡†åœ¨ADrawRect.Topä¹Ÿå 1åƒç´ ï¼Œæ‰€ä»¥è¦å‡æ‰
   for vR := 0 to FRows.Count - 1 do
   begin
-    // ²»ÔÚµ±Ç°ÆÁÄ»·¶Î§ÄÚµÄ²»»æÖÆ(1)
+    // ä¸åœ¨å½“å‰å±å¹•èŒƒå›´å†…çš„ä¸ç»˜åˆ¶(1)
     vCellDataDrawTop := vCellDataDrawTop + FRows[vR].FmtOffset + FCellVPadding;
-    if vCellDataDrawTop > ADataScreenBottom then  // ĞĞÊı¾İ¶¥²¿´óÓÚ¿ÉÏÔÊ¾ÇøÓòÏÔÊ¾²»³öÀ´²»»æÖÆ
+    if vCellDataDrawTop > ADataScreenBottom then  // è¡Œæ•°æ®é¡¶éƒ¨å¤§äºå¯æ˜¾ç¤ºåŒºåŸŸæ˜¾ç¤ºä¸å‡ºæ¥ä¸ç»˜åˆ¶
     begin
-      if (vFirstDrawRow < 0) and IsBreakRow(vR){(FRows[vR].FmtOffset > 0)} then  // ÓĞ±êÌâĞĞµ¼ÖÂµÄµÚvRĞĞÃ»ÔÚ´ËÒ³»æÖÆÊ±ÏÔÊ¾³öÀ´
+      if (vFirstDrawRow < 0) and IsBreakRow(vR){(FRows[vR].FmtOffset > 0)} then  // æœ‰æ ‡é¢˜è¡Œå¯¼è‡´çš„ç¬¬vRè¡Œæ²¡åœ¨æ­¤é¡µç»˜åˆ¶æ—¶æ˜¾ç¤ºå‡ºæ¥
         vFirstDrawRowIsBreak := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1);
 
       Break;
@@ -1017,13 +1029,13 @@ begin
 
     vCellDataDrawBottom := vCellDataDrawTop - FCellVPadding + FRows[vR].Height - FCellVPadding;
 
-    if vCellDataDrawBottom < ADataScreenTop then  // µ±Ç°ĞĞµ×²¿Ğ¡ÓÚ¿ÉÏÔÊ¾¶¥²¿£¬Ã»ÏÔÊ¾³öÀ´²»»æÖÆ
+    if vCellDataDrawBottom < ADataScreenTop then  // å½“å‰è¡Œåº•éƒ¨å°äºå¯æ˜¾ç¤ºé¡¶éƒ¨ï¼Œæ²¡æ˜¾ç¤ºå‡ºæ¥ä¸ç»˜åˆ¶
     begin
-      vCellDataDrawTop := vCellDataDrawBottom + FCellVPadding + FBorderWidth;  // ×¼±¸ÅĞ¶ÏÏÂÒ»ĞĞÊÇ·ñÊÇ¿ÉÏÔÊ¾µÚÒ»ĞĞ
+      vCellDataDrawTop := vCellDataDrawBottom + FCellVPadding + FBorderWidthPix;  // å‡†å¤‡åˆ¤æ–­ä¸‹ä¸€è¡Œæ˜¯å¦æ˜¯å¯æ˜¾ç¤ºç¬¬ä¸€è¡Œ
       Continue;
     end;
 
-    if vFirstDrawRow < 0 then  // ¼ÇÂ¼±¾´Î»æÖÆµÄµÚÒ»ĞĞ
+    if vFirstDrawRow < 0 then  // è®°å½•æœ¬æ¬¡ç»˜åˆ¶çš„ç¬¬ä¸€è¡Œ
     begin
       vFirstDrawRow := vR;
 
@@ -1031,61 +1043,61 @@ begin
         vFirstDrawRowIsBreak := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1);
     end;
 
-    vCellDrawLeft := ADrawRect.Left + FBorderWidth;
+    vCellDrawLeft := ADrawRect.Left + FBorderWidthPix;
 
-    // Ñ­»·»æÖÆĞĞÖĞ¸÷µ¥Ôª¸ñÊı¾İºÍ±ß¿ò
+    // å¾ªç¯ç»˜åˆ¶è¡Œä¸­å„å•å…ƒæ ¼æ•°æ®å’Œè¾¹æ¡†
     vShouLian := 0;
     for vC := 0 to FRows[vR].ColCount - 1 do
     begin
-      if FRows[vR][vC].ColSpan < 0 then  // ºÏ²¢ÁĞÔ´
+      if FRows[vR][vC].ColSpan < 0 then  // åˆå¹¶åˆ—æº
       begin
-        vCellDrawLeft := vCellDrawLeft + FColWidths[vC] + FBorderWidth;
-        Continue;  // ÆÕÍ¨µ¥Ôª¸ñ»òºÏ²¢Ä¿±êµ¥Ôª¸ñ²ÅÓĞÊı¾İ£¬·ñÔòÓÉÄ¿±êµ¥Ôª¸ñ´¦Àí
+        vCellDrawLeft := vCellDrawLeft + FColWidths[vC] + FBorderWidthPix;
+        Continue;  // æ™®é€šå•å…ƒæ ¼æˆ–åˆå¹¶ç›®æ ‡å•å…ƒæ ¼æ‰æœ‰æ•°æ®ï¼Œå¦åˆ™ç”±ç›®æ ‡å•å…ƒæ ¼å¤„ç†
       end;
 
-      vDrawCellData := True;  // ´¦ÀíÄ¿±êĞĞÓĞ¿çÒ³£¬ÇÒÄ¿±êĞĞºóÃæÓĞ¶àĞĞºÏ²¢µ½´ËĞĞÊ±£¬Ö»ÔÚ¿çÒ³ºó»æÖÆÒ»´ÎÄ¿±êĞĞµÄÊı¾İ
-      if FRows[vR][vC].RowSpan < 0 then  // 20170208001 ÊÇºÏ²¢ĞĞÔ´µ¥Ôª¸ñ(ÓÉÓÚÉÏÃæÅÅ³ıÁËÁĞÔ´£¬ËùÒÔÕâÀïÖ»ÊÇÄ¿±êµ¥Ôª¸ñÕıÏÂ·½µÄµ¥Ôª¸ñ)
+      vDrawCellData := True;  // å¤„ç†ç›®æ ‡è¡Œæœ‰è·¨é¡µï¼Œä¸”ç›®æ ‡è¡Œåé¢æœ‰å¤šè¡Œåˆå¹¶åˆ°æ­¤è¡Œæ—¶ï¼Œåªåœ¨è·¨é¡µåç»˜åˆ¶ä¸€æ¬¡ç›®æ ‡è¡Œçš„æ•°æ®
+      if FRows[vR][vC].RowSpan < 0 then  // 20170208001 æ˜¯åˆå¹¶è¡Œæºå•å…ƒæ ¼(ç”±äºä¸Šé¢æ’é™¤äº†åˆ—æºï¼Œæ‰€ä»¥è¿™é‡Œåªæ˜¯ç›®æ ‡å•å…ƒæ ¼æ­£ä¸‹æ–¹çš„å•å…ƒæ ¼)
       begin
-        if vR <> vFirstDrawRow then  // ²»ÊÇ¿çÒ³ºóµÚÒ»´Î»æÖÆµÄĞĞ
-          vDrawCellData := False;  // Ä¿±êµ¥Ôª¸ñÒÑ¾­ÕâÒ³»æÖÆÁËÊı¾İ£¬²»ÓÃÖØ¸´»æÖÆÁË£¬·ñÔò¿çĞĞºóµÄµÚÒ»´ÎÒª»æÖÆ
+        if vR <> vFirstDrawRow then  // ä¸æ˜¯è·¨é¡µåç¬¬ä¸€æ¬¡ç»˜åˆ¶çš„è¡Œ
+          vDrawCellData := False;  // ç›®æ ‡å•å…ƒæ ¼å·²ç»è¿™é¡µç»˜åˆ¶äº†æ•°æ®ï¼Œä¸ç”¨é‡å¤ç»˜åˆ¶äº†ï¼Œå¦åˆ™è·¨è¡Œåçš„ç¬¬ä¸€æ¬¡è¦ç»˜åˆ¶
       end;
 
       vDestCellDataDrawTop := vCellDataDrawTop;
-      GetDestCell(vR, vC, vDestRow, vDestCol);  // »ñÈ¡µ½Ä¿±êµ¥Ôª¸ñËùÔÚĞĞºÅ
+      GetDestCell(vR, vC, vDestRow, vDestCol);  // è·å–åˆ°ç›®æ ‡å•å…ƒæ ¼æ‰€åœ¨è¡Œå·
       if vDestRow <> vR then
         vDestCellDataDrawTop := vDestCellDataDrawTop - SrcCellDataTopDistanceToDest(vR, vDestRow);
 
-      {$REGION ' »æÖÆµ¥Ôª¸ñÊı¾İ '}
+      {$REGION ' ç»˜åˆ¶å•å…ƒæ ¼æ•°æ® '}
       if vDrawCellData then
       begin
-        vCellScreenBottom := Math.Min(ADataScreenBottom,  // Êı¾İÄÚÈİÆÁÏÔ×îÏÂ¶Ë
+        vCellScreenBottom := Math.Min(ADataScreenBottom,  // æ•°æ®å†…å®¹å±æ˜¾æœ€ä¸‹ç«¯
           vCellDataDrawTop
-          + Max(FRows[vR].Height, FRows[vDestRow][vDestCol].Height) - FCellVPadding);  // ĞĞ¸ßºÍÓĞºÏ²¢µÄµ¥Ôª¸ñ¸ßÖĞ×î´óµÄ
+          + Max(FRows[vR].Height, FRows[vDestRow][vDestCol].Height) - FCellVPadding);  // è¡Œé«˜å’Œæœ‰åˆå¹¶çš„å•å…ƒæ ¼é«˜ä¸­æœ€å¤§çš„
 
-        //Assert(vCellScreenBottom - vMergeCellDataDrawTop >= FRows[vR].Height, '¼Æ»®Ê¹ÓÃContinueµ«´ıÈ·ÈÏ»á·ûºÏÇé¿öµÄ');
-        vCellData := FRows[vDestRow][vDestCol].CellData;  // Ä¿±êCellData£¬20170208003 Èç¹ûÒÆµ½if vDrawDataÍâÃæÔò20170208002²»ĞèÒªÁË
-        vCellScreenTop := Math.Max(ADataScreenTop, vCellDataDrawTop - FCellVPadding);  // ÆÁÏÔ×îÉÏ¶Ë
-        if vCellScreenTop - vDestCellDataDrawTop < vCellData.Height then  // ¿ÉÏÔÊ¾µÄÆğÊ¼Î»ÖÃĞ¡ÓÚÊı¾İ¸ß¶È(µ±>=Ê±ËµÃ÷Êı¾İ¸ß¶ÈĞ¡ÓÚĞĞ¸ßÊ±£¬Êı¾İÒÑ¾­ÍêÈ«¾íµ½ÉÏÃæÁË)
+        //Assert(vCellScreenBottom - vMergeCellDataDrawTop >= FRows[vR].Height, 'è®¡åˆ’ä½¿ç”¨Continueä½†å¾…ç¡®è®¤ä¼šç¬¦åˆæƒ…å†µçš„');
+        vCellData := FRows[vDestRow][vDestCol].CellData;  // ç›®æ ‡CellDataï¼Œ20170208003 å¦‚æœç§»åˆ°if vDrawDataå¤–é¢åˆ™20170208002ä¸éœ€è¦äº†
+        vCellScreenTop := Math.Max(ADataScreenTop, vCellDataDrawTop - FCellVPadding);  // å±æ˜¾æœ€ä¸Šç«¯
+        if vCellScreenTop - vDestCellDataDrawTop < vCellData.Height then  // å¯æ˜¾ç¤ºçš„èµ·å§‹ä½ç½®å°äºæ•°æ®é«˜åº¦(å½“>=æ—¶è¯´æ˜æ•°æ®é«˜åº¦å°äºè¡Œé«˜æ—¶ï¼Œæ•°æ®å·²ç»å®Œå…¨å·åˆ°ä¸Šé¢äº†)
         begin
           vCellRect := Rect(vCellDrawLeft, vCellScreenTop, vCellDrawLeft + FRows[vR][vC].Width, vCellScreenBottom);
 
-          if (Self.IsSelectComplate or vCellData.CellSelectedAll) and (not APaintInfo.Print) then  // ±í¸ñÈ«Ñ¡ÖĞ»òµ¥Ôª¸ñÈ«Ñ¡ÖĞ
+          if (Self.IsSelectComplate or vCellData.CellSelectedAll) and (not APaintInfo.Print) then  // è¡¨æ ¼å…¨é€‰ä¸­æˆ–å•å…ƒæ ¼å…¨é€‰ä¸­
           begin
             ACanvas.Brush.Color := OwnerData.Style.SelColor;
             ACanvas.FillRect(vCellRect);
           end
-          else  // Ä¬ÈÏµÄ»æÖÆ
+          else  // é»˜è®¤çš„ç»˜åˆ¶
           begin
             vDrawDefault := True;
-            if Assigned(FOnCellPaintBK) then  // ÓĞÍâ²¿×Ô¶¨Òå»æÖÆ
+            if Assigned(FOnCellPaintBK) then  // æœ‰å¤–éƒ¨è‡ªå®šä¹‰ç»˜åˆ¶
               FOnCellPaintBK(Self, FRows[vDestRow][vDestCol], vCellRect, ACanvas, APaintInfo, vDrawDefault);
 
-            if vDrawDefault then  // ÔÊĞíÄ¬ÈÏ»æÖÆ
+            if vDrawDefault then  // å…è®¸é»˜è®¤ç»˜åˆ¶
             begin
-              if IsFixRow(vR) or IsFixCol(vC) then  // ÊÇ¹Ì¶¨ĞĞ
+              if IsFixRow(vR) or IsFixCol(vC) then  // æ˜¯å›ºå®šè¡Œ
                 ACanvas.Brush.Color := clBtnFace
               else
-              if FRows[vDestRow][vDestCol].BackgroundColor <> HCTransparentColor then  // ±³¾°É«
+              if FRows[vDestRow][vDestCol].BackgroundColor <> HCTransparentColor then  // èƒŒæ™¯è‰²
                 ACanvas.Brush.Color := FRows[vDestRow][vDestCol].BackgroundColor
               else
                 ACanvas.Brush.Style := bsClear;
@@ -1101,11 +1113,11 @@ begin
           ACanvas.TextOut(vCellDrawLeft + 1, vDestCellDataDrawTop, IntToStr(vR) + '/' + IntToStr(vC));
           {$ENDIF}
 
-          // »ñÈ¡¿ÉÏÔÊ¾ÇøÓòµÄÆğÊ¼¡¢½áÊøDrawItem
+          // è·å–å¯æ˜¾ç¤ºåŒºåŸŸçš„èµ·å§‹ã€ç»“æŸDrawItem
           //vCellData.GetDataDrawItemRang(Math.Max(vCellScreenTop - vDestCellDataDrawTop, 0),
           //  vCellScreenBottom - vDestCellDataDrawTop, vFristDItemNo, vLastDItemNo);
           //if vFristDItemNo >= 0 then
-          if vCellScreenBottom - vCellScreenTop > FCellVPadding then  // ÓĞ¿ÉÏÔÊ¾µÄDrawItem
+          if vCellScreenBottom - vCellScreenTop > FCellVPadding then  // æœ‰å¯æ˜¾ç¤ºçš„DrawItem
           begin
             FRows[vDestRow][vDestCol].PaintTo(
               vCellDrawLeft, vDestCellDataDrawTop - FCellVPadding,
@@ -1113,7 +1125,7 @@ begin
               ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
               0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
 
-            if Assigned(FOnCellPaintData) then  // ÓĞÍâ²¿×Ô¶¨Òå»æÖÆ
+            if Assigned(FOnCellPaintData) then  // æœ‰å¤–éƒ¨è‡ªå®šä¹‰ç»˜åˆ¶
             begin
               FOnCellPaintData(Self, ADrawRect, vCellRect, vDestRow, vDestCol,
                 vDestCellDataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
@@ -1124,32 +1136,32 @@ begin
       end;
       {$ENDREGION}
 
-      {$REGION ' »æÖÆ¸÷µ¥Ôª¸ñ±ß¿òÏß '}
+      {$REGION ' ç»˜åˆ¶å„å•å…ƒæ ¼è¾¹æ¡†çº¿ '}
       if FBorderVisible or (not APaintInfo.Print) then
       begin
         vDrawBorder := True;
-        // Ä¿±êµ¥Ôª¸ñµÄÉÏ±ß¿ò»æÖÆÎ»ÖÃ vDestCellDataDrawTop±¾ÉíÕ¼µôÁË1ÏñËØ
-        // FBorderWidth + FCellVPadding = vDestCellDataDrawTop£¬vDestCellDataDrawTopºÍFCellVapddingÖØµşÁË1ÏñËØ
-        vBorderTop := vDestCellDataDrawTop - FCellVPadding - FBorderWidth;
-        vBorderBottom := vBorderTop + FBorderWidth  // ¼ÆËã±ß¿ò×îÏÂ¶Ë
-          + Max(FRows[vR].Height, FRows[vDestRow][vDestCol].Height);  // ÓÉÓÚ¿ÉÄÜÊÇºÏ²¢Ä¿±êµ¥Ôª¸ñ£¬ËùÒÔÓÃµ¥Ôª¸ñ¸ßºÍĞĞ¸ß×î¸ßµÄ
+        // ç›®æ ‡å•å…ƒæ ¼çš„ä¸Šè¾¹æ¡†ç»˜åˆ¶ä½ç½® vDestCellDataDrawTopæœ¬èº«å æ‰äº†1åƒç´ 
+        // FBorderWidth + FCellVPadding = vDestCellDataDrawTopï¼ŒvDestCellDataDrawTopå’ŒFCellVapddingé‡å äº†1åƒç´ 
+        vBorderTop := vDestCellDataDrawTop - FCellVPadding - FBorderWidthPix;
+        vBorderBottom := vBorderTop + FBorderWidthPix  // è®¡ç®—è¾¹æ¡†æœ€ä¸‹ç«¯
+          + Max(FRows[vR].Height, FRows[vDestRow][vDestCol].Height);  // ç”±äºå¯èƒ½æ˜¯åˆå¹¶ç›®æ ‡å•å…ƒæ ¼ï¼Œæ‰€ä»¥ç”¨å•å…ƒæ ¼é«˜å’Œè¡Œé«˜æœ€é«˜çš„
 
-        // Ä¿±êµ¥Ôª¸ñµ×²¿±ß¿ò³¬¹ıÒ³µ×²¿£¬¼ÆËãÊÕÁ²Î»ÖÃ
-        if vBorderBottom > ADataScreenBottom then  // Ä¿±êµ×²¿±ß¿ò > Ò³Êı¾İÆÁÏÔµ×²¿£¬µ×²¿ÏÔÊ¾²»È«»òµ×²¿¿çµ½ÏÂÒ»Ò³ÁË
+        // ç›®æ ‡å•å…ƒæ ¼åº•éƒ¨è¾¹æ¡†è¶…è¿‡é¡µåº•éƒ¨ï¼Œè®¡ç®—æ”¶æ•›ä½ç½®
+        if vBorderBottom > ADataScreenBottom then  // ç›®æ ‡åº•éƒ¨è¾¹æ¡† > é¡µæ•°æ®å±æ˜¾åº•éƒ¨ï¼Œåº•éƒ¨æ˜¾ç¤ºä¸å…¨æˆ–åº•éƒ¨è·¨åˆ°ä¸‹ä¸€é¡µäº†
         begin
-          if FRows[vR][vC].RowSpan > 0 then  // ÊÇºÏ²¢Ä¿±êµ¥Ôª¸ñ
+          if FRows[vR][vC].RowSpan > 0 then  // æ˜¯åˆå¹¶ç›®æ ‡å•å…ƒæ ¼
           begin
             vSrcRowBorderTop := vBorderTop;
-            vDestRow2 := vR;  // ½èÓÃ±äÁ¿
-            while vDestRow2 <= FRows.Count - 1 do  // ÕÒÏÔÊ¾µ×²¿±ß¿òµÄÔ´
+            vDestRow2 := vR;  // å€Ÿç”¨å˜é‡
+            while vDestRow2 <= FRows.Count - 1 do  // æ‰¾æ˜¾ç¤ºåº•éƒ¨è¾¹æ¡†çš„æº
             begin
-              vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].FmtOffset + FRows[vDestRow2].Height + FBorderWidth;
-              if vSrcRowBorderTop > ADataScreenBottom then  // ´ËºÏ²¢Ô´µ¥Ôª¸ñËùÔÚµÄĞĞµ×²¿±ß¿òÏÔÊ¾²»³öÀ´ÁË
+              vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].FmtOffset + FRows[vDestRow2].Height + FBorderWidthPix;
+              if vSrcRowBorderTop > ADataScreenBottom then  // æ­¤åˆå¹¶æºå•å…ƒæ ¼æ‰€åœ¨çš„è¡Œåº•éƒ¨è¾¹æ¡†æ˜¾ç¤ºä¸å‡ºæ¥äº†
               begin
-                if vSrcRowBorderTop > ADataDrawBottom then  // ¿çÒ³
+                if vSrcRowBorderTop > ADataDrawBottom then  // è·¨é¡µ
                 begin
-                  CheckRowBorderShouLian(vDestRow2);  // ´Óµ±Ç°ĞĞÕÒÊÕÁ²
-                  vBorderBottom := vShouLian;  //ÎªÊ²Ã´ÊÇ2 Min(vBorderBottom, vShouLian);  // ADataDrawBottom
+                  CheckRowBorderShouLian(vDestRow2);  // ä»å½“å‰è¡Œæ‰¾æ”¶æ•›
+                  vBorderBottom := vShouLian;  //ä¸ºä»€ä¹ˆæ˜¯2 Min(vBorderBottom, vShouLian);  // ADataDrawBottom
                 end;
 
                 Break;
@@ -1159,28 +1171,28 @@ begin
             end;
           end
           else
-          if FRows[vR][vC].RowSpan < 0 then  // ºÏ²¢Ô´µ¥Ôª¸ñ£¬ÓÉÓÚ¿ªÊ¼´¦µÄ20170208001ÅĞ¶Ï£¬ËùÒÔ´Ë´¦¿Ï¶¨ÊÇºÏ²¢Ä¿±êÕıÏÂ·½µÄµ¥Ôª¸ñ
+          if FRows[vR][vC].RowSpan < 0 then  // åˆå¹¶æºå•å…ƒæ ¼ï¼Œç”±äºå¼€å§‹å¤„çš„20170208001åˆ¤æ–­ï¼Œæ‰€ä»¥æ­¤å¤„è‚¯å®šæ˜¯åˆå¹¶ç›®æ ‡æ­£ä¸‹æ–¹çš„å•å…ƒæ ¼
           begin
-            if vR <> vFirstDrawRow then  // ²»ÊÇµÚÒ»´Î»æÖÆµÄĞĞ£¬ËµÃ÷ÓÉÔ´×Ô¼º´¦ÀíÁËÄ¿±êµÄµ×²¿±ß¿òÁË
+            if vR <> vFirstDrawRow then  // ä¸æ˜¯ç¬¬ä¸€æ¬¡ç»˜åˆ¶çš„è¡Œï¼Œè¯´æ˜ç”±æºè‡ªå·±å¤„ç†äº†ç›®æ ‡çš„åº•éƒ¨è¾¹æ¡†äº†
               vDrawBorder := False
-            else  // ¿çÒ³ºóµÚÒ»´Î»æÖÆ
+            else  // è·¨é¡µåç¬¬ä¸€æ¬¡ç»˜åˆ¶
             begin
-              { ÒÆ¶¯µ½µ±Ç°ĞĞÆğÊ¼Î»ÖÃ }
-              vSrcRowBorderTop := vBorderTop;  // ½èÓÃ±äÁ¿£¬vBorderTopÖµÊÇÄ¿±êµ¥Ôª¸ñµÄÉÏ±ß¿ò
+              { ç§»åŠ¨åˆ°å½“å‰è¡Œèµ·å§‹ä½ç½® }
+              vSrcRowBorderTop := vBorderTop;  // å€Ÿç”¨å˜é‡ï¼ŒvBorderTopå€¼æ˜¯ç›®æ ‡å•å…ƒæ ¼çš„ä¸Šè¾¹æ¡†
               for vDestRow2 := vDestRow to vR - 1 do
-                vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].Height + FBorderWidth;
+                vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].Height + FBorderWidthPix;
 
-              // ÎÒÊÇ¿çÒ³ºóÄ¿±êµ¥Ôª¸ñÕıÔÚ´ËÒ³Ô´µÄµÚÒ»¸ö£¬ÎÒÒª¸ºÔğÄ¿±êÔÚ´ËÒ³µÄ±ß¿ò
-              vDestRow2 := vR;  // ½èÓÃ±äÁ¿
-              while vDestRow2 <= FRows.Count - 1 do  // ÕÒÏÔÊ¾µ×²¿±ß¿òµÄÔ´
+              // æˆ‘æ˜¯è·¨é¡µåç›®æ ‡å•å…ƒæ ¼æ­£åœ¨æ­¤é¡µæºçš„ç¬¬ä¸€ä¸ªï¼Œæˆ‘è¦è´Ÿè´£ç›®æ ‡åœ¨æ­¤é¡µçš„è¾¹æ¡†
+              vDestRow2 := vR;  // å€Ÿç”¨å˜é‡
+              while vDestRow2 <= FRows.Count - 1 do  // æ‰¾æ˜¾ç¤ºåº•éƒ¨è¾¹æ¡†çš„æº
               begin
-                vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].Height + FBorderWidth;
-                if vSrcRowBorderTop > ADataScreenBottom then  // ´ËºÏ²¢Ô´µ¥Ôª¸ñËùÔÚµÄĞĞµ×²¿±ß¿òÏÔÊ¾²»³öÀ´ÁË
+                vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].Height + FBorderWidthPix;
+                if vSrcRowBorderTop > ADataScreenBottom then  // æ­¤åˆå¹¶æºå•å…ƒæ ¼æ‰€åœ¨çš„è¡Œåº•éƒ¨è¾¹æ¡†æ˜¾ç¤ºä¸å‡ºæ¥äº†
                 begin
-                  if vSrcRowBorderTop > ADataDrawBottom then  // ¿çÒ³
+                  if vSrcRowBorderTop > ADataDrawBottom then  // è·¨é¡µ
                   begin
-                    CheckRowBorderShouLian(vDestRow2);  // ´Óµ±Ç°ĞĞÕÒÊÕÁ²
-                    vBorderBottom := vShouLian;  //ÎªÊ²Ã´ÊÇ2 Min(vBorderBottom, vShouLian);  // ADataDrawBottom
+                    CheckRowBorderShouLian(vDestRow2);  // ä»å½“å‰è¡Œæ‰¾æ”¶æ•›
+                    vBorderBottom := vShouLian;  //ä¸ºä»€ä¹ˆæ˜¯2 Min(vBorderBottom, vShouLian);  // ADataDrawBottom
                   end;
 
                   Break;
@@ -1190,35 +1202,35 @@ begin
               end;
             end;
           end
-          else  // ÆÕÍ¨µ¥Ôª¸ñ(²»ÊÇºÏ²¢Ä¿±êÒ²²»ÊÇºÏ²¢Ô´)¿çÒ³£¬¼ÆËãÊÕÁ²
+          else  // æ™®é€šå•å…ƒæ ¼(ä¸æ˜¯åˆå¹¶ç›®æ ‡ä¹Ÿä¸æ˜¯åˆå¹¶æº)è·¨é¡µï¼Œè®¡ç®—æ”¶æ•›
           begin
             CheckRowBorderShouLian(vR);
             vBorderBottom := vShouLian;
           end;
         end;
 
-        {if Cells[vR, vC].RowSpan < 0 then  // ºÏ²¢Ô´µ¥Ôª¸ñ£¬ÓÉÓÚ¿ªÊ¼´¦µÄ20170208001ÅĞ¶Ï£¬ËùÒÔ´Ë´¦¿Ï¶¨ÊÇºÏ²¢Ä¿±êÕıÏÂ·½µÄµ¥Ôª¸ñ
+        {if Cells[vR, vC].RowSpan < 0 then  // åˆå¹¶æºå•å…ƒæ ¼ï¼Œç”±äºå¼€å§‹å¤„çš„20170208001åˆ¤æ–­ï¼Œæ‰€ä»¥æ­¤å¤„è‚¯å®šæ˜¯åˆå¹¶ç›®æ ‡æ­£ä¸‹æ–¹çš„å•å…ƒæ ¼
         begin
-          if vR <> vFirstDrawRow then  // ²»ÊÇµÚÒ»´Î»æÖÆµÄĞĞ£¬ËµÃ÷ÓÉÔ´×Ô¼º´¦ÀíÁËÄ¿±êµÄµ×²¿±ß¿òÁË
+          if vR <> vFirstDrawRow then  // ä¸æ˜¯ç¬¬ä¸€æ¬¡ç»˜åˆ¶çš„è¡Œï¼Œè¯´æ˜ç”±æºè‡ªå·±å¤„ç†äº†ç›®æ ‡çš„åº•éƒ¨è¾¹æ¡†äº†
             vDrawBorder := False
           else
           begin
-            // ÒÆ¶¯µ½µ±Ç°ĞĞÆğÊ¼Î»ÖÃ
-            vSrcRowBorderTop := vBorderTop;  // ½èÓÃ±äÁ¿£¬vBorderTopÖµÊÇÄ¿±êµ¥Ôª¸ñµÄÉÏ±ß¿ò
+            // ç§»åŠ¨åˆ°å½“å‰è¡Œèµ·å§‹ä½ç½®
+            vSrcRowBorderTop := vBorderTop;  // å€Ÿç”¨å˜é‡ï¼ŒvBorderTopå€¼æ˜¯ç›®æ ‡å•å…ƒæ ¼çš„ä¸Šè¾¹æ¡†
             for vDestRow2 := vDestRow to vR - 1 do
               vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].Height + FBorderWidth;
 
-            // ÎÒÊÇ¿çÒ³ºóÄ¿±êµ¥Ôª¸ñÕıÔÚ´ËÒ³Ô´µÄµÚÒ»¸ö£¬ÎÒÒª¸ºÔğÄ¿±êÔÚ´ËÒ³µÄ±ß¿ò
-            vDestRow2 := vR;  // ½èÓÃ±äÁ¿
-            while vDestRow2 <= FRows.Count - 1 do  // ÕÒÏÔÊ¾µ×²¿±ß¿òµÄÔ´
+            // æˆ‘æ˜¯è·¨é¡µåç›®æ ‡å•å…ƒæ ¼æ­£åœ¨æ­¤é¡µæºçš„ç¬¬ä¸€ä¸ªï¼Œæˆ‘è¦è´Ÿè´£ç›®æ ‡åœ¨æ­¤é¡µçš„è¾¹æ¡†
+            vDestRow2 := vR;  // å€Ÿç”¨å˜é‡
+            while vDestRow2 <= FRows.Count - 1 do  // æ‰¾æ˜¾ç¤ºåº•éƒ¨è¾¹æ¡†çš„æº
             begin
               vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].Height + FBorderWidth;
-              if vSrcRowBorderTop > ADataScreenBottom then  // ´ËºÏ²¢Ô´µ¥Ôª¸ñËùÔÚµÄĞĞµ×²¿±ß¿òÏÔÊ¾²»³öÀ´ÁË
+              if vSrcRowBorderTop > ADataScreenBottom then  // æ­¤åˆå¹¶æºå•å…ƒæ ¼æ‰€åœ¨çš„è¡Œåº•éƒ¨è¾¹æ¡†æ˜¾ç¤ºä¸å‡ºæ¥äº†
               begin
-                if vSrcRowBorderTop > ADataDrawBottom then  // ¿çÒ³
+                if vSrcRowBorderTop > ADataDrawBottom then  // è·¨é¡µ
                 begin
-                  CheckRowBorderShouLian(vDestRow2);  // ´Óµ±Ç°ĞĞÕÒÊÕÁ²
-                  vBorderBottom := vShouLian;  //ÎªÊ²Ã´ÊÇ2 Min(vBorderBottom, vShouLian);  // ADataDrawBottom
+                  CheckRowBorderShouLian(vDestRow2);  // ä»å½“å‰è¡Œæ‰¾æ”¶æ•›
+                  vBorderBottom := vShouLian;  //ä¸ºä»€ä¹ˆæ˜¯2 Min(vBorderBottom, vShouLian);  // ADataDrawBottom
                 end;
 
                 Break;
@@ -1229,11 +1241,14 @@ begin
           end;
         end;}
 
-        if vDrawBorder then  // ±ß¿ò¿ÉÒÔÏÔÊ¾
+        if vDrawBorder then  // è¾¹æ¡†å¯ä»¥æ˜¾ç¤º
         begin
-          ACanvas.Pen.Width := FBorderWidth;
+          if APaintInfo.Print then
+            ACanvas.Pen.Width := Max(1, HCUnitConversion.PtToPixel(FBorderWidthPt, APaintInfo.DPI))
+          else
+            ACanvas.Pen.Width := FBorderWidthPix;
 
-          if FBorderVisible then  // Î´Òş²Ø±ß¿ò
+          if FBorderVisible then  // æœªéšè—è¾¹æ¡†
           begin
             ACanvas.Pen.Color := clBlack;
             ACanvas.Pen.Style := psSolid;
@@ -1245,16 +1260,16 @@ begin
             ACanvas.Pen.Style := psDot;
           end;
 
-          vBorderLeft := vCellDrawLeft - FBorderWidth;
+          vBorderLeft := vCellDrawLeft - FBorderWidthPix;
           vBorderRight := vCellDrawLeft + FColWidths[vC] + GetColSpanWidth(vDestRow, vDestCol);
-          {vDestCol2 := FRows[vDestRow][vDestCol].ColSpan;  // ½èÓÃ±äÁ¿
+          {vDestCol2 := FRows[vDestRow][vDestCol].ColSpan;  // å€Ÿç”¨å˜é‡
           while vDestCol2 > 0 do
           begin
             vBorderRight := vBorderRight + FBorderWidth + FColWidths[vDestCol + vDestCol2];
             Dec(vDestCol2);
           end;}
 
-          if (vBorderTop < ADataScreenTop) and (ADataDrawTop >= 0) then  // ±í¸ñµ±Ç°ĞĞÏÔÊ¾²»È«»ò±í¸ñµ±Ç°ĞĞ¿çÒ³´ËÊ±ÔÚÏÂÒ»Ò³»æÖÆ
+          if (vBorderTop < ADataScreenTop) and (ADataDrawTop >= 0) then  // è¡¨æ ¼å½“å‰è¡Œæ˜¾ç¤ºä¸å…¨æˆ–è¡¨æ ¼å½“å‰è¡Œè·¨é¡µæ­¤æ—¶åœ¨ä¸‹ä¸€é¡µç»˜åˆ¶
             vBorderTop := ADataScreenTop;
 
           {if GetObjectType(ACanvas.Pen.Handle) = OBJ_EXTPEN then
@@ -1264,91 +1279,139 @@ begin
             //GetObject(ACanvas.Pen.Handle, vBottom, vExtPen);
           end
           else}
-          vExtPen := CreateExtPen(ACanvas.Pen);  // ÒòÎªÄ¬ÈÏµÄ»­±ÊÃ»ÓĞÏßÃ±µÄ¿ØÖÆ£¬ĞÂÔöÖ§³ÖÏßÃ±µÄ»­±Ê
+          vExtPen := CreateExtPen(ACanvas.Pen);  // å› ä¸ºé»˜è®¤çš„ç”»ç¬”æ²¡æœ‰çº¿å¸½çš„æ§åˆ¶ï¼Œæ–°å¢æ”¯æŒçº¿å¸½çš„ç”»ç¬”
           vOldPen := SelectObject(ACanvas.Handle, vExtPen);
           try
-            if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then  // ÉÏ±ß¿ò¿ÉÏÔÊ¾
+            if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then  // ä¸Šè¾¹æ¡†å¯æ˜¾ç¤º
             begin
-              ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);   // ×óÉÏ
-              ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // ÓÒÉÏ
+              if APaintInfo.Print then
+              begin
+                APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+                  vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
+              end
+              else
+              begin
+                ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);   // å·¦ä¸Š
+                ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // å³ä¸Š
+              end;
             end;
 
-            if cbsRight in FRows[vR][vC].BorderSides then  // ÓÒ±ß¿ò
+            if cbsRight in FRows[vR][vC].BorderSides then  // å³è¾¹æ¡†
             begin
-              ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // ÓÒÉÏ
-              ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // ÓÒÏÂ
+              if APaintInfo.Print then
+              begin
+                APaintInfo.DrawNoScaleLine(ACanvas, vBorderRight + vBorderOffs, vBorderTop + vBorderOffs,
+                  vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+              end
+              else
+              begin
+                ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // å³ä¸Š
+                ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // å³ä¸‹
+              end;
             end;
 
-            if (vBorderBottom <= ADataScreenBottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // ÏÂ±ß¿ò
+            if (vBorderBottom <= ADataScreenBottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // ä¸‹è¾¹æ¡†
             begin
-              ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);  // ×óÏÂ
-              ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // ÓÒÏÂ
+              if APaintInfo.Print then
+              begin
+                APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs,
+                  vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+              end
+              else
+              begin
+                ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);  // å·¦ä¸‹
+                ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // å³ä¸‹
+              end;
             end;
 
-            if cbsLeft in FRows[vR][vC].BorderSides then  // ×ó±ß¿ò
+            if cbsLeft in FRows[vR][vC].BorderSides then  // å·¦è¾¹æ¡†
             begin
-              ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
-              ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+              if APaintInfo.Print then
+              begin
+                APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+                  vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+              end
+              else
+              begin
+                ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
+                ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+              end;
             end;
 
-            if cbsLTRB in FRows[vR][vC].BorderSides then  // ×óÉÏÓÒÏÂ¶Ô½ÇÏß
+            if cbsLTRB in FRows[vR][vC].BorderSides then  // å·¦ä¸Šå³ä¸‹å¯¹è§’çº¿
             begin
-              ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
-              ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+              if APaintInfo.Print then
+              begin
+                APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+                  vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+              end
+              else
+              begin
+                ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
+                ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+              end;
             end;
 
-            if cbsRTLB in FRows[vR][vC].BorderSides then  // ÓÒÉÏ×óÏÂ¶Ô½ÇÏß
+            if cbsRTLB in FRows[vR][vC].BorderSides then  // å³ä¸Šå·¦ä¸‹å¯¹è§’çº¿
             begin
-              ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
-              ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+              if APaintInfo.Print then
+              begin
+                APaintInfo.DrawNoScaleLine(ACanvas, vBorderRight + vBorderOffs, vBorderTop + vBorderOffs,
+                  vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+              end
+              else
+              begin
+                ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
+                ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+              end;
             end;
           finally
             SelectObject(ACanvas.Handle, vOldPen);
             DeleteObject(vExtPen);
           end;
 
-          // "×îºóÒ»ÁĞ"¸ºÔğ»æÖÆ·ÖÒ³±êÊ¶
+          // "æœ€åä¸€åˆ—"è´Ÿè´£ç»˜åˆ¶åˆ†é¡µæ ‡è¯†
           vDestCol2 := vC + FRows[vR][vC].ColSpan;
-          if (not APaintInfo.Print) and (vDestCol2 = FColWidths.Count - 1) then  // ·Ç´òÓ¡¡¢×îºóÒ»ÁĞ»æÖÆ·ÖÒ³±êÊ¶
+          if (not APaintInfo.Print) and (vDestCol2 = FColWidths.Count - 1) then  // éæ‰“å°ã€æœ€åä¸€åˆ—ç»˜åˆ¶åˆ†é¡µæ ‡è¯†
           begin
-            if vCellDataDrawTop + FRows[vR].Height - FCellVPadding > ADataDrawBottom then  // ±¾ĞĞ¿çÒ³£¬·ÖÒ³·û(±¾Ò³½áÎ²)
+            if vCellDataDrawTop + FRows[vR].Height - FCellVPadding > ADataDrawBottom then  // æœ¬è¡Œè·¨é¡µï¼Œåˆ†é¡µç¬¦(æœ¬é¡µç»“å°¾)
               DoDrawPageBreakMark(True)
             else
             if (vR < Self.RowCount - 1)
               and (vBorderBottom + FRows[vR + 1].FmtOffset + FRows[vR + 1].Height > ADataDrawBottom)
-            then  // ÏÂÒ»ĞĞ¿çÒ³
+            then  // ä¸‹ä¸€è¡Œè·¨é¡µ
             begin
-              if FRows[vR + 1].FmtOffset > 0 then  // ÏÂÒ»ĞĞÕûÌåÏÂÒÆÁË£¬·ÖÒ³·û(±¾Ò³½áÎ²)
+              if FRows[vR + 1].FmtOffset > 0 then  // ä¸‹ä¸€è¡Œæ•´ä½“ä¸‹ç§»äº†ï¼Œåˆ†é¡µç¬¦(æœ¬é¡µç»“å°¾)
                 DoDrawPageBreakMark(True)
               else
-              if vBorderBottom = ADataDrawBottom then  //* ÏÂÒ»ĞĞÆğÊ¼ÓÚ±¾Ò³½áÎ²£¬
-                DoDrawPageBreakMark(True);             //* ´ËÊ±ÏÂÒ»ĞĞ²»ÔÚ±¾Ò³ÏÔÊ¾£¬µ«FmtOffset²¢²»´óÓÚ0£¬
-            end;                                       //* Èç¹ûÕâÀï²»´¦Àí£¬Ñ­»·ÏÂÒ»ĞĞÊ±µ×²¿´óÓÚµ±Ç°Ò³Ö±½ÓÌø³öÑ­»·Ê§È¥»æÖÆ»ú»á
+              if vBorderBottom = ADataDrawBottom then  //* ä¸‹ä¸€è¡Œèµ·å§‹äºæœ¬é¡µç»“å°¾ï¼Œ
+                DoDrawPageBreakMark(True);             //* æ­¤æ—¶ä¸‹ä¸€è¡Œä¸åœ¨æœ¬é¡µæ˜¾ç¤ºï¼Œä½†FmtOffsetå¹¶ä¸å¤§äº0ï¼Œ
+            end;                                       //* å¦‚æœè¿™é‡Œä¸å¤„ç†ï¼Œå¾ªç¯ä¸‹ä¸€è¡Œæ—¶åº•éƒ¨å¤§äºå½“å‰é¡µç›´æ¥è·³å‡ºå¾ªç¯å¤±å»ç»˜åˆ¶æœºä¼š
 
-            if (vFirstDrawRow <> 0)  // ÆğÊ¼ĞĞ²»ÊÇµÚÒ»ĞĞ
-              and (vR = vFirstDrawRow)  // ÆğÊ¼ĞĞ»æÖÆ
-              and (ADrawRect.Top < ADataDrawTop)  // µÚÒ»ĞĞÔÚÉÏÒ»Ò³
-            then  // ·ÖÒ³·û(±¾Ò³ÆğÊ¼)
+            if (vFirstDrawRow <> 0)  // èµ·å§‹è¡Œä¸æ˜¯ç¬¬ä¸€è¡Œ
+              and (vR = vFirstDrawRow)  // èµ·å§‹è¡Œç»˜åˆ¶
+              and (ADrawRect.Top < ADataDrawTop)  // ç¬¬ä¸€è¡Œåœ¨ä¸Šä¸€é¡µ
+            then  // åˆ†é¡µç¬¦(æœ¬é¡µèµ·å§‹)
               DoDrawPageBreakMark(False);
           end;
         end;
       end;
       {$ENDREGION}
 
-      vCellDrawLeft := vCellDrawLeft + FColWidths[vC] + FBorderWidth;  // Í¬ĞĞÏÂÒ»ÁĞµÄÆğÊ¼LeftÎ»ÖÃ
+      vCellDrawLeft := vCellDrawLeft + FColWidths[vC] + FBorderWidthPix;  // åŒè¡Œä¸‹ä¸€åˆ—çš„èµ·å§‹Leftä½ç½®
     end;
 
-    vCellDataDrawTop := vCellDataDrawBottom + FCellVPadding + FBorderWidth;  // ÏÂÒ»ĞĞµÄTopÎ»ÖÃ
+    vCellDataDrawTop := vCellDataDrawBottom + FCellVPadding + FBorderWidthPix;  // ä¸‹ä¸€è¡Œçš„Topä½ç½®
   end;
 
-  if vFirstDrawRowIsBreak then  // »æÖÆ±êÌâĞĞ
+  if vFirstDrawRowIsBreak then  // ç»˜åˆ¶æ ‡é¢˜è¡Œ
     PaintFixRows(ADrawRect.Left, ADataDrawTop, ADataScreenBottom, ACanvas, APaintInfo);
 
-  if (FFixCol >= 0) and (GetFixColLeft + ADrawRect.Left < 0) then  // »æÖÆ±êÌâÁĞ
+  if (FFixCol >= 0) and (GetFixColLeft + ADrawRect.Left < 0) then  // ç»˜åˆ¶æ ‡é¢˜åˆ—
     PaintFixCols(ADrawRect.Top, 0, ADataDrawTop, ADataScreenBottom, ACanvas, APaintInfo);
 
-  {$REGION ' »æÖÆÍÏ¶¯Ïß '}
-  if Resizing and (FResizeInfo.TableSite = tsBorderRight) then  // ´¹Ö±
+  {$REGION ' ç»˜åˆ¶æ‹–åŠ¨çº¿ '}
+  if Resizing and (FResizeInfo.TableSite = tsBorderRight) then  // å‚ç›´
   begin
     ACanvas.Pen.Color := Self.FBorderColor;
     ACanvas.Pen.Style := psDot;
@@ -1358,7 +1421,7 @@ begin
       Min(ADrawRect.Bottom, vBorderBottom)));
   end
   else
-  if Resizing and (FResizeInfo.TableSite = tsBorderBottom) then  // Ë®Æ½
+  if Resizing and (FResizeInfo.TableSite = tsBorderBottom) then  // æ°´å¹³
   begin
     ACanvas.Pen.Color := Self.FBorderColor;
     ACanvas.Pen.Style := psDot;
@@ -1428,7 +1491,7 @@ begin
   begin
     vStream := TMemoryStream.Create;
     try
-      Self.SaveToStream(vStream);  // ¼ÇÂ¼»Ö¸´Ç°×´Ì¬
+      Self.SaveToStream(vStream);  // è®°å½•æ¢å¤å‰çŠ¶æ€
 
       vMirrorUndoData := ARedo.Data as THCMirrorUndoData;
       vMirrorUndoData.Stream.Position := 0;
@@ -1436,7 +1499,7 @@ begin
       Self.LoadFromStream(vMirrorUndoData.Stream, OwnerData.Style, HC_FileVersionInt);
 
       vMirrorUndoData.Stream.Clear;
-      vMirrorUndoData.Stream.CopyFrom(vStream, 0);  // ±£´æ»Ö¸´Ç°×´Ì¬
+      vMirrorUndoData.Stream.CopyFrom(vStream, 0);  // ä¿å­˜æ¢å¤å‰çŠ¶æ€
       FLastChangeFormated := False;
     finally
       vStream.Free;
@@ -1516,16 +1579,16 @@ begin
   begin
     vStream := TMemoryStream.Create;
     try
-      Self.SaveToStream(vStream);  // ¼ÇÂ¼³·ÏúÇ°×´Ì¬
+      Self.SaveToStream(vStream);  // è®°å½•æ’¤é”€å‰çŠ¶æ€
 
-      // »Ö¸´Ô­Ñù
+      // æ¢å¤åŸæ ·
       vMirrorUndoData := AUndo.Data as THCMirrorUndoData;
       vMirrorUndoData.Stream.Position := 0;
       vMirrorUndoData.Stream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
       Self.LoadFromStream(vMirrorUndoData.Stream, OwnerData.Style, HC_FileVersionInt);
 
       vMirrorUndoData.Stream.Clear;
-      vMirrorUndoData.Stream.CopyFrom(vStream, 0);  // ±£´æ³·ÏúÇ°×´Ì¬
+      vMirrorUndoData.Stream.CopyFrom(vStream, 0);  // ä¿å­˜æ’¤é”€å‰çŠ¶æ€
       FLastChangeFormated := False;
     finally
       vStream.Free;
@@ -1538,7 +1601,10 @@ end;
 procedure THCTableItem.DoSelfUndoDestroy(const AUndo: THCUndo);
 begin
   if AUndo.Data is THCCellUndoData then
+  begin
     (AUndo.Data as THCCellUndoData).Free;
+    AUndo.Data := nil;
+  end;
 
   inherited DoSelfUndoDestroy(AUndo);
 end;
@@ -1561,7 +1627,7 @@ var
     begin
       if vEditCell.CellData.SelectFirstItemOffsetBefor then
       begin
-        // ÕÒ×ó²àµ¥Ôª¸ñ
+        // æ‰¾å·¦ä¾§å•å…ƒæ ¼
         for i := FSelectCellRang.StartCol - 1 downto 0 do
         begin
           if FRows[FSelectCellRang.StartRow][i].ColSpan >= 0 then
@@ -1589,7 +1655,7 @@ var
     begin
       if vEditCell.CellData.SelectLastItemOffsetAfter then
       begin
-        // ÕÒÓÒ²àµ¥Ôª¸ñ
+        // æ‰¾å³ä¾§å•å…ƒæ ¼
         for i := FSelectCellRang.StartCol + 1 to FColWidths.Count - 1 do
         begin
           if FRows[FSelectCellRang.StartRow][i].ColSpan >= 0 then
@@ -1615,7 +1681,7 @@ var
     {$REGION 'VK_UP'}
     if AKey = VK_UP then
     begin
-      if (vEditCell.CellData.SelectFirstLine) and (FSelectCellRang.StartRow > 0) then  // ÕÒÉÏÒ»ĞĞµ¥Ôª¸ñ
+      if (vEditCell.CellData.SelectFirstLine) and (FSelectCellRang.StartRow > 0) then  // æ‰¾ä¸Šä¸€è¡Œå•å…ƒæ ¼
       begin
         GetDestCell(FSelectCellRang.StartRow - 1, FSelectCellRang.StartCol, vRow, vCol);
 
@@ -1633,12 +1699,12 @@ var
     {$REGION 'VK_DOWN'}
     if AKey = VK_DOWN then
     begin
-      if (vEditCell.CellData.SelectLastLine) and (FSelectCellRang.StartRow < Self.RowCount - 1) then  // ÕÒÏÂÒ»ĞĞµ¥Ôª¸ñ
+      if (vEditCell.CellData.SelectLastLine) and (FSelectCellRang.StartRow < Self.RowCount - 1) then  // æ‰¾ä¸‹ä¸€è¡Œå•å…ƒæ ¼
       begin
         GetDestCell(FSelectCellRang.StartRow + 1, FSelectCellRang.StartCol, vRow, vCol);
-        if ((vRow <> FSelectCellRang.StartRow) or (vCol <> FSelectCellRang.StartCol))  // Í¬ÁĞÏÂÒ»¸öµ¥Ôª¸ñµÄÄ¿±ê²»ÊÇÎÒ
+        if ((vRow <> FSelectCellRang.StartRow) or (vCol <> FSelectCellRang.StartCol))  // åŒåˆ—ä¸‹ä¸€ä¸ªå•å…ƒæ ¼çš„ç›®æ ‡ä¸æ˜¯æˆ‘
           and (vRow >= 0) and (vCol >= 0)
-        then  // ÏÂÒ»ĞĞÓĞÓĞĞ§µÄµ¥Ôª¸ñ
+        then  // ä¸‹ä¸€è¡Œæœ‰æœ‰æ•ˆçš„å•å…ƒæ ¼
         begin
           FSelectCellRang.StartRow := vRow;
           FSelectCellRang.StartCol := vCol;
@@ -1672,9 +1738,9 @@ begin
       VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
         begin
           vEditCell.CellData.KeyDown(vOldKey, Shift);
-          if (vOldKey = 0) and IsDirectionKey(Key) then  // µ¥Ôª¸ñDataÃ»´¦Àí£¬ÇÒÊÇ·½Ïò¼ü
+          if (vOldKey = 0) and IsDirectionKey(Key) then  // å•å…ƒæ ¼Dataæ²¡å¤„ç†ï¼Œä¸”æ˜¯æ–¹å‘é”®
           begin
-            if DoCrossCellKey(Key) then  // ·½Ïò¼üÒÆ¶¯µ½ÆäËûµ¥Ôª¸ñ
+            if DoCrossCellKey(Key) then  // æ–¹å‘é”®ç§»åŠ¨åˆ°å…¶ä»–å•å…ƒæ ¼
             begin
               OwnerData.Style.UpdateInfoReCaret;
               Key := vOldKey;
@@ -1707,8 +1773,8 @@ end;
 
 procedure THCTableItem.KillFocus;
 begin
-  // Èç¹û¶à¸öµ¥Ôª¸ñÑ¡ÖĞ£¬ÓÉÏÂÃæ³õÊ¼»¯ºóÔÙµã»÷»á°´µãÔÚÑ¡ÖĞ´¦£¬¶øÑ¡ÖĞ°´ÏÂĞĞÁĞÒÑ±»Çå³ı
-  // ÁíÍâÍâ²¿¹¤¾ßÌõ²Ù×÷Ê±Ò²ÒÑ¾­Ê§È¥ÁË°´ÏÂÊ±µÄĞĞÁĞ£¬ËùÒÔÒªÃ´²»³õÊ¼»¯£¬ÒªÃ´³¹µ×³õÊ¼»¯
+  // å¦‚æœå¤šä¸ªå•å…ƒæ ¼é€‰ä¸­ï¼Œç”±ä¸‹é¢åˆå§‹åŒ–åå†ç‚¹å‡»ä¼šæŒ‰ç‚¹åœ¨é€‰ä¸­å¤„ï¼Œè€Œé€‰ä¸­æŒ‰ä¸‹è¡Œåˆ—å·²è¢«æ¸…é™¤
+  // å¦å¤–å¤–éƒ¨å·¥å…·æ¡æ“ä½œæ—¶ä¹Ÿå·²ç»å¤±å»äº†æŒ‰ä¸‹æ—¶çš„è¡Œåˆ—ï¼Œæ‰€ä»¥è¦ä¹ˆä¸åˆå§‹åŒ–ï¼Œè¦ä¹ˆå½»åº•åˆå§‹åŒ–
   //Self.InitializeMouseInfo;
 end;
 
@@ -1724,10 +1790,22 @@ begin
 
   AStream.ReadBuffer(FBorderVisible, SizeOf(FBorderVisible));
 
-  AStream.ReadBuffer(vR, SizeOf(vR));  // ĞĞÊı
-  AStream.ReadBuffer(vC, SizeOf(vC));  // ÁĞÊı
+  if AFileVersion > 31 then
+  begin
+    AStream.ReadBuffer(FBorderWidthPt, SizeOf(FBorderWidthPt));
+    FBorderWidthPix := HCUnitConversion.PtToPixel(FBorderWidthPt, HCUnitConversion.PixelsPerInchX);
+  end
+  else
+  if AFileVersion > 29 then
+  begin
+    AStream.ReadBuffer(FBorderWidthPix, SizeOf(FBorderWidthPix));
+    FBorderWidthPt := Min(0.5, HCUnitConversion.PixelToPt(FBorderWidthPix, HCUnitConversion.PixelsPerInchX));
+  end;
 
-  if AFileVersion > 24 then  // ¹Ì¶¨ĞĞÊı¡¢ÁĞÊıĞÅÏ¢
+  AStream.ReadBuffer(vR, SizeOf(vR));  // è¡Œæ•°
+  AStream.ReadBuffer(vC, SizeOf(vC));  // åˆ—æ•°
+
+  if AFileVersion > 24 then  // å›ºå®šè¡Œæ•°ã€åˆ—æ•°ä¿¡æ¯
   begin
     AStream.ReadBuffer(FFixRow, SizeOf(FFixRow));
     AStream.ReadBuffer(FFixRowCount, SizeOf(FFixRowCount));
@@ -1735,14 +1813,14 @@ begin
     AStream.ReadBuffer(FFixColCount, SizeOf(FFixColCount));
   end;
 
-  { ´´½¨ĞĞ¡¢ÁĞ }
+  { åˆ›å»ºè¡Œã€åˆ— }
   for i := 0 to vR - 1 do
   begin
-    vRow := THCTableRow.Create(OwnerData.Style, vC);  // ×¢ÒâĞĞ´´½¨Ê±ÊÇtableÓµÓĞÕßµÄStyle£¬¼ÓÔØÊ±ÊÇ´«ÈëµÄAStyle
+    vRow := THCTableRow.Create(OwnerData.Style, vC);  // æ³¨æ„è¡Œåˆ›å»ºæ—¶æ˜¯tableæ‹¥æœ‰è€…çš„Styleï¼ŒåŠ è½½æ—¶æ˜¯ä¼ å…¥çš„AStyle
     FRows.Add(vRow);
   end;
 
-  { ¼ÓÔØ¸÷ÁĞ±ê×¼¿í¶È }
+  { åŠ è½½å„åˆ—æ ‡å‡†å®½åº¦ }
   FColWidths.Clear;
   for i := 0 to vC - 1 do
   begin
@@ -1750,7 +1828,7 @@ begin
     FColWidths.Add(vWidth);
   end;
 
-  { ¼ÓÔØ¸÷ÁĞÊı¾İ }
+  { åŠ è½½å„åˆ—æ•°æ® }
   for vR := 0 to FRows.Count - 1 do
   begin
     AStream.ReadBuffer(vAutoHeight, SizeOf(Boolean));
@@ -1775,11 +1853,11 @@ var
   vCell: THCTableCell;
   vCellPt: TPoint;
 begin
-  Result := True;
+  Result := inherited MouseDown(Button, Shift, X, Y);
   FMouseLBDowning := (Button = mbLeft) and (Shift = [ssLeft]);
   FOutSelectInto := False;
-  FSelecting := False;  // ×¼±¸»®Ñ¡
-  FDraging := False;  // ×¼±¸ÍÏ×§
+  FSelecting := False;  // å‡†å¤‡åˆ’é€‰
+  FDraging := False;  // å‡†å¤‡æ‹–æ‹½
   FOutsideInfo.Row := -1;
 
   FResizeInfo := GetCellAt(X, Y, vMouseDownRow, vMouseDownCol);
@@ -1798,31 +1876,31 @@ begin
 
   if FResizeInfo.TableSite = tsCell then
   begin
-    if CoordInSelect(X, Y) then  // ÔÚÑ¡ÖĞÇøÓòÖĞ£¨²»°üÀ¨±ß¿òÏß¼°±ß¿òÏßÈİ²î£©
+    if CoordInSelect(X, Y) then  // åœ¨é€‰ä¸­åŒºåŸŸä¸­ï¼ˆä¸åŒ…æ‹¬è¾¹æ¡†çº¿åŠè¾¹æ¡†çº¿å®¹å·®ï¼‰
     begin
       if FMouseLBDowning then
         FDraging := True;
 
-      FMouseDownRow := vMouseDownRow;  // ¼ÇÂ¼ÍÏ×§ÆğÊ¼µ¥Ôª¸ñ
+      FMouseDownRow := vMouseDownRow;  // è®°å½•æ‹–æ‹½èµ·å§‹å•å…ƒæ ¼
       FMouseDownCol := vMouseDownCol;
 
       vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
       FRows[FMouseDownRow][FMouseDownCol].MouseDown(Button, Shift,
         X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
     end
-    else  // ²»ÔÚÑ¡ÖĞÇøÓòÖĞ
+    else  // ä¸åœ¨é€‰ä¸­åŒºåŸŸä¸­
     begin
-      // Èç¹ûÏÈÖ´ĞĞ DisSelect »áÇå³ıMouseĞÅÏ¢£¬µ¼ÖÂµ±Ç°±à¼­µ¥Ôª¸ñ²»ÄÜÏìÓ¦È¡Ïû¼¤»îÊÂ¼ş
-      if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // ĞÂÎ»ÖÃ
+      // å¦‚æœå…ˆæ‰§è¡Œ DisSelect ä¼šæ¸…é™¤Mouseä¿¡æ¯ï¼Œå¯¼è‡´å½“å‰ç¼–è¾‘å•å…ƒæ ¼ä¸èƒ½å“åº”å–æ¶ˆæ¿€æ´»äº‹ä»¶
+      if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // æ–°ä½ç½®
       begin
         vCell := GetEditCell;
-        if vCell <> nil then  // È¡ÏûÔ­À´±à¼­
+        if vCell <> nil then  // å–æ¶ˆåŸæ¥ç¼–è¾‘
           vCell.Active := False;
 
         OwnerData.Style.UpdateInfoReCaret;
       end;
 
-      DisSelect;  // Çå³ıÔ­Ñ¡ÖĞ
+      DisSelect;  // æ¸…é™¤åŸé€‰ä¸­
 
       FMouseDownRow := vMouseDownRow;
       FMouseDownCol := vMouseDownCol;
@@ -1834,15 +1912,15 @@ begin
         X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
     end;
   end
-  else  // ²»ÔÚµ¥Ôª¸ñÄÚ
+  else  // ä¸åœ¨å•å…ƒæ ¼å†…
   begin
-    DisSelect;  // È¡ÏûÔ­À´Ñ¡ÖĞ
+    DisSelect;  // å–æ¶ˆåŸæ¥é€‰ä¸­
     Self.InitializeMouseInfo;
 
-    if FResizeInfo.TableSite = tsOutside then  // ÔÚËÄÖÜÍâÎ§
+    if FResizeInfo.TableSite = tsOutside then  // åœ¨å››å‘¨å¤–å›´
     begin
-      FOutsideInfo.Row := vMouseDownRow;  // ×óÓÒ±ßÊ±¶ÔÓ¦µÄĞĞ
-      FOutsideInfo.Leftside := X < 0;  // ×ó±ß
+      FOutsideInfo.Row := vMouseDownRow;  // å·¦å³è¾¹æ—¶å¯¹åº”çš„è¡Œ
+      FOutsideInfo.Leftside := X < 0;  // å·¦è¾¹
     end;
   end;
 end;
@@ -1852,7 +1930,7 @@ begin
   inherited;
   if (FMouseMoveRow < 0) or (FMouseMoveCol < 0) then Exit;
   if FRows[FMouseMoveRow][FMouseMoveCol].CellData <> nil then
-    FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseLeave;  // .MouseMove([], -1, -1);  // ´¦ÀíÊó±êÒÆÉÏ¸ßÁÁÔÚÑ¸ËÙÒÆ³ö±í¸ñºó²»ÄÜ»Ö¸´µÄÎÊÌâ
+    FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseLeave;  // .MouseMove([], -1, -1);  // å¤„ç†é¼ æ ‡ç§»ä¸Šé«˜äº®åœ¨è¿…é€Ÿç§»å‡ºè¡¨æ ¼åä¸èƒ½æ¢å¤çš„é—®é¢˜
 
   if not SelectExists then
     Self.InitializeMouseInfo;
@@ -1867,7 +1945,7 @@ var
   var
     vR, vC: Integer;
   begin
-    // ÏÈÇå³ıÆğÊ¼µ¥Ôª¸ñÖ®ÍâµÄ£¬ÒÔ±ãÏÂÃæÖØĞÂ´¦ÀíÑ¡ÖĞµ¥Ôª¸ñµÄÈ«Ñ¡
+    // å…ˆæ¸…é™¤èµ·å§‹å•å…ƒæ ¼ä¹‹å¤–çš„ï¼Œä»¥ä¾¿ä¸‹é¢é‡æ–°å¤„ç†é€‰ä¸­å•å…ƒæ ¼çš„å…¨é€‰
     if FSelectCellRang.StartRow >= 0 then
     begin
       for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
@@ -1876,7 +1954,7 @@ var
         begin
           if ((vR = FMouseDownRow) and (vC = FMouseDownCol))
             //or ((vRow = vMoveRow) and (vCol = vMoveCol))
-          then  // ±£Áôµ±Ç°°´ÏÂµÄÑ¡ÖĞĞÅÏ¢£¬·ÀÖ¹»Øµ½°´ÏÂÖĞ×öÄÚÈİµÄÑ¡ÖĞ
+          then  // ä¿ç•™å½“å‰æŒ‰ä¸‹çš„é€‰ä¸­ä¿¡æ¯ï¼Œé˜²æ­¢å›åˆ°æŒ‰ä¸‹ä¸­åšå†…å®¹çš„é€‰ä¸­
 
           else
           begin
@@ -1887,9 +1965,9 @@ var
       end;
     end;
 
-    if FMouseDownRow < 0 then  // ´Ó±í¸ñÍâÃæÑ¡µ½ÀïÃæ
+    if FMouseDownRow < 0 then  // ä»è¡¨æ ¼å¤–é¢é€‰åˆ°é‡Œé¢
     begin
-      if vMoveRow = 0 then  // ´ÓÉÏÃæÑ¡Èë
+      if vMoveRow = 0 then  // ä»ä¸Šé¢é€‰å…¥
       begin
         FMouseDownRow := 0;
         FMouseDownCol := 0;
@@ -1897,7 +1975,7 @@ var
         FSelectCellRang.SetStart(FMouseDownRow, FMouseDownCol);
         FSelectCellRang.SetEnd(vMoveRow, vMoveCol);
       end
-      else  // ´ÓÏÂÃæÑ¡Èë
+      else  // ä»ä¸‹é¢é€‰å…¥
       begin
         GetDestCell(Self.RowCount - 1, Self.FColWidths.Count - 1, vR, vC);
         FMouseDownRow := vR;
@@ -1910,12 +1988,12 @@ var
       FOutSelectInto := True;
     end
     else
-    if FMouseMoveRow > FMouseDownRow then  // ÒÆ¶¯ĞĞÔÚ°´ÏÂĞĞÏÂÃæ
+    if FMouseMoveRow > FMouseDownRow then  // ç§»åŠ¨è¡Œåœ¨æŒ‰ä¸‹è¡Œä¸‹é¢
     begin
       FSelectCellRang.StartRow := FMouseDownRow;
       FSelectCellRang.EndRow := FMouseMoveRow;
 
-      if FMouseMoveCol < FMouseDownCol then  // ÒÆ¶¯ÁĞÔÚ°´ÏÂÁĞÇ°Ãæ
+      if FMouseMoveCol < FMouseDownCol then  // ç§»åŠ¨åˆ—åœ¨æŒ‰ä¸‹åˆ—å‰é¢
       begin
         FSelectCellRang.StartCol := FMouseMoveCol;
         FSelectCellRang.EndCol := FMouseDownCol;
@@ -1927,39 +2005,39 @@ var
       end;
     end
     else
-    if FMouseMoveRow < FMouseDownRow then  // ÒÆ¶¯ĞĞÔÚ°´ÏÂĞĞÉÏÃæ
+    if FMouseMoveRow < FMouseDownRow then  // ç§»åŠ¨è¡Œåœ¨æŒ‰ä¸‹è¡Œä¸Šé¢
     begin
       FSelectCellRang.StartRow := FMouseMoveRow;
       FSelectCellRang.EndRow := FMouseDownRow;
 
-      if FMouseMoveCol < FMouseDownCol then  // ÒÆ¶¯ÁĞÔÚ°´ÏÂÁĞÇ°Ãæ
+      if FMouseMoveCol < FMouseDownCol then  // ç§»åŠ¨åˆ—åœ¨æŒ‰ä¸‹åˆ—å‰é¢
       begin
         FSelectCellRang.StartCol := FMouseMoveCol;
         FSelectCellRang.EndCol := FMouseDownCol;
       end
-      else  // ÒÆ¶¯ÁĞÔÚ°´ÏÂÇ°ºóÃæ
+      else  // ç§»åŠ¨åˆ—åœ¨æŒ‰ä¸‹å‰åé¢
       begin
         FSelectCellRang.StartCol := FMouseDownCol;
         FSelectCellRang.EndCol := FMouseMoveCol;
       end;
     end
-    else  // FMouseMoveRow = FMouseDownRow ÒÆ¶¯ĞĞ = °´ÏÂĞĞ
+    else  // FMouseMoveRow = FMouseDownRow ç§»åŠ¨è¡Œ = æŒ‰ä¸‹è¡Œ
     begin
       FSelectCellRang.StartRow := FMouseDownRow;
       FSelectCellRang.EndRow := FMouseMoveRow;
 
-      if FMouseMoveCol > FMouseDownCol then  // ÒÆ¶¯ÁĞÔÚ°´ÏÂÁĞÓÒ±ß
+      if FMouseMoveCol > FMouseDownCol then  // ç§»åŠ¨åˆ—åœ¨æŒ‰ä¸‹åˆ—å³è¾¹
       begin
         FSelectCellRang.StartCol := FMouseDownCol;
         FSelectCellRang.EndCol := FMouseMoveCol;
       end
       else
-      if FMouseMoveCol < FMouseDownCol then  // ÒÆ¶¯ÁĞÔÚ°´ÏÂÁĞ×ó±ß
+      if FMouseMoveCol < FMouseDownCol then  // ç§»åŠ¨åˆ—åœ¨æŒ‰ä¸‹åˆ—å·¦è¾¹
       begin
         FSelectCellRang.StartCol := FMouseMoveCol;
         FSelectCellRang.EndCol := FMouseDownCol;
       end
-      else  // ÒÆ¶¯ÁĞ = °´ÏÂÁĞ
+      else  // ç§»åŠ¨åˆ— = æŒ‰ä¸‹åˆ—
       begin
         FSelectCellRang.StartCol := FMouseDownCol;
         FSelectCellRang.EndCol := FMouseMoveCol;
@@ -1968,25 +2046,25 @@ var
 
     if (FSelectCellRang.StartRow = FSelectCellRang.EndRow)
       and (FSelectCellRang.StartCol = FSelectCellRang.EndCol)
-    then  // ²»´¦ÀíºÏ²¢Ê±£¬Ñ¡ÖĞÔÚÍ¬Ò»µ¥Ôª¸ñ
+    then  // ä¸å¤„ç†åˆå¹¶æ—¶ï¼Œé€‰ä¸­åœ¨åŒä¸€å•å…ƒæ ¼
       FSelectCellRang.InitializeEnd
     else
     begin
-      if FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].IsMergeSource then  // ÆğÊ¼Ñ¡ÔñÔÚºÏ²¢Ô´
+      if FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].IsMergeSource then  // èµ·å§‹é€‰æ‹©åœ¨åˆå¹¶æº
       begin
         GetDestCell(FSelectCellRang.StartRow, FSelectCellRang.StartCol, vR, vC);
         FSelectCellRang.SetStart(vR, vC);
       end;
 
-      if FRows[FSelectCellRang.EndRow][FSelectCellRang.EndCol].IsMergeDest then  // ½áÊøÔÚºÏ²¢Ä¿±ê
+      if FRows[FSelectCellRang.EndRow][FSelectCellRang.EndCol].IsMergeDest then  // ç»“æŸåœ¨åˆå¹¶ç›®æ ‡
       begin
-        GetSourceCell(FSelectCellRang.EndRow, FSelectCellRang.EndCol, vR, vC);  // »ñÈ¡Ä¿±ê·½·¨Èç¹û´«µİµÄÊÇÄ¿±êµÃµ½µÄÊÇÔ´
+        GetSourceCell(FSelectCellRang.EndRow, FSelectCellRang.EndCol, vR, vC);  // è·å–ç›®æ ‡æ–¹æ³•å¦‚æœä¼ é€’çš„æ˜¯ç›®æ ‡å¾—åˆ°çš„æ˜¯æº
         FSelectCellRang.SetEnd(vR, vC);
       end;
 
       if (FSelectCellRang.StartRow = FSelectCellRang.EndRow)
         and (FSelectCellRang.StartCol = FSelectCellRang.EndCol)
-      then  // ĞŞÕıºÏ²¢ºóÔÚÍ¬Ò»µ¥Ôª¸ñ
+      then  // ä¿®æ­£åˆå¹¶ååœ¨åŒä¸€å•å…ƒæ ¼
         FSelectCellRang.InitializeEnd;
     end;
   end;
@@ -2003,7 +2081,7 @@ var
       begin
         for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
         begin
-          {if (vRow = vMoveRow) and (vCol = vMoveCol) then else Ê²Ã´Çé¿öÏÂĞèÒªÌø¹ı?}
+          {if (vRow = vMoveRow) and (vCol = vMoveCol) then else ä»€ä¹ˆæƒ…å†µä¸‹éœ€è¦è·³è¿‡?}
           if FRows[vR][vC].CellData <> nil then
             FRows[vR][vC].CellData.SelectAll;
         end;
@@ -2037,9 +2115,9 @@ begin
 
   vResizeInfo := GetCellAt(X, Y, vMoveRow, vMoveCol);
 
-  if vResizeInfo.TableSite = tsCell then  // Êó±êÔÚµ¥Ôª¸ñÖĞ
+  if vResizeInfo.TableSite = tsCell then  // é¼ æ ‡åœ¨å•å…ƒæ ¼ä¸­
   begin
-    if FMouseLBDowning or (Shift = [ssLeft]) then  // ×ó¼ü°´ÏÂÒÆ¶¯£¬°´ÏÂÊ±ÔÚ±í¸ñÉÏ or Ã»ÓĞÔÚ±í¸ñÉÏ°´ÏÂ(»®Ñ¡½øÈë)
+    if FMouseLBDowning or (Shift = [ssLeft]) then  // å·¦é”®æŒ‰ä¸‹ç§»åŠ¨ï¼ŒæŒ‰ä¸‹æ—¶åœ¨è¡¨æ ¼ä¸Š or æ²¡æœ‰åœ¨è¡¨æ ¼ä¸ŠæŒ‰ä¸‹(åˆ’é€‰è¿›å…¥)
     begin
       if FDraging or OwnerData.Style.UpdateInfo.Draging then
       begin
@@ -2055,32 +2133,32 @@ begin
       if not FSelecting then
         FSelecting := True;
 
-      if (vMoveRow <> FMouseMoveRow) or (vMoveCol <> FMouseMoveCol) then  // Êó±êÒÆ¶¯µ½ĞÂµ¥Ôª¸ñ
+      if (vMoveRow <> FMouseMoveRow) or (vMoveCol <> FMouseMoveCol) then  // é¼ æ ‡ç§»åŠ¨åˆ°æ–°å•å…ƒæ ¼
       begin
         FMouseMoveRow := vMoveRow;
         FMouseMoveCol := vMoveCol;
 
-        AdjustSelectRang;  // ¼ÆËãÑ¡ÖĞÆğÊ¼½áÊø·¶Î§(»á¾ÀÕı´Óºó¡¢ÏÂÍùÇ°Ñ¡µÄÇé¿ö)
-        MatchCellSelectState;  // ´¦ÀíÑ¡ÖĞ·¶Î§ÄÚ¸÷µ¥Ôª¸ñµÄÑ¡ÖĞ×´Ì¬
+        AdjustSelectRang;  // è®¡ç®—é€‰ä¸­èµ·å§‹ç»“æŸèŒƒå›´(ä¼šçº æ­£ä»åã€ä¸‹å¾€å‰é€‰çš„æƒ…å†µ)
+        MatchCellSelectState;  // å¤„ç†é€‰ä¸­èŒƒå›´å†…å„å•å…ƒæ ¼çš„é€‰ä¸­çŠ¶æ€
       end;
 
       {if (FSelectCellRang.StartRow = FMouseMoveRow)
         and (FSelectCellRang.StartCol = FMouseMoveCol)
-      then}  // Ñ¡ÔñÆğÊ¼ºÍÏÖÔÚÊÇÍ¬Ò»¸öµ¥Ôª¸ñ
+      then}  // é€‰æ‹©èµ·å§‹å’Œç°åœ¨æ˜¯åŒä¸€ä¸ªå•å…ƒæ ¼
       begin
         vCellPt := GetCellPostion(FMouseMoveRow, FMouseMoveCol);
         FRows[FMouseMoveRow][FMouseMoveCol].MouseMove(Shift,
           X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
       end;
     end
-    else  // Êó±êÒÆ¶¯£¬Ã»ÓĞ°´¼ü°´ÏÂ
+    else  // é¼ æ ‡ç§»åŠ¨ï¼Œæ²¡æœ‰æŒ‰é”®æŒ‰ä¸‹
     begin
-      if (vMoveRow <> FMouseMoveRow) or (vMoveCol <> FMouseMoveCol) then  // Êó±êÒÆ¶¯µ½ĞÂµ¥Ôª¸ñ
+      if (vMoveRow <> FMouseMoveRow) or (vMoveCol <> FMouseMoveCol) then  // é¼ æ ‡ç§»åŠ¨åˆ°æ–°å•å…ƒæ ¼
       begin
         if (FMouseMoveRow >= 0) and (FMouseMoveCol >= 0) then
         begin
           if FRows[FMouseMoveRow][FMouseMoveCol].CellData <> nil then
-            FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseLeave;  // .MouseMove(Shift, -1, -1);  // ¾Éµ¥Ôª¸ñÒÆ³ö
+            FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseLeave;  // .MouseMove(Shift, -1, -1);  // æ—§å•å…ƒæ ¼ç§»å‡º
         end;
 
         FMouseMoveRow := vMoveRow;
@@ -2094,23 +2172,26 @@ begin
         X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
     end;
   end
-  else  // Êó±ê²»ÔÚµ¥Ôª¸ñÖĞ
+  else  // é¼ æ ‡ä¸åœ¨å•å…ƒæ ¼ä¸­
   begin
     if (FMouseMoveRow >= 0) and (FMouseMoveCol >= 0) then
     begin
       if FRows[FMouseMoveRow][FMouseMoveCol].CellData <> nil then
-        FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseLeave;  // ¾Éµ¥Ôª¸ñÒÆ³ö
+        FRows[FMouseMoveRow][FMouseMoveCol].CellData.MouseLeave;  // æ—§å•å…ƒæ ¼ç§»å‡º
     end;
 
     FMouseMoveRow := -1;
     FMouseMoveCol := -1;
 
-    if vResizeInfo.TableSite = tsBorderRight then // Êó±ê²»ÔÚµ¥Ôª¸ñÖĞ
+    if vResizeInfo.TableSite = tsBorderRight then // é¼ æ ‡ä¸åœ¨å•å…ƒæ ¼ä¸­
       GCursor := crHSplit
     else
     if vResizeInfo.TableSite = tsBorderBottom then
       GCursor := crVSplit;
   end;
+
+  if OwnerData.Style.UpdateInfo.Draging then
+    FSelectCellRang.SetStart(FMouseMoveRow, FMouseMoveCol);
 end;
 
 function THCTableItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
@@ -2132,22 +2213,22 @@ begin
     Exit;
   end;
 
-  if Resizing then  // ÍÏ¶¯¸Ä±äÁĞ¿í£¬µ¥Ôª¸ñData¿í¶ÈµÄ¸Ä±äÓÉÖØĞÂ¸ñÊ½»¯´¦Àí
+  if Resizing then  // æ‹–åŠ¨æ”¹å˜åˆ—å®½ï¼Œå•å…ƒæ ¼Dataå®½åº¦çš„æ”¹å˜ç”±é‡æ–°æ ¼å¼åŒ–å¤„ç†
   begin
-    if FResizeInfo.TableSite = tsBorderRight then  // ÍÏ¿í/ÍÏÕ­
+    if FResizeInfo.TableSite = tsBorderRight then  // æ‹–å®½/æ‹–çª„
     begin
-      vCellPt.X := X - FMouseDownX;  // ²»Ê¹ÓÃFResizeInfo.DestX(»áÔì³É°´ÏÂ´¦µ¯³öÒ²ÓĞÆ«ÒÆ)
+      vCellPt.X := X - FMouseDownX;  // ä¸ä½¿ç”¨FResizeInfo.DestX(ä¼šé€ æˆæŒ‰ä¸‹å¤„å¼¹å‡ºä¹Ÿæœ‰åç§»)
       if vCellPt.X <> 0 then
       begin
-        // AReDestÎªFalseÓÃÓÚ´¦ÀíÍÏ¶¯¸Ä±äÁĞ¿íÊ±£¬ÈçÍÏ¶¯´¦ÁĞÊÇºÏ²¢Ô´£¬ÆäËûĞĞ´ËÁĞ²¢ÎŞºÏ²¢²Ù×÷
-        // ÕâÊ±µ¯Æğ£¬Èç¹ûÈ¡ÍÏ¶¯ÁĞÄ¿±êÁĞ±ä¿í£¬ÔòÆäËûĞĞÍÏ¶¯´¦µÄÁĞ²¢Ã»±ä¿í
-        vResizeInfo := GetCellAt(FMouseDownX, FMouseDownY, vUpRow, vUpCol, False{Êµ¼ÊÎ»ÖÃ´¦µÄÁĞ});
+        // AReDestä¸ºFalseç”¨äºå¤„ç†æ‹–åŠ¨æ”¹å˜åˆ—å®½æ—¶ï¼Œå¦‚æ‹–åŠ¨å¤„åˆ—æ˜¯åˆå¹¶æºï¼Œå…¶ä»–è¡Œæ­¤åˆ—å¹¶æ— åˆå¹¶æ“ä½œ
+        // è¿™æ—¶å¼¹èµ·ï¼Œå¦‚æœå–æ‹–åŠ¨åˆ—ç›®æ ‡åˆ—å˜å®½ï¼Œåˆ™å…¶ä»–è¡Œæ‹–åŠ¨å¤„çš„åˆ—å¹¶æ²¡å˜å®½
+        vResizeInfo := GetCellAt(FMouseDownX, FMouseDownY, vUpRow, vUpCol, False{å®é™…ä½ç½®å¤„çš„åˆ—});
 
-        if (vResizeInfo.TableSite <> tsOutside) and (vCellPt.X <> 0) then  // Ã»µ¯ÆğÔÚÍâÃæ
+        if (vResizeInfo.TableSite <> tsOutside) and (vCellPt.X <> 0) then  // æ²¡å¼¹èµ·åœ¨å¤–é¢
         begin
-          if vCellPt.X > 0 then  // ÍÏ¿íÁË
+          if vCellPt.X > 0 then  // æ‹–å®½äº†
           begin
-            if vUpCol < FColWidths.Count - 1 then  // ÓÒ²àÓĞ£¬ÓÒ²à±äÕ­ºó²»ÄÜĞ¡ÓÚ×îĞ¡¿í¶È
+            if vUpCol < FColWidths.Count - 1 then  // å³ä¾§æœ‰ï¼Œå³ä¾§å˜çª„åä¸èƒ½å°äºæœ€å°å®½åº¦
             begin
               if FColWidths[vUpCol + 1] - vCellPt.X < MinColWidth then
                 vCellPt.X := FColWidths[vUpCol + 1] - MinColWidth;
@@ -2156,33 +2237,33 @@ begin
               begin
                 Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
 
-                FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // µ±Ç°ÁĞ±ä»¯
-                // ÓÒ²àµÄ¼õÉÙ£¬ÊµÏÖÍÏ¶¯²»¸Ä±ä±í¸ñÕûÌå¿í¶È
-                if FResizeKeepWidth and (vUpCol < FColWidths.Count - 1) then  // ÓÒ²àµÄÃÖ²¹±ä»¯
+                FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // å½“å‰åˆ—å˜åŒ–
+                // å³ä¾§çš„å‡å°‘ï¼Œå®ç°æ‹–åŠ¨ä¸æ”¹å˜è¡¨æ ¼æ•´ä½“å®½åº¦
+                if FResizeKeepWidth and (vUpCol < FColWidths.Count - 1) then  // å³ä¾§çš„å¼¥è¡¥å˜åŒ–
                   FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vCellPt.X;
               end;
             end
-            else  // ×îÓÒ²àÁĞÍÏ¿í
+            else  // æœ€å³ä¾§åˆ—æ‹–å®½
             begin
               if FResizeKeepWidth and (FColWidths[vUpCol] + vCellPt.X > (OwnerData as THCRichData).Width) then
                 vCellPt.X := (OwnerData as THCRichData).Width - FColWidths[vUpCol + 1];
 
               Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
-              FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // µ±Ç°ÁĞ±ä»¯
+              FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // å½“å‰åˆ—å˜åŒ–
             end;
           end
-          else  // ÍÏÕ­ÁË
+          else  // æ‹–çª„äº†
           begin
-            if FColWidths[vUpCol] + vCellPt.X < MinColWidth then  // Ğ¡ÓÚ×îĞ¡¿í¶È
+            if FColWidths[vUpCol] + vCellPt.X < MinColWidth then  // å°äºæœ€å°å®½åº¦
               vCellPt.X := MinColWidth - FColWidths[vUpCol];
 
             if vCellPt.X <> 0 then
             begin
               Undo_ColResize(vUpCol, FColWidths[vUpCol], FColWidths[vUpCol] + vCellPt.X);
 
-              FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // µ±Ç°ÁĞ±ä»¯
-              // ÓÒ²àµÄÔö¼Ó£¬ÊµÏÖÍÏ¶¯²»¸Ä±ä±í¸ñÕûÌå¿í¶È
-              if FResizeKeepWidth and (vUpCol < FColWidths.Count - 1) then  // ÓÒ²àµÄÃÖ²¹±ä»¯
+              FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // å½“å‰åˆ—å˜åŒ–
+              // å³ä¾§çš„å¢åŠ ï¼Œå®ç°æ‹–åŠ¨ä¸æ”¹å˜è¡¨æ ¼æ•´ä½“å®½åº¦
+              if FResizeKeepWidth and (vUpCol < FColWidths.Count - 1) then  // å³ä¾§çš„å¼¥è¡¥å˜åŒ–
                 FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] + vCellPt.X;
             end;
           end;
@@ -2190,9 +2271,9 @@ begin
       end;
     end
     else
-    if FResizeInfo.TableSite = tsBorderBottom then  // ÍÏ¸ß/ÍÏ°«
+    if FResizeInfo.TableSite = tsBorderBottom then  // æ‹–é«˜/æ‹–çŸ®
     begin
-      vCellPt.Y := Y - FMouseDownY;  // ²»Ê¹ÓÃFResizeInfo.DestY(»áÔì³É°´ÏÂ´¦µ¯³öÒ²ÓĞÆ«ÒÆ)
+      vCellPt.Y := Y - FMouseDownY;  // ä¸ä½¿ç”¨FResizeInfo.DestY(ä¼šé€ æˆæŒ‰ä¸‹å¤„å¼¹å‡ºä¹Ÿæœ‰åç§»)
       if vCellPt.Y <> 0 then
       begin
         Undo_RowResize(FMouseDownRow, FRows[FMouseDownRow].Height, FRows[FMouseDownRow].Height + vCellPt.Y);
@@ -2210,12 +2291,12 @@ begin
     Exit;
   end;
 
-  if FSelecting or OwnerData.Style.UpdateInfo.Selecting then  // »®Ñ¡Íê³É
+  if FSelecting or OwnerData.Style.UpdateInfo.Selecting then  // åˆ’é€‰å®Œæˆ
   begin
     FSelecting := False;
 
-    // ÏÈÔÚ°´ÏÂµ¥Ôª¸ñµ¯Æğ£¬ÒÔ±ãµ¥Ôª¸ñÖĞÇ¶Ì×µÄ±í¸ñÓĞ»ú»áÏìÓ¦µ¯Æğ(È¡Ïû°´ÏÂ¡¢»®Ñ¡×´Ì¬£¬»®Ñ¡Íê³É)
-    if (FMouseDownRow >= 0) and (not FOutSelectInto) then  // ÔÚ±í¸ñÓÒ²à°´ÏÂÒÆ¶¯Ê±ÔÙµ¯ÆğÊ±ÎŞÓĞĞ§µÄFMouseDownRowºÍFMouseDownCol
+    // å…ˆåœ¨æŒ‰ä¸‹å•å…ƒæ ¼å¼¹èµ·ï¼Œä»¥ä¾¿å•å…ƒæ ¼ä¸­åµŒå¥—çš„è¡¨æ ¼æœ‰æœºä¼šå“åº”å¼¹èµ·(å–æ¶ˆæŒ‰ä¸‹ã€åˆ’é€‰çŠ¶æ€ï¼Œåˆ’é€‰å®Œæˆ)
+    if (FMouseDownRow >= 0) and (not FOutSelectInto) then  // åœ¨è¡¨æ ¼å³ä¾§æŒ‰ä¸‹ç§»åŠ¨æ—¶å†å¼¹èµ·æ—¶æ— æœ‰æ•ˆçš„FMouseDownRowå’ŒFMouseDownCol
     begin
       vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
       FRows[FMouseDownRow][FMouseDownCol].MouseUp(Button, Shift,
@@ -2223,9 +2304,9 @@ begin
     end;
 
     vResizeInfo := GetCellAt(X, Y, vUpRow, vUpCol);
-    if vResizeInfo.TableSite = TTableSite.tsCell then  // Ã»ÓĞ»®Ñ¡µ½Ò³Ãæ¿Õ°×µÄµØ·½
+    if vResizeInfo.TableSite = TTableSite.tsCell then  // æ²¡æœ‰åˆ’é€‰åˆ°é¡µé¢ç©ºç™½çš„åœ°æ–¹
     begin
-      if (vUpRow <> FMouseDownRow) or (vUpCol <> FMouseDownCol) then  // »®Ñ¡Íê³Éºóµ¯ÆğÔÚ·Ç°´ÏÂµ¥Ôª¸ñ
+      if (vUpRow <> FMouseDownRow) or (vUpCol <> FMouseDownCol) then  // åˆ’é€‰å®Œæˆåå¼¹èµ·åœ¨éæŒ‰ä¸‹å•å…ƒæ ¼
       begin
         vCellPt := GetCellPostion(vUpRow, vUpCol);
         FRows[vUpRow][vUpCol].MouseUp(Button, Shift,
@@ -2234,35 +2315,35 @@ begin
     end;
   end
   else
-  if FDraging or OwnerData.Style.UpdateInfo.Draging then  // ÍÏ×§µ¯Æğ
+  if FDraging or OwnerData.Style.UpdateInfo.Draging then  // æ‹–æ‹½å¼¹èµ·
   begin
     FDraging := False;
 
     vResizeInfo := GetCellAt(X, Y, vUpRow, vUpCol);
 
-    if vResizeInfo.TableSite = TTableSite.tsCell then  // ÍÏµ½ÁËÄ³µ¥Ôª¸ñÖĞ
+    if vResizeInfo.TableSite = TTableSite.tsCell then  // æ‹–åˆ°äº†æŸå•å…ƒæ ¼ä¸­
     begin
       DisSelect;
-      FMouseMoveRow := vUpRow;  // ÍÏ×§Ê±µÄµ¥Ôª¸ñ¶¨Î»Ê¹ÓÃµÄÊÇMouseMoveÏà¹ØÊı¾İ
+      FMouseMoveRow := vUpRow;  // æ‹–æ‹½æ—¶çš„å•å…ƒæ ¼å®šä½ä½¿ç”¨çš„æ˜¯MouseMoveç›¸å…³æ•°æ®
       FMouseMoveCol := vUpCol;
-      // Ô­Ê¼ÓÉÏÂÃæÈıĞĞÊµÏÖ
-      //DisSelectSelectedCell(vUpRow, vUpCol);  // È¡Ïû³ıµ¯Æğ´¦Ö®ÍâµÄËùÓĞÍÏ×§Ñ¡ÖĞµ¥Ôª¸ñµÄ×´Ì¬
+      // åŸå§‹ç”±ä¸‹é¢ä¸‰è¡Œå®ç°
+      //DisSelectSelectedCell(vUpRow, vUpCol);  // å–æ¶ˆé™¤å¼¹èµ·å¤„ä¹‹å¤–çš„æ‰€æœ‰æ‹–æ‹½é€‰ä¸­å•å…ƒæ ¼çš„çŠ¶æ€
       //FRows[vUpRow][vUpCol].CellData.CellSelectedAll := False;
-      //FSelectCellRang.Initialize;  // ×¼±¸ÖØĞÂ¸³Öµ
+      //FSelectCellRang.Initialize;  // å‡†å¤‡é‡æ–°èµ‹å€¼
 
-      // ²»¹ÜÊÇ·ñÔÚÔÚÑ¡ÖĞµ¥Ôª¸ñÖĞµ¯Æğ£¬ÍÏ×§µ¯Æğ¶¼ĞèÒª±à¼­µ½Ñ¡ÖĞµ¥Ôª¸ñ£¬
+      // ä¸ç®¡æ˜¯å¦åœ¨åœ¨é€‰ä¸­å•å…ƒæ ¼ä¸­å¼¹èµ·ï¼Œæ‹–æ‹½å¼¹èµ·éƒ½éœ€è¦ç¼–è¾‘åˆ°é€‰ä¸­å•å…ƒæ ¼ï¼Œ
       FSelectCellRang.StartRow := vUpRow;
       FSelectCellRang.StartCol := vUpCol;
       vCellPt := GetCellPostion(vUpRow, vUpCol);
       FRows[vUpRow][vUpCol].MouseUp(Button, Shift,
         X - vCellPt.X, Y - vCellPt.Y, FCellHPadding, FCellVPadding);
 
-      {if FMouseDownRow >= 0 then  // ÓĞµã»÷Ê±µÄµ¥Ôª¸ñ(±í¸ñÊÇ»®Ñ¡·¶Î§ÄÚÆäÖĞÒ»¸ö£¬ÔÚÆäËûÉÏÍÏ×§µ½±í¸ñÉÏÊ±Ã»ÓĞ°´ÏÂFMouseDownRow)
-        Cells[FMouseDownRow, FMouseDownCol].CellData.InitializeField;}  // ÍÏ×§ÆğÊ¼µ¥Ôª¸ñ±êÃ÷ÍÏ×§Íê³ÉÁË
+      {if FMouseDownRow >= 0 then  // æœ‰ç‚¹å‡»æ—¶çš„å•å…ƒæ ¼(è¡¨æ ¼æ˜¯åˆ’é€‰èŒƒå›´å†…å…¶ä¸­ä¸€ä¸ªï¼Œåœ¨å…¶ä»–ä¸Šæ‹–æ‹½åˆ°è¡¨æ ¼ä¸Šæ—¶æ²¡æœ‰æŒ‰ä¸‹FMouseDownRow)
+        Cells[FMouseDownRow, FMouseDownCol].CellData.InitializeField;}  // æ‹–æ‹½èµ·å§‹å•å…ƒæ ¼æ ‡æ˜æ‹–æ‹½å®Œæˆäº†
     end;
   end
-  else  // ·Ç»®Ñ¡£¬·ÇÍÏ×§
-  if FMouseDownRow >= 0 then  // ÓĞµã»÷Ê±µÄµ¥Ôª¸ñ
+  else  // éåˆ’é€‰ï¼Œéæ‹–æ‹½
+  if FMouseDownRow >= 0 then  // æœ‰ç‚¹å‡»æ—¶çš„å•å…ƒæ ¼
   begin
     vCellPt := GetCellPostion(FMouseDownRow, FMouseDownCol);
     FRows[FMouseDownRow][FMouseDownCol].MouseUp(Button, Shift,
@@ -2280,16 +2361,16 @@ var
   vExtPen: HPEN;
   vOldPen: HGDIOBJ;
 begin
-  vCellTop := Max(ATop, ATableDrawTop) + FBorderWidth;
+  vCellTop := Max(ATop, ATableDrawTop) + FBorderWidthPix;
   for vR := 0 to FFixRow + FFixRowCount - 1 do
-    vCellTop := vCellTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidth;
+    vCellTop := vCellTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidthPix;
 
   vRect := Bounds(ALeft, vCellTop, GetFixColWidth, ABottom - vCellTop);
   ACanvas.Brush.Color := clBtnFace;
   ACanvas.FillRect(vRect);
 
-  vBorderOffs := FBorderWidth div 2;
-  vCellTop := ATableDrawTop + FBorderWidth;
+  vBorderOffs := FBorderWidthPix div 2;
+  vCellTop := ATableDrawTop + FBorderWidthPix;
 
   for vR := 0 to FRows.Count - 1 do
   begin
@@ -2297,11 +2378,11 @@ begin
     vCellBottom := vCellTop + FRows[vR].Height;
     if (vCellBottom < ATop) or (vR < FFixRow + FFixRowCount) then
     begin
-      vCellTop := vCellBottom + FBorderWidth;
+      vCellTop := vCellBottom + FBorderWidthPix;
       Continue;
     end;
 
-    vCellLeft := ALeft + FBorderWidth;
+    vCellLeft := ALeft + FBorderWidthPix;
     for vC := FFixCol to FFixCol + FFixColCount - 1 do
     begin
       vRect := Rect(vCellLeft, vCellTop, vCellLeft + FColWidths[vC], vCellBottom);
@@ -2314,12 +2395,15 @@ begin
       FRows[vR][vC].PaintTo(vCellLeft, vCellTop, vRect.Right, vCellBottom, ATop, ABottom, 0,
         FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
 
-      {$REGION ' »æÖÆ±ß¿òÏß '}
+      {$REGION ' ç»˜åˆ¶è¾¹æ¡†çº¿ '}
       if FBorderVisible or (not APaintInfo.Print) then
       begin
-        ACanvas.Pen.Width := FBorderWidth;
+        if APaintInfo.Print then
+          ACanvas.Pen.Width := Max(1, HCUnitConversion.PtToPixel(FBorderWidthPt, APaintInfo.DPI))
+        else
+          ACanvas.Pen.Width := FBorderWidthPix;
 
-        if FBorderVisible then  // Î´Òş²Ø±ß¿ò
+        if FBorderVisible then  // æœªéšè—è¾¹æ¡†
         begin
           ACanvas.Pen.Color := clBlack;
           ACanvas.Pen.Style := psSolid;
@@ -2331,52 +2415,100 @@ begin
           ACanvas.Pen.Style := psDot;
         end;
 
-        vBorderTop := vCellTop - FBorderWidth;
-        vBorderBottom := vBorderTop + FBorderWidth  // ¼ÆËã±ß¿ò×îÏÂ¶Ë
-          + Max(FRows[vR].Height, FRows[vR][vC].Height);  // ÓÉÓÚ¿ÉÄÜÊÇºÏ²¢Ä¿±êµ¥Ôª¸ñ£¬ËùÒÔÓÃµ¥Ôª¸ñ¸ßºÍĞĞ¸ß×î¸ßµÄ
+        vBorderTop := vCellTop - FBorderWidthPix;
+        vBorderBottom := vBorderTop + FBorderWidthPix  // è®¡ç®—è¾¹æ¡†æœ€ä¸‹ç«¯
+          + Max(FRows[vR].Height, FRows[vR][vC].Height);  // ç”±äºå¯èƒ½æ˜¯åˆå¹¶ç›®æ ‡å•å…ƒæ ¼ï¼Œæ‰€ä»¥ç”¨å•å…ƒæ ¼é«˜å’Œè¡Œé«˜æœ€é«˜çš„
 
-        vBorderLeft := vCellLeft - FBorderWidth;
+        vBorderLeft := vCellLeft - FBorderWidthPix;
         vBorderRight := vCellLeft + FColWidths[vC] + GetColSpanWidth(vR, vC);
 
-        vExtPen := CreateExtPen(ACanvas.Pen);  // ÒòÎªÄ¬ÈÏµÄ»­±ÊÃ»ÓĞÏßÃ±µÄ¿ØÖÆ£¬ĞÂÔöÖ§³ÖÏßÃ±µÄ»­±Ê
+        vExtPen := CreateExtPen(ACanvas.Pen);  // å› ä¸ºé»˜è®¤çš„ç”»ç¬”æ²¡æœ‰çº¿å¸½çš„æ§åˆ¶ï¼Œæ–°å¢æ”¯æŒçº¿å¸½çš„ç”»ç¬”
         vOldPen := SelectObject(ACanvas.Handle, vExtPen);
         try
-          if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then  // ÉÏ±ß¿ò¿ÉÏÔÊ¾
+          if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then  // ä¸Šè¾¹æ¡†å¯æ˜¾ç¤º
           begin
-            ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);   // ×óÉÏ
-            ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // ÓÒÉÏ
+            if APaintInfo.Print then
+            begin
+              APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+                vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
+            end
+            else
+            begin
+              ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);   // å·¦ä¸Š
+              ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // å³ä¸Š
+            end;
           end;
 
-          if cbsRight in FRows[vR][vC].BorderSides then  // ÓÒ±ß¿ò
+          if cbsRight in FRows[vR][vC].BorderSides then  // å³è¾¹æ¡†
           begin
-            ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // ÓÒÉÏ
-            ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // ÓÒÏÂ
-            ACanvas.MoveTo(vBorderRight + vBorderOffs + 1, vBorderTop + vBorderOffs);  // ÓÒÉÏ
-            ACanvas.LineTo(vBorderRight + vBorderOffs + 1, vBorderBottom + vBorderOffs);  // ÓÒÏÂ
+            if APaintInfo.Print then
+            begin
+              APaintInfo.DrawNoScaleLine(ACanvas, vBorderRight + vBorderOffs, vBorderTop + vBorderOffs,
+                vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+            end
+            else
+            begin
+              ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // å³ä¸Š
+              ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // å³ä¸‹
+              //ACanvas.MoveTo(vBorderRight + vBorderOffs + 1, vBorderTop + vBorderOffs);  // å³ä¸Š
+              //ACanvas.LineTo(vBorderRight + vBorderOffs + 1, vBorderBottom + vBorderOffs);  // å³ä¸‹
+            end;
           end;
 
-          if (vBorderBottom <= ABottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // ÏÂ±ß¿ò
+          if (vBorderBottom <= ABottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // ä¸‹è¾¹æ¡†
           begin
-            ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);  // ×óÏÂ
-            ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // ÓÒÏÂ
+            if APaintInfo.Print then
+            begin
+              APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs,
+                vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+            end
+            else
+            begin
+              ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);  // å·¦ä¸‹
+              ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // å³ä¸‹
+            end;
           end;
 
-          if cbsLeft in FRows[vR][vC].BorderSides then  // ×ó±ß¿ò
+          if cbsLeft in FRows[vR][vC].BorderSides then  // å·¦è¾¹æ¡†
           begin
-            ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
-            ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+            if APaintInfo.Print then
+            begin
+              APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+                vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+            end
+            else
+            begin
+              ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
+              ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+            end;
           end;
 
-          if cbsLTRB in FRows[vR][vC].BorderSides then  // ×óÉÏÓÒÏÂ¶Ô½ÇÏß
+          if cbsLTRB in FRows[vR][vC].BorderSides then  // å·¦ä¸Šå³ä¸‹å¯¹è§’çº¿
           begin
-            ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
-            ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+            if APaintInfo.Print then
+            begin
+              APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+                vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+            end
+            else
+            begin
+              ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
+              ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+            end;
           end;
 
-          if cbsRTLB in FRows[vR][vC].BorderSides then  // ÓÒÉÏ×óÏÂ¶Ô½ÇÏß
+          if cbsRTLB in FRows[vR][vC].BorderSides then  // å³ä¸Šå·¦ä¸‹å¯¹è§’çº¿
           begin
-            ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
-            ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+            if APaintInfo.Print then
+            begin
+              APaintInfo.DrawNoScaleLine(ACanvas, vBorderRight + vBorderOffs, vBorderTop + vBorderOffs,
+                vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+            end
+            else
+            begin
+              ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
+              ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+            end;
           end;
         finally
           SelectObject(ACanvas.Handle, vOldPen);
@@ -2385,10 +2517,10 @@ begin
       end;
       {$ENDREGION}
 
-      vCellLeft := vCellLeft + FColWidths[vC] + FBorderWidth;
+      vCellLeft := vCellLeft + FColWidths[vC] + FBorderWidthPix;
     end;
 
-    vCellTop := vCellBottom + FBorderWidth;
+    vCellTop := vCellBottom + FBorderWidthPix;
   end;
 end;
 
@@ -2405,17 +2537,17 @@ begin
   vTop := ATop;
   for vR := FFixRow to FFixRow + FFixRowCount - 1 do
   begin
-    vH := 0;  // ĞĞÖĞÎ´·¢ÉúºÏ²¢µÄ×î¸ßµ¥Ôª¸ñ
-    for vC := 0 to FRows[vR].ColCount - 1 do  // µÃµ½ĞĞÖĞÎ´·¢ÉúºÏ²¢DataÄÚÈİ×î¸ßµÄµ¥Ôª¸ñ¸ß¶È
+    vH := 0;  // è¡Œä¸­æœªå‘ç”Ÿåˆå¹¶çš„æœ€é«˜å•å…ƒæ ¼
+    for vC := 0 to FRows[vR].ColCount - 1 do  // å¾—åˆ°è¡Œä¸­æœªå‘ç”Ÿåˆå¹¶Dataå†…å®¹æœ€é«˜çš„å•å…ƒæ ¼é«˜åº¦
     begin
-      if (FRows[vR][vC].CellData <> nil)  // ²»ÊÇ±»ºÏ²¢µÄµ¥Ôª¸ñ
-        and (FRows[vR][vC].RowSpan >= 0)  // ²»ÊÇĞĞºÏ²¢µÄĞĞµ¥Ôª¸ñ
+      if (FRows[vR][vC].CellData <> nil)  // ä¸æ˜¯è¢«åˆå¹¶çš„å•å…ƒæ ¼
+        and (FRows[vR][vC].RowSpan >= 0)  // ä¸æ˜¯è¡Œåˆå¹¶çš„è¡Œå•å…ƒæ ¼
       then
         vH := Max(vH, FRows[vR][vC].CellData.Height);
     end;
 
-    vH := FCellVPadding + vH + FCellVPadding;  // Ôö¼ÓÉÏÏÂ±ß¾à
-    vH := Max(vH, FRows[vR].Height) + FBorderWidth + FBorderWidth;
+    vH := FCellVPadding + vH + FCellVPadding;  // å¢åŠ ä¸Šä¸‹è¾¹è·
+    vH := Max(vH, FRows[vR].Height) + FBorderWidthPix + FBorderWidthPix;
 
     vRect := Bounds(ALeft, vTop, Width, vH);
     if vRect.Top >= ABottom then
@@ -2423,7 +2555,7 @@ begin
 
     PaintRow(vR, vRect.Left, vRect.Top, vRect.Bottom, ACanvas, APaintInfo);
 
-    vTop := vTop + FBorderWidth + FRows[vR].Height;
+    vTop := vTop + FBorderWidthPix + FRows[vR].Height;
   end;
 end;
 
@@ -2440,41 +2572,41 @@ var
   vExtPen: HPEN;
   vOldPen: HGDIOBJ;
 begin
-  vBorderOffs := FBorderWidth div 2;
-  vCellDrawLeft := ALeft + FBorderWidth;
-  vCellDataDrawTop := ATop + FBorderWidth + FCellVPadding;
+  vBorderOffs := FBorderWidthPix div 2;
+  vCellDrawLeft := ALeft + FBorderWidthPix;
+  vCellDataDrawTop := ATop + FBorderWidthPix + FCellVPadding;
 
   for vC := 0 to FRows[ARow].ColCount - 1 do
   begin
-    if (FRows[ARow][vC].ColSpan < 0) or (FRows[ARow][vC].RowSpan < 0) then  // ºÏ²¢ÁĞÔ´
+    if (FRows[ARow][vC].ColSpan < 0) or (FRows[ARow][vC].RowSpan < 0) then  // åˆå¹¶åˆ—æº
     begin
-      vCellDrawLeft := vCellDrawLeft + FColWidths[vC] + FBorderWidth;
-      Continue;  // ÆÕÍ¨µ¥Ôª¸ñ»òºÏ²¢Ä¿±êµ¥Ôª¸ñ²ÅÓĞÊı¾İ£¬·ñÔòÓÉÄ¿±êµ¥Ôª¸ñ´¦Àí
+      vCellDrawLeft := vCellDrawLeft + FColWidths[vC] + FBorderWidthPix;
+      Continue;  // æ™®é€šå•å…ƒæ ¼æˆ–åˆå¹¶ç›®æ ‡å•å…ƒæ ¼æ‰æœ‰æ•°æ®ï¼Œå¦åˆ™ç”±ç›®æ ‡å•å…ƒæ ¼å¤„ç†
     end;
 
-    {$REGION ' »æÖÆµ¥Ôª¸ñÊı¾İ '}
-    vCellDrawBottom := Math.Min(ABottom,  // Êı¾İÄÚÈİÆÁÏÔ×îÏÂ¶Ë
+    {$REGION ' ç»˜åˆ¶å•å…ƒæ ¼æ•°æ® '}
+    vCellDrawBottom := Math.Min(ABottom,  // æ•°æ®å†…å®¹å±æ˜¾æœ€ä¸‹ç«¯
       vCellDataDrawTop
-      + Max(FRows[ARow].Height, FRows[ARow][vC].Height) - FCellVPadding  // ĞĞ¸ßºÍÓĞºÏ²¢µÄµ¥Ôª¸ñ¸ßÖĞ×î´óµÄ
+      + Max(FRows[ARow].Height, FRows[ARow][vC].Height) - FCellVPadding  // è¡Œé«˜å’Œæœ‰åˆå¹¶çš„å•å…ƒæ ¼é«˜ä¸­æœ€å¤§çš„
       );
 
-    vCellRect := Rect(vCellDrawLeft, ATop + FBorderWidth, vCellDrawLeft + FRows[ARow][vC].Width, vCellDrawBottom);
+    vCellRect := Rect(vCellDrawLeft, ATop + FBorderWidthPix, vCellDrawLeft + FRows[ARow][vC].Width, vCellDrawBottom);
     vCellData := FRows[ARow][vC].CellData;
 
-    if (Self.IsSelectComplate or vCellData.CellSelectedAll) and (not APaintInfo.Print) then  // ±í¸ñÈ«Ñ¡ÖĞ»òµ¥Ôª¸ñÈ«Ñ¡ÖĞ
+    if (Self.IsSelectComplate or vCellData.CellSelectedAll) and (not APaintInfo.Print) then  // è¡¨æ ¼å…¨é€‰ä¸­æˆ–å•å…ƒæ ¼å…¨é€‰ä¸­
     begin
       ACanvas.Brush.Color := OwnerData.Style.SelColor;
       ACanvas.FillRect(vCellRect);
     end
-    else  // Ä¬ÈÏµÄ»æÖÆ
+    else  // é»˜è®¤çš„ç»˜åˆ¶
     begin
       vDrawDefault := True;
-      if Assigned(FOnCellPaintBK) then  // ÓĞÍâ²¿×Ô¶¨Òå»æÖÆ
+      if Assigned(FOnCellPaintBK) then  // æœ‰å¤–éƒ¨è‡ªå®šä¹‰ç»˜åˆ¶
         FOnCellPaintBK(Self, FRows[ARow][vC], vCellRect, ACanvas, APaintInfo, vDrawDefault);
 
-      if vDrawDefault then  // ÔÊĞíÄ¬ÈÏ»æÖÆ
+      if vDrawDefault then  // å…è®¸é»˜è®¤ç»˜åˆ¶
       begin
-        if FRows[ARow][vC].BackgroundColor <> HCTransparentColor then  // ±³¾°É«
+        if FRows[ARow][vC].BackgroundColor <> HCTransparentColor then  // èƒŒæ™¯è‰²
           ACanvas.Brush.Color := FRows[ARow][vC].BackgroundColor
         else
           ACanvas.Brush.Style := bsClear;
@@ -2483,19 +2615,22 @@ begin
       end;
     end;
 
-    if vCellDrawBottom - vCellDataDrawTop > FCellVPadding then  // ÓĞ¿ÉÏÔÊ¾µÄDrawItem
+    if vCellDrawBottom - vCellDataDrawTop > FCellVPadding then  // æœ‰å¯æ˜¾ç¤ºçš„DrawItem
     begin
       FRows[ARow][vC].PaintTo(vCellDrawLeft, vCellDataDrawTop - FCellVPadding, vCellRect.Right,
         vCellDrawBottom, ATop, ABottom, 0, FCellHPadding, FCellVPadding, ACanvas, APaintInfo);
     end;
     {$ENDREGION}
 
-    {$REGION ' »æÖÆ¸÷µ¥Ôª¸ñ±ß¿òÏß '}
+    {$REGION ' ç»˜åˆ¶å„å•å…ƒæ ¼è¾¹æ¡†çº¿ '}
     if FBorderVisible or (not APaintInfo.Print) then
     begin
-      ACanvas.Pen.Width := FBorderWidth;
+      if APaintInfo.Print then
+        ACanvas.Pen.Width := Max(1, HCUnitConversion.PtToPixel(FBorderWidthPt, APaintInfo.DPI))
+      else
+        ACanvas.Pen.Width := FBorderWidthPix;
 
-      if FBorderVisible then  // Î´Òş²Ø±ß¿ò
+      if FBorderVisible then  // æœªéšè—è¾¹æ¡†
       begin
         ACanvas.Pen.Color := clBlack;
         ACanvas.Pen.Style := psSolid;
@@ -2507,50 +2642,98 @@ begin
         ACanvas.Pen.Style := psDot;
       end;
 
-      vBorderTop := vCellDataDrawTop - FCellVPadding - FBorderWidth;
-      vBorderBottom := vBorderTop + FBorderWidth  // ¼ÆËã±ß¿ò×îÏÂ¶Ë
-        + Max(FRows[ARow].Height, FRows[ARow][vC].Height);  // ÓÉÓÚ¿ÉÄÜÊÇºÏ²¢Ä¿±êµ¥Ôª¸ñ£¬ËùÒÔÓÃµ¥Ôª¸ñ¸ßºÍĞĞ¸ß×î¸ßµÄ
+      vBorderTop := vCellDataDrawTop - FCellVPadding - FBorderWidthPix;
+      vBorderBottom := vBorderTop + FBorderWidthPix  // è®¡ç®—è¾¹æ¡†æœ€ä¸‹ç«¯
+        + Max(FRows[ARow].Height, FRows[ARow][vC].Height);  // ç”±äºå¯èƒ½æ˜¯åˆå¹¶ç›®æ ‡å•å…ƒæ ¼ï¼Œæ‰€ä»¥ç”¨å•å…ƒæ ¼é«˜å’Œè¡Œé«˜æœ€é«˜çš„
 
-      vBorderLeft := vCellDrawLeft - FBorderWidth;
+      vBorderLeft := vCellDrawLeft - FBorderWidthPix;
       vBorderRight := vCellDrawLeft + FColWidths[vC] + GetColSpanWidth(ARow, vC);
 
-      vExtPen := CreateExtPen(ACanvas.Pen);  // ÒòÎªÄ¬ÈÏµÄ»­±ÊÃ»ÓĞÏßÃ±µÄ¿ØÖÆ£¬ĞÂÔöÖ§³ÖÏßÃ±µÄ»­±Ê
+      vExtPen := CreateExtPen(ACanvas.Pen);  // å› ä¸ºé»˜è®¤çš„ç”»ç¬”æ²¡æœ‰çº¿å¸½çš„æ§åˆ¶ï¼Œæ–°å¢æ”¯æŒçº¿å¸½çš„ç”»ç¬”
       vOldPen := SelectObject(ACanvas.Handle, vExtPen);
       try
-        if (vBorderTop >= 0) and (cbsTop in FRows[ARow][vC].BorderSides) then  // ÉÏ±ß¿ò¿ÉÏÔÊ¾
+        if (vBorderTop >= 0) and (cbsTop in FRows[ARow][vC].BorderSides) then  // ä¸Šè¾¹æ¡†å¯æ˜¾ç¤º
         begin
-          ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);   // ×óÉÏ
-          ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // ÓÒÉÏ
+          if APaintInfo.Print then
+          begin
+            APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+              vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
+          end
+          else
+          begin
+            ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);   // å·¦ä¸Š
+            ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // å³ä¸Š
+          end;
         end;
 
-        if cbsRight in FRows[ARow][vC].BorderSides then  // ÓÒ±ß¿ò
+        if cbsRight in FRows[ARow][vC].BorderSides then  // å³è¾¹æ¡†
         begin
-          ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // ÓÒÉÏ
-          ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // ÓÒÏÂ
+          if APaintInfo.Print then
+          begin
+            APaintInfo.DrawNoScaleLine(ACanvas, vBorderRight + vBorderOffs, vBorderTop + vBorderOffs,
+              vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+          end
+          else
+          begin
+            ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);  // å³ä¸Š
+            ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // å³ä¸‹
+          end;
         end;
 
-        if (vBorderBottom <= ABottom) and (cbsBottom in FRows[ARow][vC].BorderSides) then  // ÏÂ±ß¿ò
+        if (vBorderBottom <= ABottom) and (cbsBottom in FRows[ARow][vC].BorderSides) then  // ä¸‹è¾¹æ¡†
         begin
-          ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);  // ×óÏÂ
-          ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // ÓÒÏÂ
+          if APaintInfo.Print then
+          begin
+            APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs,
+              vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+          end
+          else
+          begin
+            ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);  // å·¦ä¸‹
+            ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);  // å³ä¸‹
+          end;
         end;
 
-        if cbsLeft in FRows[ARow][vC].BorderSides then  // ×ó±ß¿ò
+        if cbsLeft in FRows[ARow][vC].BorderSides then  // å·¦è¾¹æ¡†
         begin
-          ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
-          ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+          if APaintInfo.Print then
+          begin
+            APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+              vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+          end
+          else
+          begin
+            ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
+            ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+          end;
         end;
 
-        if cbsLTRB in FRows[ARow][vC].BorderSides then  // ×óÉÏÓÒÏÂ¶Ô½ÇÏß
+        if cbsLTRB in FRows[ARow][vC].BorderSides then  // å·¦ä¸Šå³ä¸‹å¯¹è§’çº¿
         begin
-          ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
-          ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+          if APaintInfo.Print then
+          begin
+            APaintInfo.DrawNoScaleLine(ACanvas, vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs,
+              vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+          end
+          else
+          begin
+            ACanvas.MoveTo(vBorderLeft + vBorderOffs, vBorderTop + vBorderOffs);
+            ACanvas.LineTo(vBorderRight + vBorderOffs, vBorderBottom + vBorderOffs);
+          end;
         end;
 
-        if cbsRTLB in FRows[ARow][vC].BorderSides then  // ÓÒÉÏ×óÏÂ¶Ô½ÇÏß
+        if cbsRTLB in FRows[ARow][vC].BorderSides then  // å³ä¸Šå·¦ä¸‹å¯¹è§’çº¿
         begin
-          ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
-          ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+          if APaintInfo.Print then
+          begin
+            APaintInfo.DrawNoScaleLine(ACanvas, vBorderRight + vBorderOffs, vBorderTop + vBorderOffs,
+              vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+          end
+          else
+          begin
+            ACanvas.MoveTo(vBorderRight + vBorderOffs, vBorderTop + vBorderOffs);
+            ACanvas.LineTo(vBorderLeft + vBorderOffs, vBorderBottom + vBorderOffs);
+          end;
         end;
       finally
         SelectObject(ACanvas.Handle, vOldPen);
@@ -2559,7 +2742,7 @@ begin
     end;
     {$ENDREGION}
 
-    vCellDrawLeft := vCellDrawLeft + FColWidths[vC] + FBorderWidth;  // Í¬ĞĞÏÂÒ»ÁĞµÄÆğÊ¼LeftÎ»ÖÃ
+    vCellDrawLeft := vCellDrawLeft + FColWidths[vC] + FBorderWidthPix;  // åŒè¡Œä¸‹ä¸€åˆ—çš„èµ·å§‹Leftä½ç½®
   end;
 end;
 
@@ -2573,17 +2756,26 @@ begin
 
   inherited ParseXml(ANode);
   FBorderVisible := ANode.Attributes['bordervisible'];
-  FBorderWidth := ANode.Attributes['borderwidth'];
+
+  if ANode.HasAttribute('borderwidth') then
+  begin
+    FBorderWidthPix := ANode.Attributes['borderwidth'];
+    FBorderWidthPt := Min(0.5, HCUnitConversion.PixelToPt(FBorderWidthPix, HCUnitConversion.PixelsPerInchX));
+  end;
+
+  if ANode.HasAttribute('borderwidthpt') then
+    BorderWidthPt := ANode.Attributes['borderwidthpt'];
+
   vR := ANode.Attributes['row'];
   vC := ANode.Attributes['col'];
-  { ´´½¨ĞĞ¡¢ÁĞ }
+  { åˆ›å»ºè¡Œã€åˆ— }
   for i := 0 to vR - 1 do
   begin
-    vRow := THCTableRow.Create(OwnerData.Style, vC);  // ×¢ÒâĞĞ´´½¨Ê±ÊÇtableÓµÓĞÕßµÄStyle£¬¼ÓÔØÊ±ÊÇ´«ÈëµÄAStyle
+    vRow := THCTableRow.Create(OwnerData.Style, vC);  // æ³¨æ„è¡Œåˆ›å»ºæ—¶æ˜¯tableæ‹¥æœ‰è€…çš„Styleï¼ŒåŠ è½½æ—¶æ˜¯ä¼ å…¥çš„AStyle
     FRows.Add(vRow);
   end;
 
-  { ¼ÓÔØ¸÷ÁĞ±ê×¼¿í¶È }
+  { åŠ è½½å„åˆ—æ ‡å‡†å®½åº¦ }
   FColWidths.Clear;
   vSplit := TStringList.Create;
   try
@@ -2595,14 +2787,14 @@ begin
     FreeAndNil(vSplit);
   end;
 
-  { ¼ÓÔØ¸÷ÁĞÊı¾İ }
+  { åŠ è½½å„åˆ—æ•°æ® }
   for i := 0 to ANode.ChildNodes.Count - 1 do
     FRows[i].ParseXml(ANode.ChildNodes[i]);
 end;
 
 procedure THCTableItem.ReAdaptActiveItem;
 begin
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       procedure
@@ -2617,7 +2809,7 @@ end;
 
 procedure THCTableItem.ReFormatActiveItem;
 begin
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       procedure
@@ -2675,7 +2867,7 @@ begin
   Result := False;
   for vCol := 0 to FColWidths.Count - 1 do
   begin
-    if FRows[ARow][vCol].RowSpan > 0 then  // ĞĞÖĞÓĞĞĞºÏ²¢Ä¿±êµÄÁĞÔİÊ±²»Ö§³Ö
+    if FRows[ARow][vCol].RowSpan > 0 then  // è¡Œä¸­æœ‰è¡Œåˆå¹¶ç›®æ ‡çš„åˆ—æš‚æ—¶ä¸æ”¯æŒ
       Exit;
   end;
   Result := True;
@@ -2694,7 +2886,7 @@ begin
   vRowFrom := -1;
   for vR := FRows.Count - 1 downto 0 do
   begin
-    if FRows[vR].FmtOffset <> 0 then  // ²»ĞèÒªÖØĞÂ¼ÆËã¸ß¶È£¬µ«ĞèÒªÖØĞÂ²¼¾Ö
+    if FRows[vR].FmtOffset <> 0 then  // ä¸éœ€è¦é‡æ–°è®¡ç®—é«˜åº¦ï¼Œä½†éœ€è¦é‡æ–°å¸ƒå±€
     begin
       vRowFrom := vR;
       FRows[vR].FmtOffset := 0;
@@ -2703,13 +2895,13 @@ begin
     for vC := 0 to ColCount - 1 do
     begin
       vCell := FRows[vR][vC];
-      if (vCell.ClearFormatExtraHeight <> 0)  // ÓĞ¶àÓàµÄ¸ß¶È
-        or (  // ¿çÒ³ºó±í¸ñ×îºóÒ»ĞĞ·ÇºÏ²¢µ¥Ôª¸ñ¿ÉÄÜÊÜºÏ²¢µ¥Ôª¸ñÓ°Ïì±»³Å¸ß£¬
-              // ClearFormatExtraHeightÊ±·µ»Ø0µ«²¢²»´ú±í²»ĞèÒªÖØĞÂ¼ÆËã¸ß¶È
+      if (vCell.ClearFormatExtraHeight <> 0)  // æœ‰å¤šä½™çš„é«˜åº¦
+        or (  // è·¨é¡µåè¡¨æ ¼æœ€åä¸€è¡Œéåˆå¹¶å•å…ƒæ ¼å¯èƒ½å—åˆå¹¶å•å…ƒæ ¼å½±å“è¢«æ’‘é«˜ï¼Œ
+              // ClearFormatExtraHeightæ—¶è¿”å›0ä½†å¹¶ä¸ä»£è¡¨ä¸éœ€è¦é‡æ–°è®¡ç®—é«˜åº¦
               Assigned(vCell.CellData)
               and (vCell.Height <> FCellHPadding + vCell.CellData.Height + FCellHPadding)
             )
-      then  // ĞèÒªÖØĞÂ¼ÆËã¸ß¶È
+      then  // éœ€è¦é‡æ–°è®¡ç®—é«˜åº¦
       begin
         vRowFrom := vR;
         CalcRowCellHeight(vR);
@@ -2717,7 +2909,7 @@ begin
     end;
   end;
 
-  if vRowFrom >= 0 then  // ĞèÒªÖØĞÂ²¼¾ÖµÄµÚ1ĞĞ
+  if vRowFrom >= 0 then  // éœ€è¦é‡æ–°å¸ƒå±€çš„ç¬¬1è¡Œ
   begin
     CalcMergeRowHeightFrom(vRowFrom);
     Self.Height := GetFormatHeight;
@@ -2732,9 +2924,9 @@ begin
   Result := 0;
   if FFixCol > 0 then
   begin
-    Result := FBorderWidth;
+    Result := FBorderWidthPix;
     for vC := 0 to FFixCol - 1 do
-      Result := Result + FColWidths[vC] + FBorderWidth;
+      Result := Result + FColWidths[vC] + FBorderWidthPix;
   end;
 end;
 
@@ -2746,9 +2938,9 @@ begin
     Result := 0
   else
   begin
-    Result := FBorderWidth;
+    Result := FBorderWidthPix;
     for vC := FFixCol to FFixCol + FFixColCount - 1 do
-      Result := Result + FColWidths[vC] + FBorderWidth;
+      Result := Result + FColWidths[vC] + FBorderWidthPix;
   end;
 end;
 
@@ -2760,9 +2952,9 @@ begin
     Result := 0
   else
   begin
-    Result := FBorderWidth;
+    Result := FBorderWidthPix;
     for vR := FFixRow to FFixRow + FFixRowCount - 1 do
-      Result := Result + FRows[vR].Height + FBorderWidth;
+      Result := Result + FRows[vR].Height + FBorderWidthPix;
   end;
 end;
 
@@ -2770,9 +2962,9 @@ function THCTableItem.GetFormatHeight: Integer;
 var
   i: Integer;
 begin
-  Result := FBorderWidth;
+  Result := FBorderWidthPix;
   for i := 0 to RowCount - 1 do
-    Result := Result + FRows[i].Height + FBorderWidth;
+    Result := Result + FRows[i].Height + FBorderWidthPix;
 
   FFormatHeight := Result;
 end;
@@ -2781,9 +2973,9 @@ function THCTableItem.GetFormatWidth: Integer;
 var
   i: Integer;
 begin
-  Result := FBorderWidth;
+  Result := FBorderWidthPix;
   for i := 0 to FColWidths.Count - 1 do
-    Result := Result + FColWidths[i] + FBorderWidth;
+    Result := Result + FColWidths[i] + FBorderWidthPix;
 end;
 
 function THCTableItem.GetHint: string;
@@ -2813,7 +3005,7 @@ var
 begin
   Result := 0;
   for i := 1 to FRows[ARow][ACol].ColSpan do
-    Result := Result + FBorderWidth + FColWidths[ACol + i];
+    Result := Result + FBorderWidthPix + FColWidths[ACol + i];
 end;
 
 function THCTableItem.GetColWidth(AIndex: Integer): Integer;
@@ -2838,7 +3030,7 @@ procedure THCTableItem.GetEditCell(var ARow, ACol: Integer);
 begin
   ARow := -1;
   ACol := -1;
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     ARow := FSelectCellRang.StartRow;
     ACol := FSelectCellRang.StartCol;
@@ -2847,7 +3039,7 @@ end;
 
 function THCTableItem.GetEditCell: THCTableCell;
 begin
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
     Result := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol]
   else
     Result := nil;
@@ -2859,14 +3051,14 @@ function THCTableItem.GetCellAt(const X, Y: Integer; var ARow, ACol: Integer;
   {$REGION 'CheckRowBorderRang'}
   function CheckRowBorderRang(const ABottom: Integer): Boolean;
   begin
-    Result := (Y >= ABottom - GripSize) and (Y <= ABottom + GripSize);  // ÊÇ·ñÔÚĞĞ±ß¿òÏßÉÏ
+    Result := (Y >= ABottom - GripSize) and (Y <= ABottom + GripSize);  // æ˜¯å¦åœ¨è¡Œè¾¹æ¡†çº¿ä¸Š
   end;
   {$ENDREGION}
 
   {$REGION 'CheckColBorderRang'}
   function CheckColBorderRang(const ALeft: Integer): Boolean;
   begin
-    Result := (X >= ALeft - GripSize) and (X <= ALeft + GripSize);  // ÊÇ·ñÔÚĞĞ±ß¿òÏßÉÏ
+    Result := (X >= ALeft - GripSize) and (X <= ALeft + GripSize);  // æ˜¯å¦åœ¨è¡Œè¾¹æ¡†çº¿ä¸Š
   end;
   {$ENDREGION}
 
@@ -2884,55 +3076,55 @@ begin
 
   if (Y < 0) or (Y > Height) then Exit;
 
-  if (X < 0) or (X > Width) then  // ²»ÔÚ±í¸ñÉÏÊ±£¬ÅĞ¶Ï¶ÔÓ¦Î»ÖÃµÄĞĞ£¬¹©¹â±êÊ¹ÓÃ
+  if (X < 0) or (X > Width) then  // ä¸åœ¨è¡¨æ ¼ä¸Šæ—¶ï¼Œåˆ¤æ–­å¯¹åº”ä½ç½®çš„è¡Œï¼Œä¾›å…‰æ ‡ä½¿ç”¨
   begin
-    vTop := FBorderWidth;
+    vTop := FBorderWidthPix;
     for i := 0 to RowCount - 1 do
     begin
-      vTop := vTop + FRows[i].FmtOffset;  // ÒÔÊµ¼ÊÄÚÈİTopÎª¶¥Î»ÖÃ£¬±ÜÃâĞĞÓĞ¿çÒ³Ê±£¬ÔÚÉÏÒ»Ò³µ×²¿µã»÷Ñ¡ÖĞµÄÊÇÏÂÒ»Ò³µÚÒ»ĞĞ
+      vTop := vTop + FRows[i].FmtOffset;  // ä»¥å®é™…å†…å®¹Topä¸ºé¡¶ä½ç½®ï¼Œé¿å…è¡Œæœ‰è·¨é¡µæ—¶ï¼Œåœ¨ä¸Šä¸€é¡µåº•éƒ¨ç‚¹å‡»é€‰ä¸­çš„æ˜¯ä¸‹ä¸€é¡µç¬¬ä¸€è¡Œ
       vBottom := vTop + FRows[i].Height;
 
-      if (vTop < Y) and (vBottom > Y) then  // ÔÚ´ËĞĞÖĞ
+      if (vTop < Y) and (vBottom > Y) then  // åœ¨æ­¤è¡Œä¸­
       begin
         ARow := i;
         Break;
       end;
 
-      vTop := vBottom + FBorderWidth;
+      vTop := vBottom + FBorderWidthPix;
     end;
 
     Exit;
   end;
 
-  { »ñÈ¡ÊÇ·ñÔÚĞĞ»òÁĞµÄ±ß¿òÉÏ }
-  // ÅĞ¶ÏÊÇ·ñÔÚ×îÉÏ±ß¿ò
-  vTop := FBorderWidth;
-  if CheckRowBorderRang(vTop) then  // µÚÒ»ĞĞ×îÉÏ±ß¿ò
+  { è·å–æ˜¯å¦åœ¨è¡Œæˆ–åˆ—çš„è¾¹æ¡†ä¸Š }
+  // åˆ¤æ–­æ˜¯å¦åœ¨æœ€ä¸Šè¾¹æ¡†
+  vTop := FBorderWidthPix;
+  if CheckRowBorderRang(vTop) then  // ç¬¬ä¸€è¡Œæœ€ä¸Šè¾¹æ¡†
   begin
     Result.TableSite := tsBorderTop;
     Exit;
   end;
-  // ÅĞ¶ÏÊÇ·ñÔÚ×î×ó±ß¿ò
+  // åˆ¤æ–­æ˜¯å¦åœ¨æœ€å·¦è¾¹æ¡†
   if CheckColBorderRang(vTop) then
   begin
     Result.TableSite := tsBorderLeft;
     Exit;
   end;
 
-  // ÅĞ¶ÏÊÇÔÚĞĞ±ß¿òÉÏ»¹ÊÇĞĞÖĞ
+  // åˆ¤æ–­æ˜¯åœ¨è¡Œè¾¹æ¡†ä¸Šè¿˜æ˜¯è¡Œä¸­
   for i := 0 to RowCount - 1 do
   begin
-    vTop := vTop + FRows[i].FmtOffset;  // ÒÔÊµ¼ÊÄÚÈİTopÎª¶¥Î»ÖÃ£¬±ÜÃâĞĞÓĞ¿çÒ³Ê±£¬ÔÚÉÏÒ»Ò³µ×²¿µã»÷Ñ¡ÖĞµÄÊÇÏÂÒ»Ò³µÚÒ»ĞĞ
-    vBottom := vTop + FRows[i].Height + FBorderWidth;
-    if CheckRowBorderRang(vBottom) then  // µÚiĞĞÏÂ±ß¿ò
+    vTop := vTop + FRows[i].FmtOffset;  // ä»¥å®é™…å†…å®¹Topä¸ºé¡¶ä½ç½®ï¼Œé¿å…è¡Œæœ‰è·¨é¡µæ—¶ï¼Œåœ¨ä¸Šä¸€é¡µåº•éƒ¨ç‚¹å‡»é€‰ä¸­çš„æ˜¯ä¸‹ä¸€é¡µç¬¬ä¸€è¡Œ
+    vBottom := vTop + FRows[i].Height + FBorderWidthPix;
+    if CheckRowBorderRang(vBottom) then  // ç¬¬iè¡Œä¸‹è¾¹æ¡†
     begin
       ARow := i;
       Result.TableSite := tsBorderBottom;
       Result.DestY := vBottom;
-      Break;  // Îª´¦Àí¿çµ¥Ôª¸ñ»®Ñ¡Ê±£¬»®µ½ÏÂ±ß¿òÊ±ACol<0Ôì³ÉÖĞ¼äÑ¡ÖĞµÄÒ²±»ºöÂÔµôµÄÎÊÌâ£¬²»ÄÜÏñÏÂÃæÁĞÕÒ²»µ½Ê±Exit
+      Break;  // ä¸ºå¤„ç†è·¨å•å…ƒæ ¼åˆ’é€‰æ—¶ï¼Œåˆ’åˆ°ä¸‹è¾¹æ¡†æ—¶ACol<0é€ æˆä¸­é—´é€‰ä¸­çš„ä¹Ÿè¢«å¿½ç•¥æ‰çš„é—®é¢˜ï¼Œä¸èƒ½åƒä¸‹é¢åˆ—æ‰¾ä¸åˆ°æ—¶Exit
     end;
 
-    if (vTop < Y) and (vBottom > Y) then  // ÔÚ´ËĞĞÖĞ
+    if (vTop < Y) and (vBottom > Y) then  // åœ¨æ­¤è¡Œä¸­
     begin
       ARow := i;
       Break;
@@ -2943,16 +3135,16 @@ begin
 
   if ARow < 0 then Exit;
 
-  // ÅĞ¶ÏÊÇÔÚÁĞ±ß¿òÉÏ»¹ÊÇÁĞÖĞ
-  vLeft := FBorderWidth;
+  // åˆ¤æ–­æ˜¯åœ¨åˆ—è¾¹æ¡†ä¸Šè¿˜æ˜¯åˆ—ä¸­
+  vLeft := FBorderWidthPix;
   for i := 0 to FColWidths.Count - 1 do
   begin
-    vRight := vLeft + FColWidths[i] + FBorderWidth;
+    vRight := vLeft + FColWidths[i] + FBorderWidthPix;
     GetDestCell(ARow, i, vDestRow, vDestCol);
-    if CheckColBorderRang(vRight) then  // µÚiÁĞÓÒ±ß¿ò
+    if CheckColBorderRang(vRight) then  // ç¬¬iåˆ—å³è¾¹æ¡†
     begin
       ACol := i;
-      if vDestCol + FRows[vDestRow][vDestCol].ColSpan <> i then  // ÔÚÁĞ±ß¿òÊ±£¬ÇÒ²»ÊÇºÏ²¢Ô´ÁĞ×îºóÒ»ÁĞ£¬°´ÔÚµ¥Ôª¸ñÖĞ´¦Àí
+      if vDestCol + FRows[vDestRow][vDestCol].ColSpan <> i then  // åœ¨åˆ—è¾¹æ¡†æ—¶ï¼Œä¸”ä¸æ˜¯åˆå¹¶æºåˆ—æœ€åä¸€åˆ—ï¼ŒæŒ‰åœ¨å•å…ƒæ ¼ä¸­å¤„ç†
         Result.TableSite := tsCell
       else
         Result.TableSite := tsBorderRight;
@@ -2962,12 +3154,12 @@ begin
       Break;
     end;
 
-    if (vLeft < X) and (vRight > X) then  // ÔÚ´ËÁĞÖĞ
+    if (vLeft < X) and (vRight > X) then  // åœ¨æ­¤åˆ—ä¸­
     begin
       ACol := i;
       if (Result.TableSite = tsBorderBottom)
         and (vDestRow + FRows[vDestRow][vDestCol].RowSpan <> ARow)
-      then  // ÔÚĞĞ±ß¿òÊ±£¬ÇÒ²»ÊÇºÏ²¢Ô´ĞĞ×îºóÒ»ĞĞ£¬°´ÔÚµ¥Ôª¸ñÖĞ´¦Àí
+      then  // åœ¨è¡Œè¾¹æ¡†æ—¶ï¼Œä¸”ä¸æ˜¯åˆå¹¶æºè¡Œæœ€åä¸€è¡Œï¼ŒæŒ‰åœ¨å•å…ƒæ ¼ä¸­å¤„ç†
         Result.TableSite := tsCell;
 
       Break;
@@ -2975,12 +3167,12 @@ begin
     vLeft := vRight;
   end;
 
-  if ACol >= 0 then  // ÓĞÈ·¶¨µÄµ¥Ôª¸ñ
+  if ACol >= 0 then  // æœ‰ç¡®å®šçš„å•å…ƒæ ¼
   begin
-    if Result.TableSite = tsOutside then  // ĞŞÕıÍâÃæÎªµ¥Ôª¸ñÄÚ
+    if Result.TableSite = tsOutside then  // ä¿®æ­£å¤–é¢ä¸ºå•å…ƒæ ¼å†…
       Result.TableSite := tsCell;
 
-    if AReDest and (FRows[ARow][ACol].CellData = nil) then // Èç¹ûÊÇ±»ºÏ²¢µÄµ¥Ôª¸ñ£¬·µ»ØºÏ²¢ºóµÄµ¥Ôª¸ñ
+    if AReDest and (FRows[ARow][ACol].CellData = nil) then // å¦‚æœæ˜¯è¢«åˆå¹¶çš„å•å…ƒæ ¼ï¼Œè¿”å›åˆå¹¶åçš„å•å…ƒæ ¼
       GetDestCell(ARow, ACol, ARow, ACol);
   end;
 end;
@@ -2989,14 +3181,14 @@ function THCTableItem.GetCellPostion(const ARow, ACol: Integer): TPoint;
 var
   i: Integer;
 begin
-  Result.X := FBorderWidth;
-  Result.Y := FBorderWidth;
+  Result.X := FBorderWidthPix;
+  Result.Y := FBorderWidthPix;
   for i := 0 to ARow - 1 do
-    Result.Y := Result.Y + FRows[i].FmtOffset + FRows[i].Height + FBorderWidth;
+    Result.Y := Result.Y + FRows[i].FmtOffset + FRows[i].Height + FBorderWidthPix;
 
   Result.Y := Result.Y + FRows[ARow].FmtOffset;
   for i := 0 to ACol - 1 do
-    Result.X := Result.X + FColWidths[i] + FBorderWidth;
+    Result.X := Result.X + FColWidths[i] + FBorderWidthPix;
 end;
 
 function THCTableItem.GetResizing: Boolean;
@@ -3011,8 +3203,8 @@ end;
 
 function THCTableItem.GetSelectComplate: Boolean;
 begin
-  Result := // ÏÈÅĞ¶ÏÊÇ·ñÈ«²¿µ¥Ôª¸ñ¶¼Ñ¡ÖĞÁË£¬Èç¹û·ñ»áÇå¿Õ¸÷µ¥Ôª¸ñµÄÑ¡ÖĞ×´Ì¬
-    //(not ((RowCount = 1) and (FRows[0].ColCount = 1)))  // ²»ÊÇÖ»ÓĞÒ»¸öµ¥Ôª¸ñ
+  Result := // å…ˆåˆ¤æ–­æ˜¯å¦å…¨éƒ¨å•å…ƒæ ¼éƒ½é€‰ä¸­äº†ï¼Œå¦‚æœå¦ä¼šæ¸…ç©ºå„å•å…ƒæ ¼çš„é€‰ä¸­çŠ¶æ€
+    //(not ((RowCount = 1) and (FRows[0].ColCount = 1)))  // ä¸æ˜¯åªæœ‰ä¸€ä¸ªå•å…ƒæ ¼
     (FSelectCellRang.StartRow = 0)
     and (FSelectCellRang.StartCol = 0)
     and (FSelectCellRang.EndRow = FRows.Count - 1)
@@ -3027,7 +3219,7 @@ begin
     ASrcRow := ARow + FRows[ARow][ACol].RowSpan;
     ASrcCol := ACol + FRows[ARow][ACol].ColSpan;
   end
-  else  // Ô´µ¥Ôª¸ñ²»ÄÜ»ñÈ¡Ô´µ¥Ôª¸ñ
+  else  // æºå•å…ƒæ ¼ä¸èƒ½è·å–æºå•å…ƒæ ¼
     raise Exception.Create(HCS_EXCEPTION_VOIDSOURCECELL);
 end;
 
@@ -3067,6 +3259,36 @@ begin
     Result := inherited GetTopLevelItem;
 end;
 
+function THCTableItem.GetTopLevelRectDrawItem: THCCustomDrawItem;
+var
+  vCellData: THCTableCellData;
+begin
+  vCellData := GetActiveData as THCTableCellData;
+  if Assigned(vCellData) then
+    Result := vCellData.GetTopLevelRectDrawItem
+  else
+    Result := inherited GetTopLevelRectDrawItem;
+end;
+
+function THCTableItem.GetTopLevelRectDrawItemCoord: TPoint;
+var
+  vCell: THCTableCell;
+  vPt: TPoint;
+begin
+  Result := Point(-1, -1);
+  vCell := GetEditCell;
+  if Assigned(vCell) then
+  begin
+    vPt := vCell.CellData.GetTopLevelRectDrawItemCoord;
+    if vPt.X >= 0 then
+    begin
+      Result := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
+      Result.X := Result.X + vPt.X + FCellHPadding;
+      Result.Y := Result.Y + vPt.Y + vCell.GetCellDataTop(FCellVPadding);
+    end;
+  end;
+end;
+
 procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
 begin
   ACellData.OnInsertItem := OwnerData.OnInsertItem;
@@ -3078,6 +3300,7 @@ begin
 
   ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
+  ACellData.OnDrawItemPaintContent := (OwnerData as THCRichData).OnDrawItemPaintContent;
   ACellData.OnDrawItemPaintAfter := (OwnerData as THCViewData).OnDrawItemPaintAfter;
 
   ACellData.OnInsertAnnotate := (OwnerData as THCViewData).OnInsertAnnotate;
@@ -3095,7 +3318,7 @@ end;
 
 procedure THCTableItem.InitializeMouseInfo;
 begin
-  //FSelectCellRang.Initialize;  // Ôì³É±í¸ñÖĞµ÷ÓÃÆäËû¹¤¾ß´°Ìå£¨Ê§È¥½¹µã´¥·¢KillFocus£©²åÈëÊı¾İÔªÊ±Ê§°Ü
+  //FSelectCellRang.Initialize;  // é€ æˆè¡¨æ ¼ä¸­è°ƒç”¨å…¶ä»–å·¥å…·çª—ä½“ï¼ˆå¤±å»ç„¦ç‚¹è§¦å‘KillFocusï¼‰æ’å…¥æ•°æ®å…ƒæ—¶å¤±è´¥
   FMouseDownRow := -1;
   FMouseDownCol := -1;
   FMouseMoveRow := -1;
@@ -3110,8 +3333,8 @@ var
   vCell: THCTableCell;
 begin
   Result := False;
-  { TODO : ¸ù¾İ¸÷ĞĞµ±Ç°ÁĞÆ½¾ù¼õÉÙÒ»¶¨µÄ¿í¶È¸øÒª²åÈëµÄÁĞ }
-  vWidth := MinColWidth - FBorderWidth;
+  { TODO : æ ¹æ®å„è¡Œå½“å‰åˆ—å¹³å‡å‡å°‘ä¸€å®šçš„å®½åº¦ç»™è¦æ’å…¥çš„åˆ— }
+  vWidth := MinColWidth - FBorderWidthPix;
   for i := 0 to ACount - 1 do
   begin
     for vRow := 0 to RowCount - 1 do
@@ -3120,27 +3343,27 @@ begin
       vCell.Width := vWidth;
       InitializeCellData(vCell.CellData);
 
-      if (ACol < FColWidths.Count) and (FRows[vRow][ACol].ColSpan < 0) then  // ºÏ²¢µÄÔ´ÁĞ
+      if (ACol < FColWidths.Count) and (FRows[vRow][ACol].ColSpan < 0) then  // åˆå¹¶çš„æºåˆ—
       begin
-        GetDestCell(vRow, ACol, viDestRow, viDestCol);  // Ä¿±êĞĞÁĞ
+        GetDestCell(vRow, ACol, viDestRow, viDestCol);  // ç›®æ ‡è¡Œåˆ—
 
-        // ĞÂ²åÈëµÄÁĞÔÚµ±Ç°ÁĞºóÃæ£¬Ò²×öÎª±»ºÏ²¢µÄÁĞ
+        // æ–°æ’å…¥çš„åˆ—åœ¨å½“å‰åˆ—åé¢ï¼Œä¹Ÿåšä¸ºè¢«åˆå¹¶çš„åˆ—
         vCell.CellData.Free;
         vCell.CellData := nil;
         vCell.RowSpan := FRows[vRow][ACol].RowSpan;
         vCell.ColSpan := FRows[vRow][ACol].ColSpan;
 
-        for j := ACol to viDestCol + FRows[viDestRow][viDestCol].ColSpan do  // ºóĞøÁĞÀëÄ¿±êÔ¶1
-          FRows[vRow][j].ColSpan := FRows[vRow][j].ColSpan - 1;  // ÀëÄ¿±êÁĞÔ¶1
+        for j := ACol to viDestCol + FRows[viDestRow][viDestCol].ColSpan do  // åç»­åˆ—ç¦»ç›®æ ‡è¿œ1
+          FRows[vRow][j].ColSpan := FRows[vRow][j].ColSpan - 1;  // ç¦»ç›®æ ‡åˆ—è¿œ1
 
-        if vRow = viDestRow + FRows[viDestRow][viDestCol].RowSpan then  // ºÏ²¢·¶Î§ÄÚµÄĞĞ¶¼²åÈëÍêºó£¬ÔÙ½«Ä¿±êÁĞ·¶Î§À©´ó£¬·ñÔòÌáÇ°À©´óÁËÆäËûĞĞÔ­Î»ÖÃÔ¶ÀëÄ¿±êÊ±È¡µÄ·¶Î§»áÔ½½ç
+        if vRow = viDestRow + FRows[viDestRow][viDestCol].RowSpan then  // åˆå¹¶èŒƒå›´å†…çš„è¡Œéƒ½æ’å…¥å®Œåï¼Œå†å°†ç›®æ ‡åˆ—èŒƒå›´æ‰©å¤§ï¼Œå¦åˆ™æå‰æ‰©å¤§äº†å…¶ä»–è¡ŒåŸä½ç½®è¿œç¦»ç›®æ ‡æ—¶å–çš„èŒƒå›´ä¼šè¶Šç•Œ
           FRows[viDestRow][viDestCol].ColSpan := FRows[viDestRow][viDestCol].ColSpan + 1;
       end;
 
       FRows[vRow].Insert(ACol, vCell);
     end;
 
-    FColWidths.Insert(ACol, vWidth);  // ÓÒ²à²åÈëÁĞ
+    FColWidths.Insert(ACol, vWidth);  // å³ä¾§æ’å…¥åˆ—
   end;
 
   Self.InitializeMouseInfo;
@@ -3211,7 +3434,7 @@ begin
     begin
       vTableRow[vCol].Width := FColWidths[vCol];
 
-      if (ARow < FRows.Count) and (FRows[ARow][vCol].RowSpan < 0) then  // ÔÚºÏ²¢µÄÔ´µ¥Ôª¸ñÇ°Ãæ²åÈë
+      if (ARow < FRows.Count) and (FRows[ARow][vCol].RowSpan < 0) then  // åœ¨åˆå¹¶çš„æºå•å…ƒæ ¼å‰é¢æ’å…¥
       begin
         GetDestCell(ARow, vCol, viDestRow, viDestCol);
 
@@ -3220,11 +3443,11 @@ begin
         vTableRow[vCol].RowSpan := FRows[ARow][vCol].RowSpan;
         vTableRow[vCol].ColSpan := FRows[ARow][vCol].ColSpan;
 
-        for j := ARow to viDestRow + FRows[viDestRow][viDestCol].RowSpan do  // Ä¿±êµÄĞĞ¿ç¶È - ÒÑ¾­¿çµÄ
-          FRows[j][vCol].RowSpan := FRows[j][vCol].RowSpan - 1;  // ÀëÄ¿±êĞĞÔ¶1
+        for j := ARow to viDestRow + FRows[viDestRow][viDestCol].RowSpan do  // ç›®æ ‡çš„è¡Œè·¨åº¦ - å·²ç»è·¨çš„
+          FRows[j][vCol].RowSpan := FRows[j][vCol].RowSpan - 1;  // ç¦»ç›®æ ‡è¡Œè¿œ1
 
         if vCol = viDestCol + FRows[viDestRow][viDestCol].ColSpan then
-          FRows[viDestRow][viDestCol].RowSpan := FRows[viDestRow][viDestCol].RowSpan + 1;  // Ä¿±êĞĞ°üº¬µÄºÏ²¢Ô´Ôö¼Ó1
+          FRows[viDestRow][viDestCol].RowSpan := FRows[viDestRow][viDestCol].RowSpan + 1;  // ç›®æ ‡è¡ŒåŒ…å«çš„åˆå¹¶æºå¢åŠ 1
       end;
     end;
 
@@ -3272,7 +3495,7 @@ function THCTableItem.InsertStream(const AStream: TStream;
 var
   vResult: Boolean;
 begin
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       procedure
@@ -3293,7 +3516,7 @@ function THCTableItem.InsertText(const AText: string): Boolean;
 var
   vResult: Boolean;
 begin
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       procedure
@@ -3368,19 +3591,19 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
     vR, vC, i: Integer;
     vEmptyRow: Boolean;
   begin
-    for vR := AERow downto ASRow do  // ±éÀúĞĞ
+    for vR := AERow downto ASRow do  // éå†è¡Œ
     begin
       vEmptyRow := True;
-      for vC := 0 to FRows[vR].ColCount - 1 do  // µ±Ç°ĞĞ¸÷ÁĞ
+      for vC := 0 to FRows[vR].ColCount - 1 do  // å½“å‰è¡Œå„åˆ—
       begin
-        if FRows[vR][vC].CellData <> nil then  // ´æÔÚÃ»ÓĞ±»ºÏ²¢µÄÁĞ
+        if FRows[vR][vC].CellData <> nil then  // å­˜åœ¨æ²¡æœ‰è¢«åˆå¹¶çš„åˆ—
         begin
-          vEmptyRow := False;  // ²»ÊÇ¿ÕĞĞ
+          vEmptyRow := False;  // ä¸æ˜¯ç©ºè¡Œ
           Break;
         end;
       end;
 
-      if vEmptyRow then  // ¿ÕĞĞ
+      if vEmptyRow then  // ç©ºè¡Œ
       begin
         for i := 0 to vR - 1 do
         begin
@@ -3400,7 +3623,7 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
           end;
         end;
 
-        FRows.Delete(vR);  // É¾³ıµ±Ç°¿ÕĞĞ
+        FRows.Delete(vR);  // åˆ é™¤å½“å‰ç©ºè¡Œ
       end;
     end;
   end;
@@ -3411,21 +3634,21 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
     vEmptyCol: Boolean;
     vTableCell: THCTableCell;
   begin
-    for vC := AECol downto ASCol do  // Ñ­»·¸÷ÁĞ
+    for vC := AECol downto ASCol do  // å¾ªç¯å„åˆ—
     begin
       vEmptyCol := True;
-      for vR := 0 to RowCount - 1 do  // Ñ­»·¸÷ĞĞ
+      for vR := 0 to RowCount - 1 do  // å¾ªç¯å„è¡Œ
       begin
-        if FRows[vR][vC].CellData <> nil then  // Ä³ĞĞµÄµÚvCÁĞÃ»ÓĞ±»ºÏ²¢
+        if FRows[vR][vC].CellData <> nil then  // æŸè¡Œçš„ç¬¬vCåˆ—æ²¡æœ‰è¢«åˆå¹¶
         begin
           vEmptyCol := False;
           Break;
         end;
       end;
 
-      if vEmptyCol then  // ÊÇ¿ÕÁĞ
+      if vEmptyCol then  // æ˜¯ç©ºåˆ—
       begin
-        for vR := RowCount - 1 downto 0 do  // Ñ­»·¸÷ĞĞ£¬É¾³ı¶ÔÓ¦ÁĞ
+        for vR := RowCount - 1 downto 0 do  // å¾ªç¯å„è¡Œï¼Œåˆ é™¤å¯¹åº”åˆ—
         begin
           for i := 0 to vC - 1 do
           begin
@@ -3441,17 +3664,17 @@ function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
               vTableCell.ColSpan := vTableCell.ColSpan + 1;
           end;
 
-          FRows[vR].Delete(vC);  // É¾³ıÁĞ
+          FRows[vR].Delete(vC);  // åˆ é™¤åˆ—
         end;
 
-        FColWidths[vC - 1] := FColWidths[vC -1] + FBorderWidth + FColWidths[vC];
+        FColWidths[vC - 1] := FColWidths[vC -1] + FBorderWidthPix + FColWidths[vC];
         FColWidths.Delete(vC);
       end;
     end;
   end;
 
 var
-  vR, vC, vEndRow, vEndCol: Integer;  // ÕæÕıµÄ½áÊøÎ»ÖÃ
+  vR, vC, vEndRow, vEndCol: Integer;  // çœŸæ­£çš„ç»“æŸä½ç½®
 begin
   Result := False;
   vEndRow := AEndRow;
@@ -3462,12 +3685,12 @@ begin
   Result := CellsCanMerge(AStartRow, AStartCol, vEndRow, vEndCol);
   if not Result then Exit;
 
-  // ¾­¹ıÉÏÃæµÄĞ£ÑéºÍÅĞ¶Ïºó£¬ÆğÊ¼ĞĞ¡¢ÁĞºÍ½áÊøĞĞ¡¢ÁĞ×é³ÉÒ»¸ö¾ØĞÎÇøÓò
-  if AStartRow = vEndRow then  // Í¬Ò»ĞĞºÏ²¢
+  // ç»è¿‡ä¸Šé¢çš„æ ¡éªŒå’Œåˆ¤æ–­åï¼Œèµ·å§‹è¡Œã€åˆ—å’Œç»“æŸè¡Œã€åˆ—ç»„æˆä¸€ä¸ªçŸ©å½¢åŒºåŸŸ
+  if AStartRow = vEndRow then  // åŒä¸€è¡Œåˆå¹¶
   begin
-    for vC := AStartCol + 1 to vEndCol do  // ºÏ²¢ÁĞ
+    for vC := AStartCol + 1 to vEndCol do  // åˆå¹¶åˆ—
     begin
-      if FRows[AStartRow][vC].CellData <> nil then  // ·ÀÖ¹ÒÑ¾­ºÏ²¢µÄÖØ¸´ÔÙºÏ²¢
+      if FRows[AStartRow][vC].CellData <> nil then  // é˜²æ­¢å·²ç»åˆå¹¶çš„é‡å¤å†åˆå¹¶
       begin
         FRows[AStartRow][AStartCol].CellData.AddData(FRows[AStartRow][vC].CellData);
         FRows[AStartRow][vC].CellData.Free;
@@ -3478,17 +3701,17 @@ begin
       FRows[AStartRow][vC].ColSpan := AStartCol - vC;
     end;
 
-    FRows[AStartRow][AStartCol].ColSpan := vEndCol - AStartCol;  // ºÏ²¢Ô´Ôö¼Ó
+    FRows[AStartRow][AStartCol].ColSpan := vEndCol - AStartCol;  // åˆå¹¶æºå¢åŠ 
 
     DeleteEmptyCols(AStartCol + 1, vEndCol);
     Result := True;
   end
   else
-  if AStartCol = vEndCol then  // Í¬ÁĞºÏ²¢
+  if AStartCol = vEndCol then  // åŒåˆ—åˆå¹¶
   begin
-    for vR := AStartRow + 1 to vEndRow do  // ºÏ²¢¸÷ĞĞ
+    for vR := AStartRow + 1 to vEndRow do  // åˆå¹¶å„è¡Œ
     begin
-      if FRows[vR][AStartCol].CellData <> nil then  // ·ÀÖ¹ÒÑ¾­ºÏ²¢µÄÖØ¸´ÔÙºÏ²¢
+      if FRows[vR][AStartCol].CellData <> nil then  // é˜²æ­¢å·²ç»åˆå¹¶çš„é‡å¤å†åˆå¹¶
       begin
         FRows[AStartRow][AStartCol].CellData.AddData(FRows[vR][AStartCol].CellData);
         FRows[vR][AStartCol].CellData.Free;
@@ -3504,11 +3727,11 @@ begin
     DeleteEmptyRows(AStartRow + 1, vEndRow);
     Result := True;
   end
-  else  // ²»Í¬ĞĞ£¬²»Í¬ÁĞ
+  else  // ä¸åŒè¡Œï¼Œä¸åŒåˆ—
   begin
-    for vC := AStartCol + 1 to vEndCol do  // ÆğÊ¼ĞĞ¸÷ÁĞºÏ²¢
+    for vC := AStartCol + 1 to vEndCol do  // èµ·å§‹è¡Œå„åˆ—åˆå¹¶
     begin
-      if FRows[AStartRow][vC].CellData <> nil then  // ·ÀÖ¹ÒÑ¾­ºÏ²¢µÄÖØ¸´ÔÙºÏ²¢
+      if FRows[AStartRow][vC].CellData <> nil then  // é˜²æ­¢å·²ç»åˆå¹¶çš„é‡å¤å†åˆå¹¶
       begin
         FRows[AStartRow][AStartCol].CellData.AddData(FRows[AStartRow][vC].CellData);
         FRows[AStartRow][vC].CellData.Free;
@@ -3519,7 +3742,7 @@ begin
       FRows[AStartRow][vC].ColSpan := AStartCol - vC;
     end;
 
-    for vR := AStartRow + 1 to vEndRow do  // Ê£ÓàĞĞ¸÷ÁĞºÏ²¢
+    for vR := AStartRow + 1 to vEndRow do  // å‰©ä½™è¡Œå„åˆ—åˆå¹¶
     begin
       for vC := AStartCol to vEndCol do
       begin
@@ -3539,7 +3762,7 @@ begin
     FRows[AStartRow][AStartCol].ColSpan := vEndCol - AStartCol;
 
     DeleteEmptyRows(AStartRow + 1, vEndRow);
-    // É¾³ı¿ÕÁĞ
+    // åˆ é™¤ç©ºåˆ—
     DeleteEmptyCols(AStartCol + 1, vEndCol);
 
     Result := True;
@@ -3560,7 +3783,7 @@ begin
     if Result then
     begin
       FLastChangeFormated := False;
-      { ·ÀÖ¹ºÏ²¢ºóÓĞ¿ÕĞĞ»ò¿ÕÁĞ±»É¾³ıºó£¬DisSelect·ÃÎÊÔ½½ç£¬ËùÒÔºÏ²¢ºóÖ±½Ó¸³Öµ½áÊøĞÅÏ¢ }
+      { é˜²æ­¢åˆå¹¶åæœ‰ç©ºè¡Œæˆ–ç©ºåˆ—è¢«åˆ é™¤åï¼ŒDisSelectè®¿é—®è¶Šç•Œï¼Œæ‰€ä»¥åˆå¹¶åç›´æ¥èµ‹å€¼ç»“æŸä¿¡æ¯ }
       vSelRow := FSelectCellRang.StartRow;
       vSelCol := FSelectCellRang.StartCol;
       FSelectCellRang.InitializeEnd;
@@ -3570,7 +3793,7 @@ begin
     end;
   end
   else
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
     Result := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.MergeTableSelectCells
   else
     Result := False;
@@ -3580,24 +3803,24 @@ procedure THCTableItem.CalcRowCellHeight(const ARow: Integer);
 var
   vC, vNorHeightMax: Integer;
 begin
-  vNorHeightMax := 0;  // ĞĞÖĞÎ´·¢ÉúºÏ²¢µÄ×î¸ßµ¥Ôª¸ñ
-  for vC := 0 to FRows[ARow].ColCount - 1 do  // µÃµ½ĞĞÖĞÎ´·¢ÉúºÏ²¢DataÄÚÈİ×î¸ßµÄµ¥Ôª¸ñ¸ß¶È
+  vNorHeightMax := 0;  // è¡Œä¸­æœªå‘ç”Ÿåˆå¹¶çš„æœ€é«˜å•å…ƒæ ¼
+  for vC := 0 to FRows[ARow].ColCount - 1 do  // å¾—åˆ°è¡Œä¸­æœªå‘ç”Ÿåˆå¹¶Dataå†…å®¹æœ€é«˜çš„å•å…ƒæ ¼é«˜åº¦
   begin
-    if (FRows[ARow][vC].CellData <> nil)  // ²»ÊÇ±»ºÏ²¢µÄµ¥Ôª¸ñ
-      and (FRows[ARow][vC].RowSpan = 0)  // ²»ÊÇĞĞºÏ²¢µÄĞĞµ¥Ôª¸ñ
+    if (FRows[ARow][vC].CellData <> nil)  // ä¸æ˜¯è¢«åˆå¹¶çš„å•å…ƒæ ¼
+      and (FRows[ARow][vC].RowSpan = 0)  // ä¸æ˜¯è¡Œåˆå¹¶çš„è¡Œå•å…ƒæ ¼
     then
       vNorHeightMax := Max(vNorHeightMax, FRows[ARow][vC].CellData.Height);
   end;
 
-  vNorHeightMax := FCellVPadding + vNorHeightMax + FCellVPadding;  // Ôö¼ÓÉÏÏÂ±ß¾à
-  {for vC := 0 to FRows[ARow].ColCount - 1 do  // ¶ÔÆë FRows[ARow].HeightÖĞ´¦ÀíÁË
+  vNorHeightMax := FCellVPadding + vNorHeightMax + FCellVPadding;  // å¢åŠ ä¸Šä¸‹è¾¹è·
+  {for vC := 0 to FRows[ARow].ColCount - 1 do  // å¯¹é½ FRows[ARow].Heightä¸­å¤„ç†äº†
     FRows[ARow][vC].Height := vNorHeightMax;}
 
-  if FRows[ARow].AutoHeight then  // ÒÔĞĞÖĞ¸÷Î´·¢ÉúĞĞºÏ²¢µÄÁĞÖĞ×î¸ßµÄÎªĞĞ¸ß
+  if FRows[ARow].AutoHeight then  // ä»¥è¡Œä¸­å„æœªå‘ç”Ÿè¡Œåˆå¹¶çš„åˆ—ä¸­æœ€é«˜çš„ä¸ºè¡Œé«˜
     FRows[ARow].Height := vNorHeightMax
-  else  // ÍÏ¶¯¸Ä±äÁË¸ß¶È
+  else  // æ‹–åŠ¨æ”¹å˜äº†é«˜åº¦
   begin
-    if vNorHeightMax > FRows[ARow].Height then  // ÍÏ¶¯¸ß¶ÈÊ§Ğ§
+    if vNorHeightMax > FRows[ARow].Height then  // æ‹–åŠ¨é«˜åº¦å¤±æ•ˆ
     begin
       FRows[ARow].AutoHeight := True;
       FRows[ARow].Height := vNorHeightMax;
@@ -3610,7 +3833,7 @@ begin
   Result := inherited CanDrag;
   if Result then
   begin
-    if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+    if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
       Result := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.SelectedCanDrag
     else
       Result := Self.IsSelectComplate or Self.IsSelectPart;
@@ -3652,7 +3875,7 @@ begin
   vStartDestRow := vStartDestRow + vCell.RowSpan;
   vStartDestCol := vStartDestCol + vCell.ColSpan;
 
-  // ½áÊøµ¥Ôª¸ñµÄÓĞĞ§·¶Î§
+  // ç»“æŸå•å…ƒæ ¼çš„æœ‰æ•ˆèŒƒå›´
   GetDestCell(AEndRow, AEndCol, vEndDestRow, vEndDestCol);
   vCell := FRows[vEndDestRow][vEndDestCol];
   vEndDestRow := vEndDestRow + vCell.RowSpan;
@@ -3692,116 +3915,116 @@ procedure THCTableItem.CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
     vPageBreak: TPageBreak;
   begin
     vPageBreak := TPageBreak.Create;
-    vPageBreak.PageIndex := APageIndex;  // ·ÖÒ³Ê±µ±Ç°Ò³ĞòºÅ
-    vPageBreak.Row := ARow;  // ·ÖÒ³ĞĞ
-    vPageBreak.BreakSeat := ABreakSeat;  // ·ÖÒ³Ê±£¬´ËĞĞ¸÷ÁĞ·ÖÒ³Î»ÖÃ×î´óµÄ
-    vPageBreak.BreakBottom := APageDataFmtBottom - ADrawItemRectTop;  // ·ÖÒ³Ê±£¬Ò³µ×²¿Î»ÖÃ¾à´ËÒ³±í¸ñ×î¶¥²¿µÄ¾àÀë(´ËÒ³ÓĞ¶àÉÙ¿Õ¼äÓÃÀ´·Å±í¸ñ)
+    vPageBreak.PageIndex := APageIndex;  // åˆ†é¡µæ—¶å½“å‰é¡µåºå·
+    vPageBreak.Row := ARow;  // åˆ†é¡µè¡Œ
+    vPageBreak.BreakSeat := ABreakSeat;  // åˆ†é¡µæ—¶ï¼Œæ­¤è¡Œå„åˆ—åˆ†é¡µä½ç½®æœ€å¤§çš„
+    vPageBreak.BreakBottom := APageDataFmtBottom - ADrawItemRectTop;  // åˆ†é¡µæ—¶ï¼Œé¡µåº•éƒ¨ä½ç½®è·æ­¤é¡µè¡¨æ ¼æœ€é¡¶éƒ¨çš„è·ç¦»(æ­¤é¡µæœ‰å¤šå°‘ç©ºé—´ç”¨æ¥æ”¾è¡¨æ ¼)
 
     FPageBreaks.Add(vPageBreak);
   end;
 
 var
-  /// <summary> ·ÖÒ³ĞĞÎ´·ÖÒ³Ê±¸ñÊ½»¯ÆğÊ¼Î»ÖÃ£¬±í¸ñÏßÏÂ </summary>
+  /// <summary> åˆ†é¡µè¡Œæœªåˆ†é¡µæ—¶æ ¼å¼åŒ–èµ·å§‹ä½ç½®ï¼Œè¡¨æ ¼çº¿ä¸‹ </summary>
   vBreakRowFmtTop,
-  /// <summary> ·ÖÒ³ĞĞ½áÊøÎ»ÖÃ£¬º¬µ×²¿ºáÏß </summary>
+  /// <summary> åˆ†é¡µè¡Œç»“æŸä½ç½®ï¼Œå«åº•éƒ¨æ¨ªçº¿ </summary>
   vBreakRowBottom,
-  /// <summary> ×îºóÒ»¸öDrawItemµ×²¿¾àÀëĞĞµ×²¿µÄ¾àÀë </summary>
+  /// <summary> æœ€åä¸€ä¸ªDrawItemåº•éƒ¨è·ç¦»è¡Œåº•éƒ¨çš„è·ç¦» </summary>
   vLastDFromRowBottom,
-  /// <summary> µ¥Ôª¸ñÊı¾İ¶¥²¿(±»ºÏ²¢µ¥Ôª¸ñ·ÖÒ³Ê±ÒÔÄ¿±êµ¥Ôª¸ñÎª×¼) </summary>
+  /// <summary> å•å…ƒæ ¼æ•°æ®é¡¶éƒ¨(è¢«åˆå¹¶å•å…ƒæ ¼åˆ†é¡µæ—¶ä»¥ç›®æ ‡å•å…ƒæ ¼ä¸ºå‡†) </summary>
   vDestCellDataFmtTop,
-  /// <summary> µ±Ç°DItemÏòÏÂÆ«ÒÆ¶àÉÙ¿ÉÒÔÏÔÊ¾ÔÚÏÂÒ»Ò³¶¥²¿ </summary>
+  /// <summary> å½“å‰DItemå‘ä¸‹åç§»å¤šå°‘å¯ä»¥æ˜¾ç¤ºåœ¨ä¸‹ä¸€é¡µé¡¶éƒ¨ </summary>
   vH,
-  /// <summary> µ±Ç°ĞĞ·ÖÒ³ºó£¬Ôö¼ÓµÄ¸ß¶È </summary>
+  /// <summary> å½“å‰è¡Œåˆ†é¡µåï¼Œå¢åŠ çš„é«˜åº¦ </summary>
   vCellInc,
-  vDestRow, vDestCol,  // ºÏ²¢µÄÄ¿±êµ¥Ôª¸ñ
-  /// <summary> ·ÖÒ³Ê±£¬´ËĞĞ¸÷ÁĞ·ÖÒ³Î»ÖÃ×î´óµÄ(Ïà¶ÔÓÚ±í¸ñ¶¥²¿µÄ¸ß¶È) </summary>
+  vDestRow, vDestCol,  // åˆå¹¶çš„ç›®æ ‡å•å…ƒæ ¼
+  /// <summary> åˆ†é¡µæ—¶ï¼Œæ­¤è¡Œå„åˆ—åˆ†é¡µä½ç½®æœ€å¤§çš„(ç›¸å¯¹äºè¡¨æ ¼é¡¶éƒ¨çš„é«˜åº¦) </summary>
   vRowBreakSeat,
   vPageBreakBottom
     :Integer;
   i, vR, vC, vFixHeight: Integer;
   vCellData: THCTableCellData;
   vDrawItem: THCCustomDrawItem;
-  vFirstLinePlace  // ¸÷µ¥Ôª¸ñ¶¼ÖÁÉÙÓĞÒ»ĞĞÄÚÈİ¿ÉÔÚ·ÖÒ³Î»ÖÃÉÏÃæÍêÕûÏÔÊ¾
+  vFirstLinePlace  // å„å•å…ƒæ ¼éƒ½è‡³å°‘æœ‰ä¸€è¡Œå†…å®¹å¯åœ¨åˆ†é¡µä½ç½®ä¸Šé¢å®Œæ•´æ˜¾ç¤º
     : Boolean;
   vColCross: TColCross;
-  vColCrosses: TObjectList<TColCross>;  // ¼ÇÂ¼·ÖÒ³ĞĞ¸÷ÁĞ·ÖÒ³ÆğÊ¼DrawItemºÍ·ÖÒ³Æ«ÒÆ
+  vColCrosses: TObjectList<TColCross>;  // è®°å½•åˆ†é¡µè¡Œå„åˆ—åˆ†é¡µèµ·å§‹DrawItemå’Œåˆ†é¡µåç§»
 begin
   ABreakRow := -1;
   AFmtOffset := 0;
-  ACellMaxInc := 0;  // vCellIncµÄ×î´óÖµ£¬±íÊ¾µ±Ç°ĞĞ¸÷ÁĞÎª±Ü¿ª·ÖÒ³¶îÍâÔö¼ÓµÄ¸ñÊ½»¯¸ß¶ÈÖĞ×î¸ßµÄ
+  ACellMaxInc := 0;  // vCellIncçš„æœ€å¤§å€¼ï¼Œè¡¨ç¤ºå½“å‰è¡Œå„åˆ—ä¸ºé¿å¼€åˆ†é¡µé¢å¤–å¢åŠ çš„æ ¼å¼åŒ–é«˜åº¦ä¸­æœ€é«˜çš„
 
-  { µÃµ½ÆğÊ¼ĞĞµÄFmtÆğÊ¼Î»ÖÃ }                         {20190613 Ò»°ë?}
-  vBreakRowFmtTop := ADrawItemRectTop + FBorderWidth - 1;  // µÚ1ĞĞÅÅ°æÎ»ÖÃ(ÉÏ±ß¿òÏß½áÊøÎ»ÖÃ)£¬ÒòÎª±ß¿òÔÚADrawItemRectTopÒ²Õ¼1ÏñËØ£¬ËùÒÔÒª¼õµô
+  { å¾—åˆ°èµ·å§‹è¡Œçš„Fmtèµ·å§‹ä½ç½® }                         {20190613 ä¸€åŠ?}
+  vBreakRowFmtTop := ADrawItemRectTop + FBorderWidthPix - 1;  // ç¬¬1è¡Œæ’ç‰ˆä½ç½®(ä¸Šè¾¹æ¡†çº¿ç»“æŸä½ç½®)ï¼Œå› ä¸ºè¾¹æ¡†åœ¨ADrawItemRectTopä¹Ÿå 1åƒç´ ï¼Œæ‰€ä»¥è¦å‡æ‰
   for vR := 0 to AStartRow - 1 do
-    vBreakRowFmtTop := vBreakRowFmtTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidth;  // µÚiĞĞ½áÊøÎ»ÖÃ(º¬ÏÂ±ß¿ò½áÊøÎ»ÖÃ)
+    vBreakRowFmtTop := vBreakRowFmtTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidthPix;  // ç¬¬iè¡Œç»“æŸä½ç½®(å«ä¸‹è¾¹æ¡†ç»“æŸä½ç½®)
 
-  //vBreakRowFmtTop := vBreakRowFmtTop + FRows[AStartRow].FmtOffset;  // ÔÙ¼ÓÉÏÆğÊ¼ĞĞÊÇÕûÌåÏòÏÂÆ«ÒÆµÄÇé¿ö
+  //vBreakRowFmtTop := vBreakRowFmtTop + FRows[AStartRow].FmtOffset;  // å†åŠ ä¸Šèµ·å§‹è¡Œæ˜¯æ•´ä½“å‘ä¸‹åç§»çš„æƒ…å†µ
 
-  { ´ÓÆğÊ¼ĞĞ¿ªÊ¼¼ì²âµ±Ç°Ò³ÊÇ·ñÄÜ·ÅÍê±í¸ñ }
+  { ä»èµ·å§‹è¡Œå¼€å§‹æ£€æµ‹å½“å‰é¡µæ˜¯å¦èƒ½æ”¾å®Œè¡¨æ ¼ }
   vR := AStartRow;
-  while vR < Self.RowCount do  // ±éÀúÃ¿Ò»ĞĞ
+  while vR < Self.RowCount do  // éå†æ¯ä¸€è¡Œ
   begin
-    vBreakRowBottom := vBreakRowFmtTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidth;  // µÚiĞĞ½áÊøÎ»ÖÃ(º¬ÏÂ±ß¿ò½áÊøÎ»ÖÃ)
-    if vBreakRowBottom > APageDataFmtBottom then  // µÚiĞĞ½áÊøÎ»ÖÃ³¬³öÒ³Êı¾İ½áÊøÎ»ÖÃ£¬·Å²»ÏÂ
+    vBreakRowBottom := vBreakRowFmtTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidthPix;  // ç¬¬iè¡Œç»“æŸä½ç½®(å«ä¸‹è¾¹æ¡†ç»“æŸä½ç½®)
+    if vBreakRowBottom > APageDataFmtBottom then  // ç¬¬iè¡Œç»“æŸä½ç½®è¶…å‡ºé¡µæ•°æ®ç»“æŸä½ç½®ï¼Œæ”¾ä¸ä¸‹
     begin
-      ABreakRow := vR;  // µÚiĞĞĞèÒª´¦Àí·ÖÒ³
+      ABreakRow := vR;  // ç¬¬iè¡Œéœ€è¦å¤„ç†åˆ†é¡µ
       Break;
     end;
-    vBreakRowFmtTop := vBreakRowBottom;  // µÚi+1ĞĞÆğÊ¼Î»ÖÃ(ÉÏ±ß¿ò½áÊøÎ»ÖÃ)
+    vBreakRowFmtTop := vBreakRowBottom;  // ç¬¬i+1è¡Œèµ·å§‹ä½ç½®(ä¸Šè¾¹æ¡†ç»“æŸä½ç½®)
 
     Inc(vR);
   end;
 
-  if ABreakRow < 0 then Exit;  // ±í¸ñ¶¼ÄÜÔÚµ±Ç°Ò³·ÅÏÂ
+  if ABreakRow < 0 then Exit;  // è¡¨æ ¼éƒ½èƒ½åœ¨å½“å‰é¡µæ”¾ä¸‹
 
-  if (not Self.CanPageBreak) and (ABreakRow = 0) then  // ±í¸ñ²»Ö§³Ö·ÖÒ³£¬ÇÒÔÚµ±Ç°Ò³Ò»ĞĞÒ²·Å²»ÏÂ£¬ÕûÌåÏÂÒÆµ½ÏÂÒ»Ò³
+  if (not Self.CanPageBreak) and (ABreakRow = 0) then  // è¡¨æ ¼ä¸æ”¯æŒåˆ†é¡µï¼Œä¸”åœ¨å½“å‰é¡µä¸€è¡Œä¹Ÿæ”¾ä¸ä¸‹ï¼Œæ•´ä½“ä¸‹ç§»åˆ°ä¸‹ä¸€é¡µ
   begin
-    //if vRowDataFmtTop < APageDataFmtTop then  // ÕâÑùÅĞ¶Ï£¬µ±±í¸ñÔÚµÚ2Ò³µÚ1¸öÊ±²»×¼È· µ±Ç°Ò³¿ªÊ¼Item²»ÊÇµ±Ç°±í¸ñ£¨±í¸ñÊÇµ±Ç°Ò³µÚÒ»¸öItem£¬ºÍ·ÖÒ³²»Í¬£¬·ÖÒ³ËäÈ»Ò²ÊÇµÚÒ»¸ö£¬µ«±í¸ñµÄÆğÊ¼Î»ÖÃ²¢²»ÔÚ·ÖÒ³ºóµÄÒ³£©
+    //if vRowDataFmtTop < APageDataFmtTop then  // è¿™æ ·åˆ¤æ–­ï¼Œå½“è¡¨æ ¼åœ¨ç¬¬2é¡µç¬¬1ä¸ªæ—¶ä¸å‡†ç¡® å½“å‰é¡µå¼€å§‹Itemä¸æ˜¯å½“å‰è¡¨æ ¼ï¼ˆè¡¨æ ¼æ˜¯å½“å‰é¡µç¬¬ä¸€ä¸ªItemï¼Œå’Œåˆ†é¡µä¸åŒï¼Œåˆ†é¡µè™½ç„¶ä¹Ÿæ˜¯ç¬¬ä¸€ä¸ªï¼Œä½†è¡¨æ ¼çš„èµ·å§‹ä½ç½®å¹¶ä¸åœ¨åˆ†é¡µåçš„é¡µï¼‰
     //begin
       AFmtOffset := APageDataFmtBottom - ADrawItemRectTop;
       Exit;
     //end;
   end;
 
-  // ±í¸ñ·Å²»ÏÂ£¬ĞèÒª½Ø¶Ï£¬´¦Àí½Ø¶Ï·ÖÒ³µÄ¹ı³Ì
-  // 1.ÏÈ¼ÆËã³ö·ÖÒ³½Ø¶ÏÎ»ÖÃ
-  // 2.¸ù¾İÎ»ÖÃ£¬ÅĞ¶Ï¸÷ÁĞÄÚÈİÒÆµ½ÏÂÒ»Ò³Ôö¼ÓµÄÆ«ÒÆÁ¿
-  // 3.ÕûĞĞÆ«ÒÆ£¬Èç¹ûÆ«ÒÆÁ¿Îª0Òª½«ÆäËûµ¥Ôª¸ñÆ«ÒÆÔö¼ÓµÄÁ¿¸½¼Óµ½ĞĞHeight£¬·ñÔò¸½¼Óµ½FmtOffset
-  // 4.·ÇÕûĞĞÆ«ÒÆµÄ£¬´¦ÀíDataÀï¸÷DrawItemµÄÆ«ÒÆ
+  // è¡¨æ ¼æ”¾ä¸ä¸‹ï¼Œéœ€è¦æˆªæ–­ï¼Œå¤„ç†æˆªæ–­åˆ†é¡µçš„è¿‡ç¨‹
+  // 1.å…ˆè®¡ç®—å‡ºåˆ†é¡µæˆªæ–­ä½ç½®
+  // 2.æ ¹æ®ä½ç½®ï¼Œåˆ¤æ–­å„åˆ—å†…å®¹ç§»åˆ°ä¸‹ä¸€é¡µå¢åŠ çš„åç§»é‡
+  // 3.æ•´è¡Œåç§»ï¼Œå¦‚æœåç§»é‡ä¸º0è¦å°†å…¶ä»–å•å…ƒæ ¼åç§»å¢åŠ çš„é‡é™„åŠ åˆ°è¡ŒHeightï¼Œå¦åˆ™é™„åŠ åˆ°FmtOffset
+  // 4.éæ•´è¡Œåç§»çš„ï¼Œå¤„ç†Dataé‡Œå„DrawItemçš„åç§»
 
-  {$REGION ' 1.·Å²»ÏÂ£¬ÔòÅĞ¶Ï·ÖÒ³Î»ÖÃ£¬²»Ò»¶¨ÊÇAPageDataFmtBottom£¬¿ÉÄÜÊÇ·ÖÒ³ÏòÏÂÆ«ÒÆĞĞ¶¥²¿' }
+  {$REGION ' 1.æ”¾ä¸ä¸‹ï¼Œåˆ™åˆ¤æ–­åˆ†é¡µä½ç½®ï¼Œä¸ä¸€å®šæ˜¯APageDataFmtBottomï¼Œå¯èƒ½æ˜¯åˆ†é¡µå‘ä¸‹åç§»è¡Œé¡¶éƒ¨' }
   vFirstLinePlace := True;
   vPageBreakBottom := APageDataFmtBottom;
 
-  // ÏÈÅĞ¶ÏÊÇ²»ÊÇÓĞµ¥Ôª¸ñÀïµÚÒ»ĞĞÄÚÈİ¾Í·Å²»ÏÂ£¬ĞèÒªÕûÌåÏÂÒÆ£¬ÕâÑùµÄºÃ´¦ÊÇ£¬Èç¹û
-  // ÓĞĞĞĞèÒªÕûÌåÏÂÒÆÊ±£¬´ËĞĞÖĞÓĞµ¥Ôª¸ñÊÇĞĞºÏ²¢Ô´ÇÒËüµÄÄ¿±êµ×²¿²¢²»ĞèÒª¿çÒ³£¬µ«
-  // ·ÖÒ³ĞĞÕûÌåÏÂÒÆºó£¬´ËÒ³ÒÔ·ÖÒ³ĞĞÉÏÒ»ĞĞµ×²¿ÎªÊÕÁ²£¬Ä¿±êÄÚÈİÈç¹ûÓĞ³¬¹ıÊÕÁ²Î»ÖÃ
-  // µÄ£¬ÒªÒÔÊÕÁ²Î»ÖÃ×öÎª·ÖÒ³ÅĞ¶ÏÎ»ÖÃ¶ø²»ÊÇÒ³µ×²¿Î»ÖÃÁË¡£
-  // ÌáÇ°µÃµ½ÓĞÔ´ĞĞĞèÒªÕûÌåÏÂÒÆÊ±£¬¿ÉÒÔÓÃÏÂÒÆĞĞÉÏÒ»ĞĞµ×²¿×öÎªÄ¿±êµ¥Ôª¸ñµÄ½Ø¶ÏÎ»ÖÃ¡£
-  for vC := 0 to FRows[ABreakRow].ColCount - 1 do  // ±éÀúËùÓĞµ¥Ôª¸ñÖĞDrawItem£¬ÕÒ´ÓÄÄ¸ö¿ªÊ¼ÏòÏÂÆ«ÒÆ¼°Æ«ÒÆÁ¿
+  // å…ˆåˆ¤æ–­æ˜¯ä¸æ˜¯æœ‰å•å…ƒæ ¼é‡Œç¬¬ä¸€è¡Œå†…å®¹å°±æ”¾ä¸ä¸‹ï¼Œéœ€è¦æ•´ä½“ä¸‹ç§»ï¼Œè¿™æ ·çš„å¥½å¤„æ˜¯ï¼Œå¦‚æœ
+  // æœ‰è¡Œéœ€è¦æ•´ä½“ä¸‹ç§»æ—¶ï¼Œæ­¤è¡Œä¸­æœ‰å•å…ƒæ ¼æ˜¯è¡Œåˆå¹¶æºä¸”å®ƒçš„ç›®æ ‡åº•éƒ¨å¹¶ä¸éœ€è¦è·¨é¡µï¼Œä½†
+  // åˆ†é¡µè¡Œæ•´ä½“ä¸‹ç§»åï¼Œæ­¤é¡µä»¥åˆ†é¡µè¡Œä¸Šä¸€è¡Œåº•éƒ¨ä¸ºæ”¶æ•›ï¼Œç›®æ ‡å†…å®¹å¦‚æœæœ‰è¶…è¿‡æ”¶æ•›ä½ç½®
+  // çš„ï¼Œè¦ä»¥æ”¶æ•›ä½ç½®åšä¸ºåˆ†é¡µåˆ¤æ–­ä½ç½®è€Œä¸æ˜¯é¡µåº•éƒ¨ä½ç½®äº†ã€‚
+  // æå‰å¾—åˆ°æœ‰æºè¡Œéœ€è¦æ•´ä½“ä¸‹ç§»æ—¶ï¼Œå¯ä»¥ç”¨ä¸‹ç§»è¡Œä¸Šä¸€è¡Œåº•éƒ¨åšä¸ºç›®æ ‡å•å…ƒæ ¼çš„æˆªæ–­ä½ç½®ã€‚
+  for vC := 0 to FRows[ABreakRow].ColCount - 1 do  // éå†æ‰€æœ‰å•å…ƒæ ¼ä¸­DrawItemï¼Œæ‰¾ä»å“ªä¸ªå¼€å§‹å‘ä¸‹åç§»åŠåç§»é‡
   begin
-    if FRows[ABreakRow][vC].ColSpan < 0 then  // ºÏ²¢Ä¿±êÖ»ĞèÓÉÄ¿±êµ¥Ôª¸ñ´¦Àí
+    if FRows[ABreakRow][vC].ColSpan < 0 then  // åˆå¹¶ç›®æ ‡åªéœ€ç”±ç›®æ ‡å•å…ƒæ ¼å¤„ç†
       Continue;
 
     GetDestCell(ABreakRow, vC, vDestRow, vDestCol);
     vCellData := FRows[vDestRow][vDestCol].CellData;
 
-    // ¼ÆËãÄ¿±êµ¥Ôª¸ñÊı¾İÆğÊ¼Î»ÖÃ
-    vDestCellDataFmtTop := vBreakRowFmtTop + FCellVPadding;  // ·ÖÒ³ĞĞÊı¾İ»æÖÆÆğÊ¼Î»ÖÃ
+    // è®¡ç®—ç›®æ ‡å•å…ƒæ ¼æ•°æ®èµ·å§‹ä½ç½®
+    vDestCellDataFmtTop := vBreakRowFmtTop + FCellVPadding;  // åˆ†é¡µè¡Œæ•°æ®ç»˜åˆ¶èµ·å§‹ä½ç½®
 
     if ABreakRow <> vDestRow then
       vDestCellDataFmtTop := vDestCellDataFmtTop - SrcCellDataTopDistanceToDest(ABreakRow, vDestRow);
 
-    // ÅĞ¶ÏºÏ²¢Ä¿±êÄÚÈİÔÚµ±Ç°·ÖÒ³ĞĞµÄ·ÖÒ³Î»ÖÃ
+    // åˆ¤æ–­åˆå¹¶ç›®æ ‡å†…å®¹åœ¨å½“å‰åˆ†é¡µè¡Œçš„åˆ†é¡µä½ç½®
     for i := 0 to vCellData.DrawItems.Count - 1 do
     begin
       vDrawItem := vCellData.DrawItems[i];
-      if not vDrawItem.LineFirst then  // Ö»ĞèÒªÅĞ¶ÏÁĞÖĞÃ¿ĞĞµÚÒ»¸ö
+      if not vDrawItem.LineFirst then  // åªéœ€è¦åˆ¤æ–­åˆ—ä¸­æ¯è¡Œç¬¬ä¸€ä¸ª
         Continue;
 
-      if vDestCellDataFmtTop + vDrawItem.Rect.Bottom + FCellVPadding + FBorderWidth > APageDataFmtBottom then  // µ±Ç°DrawItemµ×²¿³¬¹ıÒ³µ×²¿ÁË 20160323002 // ĞĞµ×²¿µÄ±ß¿òÏßÏÔÊ¾²»ÏÂÊ±Ò²ÏòÏÂÆ«ÒÆ
-      begin                                    // |Èç¹ûFBorderWidth±ÈĞĞ¸ß´ó¾Í²»ºÏÊÊ
-        if i = 0 then  // µÚÒ»¸öDrawItem¾Í·Å²»ÏÂ£¬ĞèÒªÕûÌåÏÂÒÆ(ÏÂÒÆÎ»ÖÃÓÉÏÂÃæÅĞ¶Ï)
+      if vDestCellDataFmtTop + vDrawItem.Rect.Bottom + FCellVPadding + FBorderWidthPix > APageDataFmtBottom then  // å½“å‰DrawItemåº•éƒ¨è¶…è¿‡é¡µåº•éƒ¨äº† 20160323002 // è¡Œåº•éƒ¨çš„è¾¹æ¡†çº¿æ˜¾ç¤ºä¸ä¸‹æ—¶ä¹Ÿå‘ä¸‹åç§»
+      begin                                    // |å¦‚æœFBorderWidthæ¯”è¡Œé«˜å¤§å°±ä¸åˆé€‚
+        if i = 0 then  // ç¬¬ä¸€ä¸ªDrawItemå°±æ”¾ä¸ä¸‹ï¼Œéœ€è¦æ•´ä½“ä¸‹ç§»(ä¸‹ç§»ä½ç½®ç”±ä¸‹é¢åˆ¤æ–­)
         begin
           vFirstLinePlace := False;
           vPageBreakBottom := vBreakRowFmtTop;
@@ -3815,61 +4038,61 @@ begin
   end;
   {$ENDREGION}
 
-  // ¸ù¾İÉÏÃæ¼ÆËã³öÀ´µÄ½Ø¶ÏÎ»ÖÃ(¿ÉÄÜÊÇPageDataµ×²¿Ò²¿ÉÄÜÊÇÕûÌåÏÂÒÆĞĞµ×²¿)
-  // ´¦ÀíÄÚÈİµÄÆ«ÒÆ£¬Ñ­»·Ô­ÀíºÍÉÏÃæÕÒÊÇ·ñÓĞÕûÌåÏÂÒÆĞĞÒ»Ñù
-  vCellInc := 0;  // ĞĞ¸÷ÄÚÈİÎª±Ü¿ª·ÖÒ³¶îÍâÔö¼ÓµÄ¸ñÊ½»¯¸ß¶È
+  // æ ¹æ®ä¸Šé¢è®¡ç®—å‡ºæ¥çš„æˆªæ–­ä½ç½®(å¯èƒ½æ˜¯PageDataåº•éƒ¨ä¹Ÿå¯èƒ½æ˜¯æ•´ä½“ä¸‹ç§»è¡Œåº•éƒ¨)
+  // å¤„ç†å†…å®¹çš„åç§»ï¼Œå¾ªç¯åŸç†å’Œä¸Šé¢æ‰¾æ˜¯å¦æœ‰æ•´ä½“ä¸‹ç§»è¡Œä¸€æ ·
+  vCellInc := 0;  // è¡Œå„å†…å®¹ä¸ºé¿å¼€åˆ†é¡µé¢å¤–å¢åŠ çš„æ ¼å¼åŒ–é«˜åº¦
   vRowBreakSeat := 0;
 
   vColCrosses := TObjectList<TColCross>.Create;
   try
 
-    {$REGION ' 2.¼ÇÂ¼·ÖÒ³ĞĞÖĞ¸÷µ¥Ôª¸ñÖĞDrawItem·ÖÒ³Ê±ÏòÏÂÆ«ÒÆÁ¿ºÍµ¥Ôª¸ñ¸ß¶ÈÔö¼ÓµÄÁ¿ '}
-    for vC := 0 to FRows[ABreakRow].ColCount - 1 do  // ±éÀúËùÓĞµ¥Ôª¸ñÖĞDrawItem£¬ÕÒ´ÓÄÄ¸ö¿ªÊ¼ÏòÏÂÆ«ÒÆ¼°Æ«ÒÆÁ¿
+    {$REGION ' 2.è®°å½•åˆ†é¡µè¡Œä¸­å„å•å…ƒæ ¼ä¸­DrawItemåˆ†é¡µæ—¶å‘ä¸‹åç§»é‡å’Œå•å…ƒæ ¼é«˜åº¦å¢åŠ çš„é‡ '}
+    for vC := 0 to FRows[ABreakRow].ColCount - 1 do  // éå†æ‰€æœ‰å•å…ƒæ ¼ä¸­DrawItemï¼Œæ‰¾ä»å“ªä¸ªå¼€å§‹å‘ä¸‹åç§»åŠåç§»é‡
     begin
-      if FRows[ABreakRow][vC].ColSpan < 0 then  // ºÏ²¢Ô´Ö»ĞèÓÉÄ¿±êµ¥Ôª¸ñ´¦Àí
+      if FRows[ABreakRow][vC].ColSpan < 0 then  // åˆå¹¶æºåªéœ€ç”±ç›®æ ‡å•å…ƒæ ¼å¤„ç†
         Continue;
 
       GetDestCell(ABreakRow, vC, vDestRow, vDestCol);
       vCellData := FRows[vDestRow][vDestCol].CellData;
-      vLastDFromRowBottom :=  // Ô­×îºóÒ»¸öDrawItemµ×²¿¾àÀëĞĞµ×²¿µÄ¿Õ°×¾àÀë
+      vLastDFromRowBottom :=  // åŸæœ€åä¸€ä¸ªDrawItemåº•éƒ¨è·ç¦»è¡Œåº•éƒ¨çš„ç©ºç™½è·ç¦»
         FRows[vDestRow][vDestCol].Height - (FCellVPadding + vCellData.Height + FCellVPadding);
 
-      // ¼ÆËãÄ¿±êµ¥Ôª¸ñÊı¾İÆğÊ¼Î»ÖÃ
-      vDestCellDataFmtTop := vBreakRowFmtTop + FCellVPadding;  // ·ÖÒ³ĞĞÊı¾İÆğÊ¼Î»ÖÃ
+      // è®¡ç®—ç›®æ ‡å•å…ƒæ ¼æ•°æ®èµ·å§‹ä½ç½®
+      vDestCellDataFmtTop := vBreakRowFmtTop + FCellVPadding;  // åˆ†é¡µè¡Œæ•°æ®èµ·å§‹ä½ç½®
       if ABreakRow <> vDestRow then
         vDestCellDataFmtTop := vDestCellDataFmtTop - SrcCellDataTopDistanceToDest(ABreakRow, vDestRow);
       //
       vColCross := TColCross.Create;
       vColCross.Col := vC;
 
-      // ÅĞ¶ÏºÏ²¢Ä¿±êÄÚÈİÔÚµ±Ç°·ÖÒ³ĞĞµÄ·ÖÒ³Î»ÖÃ
+      // åˆ¤æ–­åˆå¹¶ç›®æ ‡å†…å®¹åœ¨å½“å‰åˆ†é¡µè¡Œçš„åˆ†é¡µä½ç½®
       for i := 0 to vCellData.DrawItems.Count - 1 do
       begin
         vDrawItem := vCellData.DrawItems[i];
-        if not vDrawItem.LineFirst then  // Ö»ĞèÒªÅĞ¶ÏÁĞÖĞÃ¿ĞĞµÚÒ»¸ö
+        if not vDrawItem.LineFirst then  // åªéœ€è¦åˆ¤æ–­åˆ—ä¸­æ¯è¡Œç¬¬ä¸€ä¸ª
           Continue;
 
-        if vDestCellDataFmtTop + vDrawItem.Rect.Bottom + FCellVPadding + FBorderWidth > vPageBreakBottom then  // µ±Ç°DrawItemµ×²¿³¬¹ıÒ³µ×²¿ÁË 20160323002 // ĞĞµ×²¿µÄ±ß¿òÏßÏÔÊ¾²»ÏÂÊ±Ò²ÏòÏÂÆ«ÒÆ
-        begin                                    // |Èç¹ûFBorderWidth±ÈĞĞ¸ß´ó¾Í²»ºÏÊÊ
-          // ¼ÆËã·ÖÒ³µÄDrawItemÏòÏÂÆ«ÒÆ¶àÉÙ¿ÉÔÚÏÂÒ»Ò³È«ÏÔÊ¾¸ÃDrawItem
-          vH := APageDataFmtBottom - (vDestCellDataFmtTop + vDrawItem.Rect.Top) // Ò³Dataµ×²¿ - µ±Ç°DrawItemÔÚÒ³µÄÏà¶ÔÎ»ÖÃ
-            + FBorderWidth + FCellVPadding - 1;  // Ô¤Áô³ö¶¥²¿±ß¿òºÍFCellVPadding£¬ÒòÎª±ß¿òÔÚAPageDataFmtBottomÒ²Õ¼1ÏñËØ£¬ËùÒÔÒª¼õµô
-                                            {20190613 Ò»°ë?}
-          // µ¥Ôª¸ñÊµ¼ÊÔö¼ÓµÄ¸ß¶È = DrawItem·ÖÒ³ÏòÏÂÆ«ÒÆµÄ¾àÀë - Ô­×îºóÒ»¸öDrawItemµ×²¿¾àÀëĞĞµ×²¿µÄ¿Õ°×¾àÀë(²»º¬µ×²¿µÄFCellVPadding)
-          if vH > vLastDFromRowBottom then  // Æ«ÒÆÁ¿±Èµ±Ç°µ¥Ôª¸ñÏÂÃæÓĞ¿Õ°×´óÊ±£¬¼ÆËãµ¥Ôª¸ñÔöÁ¿
+        if vDestCellDataFmtTop + vDrawItem.Rect.Bottom + FCellVPadding + FBorderWidthPix > vPageBreakBottom then  // å½“å‰DrawItemåº•éƒ¨è¶…è¿‡é¡µåº•éƒ¨äº† 20160323002 // è¡Œåº•éƒ¨çš„è¾¹æ¡†çº¿æ˜¾ç¤ºä¸ä¸‹æ—¶ä¹Ÿå‘ä¸‹åç§»
+        begin                                    // |å¦‚æœFBorderWidthæ¯”è¡Œé«˜å¤§å°±ä¸åˆé€‚
+          // è®¡ç®—åˆ†é¡µçš„DrawItemå‘ä¸‹åç§»å¤šå°‘å¯åœ¨ä¸‹ä¸€é¡µå…¨æ˜¾ç¤ºè¯¥DrawItem
+          vH := APageDataFmtBottom - (vDestCellDataFmtTop + vDrawItem.Rect.Top) // é¡µDataåº•éƒ¨ - å½“å‰DrawItemåœ¨é¡µçš„ç›¸å¯¹ä½ç½®
+            + FBorderWidthPix + FCellVPadding - 1;  // é¢„ç•™å‡ºé¡¶éƒ¨è¾¹æ¡†å’ŒFCellVPaddingï¼Œå› ä¸ºè¾¹æ¡†åœ¨APageDataFmtBottomä¹Ÿå 1åƒç´ ï¼Œæ‰€ä»¥è¦å‡æ‰
+                                            {20190613 ä¸€åŠ?}
+          // å•å…ƒæ ¼å®é™…å¢åŠ çš„é«˜åº¦ = DrawItemåˆ†é¡µå‘ä¸‹åç§»çš„è·ç¦» - åŸæœ€åä¸€ä¸ªDrawItemåº•éƒ¨è·ç¦»è¡Œåº•éƒ¨çš„ç©ºç™½è·ç¦»(ä¸å«åº•éƒ¨çš„FCellVPadding)
+          if vH > vLastDFromRowBottom then  // åç§»é‡æ¯”å½“å‰å•å…ƒæ ¼ä¸‹é¢æœ‰ç©ºç™½å¤§æ—¶ï¼Œè®¡ç®—å•å…ƒæ ¼å¢é‡
             vCellInc := vH - vLastDFromRowBottom
-          else  // Æ«ÒÆÁ¿ÈÃµ×²¿¿Õ°×µÖÏûÁË
+          else  // åç§»é‡è®©åº•éƒ¨ç©ºç™½æŠµæ¶ˆäº†
             vCellInc := 0;
 
-          vColCross.DrawItemNo := i;  // ´ÓµÚj¸öDrawItem´¦¿ªÊ¼·ÖÒ³
-          vColCross.VDrawOffset := vH;  // DrawItem·ÖÒ³Æ«ÒÆ£¬×¢Òâ£¬DrawItemÏòÏÂÆ«ÒÆºÍµ¥Ôª¸ñÔö¼ÓµÄ¸ß²¢²»Ò»¶¨ÏàµÈ£¬ÈçÔ­µ×²¿ÓĞ¿Õ°×Ê±£¬µ¥Ôª¸ñÔö¼Ó¸ß¶È<DrawÏòÏÂÆ«ÒÆ
+          vColCross.DrawItemNo := i;  // ä»ç¬¬jä¸ªDrawItemå¤„å¼€å§‹åˆ†é¡µ
+          vColCross.VDrawOffset := vH;  // DrawItemåˆ†é¡µåç§»ï¼Œæ³¨æ„ï¼ŒDrawItemå‘ä¸‹åç§»å’Œå•å…ƒæ ¼å¢åŠ çš„é«˜å¹¶ä¸ä¸€å®šç›¸ç­‰ï¼Œå¦‚åŸåº•éƒ¨æœ‰ç©ºç™½æ—¶ï¼Œå•å…ƒæ ¼å¢åŠ é«˜åº¦<Drawå‘ä¸‹åç§»
 
-          if i > 0 then  // ÓĞÄÜ·ÅÏÂµÄDrawItem
+          if i > 0 then  // æœ‰èƒ½æ”¾ä¸‹çš„DrawItem
           begin
-            if vDestCellDataFmtTop + vCellData.DrawItems[i - 1].Rect.Bottom + FCellVPadding + FBorderWidth > vRowBreakSeat then
-              vRowBreakSeat := vDestCellDataFmtTop + vCellData.DrawItems[i - 1].Rect.Bottom + FCellVPadding + FBorderWidth;
+            if vDestCellDataFmtTop + vCellData.DrawItems[i - 1].Rect.Bottom + FCellVPadding + FBorderWidthPix > vRowBreakSeat then
+              vRowBreakSeat := vDestCellDataFmtTop + vCellData.DrawItems[i - 1].Rect.Bottom + FCellVPadding + FBorderWidthPix;
           end
-          else  // µÚÒ»¸öDrawItem¾Í·Å²»ÏÂ
+          else  // ç¬¬ä¸€ä¸ªDrawItemå°±æ”¾ä¸ä¸‹
           begin
             if vDestCellDataFmtTop > vRowBreakSeat then
               vRowBreakSeat := vDestCellDataFmtTop - FCellVPadding;
@@ -3880,15 +4103,15 @@ begin
       end;
 
       if ACellMaxInc < vCellInc then
-        ACellMaxInc := vCellInc;  // ¼ÇÂ¼¸÷ÁĞÖĞ·ÖÒ³ÏòÏÂÆ«ÒÆµÄ×î´óÔöÁ¿
+        ACellMaxInc := vCellInc;  // è®°å½•å„åˆ—ä¸­åˆ†é¡µå‘ä¸‹åç§»çš„æœ€å¤§å¢é‡
 
       vColCrosses.Add(vColCross);
     end;
 
-    vRowBreakSeat := vRowBreakSeat - ADrawItemRectTop + 1;  // ÆğÊ¼Îªx£¬½Ø¶ÏÎªy£¬½Ø¶Ï´¦¸ß¶ÈÊÇx-y+1
+    vRowBreakSeat := vRowBreakSeat - ADrawItemRectTop + 1;  // èµ·å§‹ä¸ºxï¼Œæˆªæ–­ä¸ºyï¼Œæˆªæ–­å¤„é«˜åº¦æ˜¯x-y+1
     {$ENDREGION}
 
-    if (FFixRow >= 0) and (ABreakRow > FFixRow + FFixRowCount - 1) then  // ·ÖÒ³ĞĞ³¬¹ı¹Ì¶¨ĞĞ
+    if (FFixRow >= 0) and (ABreakRow > FFixRow + FFixRowCount - 1) then  // åˆ†é¡µè¡Œè¶…è¿‡å›ºå®šè¡Œ
     begin
       vFixHeight := GetFixRowHeight;
       ACellMaxInc := ACellMaxInc + vFixHeight;
@@ -3896,27 +4119,27 @@ begin
     else
       vFixHeight := 0;
 
-    if not vFirstLinePlace then  // Ä³µ¥Ôª¸ñµÚÒ»ĞĞÄÚÈİ¾ÍÔÚµ±Ç°Ò³·Å²»ÏÂÁË£¬¼´±í¸ñ¿çÒ³ĞĞÕûĞĞĞèÒªÏÂÒÆµ½ÏÂÒ»Ò³(ÏÂÒÆÁ¿¿ÉÄÜÊÇ0)
+    if not vFirstLinePlace then  // æŸå•å…ƒæ ¼ç¬¬ä¸€è¡Œå†…å®¹å°±åœ¨å½“å‰é¡µæ”¾ä¸ä¸‹äº†ï¼Œå³è¡¨æ ¼è·¨é¡µè¡Œæ•´è¡Œéœ€è¦ä¸‹ç§»åˆ°ä¸‹ä¸€é¡µ(ä¸‹ç§»é‡å¯èƒ½æ˜¯0)
     begin
       //vRowBreakSeat := 0;
 
-      if ABreakRow = 0 then  // ±í¸ñµÚÒ»ĞĞËùÓĞµ¥Ôª¸ñ¶¼ÔÚµ±Ç°Ò³·Å²»ÏÂ£¬ĞèÒªÕûÌåÏÂÒÆ
+      if ABreakRow = 0 then  // è¡¨æ ¼ç¬¬ä¸€è¡Œæ‰€æœ‰å•å…ƒæ ¼éƒ½åœ¨å½“å‰é¡µæ”¾ä¸ä¸‹ï¼Œéœ€è¦æ•´ä½“ä¸‹ç§»
       begin
         AFmtOffset := APageDataFmtBottom - ADrawItemRectTop;
-        ACellMaxInc := 0;  // ÕûÌåÏòÏÂÆ«ÒÆÊ±£¬¾Í´ú±íÁËµÚÒ»ĞĞµÄÏòÏÂÆ«ÒÆ£¬»òÕßËµµÚÒ»ĞĞµÄFmtOffsetÓÀÔ¶ÊÇ0£¬ÒòÎªÕûÌåÏòÏÂÆ«ÒÆµÄÒÀ¾İÊÇÅĞ¶ÏµÚÒ»ĞĞ
+        ACellMaxInc := 0;  // æ•´ä½“å‘ä¸‹åç§»æ—¶ï¼Œå°±ä»£è¡¨äº†ç¬¬ä¸€è¡Œçš„å‘ä¸‹åç§»ï¼Œæˆ–è€…è¯´ç¬¬ä¸€è¡Œçš„FmtOffsetæ°¸è¿œæ˜¯0ï¼Œå› ä¸ºæ•´ä½“å‘ä¸‹åç§»çš„ä¾æ®æ˜¯åˆ¤æ–­ç¬¬ä¸€è¡Œ
         Exit;
       end;
 
-      // 3.µ±·ÖÒ³µÄĞĞÖĞÄ³Ô´¶ÔÓ¦µÄÄ¿±êµ¥Ôª¸ñÄÚÈİÔÚ·ÖÒ³´¦ÓĞÏòÏÂÆ«ÒÆÁ¿£¬¶øµ±Ç°ĞĞÖĞ
-      // ÆÕÍ¨µ¥Ôª¸ñÕıºÃÔÚ¶¥²¿·ÖÒ³£¬Æ«ÒÆÁ¿Îª0(²»ĞèÒªÆ«ÒÆ)£¬Èç¹ûÖ±½Ó½«Æ«ÒÆÁ¿Ôö¼Ó
-      // µ½´ËĞĞÊÇ²»ÕıÈ·µÄ(µ¼ÖÂÆÕÍ¨µ¥Ôª¸ñÔÚÏÂÒ»Ò³ÆğÊ¼Î»ÖÃ²»ÔÚÒ³¶¥²¿)£¬Ó¦¸ÃÊÇ½«
-      // Æ«ÒÆÁ¿Ôö¼Óµ½´ËĞĞ¸ß¶È
-      for i := 0 to vColCrosses.Count - 1 do  // vColCrossesÀïÖ»ÓĞºÏ²¢Ä¿±ê»òÆÕÍ¨µ¥Ôª¸ñ
+      // 3.å½“åˆ†é¡µçš„è¡Œä¸­æŸæºå¯¹åº”çš„ç›®æ ‡å•å…ƒæ ¼å†…å®¹åœ¨åˆ†é¡µå¤„æœ‰å‘ä¸‹åç§»é‡ï¼Œè€Œå½“å‰è¡Œä¸­
+      // æ™®é€šå•å…ƒæ ¼æ­£å¥½åœ¨é¡¶éƒ¨åˆ†é¡µï¼Œåç§»é‡ä¸º0(ä¸éœ€è¦åç§»)ï¼Œå¦‚æœç›´æ¥å°†åç§»é‡å¢åŠ 
+      // åˆ°æ­¤è¡Œæ˜¯ä¸æ­£ç¡®çš„(å¯¼è‡´æ™®é€šå•å…ƒæ ¼åœ¨ä¸‹ä¸€é¡µèµ·å§‹ä½ç½®ä¸åœ¨é¡µé¡¶éƒ¨)ï¼Œåº”è¯¥æ˜¯å°†
+      // åç§»é‡å¢åŠ åˆ°æ­¤è¡Œé«˜åº¦
+      for i := 0 to vColCrosses.Count - 1 do  // vColCrossesé‡Œåªæœ‰åˆå¹¶ç›®æ ‡æˆ–æ™®é€šå•å…ƒæ ¼
       begin
-        if (vColCrosses[i].VDrawOffset > 0) and (vColCrosses[i].DrawItemNo = 0) then  // µÚÒ»¸ö·Å²»ÏÂ£¬ĞèÒªÕûĞĞÏòÏÂÆ«ÒÆ
+        if (vColCrosses[i].VDrawOffset > 0) and (vColCrosses[i].DrawItemNo = 0) then  // ç¬¬ä¸€ä¸ªæ”¾ä¸ä¸‹ï¼Œéœ€è¦æ•´è¡Œå‘ä¸‹åç§»
         begin
-          FRows[ABreakRow].FmtOffset := vColCrosses[i].VDrawOffset + vFixHeight;  // ±í¸ñĞĞÏòÏÂÆ«ÒÆºóÕûĞĞÆğÊ¼ÔÚÏÂÒ»Ò³ÏÔÊ¾£¬Í¬ĞĞ¶à¸öµ¥Ôª¶¼·Å²»ÏÂµÚÒ»¸öÊ±»áÖØ¸´¸³ÏàÍ¬Öµ(ÖØ¸´¸³Öµ»áÓĞ²»Ò»ÑùµÄÖµÂğ£¿)
-          vColCrosses[i].VDrawOffset := 0;  // ÕûÌåÆ«ÒÆÁË£¬DrawItem¾Í²»ÓÃµ¥¶À¼ÇÆ«ÒÆÁ¿ÁË
+          FRows[ABreakRow].FmtOffset := vColCrosses[i].VDrawOffset + vFixHeight;  // è¡¨æ ¼è¡Œå‘ä¸‹åç§»åæ•´è¡Œèµ·å§‹åœ¨ä¸‹ä¸€é¡µæ˜¾ç¤ºï¼ŒåŒè¡Œå¤šä¸ªå•å…ƒéƒ½æ”¾ä¸ä¸‹ç¬¬ä¸€ä¸ªæ—¶ä¼šé‡å¤èµ‹ç›¸åŒå€¼(é‡å¤èµ‹å€¼ä¼šæœ‰ä¸ä¸€æ ·çš„å€¼å—ï¼Ÿ)
+          vColCrosses[i].VDrawOffset := 0;  // æ•´ä½“åç§»äº†ï¼ŒDrawItemå°±ä¸ç”¨å•ç‹¬è®°åç§»é‡äº†
         end;
       end;
     end
@@ -3925,9 +4148,9 @@ begin
 
     AddPageBreak(ABreakRow, vRowBreakSeat);
 
-    for vC := 0 to vColCrosses.Count - 1 do  // ±éÀúËùÓĞÄÚÈİÏòÏÂÓĞÆ«ÒÆµÄµ¥Ôª¸ñ£¬½«Æ«ÒÆÀ©É¢µ½·ÖÒ³ºóÃæµÄDrawItem
+    for vC := 0 to vColCrosses.Count - 1 do  // éå†æ‰€æœ‰å†…å®¹å‘ä¸‹æœ‰åç§»çš„å•å…ƒæ ¼ï¼Œå°†åç§»æ‰©æ•£åˆ°åˆ†é¡µåé¢çš„DrawItem
     begin
-      if (vColCrosses[vC].DrawItemNo < 0) or (vColCrosses[vC].VDrawOffset = 0) then  // ²»ĞèÒªÆ«ÒÆ
+      if (vColCrosses[vC].DrawItemNo < 0) or (vColCrosses[vC].VDrawOffset = 0) then  // ä¸éœ€è¦åç§»
         Continue;
 
       GetDestCell(ABreakRow, vColCrosses[vC].Col, vDestRow, vDestCol);
@@ -3936,8 +4159,8 @@ begin
         OffsetRect(vCellData.DrawItems[i].Rect, 0, vColCrosses[vC].VDrawOffset + vFixHeight);
     end;
 
-    // µ±Ç°ĞĞ·ÖÒ³µÄµ¥Ôª¸ñ£¬ÓĞµÄ¿ÉÄÜÊÇºÏ²¢Ô´£¬Ä¿±ê¶ÔÓ¦µÄÔ´ÔÚ´ËĞĞÏÂÃæ£¬ËùÒÔÎªÁËÊ¹
-    // ¸÷¸öµ¥Ôª¸ñ·ÖÒ³Ôö¼ÓµÄÆ«ÒÆÁ¿ÄÜ¹»´«µİµ½¶ÔÓ¦µÄ½áÊøµ¥Ôª¸ñ£¬´Ó·ÖÒ³ĞĞÖØĞÂ¸ñÊ½»¯
+    // å½“å‰è¡Œåˆ†é¡µçš„å•å…ƒæ ¼ï¼Œæœ‰çš„å¯èƒ½æ˜¯åˆå¹¶æºï¼Œç›®æ ‡å¯¹åº”çš„æºåœ¨æ­¤è¡Œä¸‹é¢ï¼Œæ‰€ä»¥ä¸ºäº†ä½¿
+    // å„ä¸ªå•å…ƒæ ¼åˆ†é¡µå¢åŠ çš„åç§»é‡èƒ½å¤Ÿä¼ é€’åˆ°å¯¹åº”çš„ç»“æŸå•å…ƒæ ¼ï¼Œä»åˆ†é¡µè¡Œé‡æ–°æ ¼å¼åŒ–
     CalcMergeRowHeightFrom(ABreakRow);
   finally
     FreeAndNil(vColCrosses);
@@ -3956,7 +4179,7 @@ begin
   Result := False;
   for vRow := 0 to RowCount - 1 do
   begin
-    if FRows[vRow][ACol].ColSpan > 0 then  // ÓĞºÏ²¢Ä¿±êµÄĞĞÔİÊ±²»Ö§³Ö
+    if FRows[vRow][ACol].ColSpan > 0 then  // æœ‰åˆå¹¶ç›®æ ‡çš„è¡Œæš‚æ—¶ä¸æ”¯æŒ
       Exit;
   end;
   Result := True;
@@ -3970,23 +4193,23 @@ var
   vRestrain: Boolean;
   vResizeInfo: TResizeInfo;
 begin
-  Result := inherited CoordInSelect(X, Y);  // ÓĞÑ¡ÖĞÇÒÔÚRectItemÇøÓòÖĞ(´ÖÂÔ¹ÀËã)
+  Result := inherited CoordInSelect(X, Y);  // æœ‰é€‰ä¸­ä¸”åœ¨RectItemåŒºåŸŸä¸­(ç²—ç•¥ä¼°ç®—)
   if Result then
   begin
-    vResizeInfo := GetCellAt(X, Y, vRow, vCol);  // ×ø±ê´¦ĞÅÏ¢
-    Result := vResizeInfo.TableSite = TTableSite.tsCell;  // ×ø±ê´¦ÔÚµ¥Ôª¸ñÖĞ²»ÔÚ±ß¿òÉÏ
-    if Result then  // ÔÚµ¥Ôª¸ñÖĞ£¬ÅĞ¶Ïµ¥Ôª¸ñÊÇ·ñÔÚÑ¡ÖĞ·¶Î§ÄÚ
+    vResizeInfo := GetCellAt(X, Y, vRow, vCol);  // åæ ‡å¤„ä¿¡æ¯
+    Result := vResizeInfo.TableSite = TTableSite.tsCell;  // åæ ‡å¤„åœ¨å•å…ƒæ ¼ä¸­ä¸åœ¨è¾¹æ¡†ä¸Š
+    if Result then  // åœ¨å•å…ƒæ ¼ä¸­ï¼Œåˆ¤æ–­å•å…ƒæ ¼æ˜¯å¦åœ¨é€‰ä¸­èŒƒå›´å†…
     begin
-      if FSelectCellRang.StartRow >= 0 then  // ÓĞÑ¡ÔñÆğÊ¼ĞĞ
+      if FSelectCellRang.StartRow >= 0 then  // æœ‰é€‰æ‹©èµ·å§‹è¡Œ
       begin
-        if FSelectCellRang.EndRow >= 0 then  // ÓĞÑ¡Ôñ½áÊøĞĞ
+        if FSelectCellRang.EndRow >= 0 then  // æœ‰é€‰æ‹©ç»“æŸè¡Œ
         begin
           Result := (vRow >= FSelectCellRang.StartRow)
                 and (vRow <= FSelectCellRang.EndRow)
                 and (vCol >= FSelectCellRang.StartCol)
                 and (vCol <= FSelectCellRang.EndCol);
         end
-        else  // ÎŞÑ¡Ôñ½áÊøĞĞ£¬ÅĞ¶ÏÊÇ·ñÔÚµ±Ç°µ¥Ôª¸ñµÄÑ¡ÖĞÖĞ
+        else  // æ— é€‰æ‹©ç»“æŸè¡Œï¼Œåˆ¤æ–­æ˜¯å¦åœ¨å½“å‰å•å…ƒæ ¼çš„é€‰ä¸­ä¸­
         begin
           vCellData := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData;
           if vCellData.SelectExists then
@@ -4012,8 +4235,8 @@ var
   //vTable: THCTableItem;
   vRow, vCol: Integer;
 begin
-  if Self.IsSelectComplate then  // È«Ñ¡ÔñÁË
-    raise Exception.Create('±£´æÑ¡ÖĞÄÚÈİ³ö´í£¬±í¸ñ²»Ó¦¸ÃÓÉÄÚ²¿´¦ÀíÈ«Ñ¡ÖĞµÄ±£´æ£¡')
+  if Self.IsSelectComplate then  // å…¨é€‰æ‹©äº†
+    raise Exception.Create('ä¿å­˜é€‰ä¸­å†…å®¹å‡ºé”™ï¼Œè¡¨æ ¼ä¸åº”è¯¥ç”±å†…éƒ¨å¤„ç†å…¨é€‰ä¸­çš„ä¿å­˜ï¼')
   else
   if FSelectCellRang.EditCell then
   begin
@@ -4022,7 +4245,7 @@ begin
       vCellData.SaveSelectToStream(AStream);
   end
   else
-  if FSelectCellRang.SelectExists then  // ¶àÑ¡µ¥Ôª¸ñ
+  if FSelectCellRang.SelectExists then  // å¤šé€‰å•å…ƒæ ¼
   begin
     //vWidth := 0;
     //for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
@@ -4059,29 +4282,29 @@ begin
   inherited SaveToStream(AStream, AStart, AEnd);
 
   AStream.WriteBuffer(FBorderVisible, SizeOf(FBorderVisible));
+  AStream.WriteBuffer(FBorderWidthPt, SizeOf(FBorderWidthPt));
+  AStream.WriteBuffer(FRows.Count, SizeOf(FRows.Count));  // è¡Œæ•°
+  AStream.WriteBuffer(FColWidths.Count, SizeOf(FColWidths.Count));  // åˆ—æ•°
 
-  AStream.WriteBuffer(FRows.Count, SizeOf(FRows.Count));  // ĞĞÊı
-  AStream.WriteBuffer(FColWidths.Count, SizeOf(FColWidths.Count));  // ÁĞÊı
-
-  // ¹Ì¶¨ĞĞÊı¡¢ÁĞÊıĞÅÏ¢
+  // å›ºå®šè¡Œæ•°ã€åˆ—æ•°ä¿¡æ¯
   AStream.WriteBuffer(FFixRow, SizeOf(FFixRow));
   AStream.WriteBuffer(FFixRowCount, SizeOf(FFixRowCount));
   AStream.WriteBuffer(FFixCol, SizeOf(FFixCol));
   AStream.WriteBuffer(FFixColCount, SizeOf(FFixColCount));
 
-  for i := 0 to FColWidths.Count - 1 do  // ¸÷ÁĞ±ê×¼¿í¶È
+  for i := 0 to FColWidths.Count - 1 do  // å„åˆ—æ ‡å‡†å®½åº¦
   begin
     vC := FColWidths[i];
     AStream.WriteBuffer(vC, SizeOf(vC));
   end;
 
-  for vR := 0 to FRows.Count - 1 do  // ¸÷ĞĞÊı¾İ
+  for vR := 0 to FRows.Count - 1 do  // å„è¡Œæ•°æ®
   begin
     AStream.WriteBuffer(FRows[vR].AutoHeight, SizeOf(Boolean));
     if not FRows[vR].AutoHeight then
       AStream.WriteBuffer(FRows[vR].Height, SizeOf(Integer));
 
-    for vC := 0 to FRows[vR].ColCount - 1 do  // ¸÷ÁĞÊı¾İ
+    for vC := 0 to FRows[vR].ColCount - 1 do  // å„åˆ—æ•°æ®
       FRows[vR][vC].SaveToStream(AStream);
   end;
 end;
@@ -4093,9 +4316,9 @@ var
 begin
   Result := False;
 
-  if AForward then  // ÏòÇ°²éÕÒ
+  if AForward then  // å‘å‰æŸ¥æ‰¾
   begin
-    if FSelectCellRang.StartRow < 0 then  // Ã»ÓĞ±à¼­µÄµ¥Ôª¸ñ
+    if FSelectCellRang.StartRow < 0 then  // æ²¡æœ‰ç¼–è¾‘çš„å•å…ƒæ ¼
     begin
       FSelectCellRang.StartRow := FRows.Count - 1;
       FSelectCellRang.StartCol := FColWidths.Count - 1;
@@ -4103,7 +4326,7 @@ begin
       vRow := FSelectCellRang.StartRow;
       vCol := FSelectCellRang.StartCol;
 
-      // ´Ó×îºó¿ªÊ¼
+      // ä»æœ€åå¼€å§‹
       if FRows[vRow][vCol].CellData <> nil then
       begin
         with FRows[vRow][vCol].CellData do
@@ -4122,9 +4345,9 @@ begin
       if FRows[vRow][vCol].CellData <> nil then
         Result := FRows[vRow][vCol].CellData.Search(AKeyword, AForward, AMatchCase);
 
-      if not Result then  // µ±Ç°µ¥Ôª¸ñÃ»ÕÒµ½
+      if not Result then  // å½“å‰å•å…ƒæ ¼æ²¡æ‰¾åˆ°
       begin
-        for j := vCol - 1 downto 0 do  // ÔÚÍ¬ĞĞºóÃæµÄµ¥Ôª¸ñÕÒ
+        for j := vCol - 1 downto 0 do  // åœ¨åŒè¡Œåé¢çš„å•å…ƒæ ¼æ‰¾
         begin
           if (FRows[vRow][j].ColSpan < 0) or (FRows[vRow][j].RowSpan < 0) then
             Continue
@@ -4147,7 +4370,7 @@ begin
         end;
       end;
 
-      if not Result then  // Í¬ĞĞºóÃæµÄµ¥Ôª¸ñÃ»ÕÒµ½
+      if not Result then  // åŒè¡Œåé¢çš„å•å…ƒæ ¼æ²¡æ‰¾åˆ°
       begin
         for i := FSelectCellRang.StartRow - 1 downto 0 do
         begin
@@ -4182,14 +4405,14 @@ begin
       end;
     end;
   end
-  else  // Ïòºó²éÕÒ
+  else  // å‘åæŸ¥æ‰¾
   begin
-    if FSelectCellRang.StartRow < 0 then  // Ã»ÓĞ±à¼­µÄµ¥Ôª¸ñ
+    if FSelectCellRang.StartRow < 0 then  // æ²¡æœ‰ç¼–è¾‘çš„å•å…ƒæ ¼
     begin
       FSelectCellRang.StartRow := 0;
       FSelectCellRang.StartCol := 0;
 
-      // ´ÓÍ·¿ªÊ¼
+      // ä»å¤´å¼€å§‹
       FRows[0][0].CellData.SelectInfo.StartItemNo := 0;
       FRows[0][0].CellData.SelectInfo.StartItemOffset := 0;
     end;
@@ -4200,9 +4423,9 @@ begin
     if (vRow >= 0) and (vCol >= 0) then
     begin
       Result := FRows[vRow][vCol].CellData.Search(AKeyword, AForward, AMatchCase);
-      if not Result then  // µ±Ç°µ¥Ôª¸ñÃ»ÕÒµ½
+      if not Result then  // å½“å‰å•å…ƒæ ¼æ²¡æ‰¾åˆ°
       begin
-        for j := vCol + 1 to FColWidths.Count - 1 do  // ÔÚÍ¬ĞĞºóÃæµÄµ¥Ôª¸ñÕÒ
+        for j := vCol + 1 to FColWidths.Count - 1 do  // åœ¨åŒè¡Œåé¢çš„å•å…ƒæ ¼æ‰¾
         begin
           if (FRows[vRow][j].ColSpan < 0) or (FRows[vRow][j].RowSpan < 0) then
             Continue
@@ -4222,7 +4445,7 @@ begin
         end;
       end;
 
-      if not Result then  // Í¬ĞĞºóÃæµÄµ¥Ôª¸ñÃ»ÕÒµ½
+      if not Result then  // åŒè¡Œåé¢çš„å•å…ƒæ ¼æ²¡æ‰¾åˆ°
       begin
         for i := FSelectCellRang.StartRow + 1 to FRows.Count - 1 do
         begin
@@ -4270,18 +4493,18 @@ begin
   if Self.IsSelectComplate then
     Result := True
   else
-  if FSelectCellRang.StartRow >= 0 then  // ÓĞÑ¡ÔñÆğÊ¼ĞĞ
+  if FSelectCellRang.StartRow >= 0 then  // æœ‰é€‰æ‹©èµ·å§‹è¡Œ
   begin
-    if FSelectCellRang.EndRow >= 0 then  // ÓĞÑ¡Ôñ½áÊøĞĞ
+    if FSelectCellRang.EndRow >= 0 then  // æœ‰é€‰æ‹©ç»“æŸè¡Œ
       Result := True
-    else  // ÎŞÑ¡Ôñ½áÊøĞĞ£¬ÅĞ¶Ïµ±Ç°µ¥Ôª¸ñÊÇ·ñÓĞÑ¡ÖĞ
+    else  // æ— é€‰æ‹©ç»“æŸè¡Œï¼Œåˆ¤æ–­å½“å‰å•å…ƒæ ¼æ˜¯å¦æœ‰é€‰ä¸­
       Result := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.SelectExists;
   end;
 
-//  Result := (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.EndRow >= 0);  // ´æÔÚÑ¡ÖĞÆğÊ¼ºÍ½áÊøĞĞ
+//  Result := (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.EndRow >= 0);  // å­˜åœ¨é€‰ä¸­èµ·å§‹å’Œç»“æŸè¡Œ
 //  if Result then
 //  begin
-//    if FSelectCellRang.SameCell then  // Ñ¡ÔñÔÚÍ¬Ò»¸öµ¥Ôª¸ñÖĞ£¬ÓÉµ¥Ôª¸ñ¾ö¶¨ÊÇ·ñÓĞÑ¡ÖĞÄÚÈİ
+//    if FSelectCellRang.SameCell then  // é€‰æ‹©åœ¨åŒä¸€ä¸ªå•å…ƒæ ¼ä¸­ï¼Œç”±å•å…ƒæ ¼å†³å®šæ˜¯å¦æœ‰é€‰ä¸­å†…å®¹
 //      Result := CellSelectComplate(FSelectCellRang.StartRow, FSelectCellRang.StartCol)
 //        or Cells[FSelectCellRang.StartRow, FSelectCellRang.StartCol].CellData.SelectExists;
 //  end;
@@ -4308,7 +4531,7 @@ procedure THCTableItem.SetActiveItemText(const AText: string);
 begin
   inherited SetActiveItemText(AText);
 
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
       procedure
@@ -4321,14 +4544,16 @@ begin
   end;
 end;
 
-procedure THCTableItem.SetBorderWidth(const Value: Byte);
+procedure THCTableItem.SetBorderWidthPt(const Value: Single);
 begin
-  if FBorderWidth <> Value then
+  if FBorderWidthPt <> Value then
   begin
-    if Value > FCellVPadding * 2 then  // ÒªÇó²»´óÓÚ×îĞ¡ĞĞ¸ß£¬·ñÔò·ÖÒ³¼ÆËã»áÓĞÎÊÌâ
-      FBorderWidth := FCellVPadding * 2 - 1
-    else
-      FBorderWidth := Value;
+    //if Value > FCellVPadding * 2 then  // è¦æ±‚ä¸å¤§äºæœ€å°è¡Œé«˜ï¼Œå¦åˆ™åˆ†é¡µè®¡ç®—ä¼šæœ‰é—®é¢˜
+    //  FBorderWidth := FCellVPadding * 2 - 1
+    //else
+      FBorderWidthPt := Value;
+    FBorderWidthPix := HCUnitConversion.PtToPixel(FBorderWidthPt, HCUnitConversion.PixelsPerInchX);
+    FLastChangeFormated := False;
   end;
 end;
 
@@ -4337,14 +4562,22 @@ begin
   if FCellVPadding <> Value then
   begin
     FCellVPadding := Value;
-    if FBorderWidth > FCellVPadding * 2 then  // ÒªÇó²»´óÓÚ×îĞ¡ĞĞ¸ß£¬·ñÔò·ÖÒ³¼ÆËã»áÓĞÎÊÌâ
-      FBorderWidth := FCellVPadding * 2 - 1;
+    //if FBorderWidthPix > FCellVPadding * 2 then  // è¦æ±‚ä¸å¤§äºæœ€å°è¡Œé«˜ï¼Œå¦åˆ™åˆ†é¡µè®¡ç®—ä¼šæœ‰é—®é¢˜
+    //  FBorderWidthPix := FCellVPadding * 2 - 1;
   end;
 end;
 
 procedure THCTableItem.SetColWidth(AIndex: Integer; const AWidth: Integer);
+var
+  vR: Integer;
 begin
   FColWidths[AIndex] := AWidth;
+  for vR := 0 to Self.RowCount - 1 do
+  begin
+    Cells[vR, AIndex].Width := AWidth;
+    if Assigned(Cells[vR, AIndex].CellData) then
+      Cells[vR, AIndex].CellData.Width := AWidth - FCellHPadding - FCellHPadding;
+  end;
 end;
 
 procedure THCTableItem.SetResizing(const Value: Boolean);
@@ -4360,7 +4593,7 @@ var
 begin
   Result := False;
 
-  // ½èÓÃ vLeftCell ±äÁ¿
+  // å€Ÿç”¨ vLeftCell å˜é‡
   vLeftCell := GetEditCell;
   if vLeftCell = nil then Exit;
   vLeftCell.CellData.InitializeField;
@@ -4368,34 +4601,34 @@ begin
   vCurRow := FSelectCellRang.StartRow;
   vCurCol := FSelectCellRang.StartCol;
 
-  // ²ğ·ÖÊ±£¬¹â±êËùµ¥Ôª¸ñRowSpan>=0£¬ColSpan>=0
-  if FRows[vCurRow][vCurCol].ColSpan > 0 then  // ²ğ·ÖÊ±¹â±êËùÔÚµÄµ¥Ôª¸ñÊÇÁĞºÏ²¢Ä¿±ê£¬½«ºÏ²¢²ğ¿ª
+  // æ‹†åˆ†æ—¶ï¼Œå…‰æ ‡æ‰€å•å…ƒæ ¼RowSpan>=0ï¼ŒColSpan>=0
+  if FRows[vCurRow][vCurCol].ColSpan > 0 then  // æ‹†åˆ†æ—¶å…‰æ ‡æ‰€åœ¨çš„å•å…ƒæ ¼æ˜¯åˆ—åˆå¹¶ç›®æ ‡ï¼Œå°†åˆå¹¶æ‹†å¼€
   begin
-    GetSourceCell(vCurRow, vCurCol, vSrcRow, vSrcCol);  // µÃµ½·¶Î§
+    GetSourceCell(vCurRow, vCurCol, vSrcRow, vSrcCol);  // å¾—åˆ°èŒƒå›´
 
-    FRows[vCurRow][vCurCol].ColSpan := 0;  // ºÏ²¢Ä¿±ê²»ÔÙÏòÓÒºÏ²¢µ¥Ôª¸ñÁË
-    for i := vCurCol + 1 to vSrcCol do  // Ä¿±êÁĞÍ¬ĞĞÓÒ²àµÄÖØĞÂÉèÖÃºÏ²¢Ä¿±ê
+    FRows[vCurRow][vCurCol].ColSpan := 0;  // åˆå¹¶ç›®æ ‡ä¸å†å‘å³åˆå¹¶å•å…ƒæ ¼äº†
+    for i := vCurCol + 1 to vSrcCol do  // ç›®æ ‡åˆ—åŒè¡Œå³ä¾§çš„é‡æ–°è®¾ç½®åˆå¹¶ç›®æ ‡
     begin
-      for vR := vCurRow to vSrcRow do  // ±éÀú²ğ·ÖÇ°¹â±êËùÔÚµÄĞĞ¸÷ÁĞ
+      for vR := vCurRow to vSrcRow do  // éå†æ‹†åˆ†å‰å…‰æ ‡æ‰€åœ¨çš„è¡Œå„åˆ—
         FRows[vR][i].ColSpan := FRows[vR][i].ColSpan + 1;
     end;
 
-    // Ô­ºÏ²¢Ä¿±êµ¥Ôª¸ñÓÒ²àµÄµ¥Ôª¸ñ×÷Îª²ğ·Öºó£¬ÓÒ²àºÏ²¢Ô´µÄĞÂÄ¿±ê
+    // åŸåˆå¹¶ç›®æ ‡å•å…ƒæ ¼å³ä¾§çš„å•å…ƒæ ¼ä½œä¸ºæ‹†åˆ†åï¼Œå³ä¾§åˆå¹¶æºçš„æ–°ç›®æ ‡
     FRows[vCurRow][vCurCol + 1].CellData := THCTableCellData.Create(OwnerData.Style);
     FRows[vCurRow][vCurCol + 1].RowSpan := vSrcRow - vCurRow;
     FRows[vCurRow][vCurCol + 1].ColSpan := vSrcCol - (vCurCol + 1);
   end
-  else  // Cells[vCurRow, vCurCol].ColSpan = 0 ²ğ·ÖÊ±¹â±êËùÔÚµ¥Ôª¸ñÊÇÆÕÍ¨µ¥Ôª¸ñ
-  if InsertCol(vCurCol + 1, 1) then  // ÓÒ²à²åÈëÁĞ
+  else  // Cells[vCurRow, vCurCol].ColSpan = 0 æ‹†åˆ†æ—¶å…‰æ ‡æ‰€åœ¨å•å…ƒæ ¼æ˜¯æ™®é€šå•å…ƒæ ¼
+  if InsertCol(vCurCol + 1, 1) then  // å³ä¾§æ’å…¥åˆ—
   begin
     vR := 0;
     while vR < Self.RowCount do
     begin
       vLeftCell := FRows[vR][vCurCol];
 
-      if vR = vCurRow then  // ²ğ·ÖÊ±¹â±êËùÔÚĞĞ£¬´ËÊ±vLeftCell.ColSpan = 0
+      if vR = vCurRow then  // æ‹†åˆ†æ—¶å…‰æ ‡æ‰€åœ¨è¡Œï¼Œæ­¤æ—¶vLeftCell.ColSpan = 0
       begin
-        if vLeftCell.RowSpan > 0 then  // Ç°ÃæÊÇĞĞºÏ²¢Ä¿±ê
+        if vLeftCell.RowSpan > 0 then  // å‰é¢æ˜¯è¡Œåˆå¹¶ç›®æ ‡
         begin
           vSrcRow := vCurRow + vLeftCell.RowSpan;
           while vR <= vSrcRow do
@@ -4410,14 +4643,14 @@ begin
             Inc(vR);
           end;
         end
-        else  // vLeftCell.RowSpan < 0 µÄÔÚRowSpan > 0 Àï´¦ÀíÁË£¬vLeftCell.RowSpan = 0 ²»ĞèÒª´¦Àí
+        else  // vLeftCell.RowSpan < 0 çš„åœ¨RowSpan > 0 é‡Œå¤„ç†äº†ï¼ŒvLeftCell.RowSpan = 0 ä¸éœ€è¦å¤„ç†
           Inc(vR);
       end
       else  // vR <> vCurRow
       begin
         if vLeftCell.RowSpan = 0 then
         begin
-          if vLeftCell.ColSpan = 0 then  // ×ó²àÊÇÆÕÍ¨µ¥Ôª¸ñ
+          if vLeftCell.ColSpan = 0 then  // å·¦ä¾§æ˜¯æ™®é€šå•å…ƒæ ¼
           begin
             FRows[vR][vCurCol + 1].CellData.Free;
             FRows[vR][vCurCol + 1].CellData := nil;
@@ -4426,11 +4659,11 @@ begin
             Inc(vR);
           end
           else
-          if vLeftCell.ColSpan < 0 then  // Í¬ĞĞºÏ²¢µÄÔ´ÁĞ
+          if vLeftCell.ColSpan < 0 then  // åŒè¡Œåˆå¹¶çš„æºåˆ—
           begin
-            vDestCol := vCurCol + vLeftCell.ColSpan;  // Ä¿±êÁĞ
+            vDestCol := vCurCol + vLeftCell.ColSpan;  // ç›®æ ‡åˆ—
             vSrcCol := vDestCol + FRows[vR][vDestCol].ColSpan;
-            if vCurCol = vSrcCol then  // ×ó²àÊÇºÏ²¢·¶Î§×îºó£¬²åÈëµÄĞèÒªºÏ²¢½øÇ°Ãæ
+            if vCurCol = vSrcCol then  // å·¦ä¾§æ˜¯åˆå¹¶èŒƒå›´æœ€åï¼Œæ’å…¥çš„éœ€è¦åˆå¹¶è¿›å‰é¢
             begin
               FRows[vR][vCurCol + 1].CellData.Free;
               FRows[vR][vCurCol + 1].CellData := nil;
@@ -4440,13 +4673,13 @@ begin
 
             Inc(vR);
           end
-          else  // vLeftCell.ColSpan > 0 ×ó²àÊÇÍ¬ĞĞºÏ²¢Ä¿±ê£¬ÓÉÓÒ²à²åÈëÁĞ´¦ÀíÁË²åÈëÁĞµÄºÏ²¢
+          else  // vLeftCell.ColSpan > 0 å·¦ä¾§æ˜¯åŒè¡Œåˆå¹¶ç›®æ ‡ï¼Œç”±å³ä¾§æ’å…¥åˆ—å¤„ç†äº†æ’å…¥åˆ—çš„åˆå¹¶
             Inc(vR);
         end
         else
-        if vLeftCell.RowSpan > 0 then  // ºÏ²¢Ä¿±ê
+        if vLeftCell.RowSpan > 0 then  // åˆå¹¶ç›®æ ‡
         begin
-          if vLeftCell.ColSpan = 0 then  // Í¬ÁĞºÏ²¢£¬ÓÒ²à²åÈëµÄºÏ²¢µ½Ä¿±ê
+          if vLeftCell.ColSpan = 0 then  // åŒåˆ—åˆå¹¶ï¼Œå³ä¾§æ’å…¥çš„åˆå¹¶åˆ°ç›®æ ‡
           begin
             vLeftCell.ColSpan := 1;
             vDestRow := vR;
@@ -4461,10 +4694,10 @@ begin
               Inc(vR);
             end;
           end
-          else  // ºÏ²¢Ä¿±ê²»¿ÉÄÜ vLeftCell.ColSpan < 0£¬vLeftCell.ColSpan > 0ÓÉÓÒ²à²åÈëÁĞ´¦ÀíÁËºÏ²¢
+          else  // åˆå¹¶ç›®æ ‡ä¸å¯èƒ½ vLeftCell.ColSpan < 0ï¼ŒvLeftCell.ColSpan > 0ç”±å³ä¾§æ’å…¥åˆ—å¤„ç†äº†åˆå¹¶
             Inc(vR);
         end
-        else  // vLeftCell.RowSpan < 0 µÄÇé¿ö£¬ÓÉÄ¿±êµ¥Ôª¸ñÔÚvLeftCell.RowSpan > 0ÖĞ´¦ÀíÁË
+        else  // vLeftCell.RowSpan < 0 çš„æƒ…å†µï¼Œç”±ç›®æ ‡å•å…ƒæ ¼åœ¨vLeftCell.RowSpan > 0ä¸­å¤„ç†äº†
           Inc(vR);
       end;
     end;
@@ -4481,7 +4714,7 @@ var
 begin
   Result := False;
 
-  // ½èÓÃ vTopCell ±äÁ¿
+  // å€Ÿç”¨ vTopCell å˜é‡
   vTopCell := GetEditCell;
   if vTopCell = nil then Exit;
   vTopCell.CellData.InitializeField;
@@ -4489,34 +4722,34 @@ begin
   vCurRow := FSelectCellRang.StartRow;
   vCurCol := FSelectCellRang.StartCol;
 
-  // ²ğ·ÖÊ±£¬¹â±êËùµ¥Ôª¸ñRowSpan>=0£¬ColSpan>=0
-  if FRows[vCurRow][vCurCol].RowSpan > 0 then  // ²ğ·ÖÊ±¹â±êËùÔÚµÄµ¥Ôª¸ñÊÇĞĞºÏ²¢Ä¿±ê£¬½«ºÏ²¢²ğ¿ª
+  // æ‹†åˆ†æ—¶ï¼Œå…‰æ ‡æ‰€å•å…ƒæ ¼RowSpan>=0ï¼ŒColSpan>=0
+  if FRows[vCurRow][vCurCol].RowSpan > 0 then  // æ‹†åˆ†æ—¶å…‰æ ‡æ‰€åœ¨çš„å•å…ƒæ ¼æ˜¯è¡Œåˆå¹¶ç›®æ ‡ï¼Œå°†åˆå¹¶æ‹†å¼€
   begin
-    GetSourceCell(vCurRow, vCurCol, vSrcRow, vSrcCol);  // µÃµ½·¶Î§
+    GetSourceCell(vCurRow, vCurCol, vSrcRow, vSrcCol);  // å¾—åˆ°èŒƒå›´
 
-    FRows[vCurRow][vCurCol].RowSpan := 0;  // Ä¿±ê²»ÔÙÏòÏÂºÏ²¢µ¥Ôª¸ñÁË
-    for i := vCurRow + 1 to vSrcRow do  // ´ÓÄ¿±êĞĞÏÂÒ»ĞĞ¿ªÊ¼£¬ÖØĞÂÉèÖÃºÏ²¢Ä¿±ê
+    FRows[vCurRow][vCurCol].RowSpan := 0;  // ç›®æ ‡ä¸å†å‘ä¸‹åˆå¹¶å•å…ƒæ ¼äº†
+    for i := vCurRow + 1 to vSrcRow do  // ä»ç›®æ ‡è¡Œä¸‹ä¸€è¡Œå¼€å§‹ï¼Œé‡æ–°è®¾ç½®åˆå¹¶ç›®æ ‡
     begin
-      for vC := vCurCol to vSrcCol do  // ±éÀú²ğ·ÖÇ°¹â±êËùÔÚµÄĞĞ¸÷ÁĞ
+      for vC := vCurCol to vSrcCol do  // éå†æ‹†åˆ†å‰å…‰æ ‡æ‰€åœ¨çš„è¡Œå„åˆ—
         FRows[i][vC].RowSpan := FRows[i][vC].RowSpan + 1;
     end;
 
-    // Ô­ºÏ²¢Ä¿±êµ¥Ôª¸ñÕıÏÂÃæµÄµ¥Ôª¸ñ×÷Îª²ğ·Öºó£¬ÏÂÃæºÏ²¢Ô´µÄĞÂÄ¿±ê
+    // åŸåˆå¹¶ç›®æ ‡å•å…ƒæ ¼æ­£ä¸‹é¢çš„å•å…ƒæ ¼ä½œä¸ºæ‹†åˆ†åï¼Œä¸‹é¢åˆå¹¶æºçš„æ–°ç›®æ ‡
     FRows[vCurRow + 1][vCurCol].CellData := THCTableCellData.Create(OwnerData.Style);
     FRows[vCurRow + 1][vCurCol].RowSpan := vSrcRow - (vCurRow + 1);
     FRows[vCurRow + 1][vCurCol].ColSpan := vSrcCol - vCurCol;
   end
-  else  // Cells[vCurRow, vCurCol].RowSpan = 0 ²ğ·ÖÊ±¹â±êËùÔÚµ¥Ôª¸ñÊÇÆÕÍ¨µ¥Ôª¸ñ
-  if InsertRow(vCurRow + 1, 1) then  // ÏÂÃæ²åÈëĞĞ
+  else  // Cells[vCurRow, vCurCol].RowSpan = 0 æ‹†åˆ†æ—¶å…‰æ ‡æ‰€åœ¨å•å…ƒæ ¼æ˜¯æ™®é€šå•å…ƒæ ¼
+  if InsertRow(vCurRow + 1, 1) then  // ä¸‹é¢æ’å…¥è¡Œ
   begin
     vC := 0;
     while vC < Self.ColCount do
     begin
       vTopCell := FRows[vCurRow][vC];
 
-      if vC = vCurCol then  // ²ğ·ÖÊ±¹â±êËùÔÚÁĞ£¬´ËÊ±vTopCell.RowSpan = 0
+      if vC = vCurCol then  // æ‹†åˆ†æ—¶å…‰æ ‡æ‰€åœ¨åˆ—ï¼Œæ­¤æ—¶vTopCell.RowSpan = 0
       begin
-        if vTopCell.ColSpan > 0 then  // ÉÏÃæÊÇÁĞºÏ²¢Ä¿±ê
+        if vTopCell.ColSpan > 0 then  // ä¸Šé¢æ˜¯åˆ—åˆå¹¶ç›®æ ‡
         begin
           vSrcCol := vCurCol + vTopCell.ColSpan;
           while vC <= vSrcCol do
@@ -4531,14 +4764,14 @@ begin
             Inc(vC);
           end;
         end
-        else  // vLeftCell.ColSpan < 0 µÄÔÚColSpan > 0 Àï´¦ÀíÁË£¬vLeftCell.ColSpan = 0 ²»ĞèÒª´¦Àí
+        else  // vLeftCell.ColSpan < 0 çš„åœ¨ColSpan > 0 é‡Œå¤„ç†äº†ï¼ŒvLeftCell.ColSpan = 0 ä¸éœ€è¦å¤„ç†
           Inc(vC);
       end
       else  // vC <> vCurCol
       begin
         if vTopCell.ColSpan = 0 then
         begin
-          if vTopCell.RowSpan = 0 then  // ÉÏÃæÊÇÆÕÍ¨µ¥Ôª¸ñ
+          if vTopCell.RowSpan = 0 then  // ä¸Šé¢æ˜¯æ™®é€šå•å…ƒæ ¼
           begin
             FRows[vCurRow + 1][vC].CellData.Free;
             FRows[vCurRow + 1][vC].CellData := nil;
@@ -4547,11 +4780,11 @@ begin
             Inc(vC);
           end
           else
-          if vTopCell.RowSpan < 0 then  // Í¬ÁĞºÏ²¢µÄÔ´ÁĞ
+          if vTopCell.RowSpan < 0 then  // åŒåˆ—åˆå¹¶çš„æºåˆ—
           begin
-            vDestRow := vCurRow + vTopCell.RowSpan;  // Ä¿±êĞĞ
+            vDestRow := vCurRow + vTopCell.RowSpan;  // ç›®æ ‡è¡Œ
             vSrcRow := vDestRow + FRows[vDestRow][vC].RowSpan;
-            if vCurRow = vSrcRow then  // ÉÏÃæÊÇºÏ²¢·¶Î§×îºó£¬²åÈëµÄĞèÒªºÏ²¢½øÉÏÃæ
+            if vCurRow = vSrcRow then  // ä¸Šé¢æ˜¯åˆå¹¶èŒƒå›´æœ€åï¼Œæ’å…¥çš„éœ€è¦åˆå¹¶è¿›ä¸Šé¢
             begin
               FRows[vCurRow + 1][vC].CellData.Free;
               FRows[vCurRow + 1][vC].CellData := nil;
@@ -4561,13 +4794,13 @@ begin
 
             Inc(vC);
           end
-          else  // vTopCell.RowSpan > 0 ÉÏÃæÊÇÍ¬ĞĞºÏ²¢Ä¿±ê£¬ÓÉÉÏÃæ²åÈëĞĞ´¦ÀíÁË²åÈëĞĞµÄºÏ²¢
+          else  // vTopCell.RowSpan > 0 ä¸Šé¢æ˜¯åŒè¡Œåˆå¹¶ç›®æ ‡ï¼Œç”±ä¸Šé¢æ’å…¥è¡Œå¤„ç†äº†æ’å…¥è¡Œçš„åˆå¹¶
             Inc(vC);
         end
         else
-        if vTopCell.ColSpan > 0 then  // ºÏ²¢Ä¿±ê
+        if vTopCell.ColSpan > 0 then  // åˆå¹¶ç›®æ ‡
         begin
-          if vTopCell.RowSpan = 0 then  // Í¬ĞĞºÏ²¢£¬ÏÂÃæ²åÈëµÄºÏ²¢µ½Ä¿±ê
+          if vTopCell.RowSpan = 0 then  // åŒè¡Œåˆå¹¶ï¼Œä¸‹é¢æ’å…¥çš„åˆå¹¶åˆ°ç›®æ ‡
           begin
             vTopCell.RowSpan := 1;
             vDestCol := vC;
@@ -4582,10 +4815,10 @@ begin
               Inc(vC);
             end;
           end
-          else  // ºÏ²¢Ä¿±ê²»¿ÉÄÜ vTopCell.RowSpan < 0£¬vTopCell.RowSpan > 0ÓÉÉÏÃæ²åÈëĞĞ´¦ÀíÁËºÏ²¢
+          else  // åˆå¹¶ç›®æ ‡ä¸å¯èƒ½ vTopCell.RowSpan < 0ï¼ŒvTopCell.RowSpan > 0ç”±ä¸Šé¢æ’å…¥è¡Œå¤„ç†äº†åˆå¹¶
             Inc(vC);
         end
-        else  // vLeftCell.ColSpan < 0 µÄÇé¿ö£¬ÓÉÄ¿±êµ¥Ôª¸ñÔÚvLeftCell.ColSpan > 0ÖĞ´¦ÀíÁË
+        else  // vLeftCell.ColSpan < 0 çš„æƒ…å†µï¼Œç”±ç›®æ ‡å•å…ƒæ ¼åœ¨vLeftCell.ColSpan > 0ä¸­å¤„ç†äº†
           Inc(vC);
       end;
     end;
@@ -4598,16 +4831,16 @@ function THCTableItem.SrcCellDataTopDistanceToDest(const ASrcRow, ADestRow: Inte
 var
   vR: Integer;
 begin
-  Result := {FCellVPaddingºÍÏÂÃæµÄ¼õÔ¼µô +} FBorderWidth + FRows[ASrcRow].FmtOffset;
+  Result := {FCellVPaddingå’Œä¸‹é¢çš„å‡çº¦æ‰ +} FBorderWidthPix + FRows[ASrcRow].FmtOffset;
 
   vR := ASrcRow - 1;
   while vR > ADestRow do
   begin
-    Result := Result + FRows[vR].Height + FBorderWidth + FRows[vR].FmtOffset;
+    Result := Result + FRows[vR].Height + FBorderWidthPix + FRows[vR].FmtOffset;
     Dec(vR);
   end;
 
-  Result := Result + FRows[ADestRow].Height{ - FCellVPaddingºÍÉÏÃæ¼ÓÔ¼µô};
+  Result := Result + FRows[ADestRow].Height{ - FCellVPaddingå’Œä¸Šé¢åŠ çº¦æ‰};
 end;
 
 procedure THCTableItem.SelectComplate;
@@ -4650,7 +4883,7 @@ var
   vR, vC: Integer;
   vCell: THCTableCell;
 begin
-  Result := '<table border="' + IntToStr(FBorderWidth) + '" cellpadding="0"; cellspacing="0">';
+  Result := '<table border="' + IntToStr(FBorderWidthPix) + '" cellpadding="0"; cellspacing="0">';
   for vR := 0 to FRows.Count - 1 do
   begin
     Result := Result + sLineBreak + '<tr>';
@@ -4681,17 +4914,17 @@ begin
   inherited ToXml(ANode);
 
   vS := IntToStr(FColWidths[0]);
-  for vC := 1 to FColWidths.Count - 1 do  // ¸÷ÁĞ±ê×¼¿í¶È
+  for vC := 1 to FColWidths.Count - 1 do  // å„åˆ—æ ‡å‡†å®½åº¦
     vS := vS + ',' + IntToStr(FColWidths[vC]);
 
   ANode.Attributes['bordervisible'] := FBorderVisible;
-  ANode.Attributes['borderwidth'] := FBorderWidth;
+  ANode.Attributes['borderwidth'] := FBorderWidthPix;
   ANode.Attributes['row'] := FRows.Count;
   ANode.Attributes['col'] := FColWidths.Count;
   ANode.Attributes['colwidth'] := vS;
   ANode.Attributes['link'] := '';
 
-  for vR := 0 to FRows.Count - 1 do  // ¸÷ĞĞÊı¾İ
+  for vR := 0 to FRows.Count - 1 do  // å„è¡Œæ•°æ®
     FRows[vR].ToXml(ANode.AddChild('row'));
 end;
 
@@ -4791,7 +5024,7 @@ end;
 function THCTableItem.ActiveDataResizing: Boolean;
 begin
   Result := False;
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
     Result := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.SelectedResizing;
 end;
 
@@ -4801,7 +5034,7 @@ var
   vR, vC, vLastRow, vLastCol, vDestRow, vDestCol: Integer;
   vCell: THCTableCell;
 begin
-  // ¸ù¾İÆğÊ¼µ¥Ôª¸ñºÍÑ¡ÖĞ½áÊøÈ·¶¨µÄ¾ØĞÎÓĞĞ§·¶Î§
+  // æ ¹æ®èµ·å§‹å•å…ƒæ ¼å’Œé€‰ä¸­ç»“æŸç¡®å®šçš„çŸ©å½¢æœ‰æ•ˆèŒƒå›´
   vLastRow := AEndRow;
   vLastCol := AEndCol;
   for vR := AStartRow to AEndRow do
@@ -4871,9 +5104,9 @@ var
 begin
   inherited ApplyContentAlign(AAlign);
 
-  if FSelectCellRang.StartRow >= 0 then  // ÓĞÑ¡ÔñÆğÊ¼ĞĞ
+  if FSelectCellRang.StartRow >= 0 then  // æœ‰é€‰æ‹©èµ·å§‹è¡Œ
   begin
-    if FSelectCellRang.EndRow >= 0 then  // ÓĞÑ¡Ôñ½áÊøĞĞ£¬ËµÃ÷Ñ¡ÖĞ²»ÔÚÍ¬Ò»µ¥Ôª¸ñ
+    if FSelectCellRang.EndRow >= 0 then  // æœ‰é€‰æ‹©ç»“æŸè¡Œï¼Œè¯´æ˜é€‰ä¸­ä¸åœ¨åŒä¸€å•å…ƒæ ¼
     begin
       for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
       begin
@@ -4881,7 +5114,7 @@ begin
           ApplyCellAlign_(FRows[vR][vC]);
       end;
     end
-    else  // ÔÚÍ¬Ò»µ¥Ôª¸ñ
+    else  // åœ¨åŒä¸€å•å…ƒæ ¼
       ApplyCellAlign_(GetEditCell);
   end;
 end;
@@ -4894,9 +5127,9 @@ var
 begin
   inherited ApplySelectParaStyle(AStyle, AMatchStyle);
 
-  if FSelectCellRang.StartRow >= 0 then  // ÓĞÑ¡ÔñÆğÊ¼ĞĞ
+  if FSelectCellRang.StartRow >= 0 then  // æœ‰é€‰æ‹©èµ·å§‹è¡Œ
   begin
-    if FSelectCellRang.EndRow >= 0 then  // ÓĞÑ¡Ôñ½áÊøĞĞ£¬ËµÃ÷Ñ¡ÖĞ²»ÔÚÍ¬Ò»µ¥Ôª¸ñ
+    if FSelectCellRang.EndRow >= 0 then  // æœ‰é€‰æ‹©ç»“æŸè¡Œï¼Œè¯´æ˜é€‰ä¸­ä¸åœ¨åŒä¸€å•å…ƒæ ¼
     begin
       for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
       begin
@@ -4905,7 +5138,7 @@ begin
           vData := FRows[vR][vC].CellData;
           if Assigned(vData) then
           begin
-            if Self.SizeChanged then  // ±í¸ñ»áÖØĞÂ¸ñÊ½»¯£¬CellData²»ÓÃ¸ñÊ½»¯ÁË
+            if Self.SizeChanged then  // è¡¨æ ¼ä¼šé‡æ–°æ ¼å¼åŒ–ï¼ŒCellDataä¸ç”¨æ ¼å¼åŒ–äº†
             begin
               vData.BeginFormat;
               try
@@ -4923,7 +5156,7 @@ begin
         end;
       end;
     end
-    else  // ÔÚÍ¬Ò»µ¥Ôª¸ñ
+    else  // åœ¨åŒä¸€å•å…ƒæ ¼
     begin
       vData := GetEditCell.CellData;
       vData.ApplySelectParaStyle(AMatchStyle);
@@ -4941,24 +5174,24 @@ var
   vR, vC: Integer;
   vData: THCTableCellData;
 begin
-  if FSelectCellRang.EditCell then  // ÔÚÍ¬Ò»µ¥Ôª¸ñÖĞ±à¼­
+  if FSelectCellRang.EditCell then  // åœ¨åŒä¸€å•å…ƒæ ¼ä¸­ç¼–è¾‘
   begin
     vData := GetEditCell.CellData;
     vData.ApplySelectTextStyle(AMatchStyle);
     Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
   end
   else
-  if FSelectCellRang.StartRow >= 0 then  // ÓĞÑ¡ÔñÆğÊ¼ĞĞ
+  if FSelectCellRang.StartRow >= 0 then  // æœ‰é€‰æ‹©èµ·å§‹è¡Œ
   begin
     for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
     begin
-      { TODO -jingtong : µ±µ¥Ôª¸ñSelectComplateÊ±£¬´¦ÀíÈ«²¿Ó¦ÓÃÑùÊ½ }
+      { TODO -jingtong : å½“å•å…ƒæ ¼SelectComplateæ—¶ï¼Œå¤„ç†å…¨éƒ¨åº”ç”¨æ ·å¼ }
       for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
       begin
         vData := FRows[vR][vC].CellData;
         if Assigned(vData) then
         begin
-          if Self.SizeChanged then  // ±í¸ñ»áÖØĞÂ¸ñÊ½»¯£¬CellData²»ÓÃ¸ñÊ½»¯ÁË
+          if Self.SizeChanged then  // è¡¨æ ¼ä¼šé‡æ–°æ ¼å¼åŒ–ï¼ŒCellDataä¸ç”¨æ ¼å¼åŒ–äº†
           begin
             vData.BeginFormat;
             try
@@ -4985,13 +5218,13 @@ var
   vR, vC: Integer;
   vSrcTable: THCTableItem;
 begin
-  // ±ØĞè±£Ö¤ĞĞ¡¢ÁĞÊıÁ¿Ò»ÖÂ
+  // å¿…éœ€ä¿è¯è¡Œã€åˆ—æ•°é‡ä¸€è‡´
   inherited Assign(Source);
 
   vSrcTable := Source as THCTableItem;
 
   FBorderVisible := vSrcTable.BorderVisible;
-  FBorderWidth := vSrcTable.BorderWidth;
+  BorderWidthPt := vSrcTable.BorderWidthPt;
   FFixRow := vSrcTable.FixRow;
   FFixRowCount := vSrcTable.FixRowCount;
   FFixCol := vSrcTable.FixCol;
@@ -5036,7 +5269,7 @@ begin
     Result := inherited GetActiveData;
 end;
 
-function THCTableItem.GetActiveDrawItem: THCCustomDrawItem;
+function THCTableItem.GetTopLevelDrawItem: THCCustomDrawItem;
 var
   vCellData: THCTableCellData;
 begin
@@ -5044,10 +5277,10 @@ begin
   if Assigned(vCellData) then
     Result := vCellData.GetTopLevelDrawItem
   else
-    Result := inherited GetActiveDrawItem;
+    Result := inherited GetTopLevelDrawItem;
 end;
 
-function THCTableItem.GetActiveDrawItemCoord: TPoint;
+function THCTableItem.GetTopLevelDrawItemCoord: TPoint;
 var
   vCell: THCTableCell;
   vPt: TPoint;
@@ -5056,10 +5289,11 @@ begin
   vCell := GetEditCell;
   if Assigned(vCell) then
   begin
-    Result := vCell.CellData.GetActiveDrawItemCoord;
+    Result := vCell.CellData.GetTopLevelDrawItemCoord;
     vPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
+
     Result.X := Result.X + vPt.X + FCellHPadding;
-    Result.Y := Result.Y + vPt.Y + FCellVPadding;
+    Result.Y := Result.Y + vPt.Y + vCell.GetCellDataTop(FCellVPadding);
   end;
 end;
 
@@ -5080,45 +5314,45 @@ var
   vPos: TPoint;
   vCaretCell: THCTableCell;
 begin
-  if OwnerData.Style.UpdateInfo.Draging then  // ÍÏ×§
+  if OwnerData.Style.UpdateInfo.Draging then  // æ‹–æ‹½
   begin
     vRow := FMouseMoveRow;
     vCol := FMouseMoveCol;
   end
-  else  // ·ÇÍÏ×§
+  else  // éæ‹–æ‹½
   begin
     vRow := FSelectCellRang.StartRow;
     vCol := FSelectCellRang.StartCol;
   end;
 
-  if vRow < 0 then  // Ã»ÔÚ±í¸ñÉÏÃæ£¬ÔÚÇ°Ãæ»òºóÃæ
+  if vRow < 0 then  // æ²¡åœ¨è¡¨æ ¼ä¸Šé¢ï¼Œåœ¨å‰é¢æˆ–åé¢
   begin
-    if FOutsideInfo.Row >= 0 then  // Ç°ºó×ø±ê¶ÔÓ¦ÓĞĞĞ
+    if FOutsideInfo.Row >= 0 then  // å‰ååæ ‡å¯¹åº”æœ‰è¡Œ
     begin
-      if FOutsideInfo.Leftside then  // ÔÚ×ó±ß
-        ACaretInfo.X := ACaretInfo.X - 2;  // ÎªÊ¹¹â±ê¸üÃ÷ÏÔ£¬Ïò×óÆ«ÒÆ2
+      if FOutsideInfo.Leftside then  // åœ¨å·¦è¾¹
+        ACaretInfo.X := ACaretInfo.X - 2;  // ä¸ºä½¿å…‰æ ‡æ›´æ˜æ˜¾ï¼Œå‘å·¦åç§»2
 
       vTop := 0;
-      for i := FPageBreaks.Count - 1 downto 0 do  // ÕÒ¹â±ê¶¥²¿Î»ÖÃ
+      for i := FPageBreaks.Count - 1 downto 0 do  // æ‰¾å…‰æ ‡é¡¶éƒ¨ä½ç½®
       begin
-        if FPageBreaks[i].Row <= FOutsideInfo.Row then  // µ±Ç°ĞĞÇ°Ãæ·ÖÒ³ÁË
+        if FPageBreaks[i].Row <= FOutsideInfo.Row then  // å½“å‰è¡Œå‰é¢åˆ†é¡µäº†
         begin
-          if FPageBreaks[i].PageIndex = ACaretInfo.PageIndex - 1 then  // Ç°Ãæ·ÖÒ³ÕıºÃÊÇµ±Ç°Ò³Ç°Ò»Ò³
+          if FPageBreaks[i].PageIndex = ACaretInfo.PageIndex - 1 then  // å‰é¢åˆ†é¡µæ­£å¥½æ˜¯å½“å‰é¡µå‰ä¸€é¡µ
           begin
-            vTop := FPageBreaks[i].BreakBottom;  // ·ÖÒ³µ×²¿Î»ÖÃ
+            vTop := FPageBreaks[i].BreakBottom;  // åˆ†é¡µåº•éƒ¨ä½ç½®
             Break;
           end;
         end;
       end;
 
       vBottom := Self.Height;
-      for i := 0 to FPageBreaks.Count - 1 do  // ÕÒ¹â±êµ×²¿Î»ÖÃ
+      for i := 0 to FPageBreaks.Count - 1 do  // æ‰¾å…‰æ ‡åº•éƒ¨ä½ç½®
       begin
-        if FPageBreaks[i].Row >= FOutsideInfo.Row then  // µ±Ç°ĞĞºóÃæ·ÖÒ³ÁË
+        if FPageBreaks[i].Row >= FOutsideInfo.Row then  // å½“å‰è¡Œåé¢åˆ†é¡µäº†
         begin
-          if FPageBreaks[i].PageIndex = ACaretInfo.PageIndex then  // ·ÖÒ³ÊÇµ±Ç°Ò³
+          if FPageBreaks[i].PageIndex = ACaretInfo.PageIndex then  // åˆ†é¡µæ˜¯å½“å‰é¡µ
           begin
-            vBottom := FPageBreaks[i].BreakSeat;  // ·ÖÒ³¶¥²¿Î»ÖÃ
+            vBottom := FPageBreaks[i].BreakSeat;  // åˆ†é¡µé¡¶éƒ¨ä½ç½®
             Break;
           end;
         end;
@@ -5135,7 +5369,7 @@ begin
   else
     vCaretCell := FRows[vRow][vCol];
 
-  if OwnerData.Style.UpdateInfo.Draging then  // ÍÏ×§
+  if OwnerData.Style.UpdateInfo.Draging then  // æ‹–æ‹½
   begin
     if (vCaretCell.CellData.MouseMoveItemNo < 0)
       or (vCaretCell.CellData.MouseMoveItemOffset < 0)
@@ -5148,7 +5382,7 @@ begin
     vCaretCell.GetCaretInfo(vCaretCell.CellData.MouseMoveItemNo,
       vCaretCell.CellData.MouseMoveItemOffset, FCellHPadding, FCellVPadding, ACaretInfo);
   end
-  else  // ·ÇÍÏ×§
+  else  // éæ‹–æ‹½
   begin
     if (vCaretCell.CellData.SelectInfo.StartItemNo < 0)
       or (vCaretCell.CellData.SelectInfo.StartItemOffset < 0)

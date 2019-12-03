@@ -42,6 +42,8 @@ type
     const AItem: THCCustomItem) of object;
   TSectionDataItemFunEvent = function(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem): Boolean of object;
+  TSectionDataItemNoFunEvent = function(const Sender: TObject; const AData: THCCustomData;
+    const AItemNo: Integer): Boolean of object;
   TSectionDrawItemAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate) of object;
   TSectionAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
@@ -91,7 +93,8 @@ type
 
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemEvent;
-    FOnSaveItem, FOnDeleteItem: TSectionDataItemFunEvent;
+    FOnSaveItem: TSectionDataItemNoFunEvent;
+    FOnDeleteItem: TSectionDataItemFunEvent;
     FOnItemMouseDown, FOnItemMouseUp: TSectionDataItemMouseEvent;
     FOnItemResize: TDataItemNoEvent;
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
@@ -128,7 +131,7 @@ type
 
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
-    function DoDataSaveItem(const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
+    function DoDataSaveItem(const AData: THCCustomData; const AItemNo: Integer): Boolean;
     function DoDataDeleteItem(const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
     procedure DoDataItemMouseDown(const AData: THCCustomData; const AItemNo, AOffset: Integer;
        Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -222,7 +225,9 @@ type
     function GetActiveItem: THCCustomItem;
     function GetTopLevelItem: THCCustomItem;
     function GetTopLevelDrawItem: THCCustomDrawItem;
-    function GetActiveDrawItemCoord: TPoint;
+    function GetTopLevelDrawItemCoord: TPoint;
+
+    function GetTopLevelRectDrawItemCoord: TPoint;
 
     /// <summary> 返回光标或选中结束位置所在页序号 </summary>
     function GetPageIndexByCurrent: Integer;
@@ -286,7 +291,8 @@ type
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
-    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
+    procedure ApplyParaBreakRough(const ARough: Boolean);
+    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode; const ASpace: Single);
     procedure ApplyParaLeftIndent(const AIndent: Single);
     procedure ApplyParaRightIndent(const AIndent: Single);
     procedure ApplyParaFirstIndent(const AIndent: Single);
@@ -418,7 +424,7 @@ type
     property OnCheckUpdateInfo: TNotifyEvent read FOnCheckUpdateInfo write FOnCheckUpdateInfo;
     property OnInsertItem: TSectionDataItemEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TSectionDataItemEvent read FOnRemoveItem write FOnRemoveItem;
-    property OnSaveItem: TSectionDataItemFunEvent read FOnSaveItem write FOnSaveItem;
+    property OnSaveItem: TSectionDataItemNoFunEvent read FOnSaveItem write FOnSaveItem;
     property OnItemResize: TDataItemNoEvent read FOnItemResize write FOnItemResize;
     property OnItemMouseDown: TSectionDataItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TSectionDataItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
@@ -565,6 +571,14 @@ begin
     end);
 end;
 
+procedure THCCustomSection.ApplyParaBreakRough(const ARough: Boolean);
+begin
+  ActiveDataChangeByAction(function(): Boolean
+    begin
+      FActiveData.ApplyParaBreakRough(ARough);
+    end);
+end;
+
 procedure THCCustomSection.ApplyParaFirstIndent(const AIndent: Single);
 begin
   ActiveDataChangeByAction(function(): Boolean
@@ -592,11 +606,12 @@ begin
     end);
 end;
 
-procedure THCCustomSection.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
+procedure THCCustomSection.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode;
+  const ASpace: Single);
 begin
   ActiveDataChangeByAction(function(): Boolean
     begin
-      FActiveData.ApplyParaLineSpace(ASpaceMode);
+      FActiveData.ApplyParaLineSpace(ASpaceMode, ASpace);
     end);
 end;
 
@@ -949,10 +964,10 @@ begin
 end;
 
 function THCCustomSection.DoDataSaveItem(const AData: THCCustomData;
-  const AItem: THCCustomItem): Boolean;
+  const AItemNo: Integer): Boolean;
 begin
   if Assigned(FOnSaveItem) then
-    Result := FOnSaveItem(Self, AData, AItem)
+    Result := FOnSaveItem(Self, AData, AItemNo)
   else
     Result := True;
 end;
@@ -1074,9 +1089,9 @@ begin
   Result := FActiveData.GetTopLevelDrawItem;
 end;
 
-function THCCustomSection.GetActiveDrawItemCoord: TPoint;
+function THCCustomSection.GetTopLevelDrawItemCoord: TPoint;
 begin
-  Result := FActiveData.GetActiveDrawItemCoord;
+  Result := FActiveData.GetTopLevelDrawItemCoord;
 end;
 
 function THCCustomSection.GetActiveItem: THCCustomItem;
@@ -1087,6 +1102,11 @@ end;
 function THCCustomSection.GetTopLevelItem: THCCustomItem;
 begin
   Result := FActiveData.GetTopLevelItem;
+end;
+
+function THCCustomSection.GetTopLevelRectDrawItemCoord: TPoint;
+begin
+  Result := FActiveData.GetTopLevelRectDrawItemCoord;
 end;
 
 function THCCustomSection.GetPageHeight: Integer;
@@ -2903,7 +2923,7 @@ procedure THCSection.ParseXml(const ANode: IHCXMLNode);
     try
       vsMargin.Delimiter := ',';
       vsMargin.DelimitedText := ANode.Attributes['margin'];  // 边距
-      FPaper.MarginLeft := StrToInt(vsMargin[0]);
+      FPaper.MarginLeft := StrToFloat(vsMargin[0]);
       FPaper.MarginTop := StrToFloat(vsMargin[1]);
       FPaper.MarginRight := StrToFloat(vsMargin[2]);
       FPaper.MarginBottom := StrToFloat(vsMargin[3]);

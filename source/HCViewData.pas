@@ -48,8 +48,9 @@ type
     /// <summary> 获取指定位置所在的域信息 </summary>
     procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
   protected
-    function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
     function CanDeleteItem(const AItemNo: Integer): Boolean; override;
+    /// <summary> 是否允许保存该Item </summary>
+    function DoSaveItem(const AItemNo: Integer): Boolean; override;
 
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; override;
@@ -64,6 +65,7 @@ type
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
 
+    function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
     procedure PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight, ADataDrawBottom,
       ADataScreenTop, ADataScreenBottom, AVOffset, AFristDItemNo, ALastDItemNo: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -464,6 +466,21 @@ begin
       finally
         DeleteObject(vDliRGN);
       end;
+    end;
+  end;
+end;
+
+function THCViewData.DoSaveItem(const AItemNo: Integer): Boolean;
+var
+  vItemNo: Integer;
+begin
+  Result := inherited DoSaveItem(AItemNo);
+  if Result and (Self.Style.States.Contain(THCState.hosCopying)) then  // 复制保存
+  begin
+    if Items[AItemNo].StyleNo = THCStyle.Domain then  // 是域标识
+    begin
+      vItemNo := GetDomainAnother(AItemNo);  // 找起始
+      Result := (vItemNo >= SelectInfo.StartItemNo) and (vItemNo <= SelectInfo.EndItemNo);
     end;
   end;
 end;

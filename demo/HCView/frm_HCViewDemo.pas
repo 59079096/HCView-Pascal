@@ -579,7 +579,7 @@ begin
   FHCView.Parent := Self;
   FHCView.Align := alClient;
   FHCView.PopupMenu := pmHCView;
-  FHCView.Images := ilTool;
+  FHCView.ToolImageList := ilTool;
   //
   FHRuler := THCHorizontalRuler.Create(Self);
   FHRuler.Color := FHCView.Color;
@@ -950,12 +950,12 @@ end;
 
 procedure TfrmHCViewDemo.mniN36Click(Sender: TObject);
 begin
-  FHCView.PrintCurPageByActiveLine(False, False);
+  FHCView.PrintCurPageByActiveLine('', False, False);
 end;
 
 procedure TfrmHCViewDemo.mniN37Click(Sender: TObject);
 begin
-  FHCView.PrintCurPageSelected(False, False);
+  FHCView.PrintCurPageSelected('', False, False);
 end;
 
 procedure TfrmHCViewDemo.mniFloatBarCodeClick(Sender: TObject);

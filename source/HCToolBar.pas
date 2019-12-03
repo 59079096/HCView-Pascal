@@ -9,7 +9,7 @@ type
   THCToolBarControl = class(TObject)
   strict private
     FWidth, FHeight: Integer;
-    FOnClick, FOnResize: TNotifyEvent;
+    FOnResize: TNotifyEvent;
     procedure DoResize;
   protected
     procedure SetWidth(const Value: Integer);
@@ -23,7 +23,6 @@ type
   published
     property Width: Integer read FWidth write SetWidth;
     property Height: Integer read FHeight write SetHeight;
-    property OnClick: TNotifyEvent read FOnClick write FOnClick;
   end;
 
   THCCustomToolButton = class(THCToolBarControl)
@@ -48,6 +47,8 @@ type
   TToolBarControlPaint = procedure(const AControl: THCToolBarControl;
     const ALeft, ATop: Integer; const ACanvas: TCanvas) of object;
 
+  TToolBarControlClick = procedure(const Sender: TObject; const AControl: THCToolBarControl) of object;
+
   THCToolBar = class(TObject)
   strict private
     FVisible: Boolean;
@@ -57,6 +58,7 @@ type
     FGraphic: TBitmap;
     FOnUpdateView: TUpdateViewEvent;
     FOnControlPaint: TToolBarControlPaint;
+    FOnControlClick: TToolBarControlClick;
 
     procedure DoControlCountChange(Sender: TObject);
     function GetWidth: Integer;
@@ -93,13 +95,18 @@ type
     property Visible: Boolean read FVisible write SetVisible;
     property OnUpdateView: TUpdateViewEvent read FOnUpdateView write FOnUpdateView;
     property OnControlPaint: TToolBarControlPaint read FOnControlPaint write FOnControlPaint;
+    property OnControlClick: TToolBarControlClick read FOnControlClick write FOnControlClick;
   end;
 
-  THCTableToolBar = class(THCToolBar);
+  THCTableToolBar = class(THCToolBar)
+  protected
+    procedure SetVisible(const Value: Boolean); override;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+  end;
 
   THCImageToolBar = class(THCToolBar)
-  strict private
-    procedure DoButtonClick(Sender: TObject);
   protected
     procedure SetVisible(const Value: Boolean); override;
   public
@@ -283,8 +290,8 @@ end;
 procedure THCToolBar.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
-  if FHotIndex >= 0 then
-    FControls[FHotIndex].OnClick(FControls[FHotIndex]);
+  if (FHotIndex >= 0) and Assigned(FOnControlClick) then
+    FOnControlClick(Self, FControls[FHotIndex]);
 end;
 
 procedure THCToolBar.PaintTo(const ACanvas: TCanvas; const ALeft, ATop: Integer);
@@ -332,12 +339,9 @@ procedure THCToolBar.UpdateView(const ARect: TRect);
 var
   i, vLeft: Integer;
 begin
-  if not FVisible then Exit;
-
   FGraphic.Canvas.Brush.Color := clBtnFace;
   FGraphic.Canvas.FillRect(Bounds(0, 0, FGraphic.Width, FGraphic.Height));
-//  FGraphic.Canvas.Pen.Color := clBtnShadow;
-//  FGraphic.Canvas.Rectangle(Bounds(0, 0, FGraphic.Width, FGraphic.Height));
+
   FGraphic.Canvas.Pen.Color := clBtnShadow;
   FGraphic.Canvas.MoveTo(0, 0);
   FGraphic.Canvas.LineTo(0, FGraphic.Height - 2);
@@ -394,23 +398,18 @@ begin
   // 鼠标箭头
   vButton := Self.AddButton;
   vButton.Tag := 0;
-  vButton.OnClick := DoButtonClick;
   // 直线
   vButton := Self.AddButton;
   vButton.Tag := Ord(THCShapeStyle.hssLine);
-  vButton.OnClick := DoButtonClick;
   // 矩形
   vButton := Self.AddButton;
   vButton.Tag := Ord(THCShapeStyle.hssRectangle);
-  vButton.OnClick := DoButtonClick;
   // 椭圆
   vButton := Self.AddButton;
   vButton.Tag := Ord(THCShapeStyle.hssEllipse);
-  vButton.OnClick := DoButtonClick;
   // 多边形
   vButton := Self.AddButton;
   vButton.Tag := Ord(THCShapeStyle.hssPolygon);
-  vButton.OnClick := DoButtonClick;
 
   {vButton := Self.AddButton;
   //vButton.Tag := Ord(THCShapeStyle.itsPolygon);
@@ -439,11 +438,6 @@ begin
   inherited Destroy;
 end;
 
-procedure THCImageToolBar.DoButtonClick(Sender: TObject);
-begin
-  //FShapeStyle := THCShapeStyle((Sender as THCToolButton).Tag);
-end;
-
 procedure THCImageToolBar.SetVisible(const Value: Boolean);
 begin
   if Visible <> Value then
@@ -451,6 +445,34 @@ begin
     inherited SetVisible(Value);
     if Value then
       ActiveIndex := 0;
+  end;
+end;
+
+{ THCTableToolBar }
+
+constructor THCTableToolBar.Create;
+var
+  vButton: THCToolButton;
+begin
+  inherited Create;
+  vButton := Self.AddButton;
+  vButton.Tag := 9;
+  //vButton.OnClick := DoButtonClick;
+end;
+
+destructor THCTableToolBar.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure THCTableToolBar.SetVisible(const Value: Boolean);
+begin
+  if Visible <> Value then
+  begin
+    inherited SetVisible(Value);
+    if Value then
+      ActiveIndex := -1;
   end;
 end;
 

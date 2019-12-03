@@ -551,9 +551,9 @@ begin
     end;
   end;
 
-  vWidth := vTable.BorderWidth;
+  vWidth := vTable.BorderWidthPix;
   for vC := 0 to vTable.Rows[vMaxColRow].ColCount - 1 do
-    vWidth := vWidth + vTable.RowSizes[vMaxColRow][vC] + vTable.BorderWidth;
+    vWidth := vWidth + vTable.RowSizes[vMaxColRow][vC] + vTable.BorderWidthPix;
 
   vNewTable := THCRtfTable.Create(AData, vTable.RowCount, vTable.Rows[0].ColCount, vWidth);
   for vR := 0 to vNewTable.Rows.Count - 1 do

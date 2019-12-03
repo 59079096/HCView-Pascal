@@ -88,7 +88,6 @@ type
     /// <summary> 划完完成后最后操作位置是否在选中范围起始 </summary>
     function IsSelectSeekStart: Boolean;
   protected
-    function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
@@ -106,7 +105,7 @@ type
     property MouseMoveDrawItemNo: Integer read FMouseMoveDrawItemNo;
   public
     constructor Create(const AStyle: THCStyle); override;
-
+    function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
     procedure Clear; override;
     // 选中内容应用样式
     procedure ApplySelectTextStyle(const AMatchStyle: THCStyleMatch); override;
@@ -1796,14 +1795,20 @@ begin
   //-------- 在指定的Index处插入Item --------//
 
   //DeleteSelection;  // 如果正在选中区域中那么删除后AIndex会越界，所以调用此方法前需要处于未选中状态
-  AItem.ParaNo := CurParaNo;
-  //AItem.StyleNo := Style.CurStyleNo  // 插入TextItem Item创建时处理好当前样式了
+  if AItem.ParaNo > Self.Style.ParaStyles.Count - 1 then
+    AItem.ParaNo := CurParaNo;
 
-  if IsEmptyData and (not AItem.ParaFirst) then
+  if not AItem.ParaFirst then  // 不是段首
   begin
-    Undo_New;
-    Result := EmptyDataInsertItem(AItem);
-    Exit;
+    if IsEmptyData() then  // 空数据
+    begin
+      Undo_New();
+      Result := EmptyDataInsertItem(AItem);
+      CurParaNo := AItem.ParaNo;
+      Exit;
+    end
+    else  // 随其后
+      AItem.ParaNo := CurParaNo;
   end;
 
   {说明：当插入位置不是最后一个且插入位置是段起始，那么可能是在上一段最后插入，
@@ -2384,13 +2389,20 @@ begin
 
   DeleteSelected;
 
-  AItem.ParaNo := CurParaNo;
+  if AItem.ParaNo > Self.Style.ParaStyles.Count - 1 then
+    AItem.ParaNo := CurParaNo;
 
-  if IsEmptyData and (not AItem.ParaFirst) then
+  if not AItem.ParaFirst then  // 不是段首
   begin
-    Undo_New;
-    Result := EmptyDataInsertItem(AItem);
-    Exit;
+    if IsEmptyData() then  // 空数据
+    begin
+      Undo_New();
+      Result := EmptyDataInsertItem(AItem);
+      CurParaNo := AItem.ParaNo;
+      Exit;
+    end
+    else  // 随其后
+      AItem.ParaNo := CurParaNo;
   end;
 
   vCurItemNo := GetActiveItemNo;
@@ -5199,6 +5211,8 @@ begin
 
     FMouseMoveItemNo := vMouseMoveItemNo;
     FMouseMoveItemOffset := vMouseMoveItemOffset;
+    SelectInfo.StartItemNo := vMouseMoveItemNo;
+    SelectInfo.StartItemOffset := vMouseMoveItemOffset;
     FMouseMoveRestrain := vRestrain;
     CaretDrawItemNo := FMouseMoveDrawItemNo;
 

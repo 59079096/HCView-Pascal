@@ -227,7 +227,7 @@ type
     procedure ApplyParaBackColor(const AColor: TColor);
 
     /// <summary> 修改当前光标所在段行间距 </summary>
-    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
+    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode; const ASpace: Single = 1);
 
     /// <summary> 修改当前光标所在段左缩进 </summary>
     procedure ApplyParaLeftIndent(const Add: Boolean = True); overload;
@@ -548,11 +548,11 @@ begin
 end;
 
 procedure THCCustomGridView.ApplyParaLineSpace(
-  const ASpaceMode: TParaLineSpaceMode);
+  const ASpaceMode: TParaLineSpaceMode; const ASpace: Single = 1);
 begin
   ChangeByAction(function(): Boolean
     begin
-      FPage.ApplyParaLineSpace(ASpaceMode);
+      FPage.ApplyParaLineSpace(ASpaceMode, ASpace);
     end);
 end;
 
@@ -1473,9 +1473,17 @@ begin
       // 因为不像表格跨页的情况会有1像素偏移，需要补充标题行提示横线
       vTop := FTable.GetFixRowHeight;
       ACanvas.Pen.Color := clBlack;
-      ACanvas.Pen.Width := FTable.BorderWidth + 2;
-      ACanvas.MoveTo(0, vTop);
-      ACanvas.LineTo(FPage.Width, vTop);
+      if APaintInfo.Print then
+      begin
+        ACanvas.Pen.Width := Max(1, HCUnitConversion.PtToPixel(FTable.BorderWidthPt, APaintInfo.DPI));
+        APaintInfo.DrawNoScaleLine(ACanvas, 0, vTop, FPage.Width, vTop);
+      end
+      else
+      begin
+        ACanvas.Pen.Width := FTable.BorderWidthPix + 2;
+        ACanvas.MoveTo(0, vTop);
+        ACanvas.LineTo(FPage.Width, vTop);
+      end;
     end;
   end;
 end;

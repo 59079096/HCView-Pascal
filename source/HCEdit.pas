@@ -80,6 +80,10 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
+    procedure DoDrawItemPaintBefor(const AData: THCCustomData;
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
@@ -113,7 +117,7 @@ type
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert);
     procedure ApplyParaBackColor(const AColor: TColor);
-    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
+    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode; const ASpace: Single = 1);
     procedure ApplyTextStyle(const AFontStyle: THCFontStyle);
     procedure ApplyTextFontName(const AFontName: TFontName);
     procedure ApplyTextFontSize(const AFontSize: Single);
@@ -188,9 +192,10 @@ begin
   CheckUpdateInfo;
 end;
 
-procedure THCEdit.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
+procedure THCEdit.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode;
+  const ASpace: Single = 1);
 begin
-  FData.ApplyParaLineSpace(ASpaceMode);
+  FData.ApplyParaLineSpace(ASpaceMode, ASpace);
   CheckUpdateInfo;
 end;
 
@@ -308,6 +313,7 @@ begin
   FData.Width := 200;
   FData.OnGetUndoList := DoGetUndoList;
   FData.OnCreateItemByStyle := DoDataCreateStyleItem;
+  FData.OnDrawItemPaintBefor := DoDrawItemPaintBefor;
   FData.OnInsertItem := DoDataInsertItem;
   FData.OnRemoveItem := DoDataRemoveItem;
 
@@ -364,6 +370,7 @@ begin
   FVScrollBar.Free;
   FDataBmp.Free;
   FreeAndNil(FStyle);
+  FUndoList.Free;
   inherited Destroy;
 end;
 
@@ -512,6 +519,13 @@ procedure THCEdit.DoDataRemoveItem(const AData: THCCustomData; const AItem: THCC
 begin
   if Assigned(FOnRemoveItem) then
     FOnRemoveItem(AData, AItem);
+end;
+
+procedure THCEdit.DoDrawItemPaintBefor(const AData: THCCustomData;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
+  const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
 end;
 
 function THCEdit.DoGetUndoList: THCUndoList;

@@ -3212,7 +3212,7 @@ begin
   end;
 
   Result := THCTableItem.Create(AData, Rows.Count, vColCount, AData.Width);
-  vDestR := AData.Width - (vColCount + 1) * Result.BorderWidth - vTableWidth;  // 得到文档表格Data的总宽度 - Docx中表格的宽度
+  vDestR := AData.Width - (vColCount + 1) * Result.BorderWidthPix - vTableWidth;  // 得到文档表格Data的总宽度 - Docx中表格的宽度
   vDelta := vDestR div vColCount;  // 宽度的偏差 平均到每列
   vDestR := vDestR mod vColCount;
   for i := 0 to vColCount - 2 do  // 前面的平均分

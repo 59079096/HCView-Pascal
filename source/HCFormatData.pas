@@ -137,14 +137,14 @@ begin
     Style.ApplyTempStyle(AItem.StyleNo);
     FLastFormatParaNo := AItem.ParaNo;
     FItemFormatHeight := CalculateLineHeight(Style.TempCanvas,
-      Style.TextStyles[AItem.StyleNo], Style.ParaStyles[AItem.ParaNo].LineSpaceMode);
+      Style.TextStyles[AItem.StyleNo], Style.ParaStyles[AItem.ParaNo]);
   end
   else
   if FLastFormatParaNo <> AItem.ParaNo then
   begin
     FLastFormatParaNo := AItem.ParaNo;
     FItemFormatHeight := CalculateLineHeight(Style.TempCanvas,
-      Style.TextStyles[AItem.StyleNo], Style.ParaStyles[AItem.ParaNo].LineSpaceMode);
+      Style.TextStyles[AItem.StyleNo], Style.ParaStyles[AItem.ParaNo]);
   end;
 end;
 
@@ -590,6 +590,7 @@ var
   begin
     GetHeadTailBreak(AText, APos);  // 根据行首、尾的约束条件找APos不符合时应该在哪一个位置并重新赋值给APos
     if APos < 1 then Exit;
+    if vParaStyle.BreakRough then Exit;
 
     vPosCharType := GetUnicodeCharType(AText[APos]);  // 当前类型
     vNextCharType := GetUnicodeCharType(AText[APos + 1]);  // 下一个字符类型
@@ -1052,8 +1053,9 @@ begin
 
   if SelectInfo.StartItemNo >= 0 then
   begin
-    if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
-      (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ReFormatActiveItem;
+    // 单元格边框改变后，调用了此方法但是因下面的代码没有格式化表格
+    //if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
+    //  (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ReFormatActiveItem;
 
     GetFormatRange(vFirstDrawItemNo, vLastItemNo);
     FormatPrepare(vFirstDrawItemNo, vLastItemNo);

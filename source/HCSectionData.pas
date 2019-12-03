@@ -610,7 +610,7 @@ begin
   for i := 0 to vItemsNode.ChildNodes.Count - 1 do
   begin
     vNode := vItemsNode.ChildNodes[i];
-    vFloatItem := CreateItemByStyle(vNode.Attributes['style']) as THCCustomFloatItem;
+    vFloatItem := CreateItemByStyle(vNode.Attributes['sno']) as THCCustomFloatItem;
     vFloatItem.ParseXml(vNode);
     FFloatItems.Add(vFloatItem);
   end;

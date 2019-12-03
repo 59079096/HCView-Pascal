@@ -47,6 +47,7 @@ type
   TDataItemEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
   TDataItemFunEvent = function(const AData: THCCustomData; const AItem: THCCustomItem): Boolean of object;
   TDataItemNoEvent = procedure(const AData: THCCustomData; const AItemNo: Integer) of object;
+  TDataItemNoFunEvent = function(const AData: THCCustomData; const AItemNo: Integer): Boolean of object;
 
   TDrawItemPaintEvent = procedure(const AData: THCCustomData;
     const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
@@ -70,7 +71,7 @@ type
     FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
 
     FOnInsertItem, FOnRemoveItem: TDataItemEvent;
-    FOnSaveItem: TDataItemFunEvent;
+    FOnSaveItem: TDataItemNoFunEvent;
     FOnGetUndoList: TGetUndoListEvent;
     FOnCurParaNoChange: TNotifyEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
@@ -89,7 +90,6 @@ type
     procedure SetCurStyleNo(const Value: Integer);
     procedure SetCurParaNo(const Value: Integer);
   protected
-    function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
     /// <summary> 合并2个文本Item </summary>
     /// <param name="ADestItem">合并后的Item</param>
     /// <param name="ASrcItem">源Item</param>
@@ -137,10 +137,10 @@ type
 
     /// <summary> 计算行高(文本高+行间距) </summary>
     function CalculateLineHeight(const ACanvas: TCanvas;
-      const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Integer;
+      const ATextStyle: THCTextStyle; const AParaStyle: THCParaStyle): Integer;
     function GetUndoList: THCUndoList; virtual;
     /// <summary> 是否允许保存该Item </summary>
-    function DoSaveItem(const AItem: THCCustomItem): Boolean; virtual;
+    function DoSaveItem(const AItemNo: Integer): Boolean; virtual;
     procedure DoInsertItem(const AItem: THCCustomItem); virtual;
     procedure DoRemoveItem(const AItem: THCCustomItem); virtual;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); virtual;
@@ -177,6 +177,7 @@ type
     function GetScreenCoord(const X, Y: Integer): TPoint; virtual;
     function CreateDefaultTextItem: THCCustomItem; virtual;
     function CreateDefaultDomainItem: THCCustomItem; virtual;
+    function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); virtual;
 
     /// <summary>
@@ -280,7 +281,9 @@ type
     function GetActiveItem: THCCustomItem; virtual;
     function GetTopLevelItem: THCCustomItem;
     function GetTopLevelDrawItem: THCCustomDrawItem;
-    function GetActiveDrawItemCoord: TPoint;
+    function GetTopLevelDrawItemCoord: TPoint;
+    function GetTopLevelRectDrawItem: THCCustomDrawItem;
+    function GetTopLevelRectDrawItemCoord: TPoint;
 
     /// <summary> 返回Item的文本样式 </summary>
     function GetItemStyle(const AItemNo: Integer): Integer;
@@ -337,7 +340,8 @@ type
     procedure ApplyParaAlignHorz(const AAlign: TParaAlignHorz); virtual;
     procedure ApplyParaAlignVert(const AAlign: TParaAlignVert); virtual;
     procedure ApplyParaBackColor(const AColor: TColor); virtual;
-    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode); virtual;
+    procedure ApplyParaBreakRough(const ARough: Boolean); virtual;
+    procedure ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode; const ASpace: Single); virtual;
     procedure ApplyParaLeftIndent(const AIndent: Single); virtual;
     procedure ApplyParaRightIndent(const AIndent: Single); virtual;
     procedure ApplyParaFirstIndent(const AIndent: Single); virtual;
@@ -434,12 +438,12 @@ type
     property OnDrawItemPaintContent: TDrawItemPaintContentEvent read FOnDrawItemPaintContent write FOnDrawItemPaintContent;
     property OnInsertItem: TDataItemEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TDataItemEvent read FOnRemoveItem write FOnRemoveItem;
-    property OnSaveItem: TDataItemFunEvent read FOnSaveItem write FOnSaveItem;
+    property OnSaveItem: TDataItemNoFunEvent read FOnSaveItem write FOnSaveItem;
   end;
 
 type
-  TTraverseItemEvent = procedure(const AData: THCCustomData;
-    const AItemNo, ATag: Integer; var AStop: Boolean) of object;
+  TTraverseItemEvent = reference to procedure(const AData: THCCustomData;
+    const AItemNo, ATag: Integer; var AStop: Boolean);
 
   THCItemTraverse = class(TObject)
   public
@@ -567,6 +571,19 @@ begin
   end;
 end;
 
+procedure THCCustomData.ApplyParaBreakRough(const ARough: Boolean);
+var
+  vMatchStyle: TParaBreakRoughMatch;
+begin
+  vMatchStyle := TParaBreakRoughMatch.Create;
+  try
+    vMatchStyle.BreakRough := ARough;
+    ApplySelectParaStyle(vMatchStyle);
+  finally
+    vMatchStyle.Free;
+  end;
+end;
+
 procedure THCCustomData.ApplyParaFirstIndent(const AIndent: Single);
 var
   vMatchStyle: TParaFirstIndentMatch;
@@ -593,13 +610,15 @@ begin
   end;
 end;
 
-procedure THCCustomData.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode);
+procedure THCCustomData.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode;
+  const ASpace: Single);
 var
   vMatchStyle: TParaLineSpaceMatch;
 begin
   vMatchStyle := TParaLineSpaceMatch.Create;
   try
     vMatchStyle.SpaceMode := ASpaceMode;
+    vMatchStyle.Space := ASpace;
     ApplySelectParaStyle(vMatchStyle);
   finally
     vMatchStyle.Free;
@@ -847,10 +866,10 @@ begin
     FOnRemoveItem(Self, AItem);
 end;
 
-function THCCustomData.DoSaveItem(const AItem: THCCustomItem): Boolean;
+function THCCustomData.DoSaveItem(const AItemNo: Integer): Boolean;
 begin
   if Assigned(FOnSaveItem) then
-    Result := FOnSaveItem(Self, AItem)
+    Result := FOnSaveItem(Self, AItemNo)
   else
     Result := True;
 end;
@@ -963,7 +982,7 @@ begin
     try
       Result := CalculateLineHeight(vCanvas,
         FStyle.TextStyles[GetDrawItemStyle(ADrawNo)],
-        FStyle.ParaStyles[GetDrawItemParaStyle(ADrawNo)].LineSpaceMode);
+        FStyle.ParaStyles[GetDrawItemParaStyle(ADrawNo)]);
     finally
       THCStyle.DestroyStyleCanvas(vCanvas);
     end;
@@ -1727,7 +1746,7 @@ begin
   Result := nil;
   vItem := GetActiveItem;
   if vItem.StyleNo < THCStyle.Null then
-    Result := (vItem as THCCustomRectItem).GetActiveDrawItem;
+    Result := (vItem as THCCustomRectItem).GetTopLevelDrawItem;
 
   if Result = nil then
     Result := GetActiveDrawItem;
@@ -1738,6 +1757,40 @@ begin
   Result := GetActiveItem;
   if (Result <> nil) and (Result.StyleNo < THCStyle.Null) then
     Result := (Result as THCCustomRectItem).GetTopLevelItem;
+end;
+
+function THCCustomData.GetTopLevelRectDrawItem: THCCustomDrawItem;
+var
+  vItem: THCCustomItem;
+begin
+  Result := nil;
+  vItem := GetActiveItem;
+  if vItem.StyleNo < THCStyle.Null then
+  begin
+    Result := (vItem as THCCustomRectItem).GetTopLevelRectDrawItem;
+    if not Assigned(Result) then
+      Result := GetActiveDrawItem;
+  end;
+end;
+
+function THCCustomData.GetTopLevelRectDrawItemCoord: TPoint;
+var
+  vItem: THCCustomItem;
+  vPt: TPoint;
+begin
+  Result := Point(-1, -1);
+  vItem := GetActiveItem;
+  if Assigned(vItem) and (vItem.StyleNo < THCStyle.Null) then
+  begin
+    Result := FDrawItems[vItem.FirstDItemNo].Rect.TopLeft;
+    vPt := (vItem as THCCustomRectItem).GetTopLevelRectDrawItemCoord;
+    if vPt.X >= 0 then
+    begin
+      vPt.Y := vPt.Y + FStyle.LineSpaceMin div 2;
+      Result.X := Result.X + vPt.X;
+      Result.Y := Result.Y + vPt.Y;
+    end;
+  end;
 end;
 
 function THCCustomData.GetUndoList: THCUndoList;
@@ -2355,7 +2408,7 @@ begin
 end;
 
 function THCCustomData.CalculateLineHeight(const ACanvas: TCanvas;
-  const ATextStyle: THCTextStyle; const ALineSpaceMode: TParaLineSpaceMode): Integer;
+  const ATextStyle: THCTextStyle; const AParaStyle: THCParaStyle): Integer;
 var
   //vOutlineTextmetric: ^TOutlineTextmetric;
   //vFontSignature: TFontSignature;
@@ -2369,9 +2422,17 @@ begin
   //ATextStyle.ApplyStyle(ACanvas);  调用前请确认应用过样式了
 
   Result := ATextStyle.FontHeight;// THCStyle.GetFontHeight(ACanvas);  // 行高
-  if ALineSpaceMode = plsFix then
+
+  if AParaStyle.LineSpaceMode = TParaLineSpaceMode.plsMin then Exit;
+
+  if AParaStyle.LineSpaceMode = TParaLineSpaceMode.plsFix then
   begin
-    Result := Result + FStyle.LineSpaceMin;
+    vLineSpacing := HCUnitConversion.MillimeterToPixY(AParaStyle.LineSpace * 0.3527);
+    if vLineSpacing < Result then
+
+    else
+      Result := vLineSpacing;
+
     Exit;
   end;
 
@@ -2402,14 +2463,14 @@ begin
       Inc(vDescent, vOtherLeading);
 
       Result := vAscent + vDescent;
-      case ALineSpaceMode of
+      case AParaStyle.LineSpaceMode of
         pls115: Result := Result + Trunc(3 * Result / 20);
 
         pls150: Result := Trunc(3 * Result / 2);
 
         pls200: Result := Result * 2;
 
-        //plsFix: Result := Result + FStyle.LineSpaceMin;
+        plsMult: Result := Trunc(Result * AParaStyle.LineSpace);
       end;
     end;
   end
@@ -2418,7 +2479,7 @@ begin
     //GetTextMetrics(vDC, vTextMetric);  // 得到字体度量信息
     vTextMetric := ATextStyle.TextMetric;
 
-    case ALineSpaceMode of
+    case AParaStyle.LineSpaceMode of
       pls100: Result := Result + vTextMetric.tmExternalLeading; // Round(vTextMetric.tmHeight * 0.2);
 
       pls115: Result := Result + vTextMetric.tmExternalLeading + Round((vTextMetric.tmHeight + vTextMetric.tmExternalLeading) * 0.15);
@@ -2427,7 +2488,7 @@ begin
 
       pls200: Result := Result + vTextMetric.tmExternalLeading + vTextMetric.tmHeight + vTextMetric.tmExternalLeading;
 
-      //plsFix: Result := Result + FStyle.LineSpaceMin;
+      plsMult: Result := Result + vTextMetric.tmExternalLeading + Round((vTextMetric.tmHeight + vTextMetric.tmExternalLeading) * AParaStyle.LineSpace);
     end;
   end;
 end;
@@ -2495,7 +2556,7 @@ begin
 
     if AStartItemNo <> AEndItemNo then
     begin
-      if DoSaveItem(FItems[AStartItemNo]) then
+      if DoSaveItem(AStartItemNo) then
       begin
         FItems[AStartItemNo].SaveToStream(AStream, AStartOffset, FItems[AStartItemNo].Length);
         Inc(vCountAct);
@@ -2503,21 +2564,21 @@ begin
 
       for i := AStartItemNo + 1 to AEndItemNo - 1 do
       begin
-        if DoSaveItem(FItems[i]) then
+        if DoSaveItem(i) then
         begin
           FItems[i].SaveToStream(AStream);
           Inc(vCountAct);
         end;
       end;
 
-      if DoSaveItem(FItems[AEndItemNo]) then
+      if DoSaveItem(AEndItemNo) then
       begin
         FItems[AEndItemNo].SaveToStream(AStream, 0, AEndOffset);
         Inc(vCountAct);
       end;
     end
     else
-    if DoSaveItem(FItems[AStartItemNo]) then
+    if DoSaveItem(AStartItemNo) then
     begin
       FItems[AStartItemNo].SaveToStream(AStream, AStartOffset, AEndOffset);
       Inc(vCountAct);
@@ -2545,7 +2606,7 @@ begin
   begin
     if AStartItemNo <> AEndItemNo then
     begin
-      if DoSaveItem(FItems[AStartItemNo]) then // 起始
+      if DoSaveItem(AStartItemNo) then // 起始
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
           Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
@@ -2555,11 +2616,11 @@ begin
 
       for i := AStartItemNo + 1 to AEndItemNo - 1 do  // 中间
       begin
-        if DoSaveItem(FItems[i]) then
+        if DoSaveItem(i) then
           Result := Result + FItems[i].Text;
       end;
 
-      if DoSaveItem(FItems[AEndItemNo]) then  // 结尾
+      if DoSaveItem(AEndItemNo) then  // 结尾
       begin
         if FItems[AEndItemNo].StyleNo > THCStyle.Null then
           Result := Result + (FItems[AEndItemNo] as THCTextItem).SubString(1, AEndOffset)
@@ -2569,7 +2630,7 @@ begin
     end
     else  // 选中在同一Item
     begin
-      if DoSaveItem(FItems[AStartItemNo]) then
+      if DoSaveItem(AStartItemNo) then
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
           Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, AEndOffset - AStartOffset);
@@ -2785,7 +2846,7 @@ begin
     Result := FDrawItems[vDrawItemNo];
 end;
 
-function THCCustomData.GetActiveDrawItemCoord: TPoint;
+function THCCustomData.GetTopLevelDrawItemCoord: TPoint;
 var
   vItem: THCCustomItem;
   vDrawItem: THCCustomDrawItem;
@@ -2800,7 +2861,10 @@ begin
 
     vItem := GetActiveItem;
     if vItem.StyleNo < THCStyle.Null then
-      vPt := (vItem as THCCustomRectItem).GetActiveDrawItemCoord;
+    begin
+      vPt := (vItem as THCCustomRectItem).GetTopLevelDrawItemCoord;
+      vPt.Y := vPt.Y + FStyle.LineSpaceMin div 2;
+    end;
 
     Result.X := Result.X + vPt.X;
     Result.Y := Result.Y + vPt.Y;
@@ -2813,6 +2877,12 @@ var
   vDrawItem: THCCustomDrawItem;
 begin
   Result := -1;
+  if FCaretDrawItemNo >= 0 then
+  begin
+    Result := FCaretDrawItemNo;
+    Exit;
+  end;
+
   if FSelectInfo.StartItemNo < 0 then  // 没有选择
 
   else

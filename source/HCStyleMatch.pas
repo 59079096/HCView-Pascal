@@ -118,11 +118,13 @@ type
   TParaLineSpaceMatch = class(THCParaMatch)  // ∂Œ––º‰æ‡∆•≈‰¿‡
   private
     FSpaceMode: TParaLineSpaceMode;
+    FSpace: Single;
   protected
     function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
     property SpaceMode: TParaLineSpaceMode read FSpaceMode write FSpaceMode;
+    property Space: Single read FSpace write FSpace;
   end;
 
   TParaBackColorMatch = class(THCParaMatch)  // ∂Œ±≥æ∞…´∆•≈‰¿‡
@@ -133,6 +135,16 @@ type
     procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
   public
     property BackColor: TColor read FBackColor write FBackColor;
+  end;
+
+  TParaBreakRoughMatch = class(THCParaMatch)  // ∂Œªª––Ωÿ∂œ∆•≈‰¿‡
+  private
+    FBreakRough: Boolean;
+  protected
+    function DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean; override;
+    procedure DoMatchNewPara(const AParaStyle: THCParaStyle); override;
+  public
+    property BreakRough: Boolean read FBreakRough write FBreakRough;
   end;
 
   TParaFirstIndentMatch = class(THCParaMatch)  // ∂Œ ◊––ÀıΩ¯∆•≈‰¿‡
@@ -300,11 +312,20 @@ end;
 function TParaLineSpaceMatch.DoMatchCurPara(const AParaStyle: THCParaStyle): Boolean;
 begin
   Result := AParaStyle.LineSpaceMode = FSpaceMode;
+  if Result then
+  begin
+    if FSpaceMode = TParaLineSpaceMode.plsFix then
+      Result := FSpace = AParaStyle.LineSpace
+    else
+    if FSpaceMode = TParaLineSpaceMode.plsMult then
+      Result := FSpace = AParaStyle.LineSpace;
+  end;
 end;
 
 procedure TParaLineSpaceMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
 begin
   AParaStyle.LineSpaceMode := FSpaceMode;
+  AParaStyle.LineSpace := FSpace;
 end;
 
 { TParaBackColorMatch }
@@ -401,6 +422,19 @@ end;
 procedure TParaRightIndentMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
 begin
   AParaStyle.RightIndent := FIndent;
+end;
+
+{ TParaBreakRoughMatch }
+
+function TParaBreakRoughMatch.DoMatchCurPara(
+  const AParaStyle: THCParaStyle): Boolean;
+begin
+  Result := AParaStyle.BreakRough = FBreakRough;
+end;
+
+procedure TParaBreakRoughMatch.DoMatchNewPara(const AParaStyle: THCParaStyle);
+begin
+  AParaStyle.BreakRough := FBreakRough;
 end;
 
 end.

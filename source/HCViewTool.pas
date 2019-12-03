@@ -4,28 +4,35 @@ interface
 
 uses
   Windows, Classes, Graphics, SysUtils, Controls, ImgList, Generics.Collections,
-  HCView, HCStyle, HCCustomData, HCItem, HCTableItem, HCImageItem, HCToolBar, HCShape;
+  Menus, HCView, HCStyle, HCCustomData, HCItem, HCTableItem, HCImageItem, HCToolBar,
+  HCShape;
 
 type
   THCViewTool = class(THCView)
   strict private
-    FImages: TCustomImageList;
+    FToolImageList: TCustomImageList;
     FTopData: THCCustomData;
     FActiveItem: THCCustomItem;
     FActiveItemRect: TRect;
     FToolOffset: Integer;
-    FHotToolBar: THCToolBar;
+    FHotToolBar, FCaptureToolBar: THCToolBar;
+    FTableToolMenu: TPopupMenu;
     FTableToolBar: THCTableToolBar;
     FImageToolBar: THCImageToolBar;
     FMouseViewPt: TPoint;
 
+    FOnTableToolPropertyClick: TNotifyEvent;
+
+    procedure DoTableToolPropertyClick(Sender: TObject);
     procedure DoImageShapeStructOver(Sender: TObject);
 
-    procedure SetActiveItem(const Value: THCCustomItem);
-    procedure SetImages(const Value: TCustomImageList);
+    procedure SetActiveToolItem(const Value: THCCustomItem);
+    procedure SetToolImageList(const Value: TCustomImageList);
     function PtInTableToolBar(const X, Y: Integer): Boolean;
     function PtInImageToolBar(const X, Y: Integer): Boolean;
     procedure DoTableToolBarUpdateView(const ARect: TRect; const ACanvas: TCanvas);
+    procedure DoTableToolBarControlPaint(const AControl: THCToolBarControl;
+      const ALeft, ATop: Integer; const ACanvas: TCanvas);
     procedure DoImageToolBarUpdateView(const ARect: TRect; const ACanvas: TCanvas);
     procedure DoImageToolBarControlPaint(const AControl: THCToolBarControl;
       const ALeft, ATop: Integer; const ACanvas: TCanvas);
@@ -46,7 +53,7 @@ type
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     procedure DoContextPopup(MousePos: TPoint; var Handled: Boolean); override;
-
+    procedure DoKillFocus; override;
     procedure DoCaretChange; override;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); override;
     procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
@@ -60,7 +67,8 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    property Images: TCustomImageList read FImages write SetImages;
+    property OnTableToolPropertyClick: TNotifyEvent read FOnTableToolPropertyClick write FOnTableToolPropertyClick;
+    property ToolImageList: TCustomImageList read FToolImageList write SetToolImageList;
   end;
 
 implementation
@@ -68,14 +76,23 @@ implementation
 { THCViewTool }
 
 constructor THCViewTool.Create(AOwner: TComponent);
+var
+  vMenuItem: TMenuItem;
 begin
   inherited Create(AOwner);
   FToolOffset := -4;
   FActiveItem := nil;
   FHotToolBar := nil;
 
+  FTableToolMenu := TPopupMenu.Create(Self);
+  vMenuItem := TMenuItem.Create(FTableToolMenu);
+  vMenuItem.Caption := '属性';
+  vMenuItem.OnClick := DoTableToolPropertyClick;
+  FTableToolMenu.Items.Add(vMenuItem);
+
   FTableToolBar := THCTableToolBar.Create;
   FTableToolBar.OnUpdateView := DoTableToolBarUpdateView;
+  FTableToolBar.OnControlPaint := DoTableToolBarControlPaint;
 
   FImageToolBar := THCImageToolBar.Create;
   FImageToolBar.OnUpdateView := DoImageToolBarUpdateView;
@@ -84,9 +101,18 @@ end;
 
 destructor THCViewTool.Destroy;
 begin
+  FreeAndNil(FTableToolMenu);
   FreeAndNil(FTableToolBar);
   FreeAndNil(FImageToolBar);
   inherited Destroy;
+end;
+
+procedure THCViewTool.DoTableToolBarControlPaint(
+  const AControl: THCToolBarControl; const ALeft, ATop: Integer;
+  const ACanvas: TCanvas);
+begin
+  if Assigned(FToolImageList) then
+    FToolImageList.Draw(ACanvas, ALeft + 4, ATop + 4, AControl.Tag);
 end;
 
 procedure THCViewTool.DoTableToolBarUpdateView(const ARect: TRect; const ACanvas: TCanvas);
@@ -99,6 +125,12 @@ begin
     OffsetRect(vRect, FTableToolBar.Left, FTableToolBar.Top);
     UpdateView(vRect);
   end;
+end;
+
+procedure THCViewTool.DoTableToolPropertyClick(Sender: TObject);
+begin
+  if Assigned(FOnTableToolPropertyClick) then
+    FOnTableToolPropertyClick(Sender);
 end;
 
 function THCViewTool.ImageKeyDown(var Key: Word; Shift: TShiftState): Boolean;
@@ -168,6 +200,7 @@ begin
 
       FHotToolBar := FImageToolBar;
       FHotToolBar.MouseEnter;
+      Cursor := crDefault;
     end;
   end
   else
@@ -229,25 +262,31 @@ begin
       begin
         Result := True;
       end;
-    end;
-  end;
+    end
+    else
+      DoImageShapeStructOver(nil);
+  end
 end;
 
 procedure THCViewTool.DoCaretChange;
 begin
   inherited DoCaretChange;
-  FTableToolBar.Visible := False;
-  FImageToolBar.Visible := False;
-  if FActiveItem is THCTableItem then
-    //(FActiveItem as THCTableItem).ShapeManager.DisActive
-  else
+
+  if not (FActiveItem is THCTableItem) then  // 不是表格
+    FTableToolBar.Visible := False;
+
   if FActiveItem is THCImageItem then
-    (FActiveItem as THCImageItem).ShapeManager.DisActive;
+    (FActiveItem as THCImageItem).ShapeManager.DisActive
+  else
+    FImageToolBar.Visible := False;
 end;
 
 procedure THCViewTool.DoContextPopup(MousePos: TPoint; var Handled: Boolean);
 begin
-  if FTableToolBar.Visible or FImageToolBar.Visible then
+  if FImageToolBar.Visible and (FImageToolBar.ActiveIndex > 0) then
+    Handled := True;
+
+  if FTableToolBar.Visible and (FTableToolBar.ActiveIndex >= 0) then
     Handled := True;
 
   inherited DoContextPopup(MousePos, Handled);
@@ -263,8 +302,8 @@ end;
 procedure THCViewTool.DoImageToolBarControlPaint(const AControl: THCToolBarControl;
   const ALeft, ATop: Integer; const ACanvas: TCanvas);
 begin
-  if Assigned(FImages) then
-    FImages.Draw(ACanvas, ALeft + 4, ATop + 4, AControl.Tag);
+  if Assigned(FToolImageList) then
+    FToolImageList.Draw(ACanvas, ALeft + 4, ATop + 4, AControl.Tag);
 end;
 
 procedure THCViewTool.DoImageToolBarUpdateView(const ARect: TRect;
@@ -283,13 +322,23 @@ begin
   end;
 end;
 
+procedure THCViewTool.DoKillFocus;
+begin
+  inherited DoKillFocus;
+  if Assigned(FTableToolBar) and FTableToolBar.Visible then
+    FTableToolBar.UpdateView
+  else
+  if Assigned(FImageToolBar) and FImageToolBar.Visible then
+    FImageToolBar.UpdateView;
+end;
+
 procedure THCViewTool.DoPaintViewAfter(const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vPt: TPoint;
 begin
   inherited DoPaintViewAfter(ACanvas, APaintInfo);
 
-  if Assigned(FActiveItem) and (not Self.ReadOnly) then
+  if Assigned(FActiveItem) and (not Self.ReadOnly) and Self.Focused then
   begin
     if FTableToolBar.Visible then
     begin
@@ -297,15 +346,18 @@ begin
       begin
         SetViewportExtEx(ACanvas.Handle, APaintInfo.WindowWidth, APaintInfo.WindowHeight, @vPt);
         try
-          FTableToolBar.PaintTo(ACanvas, APaintInfo.GetScaleX(FActiveItemRect.Left),
-            APaintInfo.GetScaleY(FActiveItemRect.Top) + FToolOffset - FTableToolBar.Height);
+          FTableToolBar.PaintTo(ACanvas, APaintInfo.GetScaleX(FActiveItemRect.Left - FTableToolBar.Width + FToolOffset),
+            APaintInfo.GetScaleY(FActiveItemRect.Top));// + FToolOffset - FTableToolBar.Height);
         finally
           SetViewportExtEx(ACanvas.Handle, APaintInfo.GetScaleX(APaintInfo.WindowWidth),
             APaintInfo.GetScaleY(APaintInfo.WindowHeight), @vPt);
         end;
       end
       else
-        FTableToolBar.PaintTo(ACanvas, FActiveItemRect.Left, FActiveItemRect.Top + FToolOffset - FTableToolBar.Height);
+      begin
+        FTableToolBar.PaintTo(ACanvas, FActiveItemRect.Left - FTableToolBar.Width + FToolOffset,
+          FActiveItemRect.Top);  // + FToolOffset - FTableToolBar.Height
+      end;
     end
     else
     if FImageToolBar.Visible then
@@ -380,19 +432,41 @@ end;
 procedure THCViewTool.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 var
+  vData: THCCustomData;
   vTopItem: THCCustomItem;
 begin
+  FCaptureToolBar := nil;
+
   if not Self.ReadOnly then
   begin
-    if FTableToolBar.Visible and TableMouseDown(Button, Shift, X, Y) then Exit;
-    if FImageToolBar.Visible and ImageMouseDown(Button, Shift, X, Y) then Exit;
+    if FTableToolBar.Visible and TableMouseDown(Button, Shift, X, Y) then
+    begin
+      FCaptureToolBar := FTableToolBar;
+      Exit;
+    end;
+
+    if FImageToolBar.Visible and ImageMouseDown(Button, Shift, X, Y) then
+    begin
+      FCaptureToolBar := FImageToolBar;
+      Exit;
+    end;
   end;
 
   inherited MouseDown(Button, Shift, X, Y);
 
   FTopData := Self.ActiveSectionTopLevelData;
-  vTopItem := Self.GetTopLevelItem;
-  SetActiveItem(vTopItem);
+  vTopItem := FTopData.GetActiveItem;
+  SetActiveToolItem(vTopItem);
+  while not Assigned(FActiveItem) do
+  begin
+    vData := FTopData.GetRootData;
+    if vData = FTopData then
+      Break;
+
+    FTopData := vData;
+    vTopItem := FTopData.GetActiveItem;
+    SetActiveToolItem(vTopItem);
+  end;
 end;
 
 procedure THCViewTool.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -402,8 +476,20 @@ begin
     FMouseViewPt.X := ZoomOut(X);
     FMouseViewPt.Y := ZoomOut(Y);
 
+    if FCaptureToolBar = FTableToolBar then
+    begin
+      TableMouseMove(Shift, X, Y);
+      Exit;
+    end
+    else
+    if FCaptureToolBar = FImageToolBar then
+    begin
+      ImageMouseMove(Shift, X, Y);
+      Exit;
+    end;
+
     if FTableToolBar.Visible and TableMouseMove(Shift, X, Y) then Exit;
-    if FImageToolBar.Visible and ImageMouseMove(Shift, X, Y) then Exit;
+    if FImageToolBar.Visible and ImageMouseMove(Shift, X, Y) then Exit;    
   end;
 
   if Assigned(FHotToolBar) then
@@ -417,6 +503,20 @@ procedure THCViewTool.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
 begin
   if not Self.ReadOnly then
   begin
+    if FCaptureToolBar = FTableToolBar then
+    begin
+      FCaptureToolBar := nil;
+      TableMouseUp(Button, Shift, X, Y);
+      Exit;
+    end
+    else
+    if FCaptureToolBar = FImageToolBar then
+    begin
+      FCaptureToolBar := nil;
+      ImageMouseUp(Button, Shift, X, Y);
+      Exit;
+    end;
+
     if FTableToolBar.Visible and TableMouseUp(Button, Shift, X, Y) then Exit;
     if FImageToolBar.Visible and ImageMouseUp(Button, Shift, X, Y) then Exit;
   end;
@@ -444,7 +544,7 @@ begin
   Result := PtInRect(FTableToolBar.Bound, vPt);
 end;
 
-procedure THCViewTool.SetActiveItem(const Value: THCCustomItem);
+procedure THCViewTool.SetActiveToolItem(const Value: THCCustomItem);
 var
   vPt: TPoint;
 begin
@@ -462,20 +562,20 @@ begin
 
     if Assigned(Value) and Value.Active then
     begin
-      if Value is THCTableItem then
+      vPt := Self.GetTopLevelRectDrawItemViewCoord;
+      if (Value is THCTableItem) and (FTableToolBar.Controls.Count > 0) then
       begin
         FActiveItem := Value;
-        vPt := Self.GetActiveDrawItemViewCoord;
-        FTableToolBar.Left := vPt.X;
-        FTableToolBar.Top := vPt.Y - FTableToolBar.Height + FToolOffset;
-        //FTableToolBar.Visible := True;  暂时没有不显示
+
+        FTableToolBar.Left := vPt.X - FTableToolBar.Width + FToolOffset;
+        FTableToolBar.Top := vPt.Y;// - FTableToolBar.Height + FToolOffset;
+        FTableToolBar.Visible := True;  // False 不使用该功能时不显示
       end
       else
-      if Value is THCImageItem then
+      if (Value is THCImageItem) and (FImageToolBar.Controls.Count > 0) then
       begin
         FActiveItem := Value;
         (FActiveItem as THCImageItem).ShapeManager.OnStructOver := DoImageShapeStructOver;
-        vPt := Self.GetActiveDrawItemViewCoord;
         FImageToolBar.Left := vPt.X;
         FImageToolBar.Top := vPt.Y - FImageToolBar.Height + FToolOffset;
         FImageToolBar.Visible := True;
@@ -499,9 +599,9 @@ begin
   end;
 end;
 
-procedure THCViewTool.SetImages(const Value: TCustomImageList);
+procedure THCViewTool.SetToolImageList(const Value: TCustomImageList);
 begin
-  FImages := Value;
+  FToolImageList := Value;
   FTableToolBar.UpdateView;
   FImageToolBar.UpdateView;
 end;
@@ -513,16 +613,16 @@ end;
 
 function THCViewTool.TableMouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
-var
-  vTableItem: THCTableItem;
+//var
+//  vTableItem: THCTableItem;
 begin
   Result := False;
   if PtInTableToolBar(X, Y) then  // 鼠标在表格编辑工具条上
   begin
     FTableToolBar.MouseDown(Button, Shift, X - FTableToolBar.Left, Y - FTableToolBar.Top);
     Result := True;
-  end
-  else
+  end;
+  {else
   //if FTableToolBar.ActiveIndex >= 0 then  // 鼠标不在表格编辑工具条上，但是点击了某个编辑按钮
   begin
     vTableItem := FActiveItem as THCTableItem;
@@ -533,7 +633,7 @@ begin
     begin
       Result := True;
     end;
-  end;
+  end;}
 end;
 
 function THCViewTool.TableMouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
@@ -550,6 +650,7 @@ begin
 
       FHotToolBar := FTableToolBar;
       FHotToolBar.MouseEnter;
+      Cursor := crDefault;
     end;
   end
   else
@@ -558,7 +659,7 @@ begin
     FTableToolBar.MouseLeave;
     FHotToolBar := nil;
   end
-  else
+  {else
   //if FTableToolBar.ActiveIndex > 0 then  // 第一个是指针
   begin
     vTableItem := FActiveItem as THCTableItem;
@@ -569,22 +670,36 @@ begin
     begin
       Result := True;
     end;
-  end;
+  end;}
 end;
 
 function THCViewTool.TableMouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 var
-  vTableItem: THCTableItem;
+  vPt: TPoint;
 begin
   Result := False;
   if PtInTableToolBar(X, Y) then
   begin
-    FTableToolBar.MouseUp(Button, Shift, X - FTableToolBar.Left, Y - FTableToolBar.Top);
+    if FTableToolBar.ActiveIndex = 0 then
+    begin
+      FTableToolBar.ActiveIndex := -1;
+      vPt.X := FTableToolBar.Left;
+      vPt.Y := FTableToolBar.Top + FTableToolBar.Height;
+      vPt := ClientToScreen(vPt);
+      FTableToolMenu.Popup(vPt.X, vPt.Y);
+    end
+    else
+    begin
+      FTableToolBar.MouseUp(Button, Shift, X - FTableToolBar.Left, Y - FTableToolBar.Top);
+      FTableToolBar.ActiveIndex := -1;
+    end;
+
     Result := True;
   end
   else
-  //if FTableToolBar.ActiveIndex > 0 then  // 第一个是指针
+    FTableToolBar.ActiveIndex := -1;
+  {//if FTableToolBar.ActiveIndex > 0 then  // 第一个是指针
   begin
     vTableItem := FActiveItem as THCTableItem;
     if PtInRect(Bounds(FActiveItemRect.Left, FActiveItemRect.Top,
@@ -594,7 +709,7 @@ begin
     begin
       Result := True;
     end;
-  end;
+  end;}
 end;
 
 end.

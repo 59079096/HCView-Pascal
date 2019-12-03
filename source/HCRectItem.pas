@@ -55,7 +55,7 @@ type
     procedure DoSelfUndo(const AUndo: THCUndo); virtual;
     procedure DoSelfRedo(const ARedo: THCUndo); virtual;
   public
-    /// <summary> 适用于工作期间创建 </summary>
+    /// <summary> 适用于运行期间创建 </summary>
     constructor Create(const AOwnerData: THCCustomData); overload; virtual;
     /// <summary> 适用于加载时创建 </summary>
     constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); overload; virtual;
@@ -85,8 +85,10 @@ type
     function SaveSelectToText: string; virtual;
     function GetActiveItem: THCCustomItem; virtual;
     function GetTopLevelItem: THCCustomItem; virtual;
-    function GetActiveDrawItem: THCCustomDrawItem; virtual;
-    function GetActiveDrawItemCoord: TPoint; virtual;
+    function GetTopLevelDrawItem: THCCustomDrawItem; virtual;
+    function GetTopLevelDrawItemCoord: TPoint; virtual;
+    function GetTopLevelRectDrawItem: THCCustomDrawItem; virtual;
+    function GetTopLevelRectDrawItemCoord: TPoint; virtual;
     /// <summary> 获取指定X位置对应的Offset </summary>
     function GetOffsetAt(const X: Integer): Integer; virtual;
     /// <summary> 获取坐标X、Y是否在选中区域中 </summary>
@@ -146,6 +148,7 @@ type
     function GetTopLevelData: THCCustomData; virtual;
     /// <summary> 当前RectItem是否有需要处理的Data(为松耦合请返回TCustomData类型) </summary>
     function GetActiveData: THCCustomData; virtual;
+    procedure FormatDirty; virtual;
     procedure TraverseItem(const ATraverse: THCItemTraverse); virtual;
     function SaveToBitmap(var ABitmap: TBitmap): Boolean; virtual;
     //
@@ -426,8 +429,15 @@ end;
 
 procedure THCCustomRectItem.DoSelfUndoDestroy(const AUndo: THCUndo);
 begin
-  if AUndo.Data <> nil then
+  if Assigned(AUndo.Data) then
+  begin
     AUndo.Data.Free;
+    AUndo.Data := nil;
+  end;
+end;
+
+procedure THCCustomRectItem.FormatDirty;
+begin
 end;
 
 procedure THCCustomRectItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -447,14 +457,14 @@ begin
   Result := nil;
 end;
 
-function THCCustomRectItem.GetActiveDrawItem: THCCustomDrawItem;
+function THCCustomRectItem.GetTopLevelDrawItem: THCCustomDrawItem;
 begin
   Result := nil;
 end;
 
-function THCCustomRectItem.GetActiveDrawItemCoord: TPoint;
+function THCCustomRectItem.GetTopLevelDrawItemCoord: TPoint;
 begin
-  Result := Point(0, 0);
+  Result := Point(-1, -1);
 end;
 
 function THCCustomRectItem.GetActiveItem: THCCustomItem;
@@ -507,6 +517,16 @@ begin
   Result := Self;
 end;
 
+function THCCustomRectItem.GetTopLevelRectDrawItem: THCCustomDrawItem;
+begin
+  Result := nil;
+end;
+
+function THCCustomRectItem.GetTopLevelRectDrawItemCoord: TPoint;
+begin
+  Result := Point(-1, -1);
+end;
+
 function THCCustomRectItem.GetSelfUndoList: THCUndoList;
 var
   vItemAction: THCItemSelfUndoAction;
@@ -544,6 +564,7 @@ begin
   AUndoList.OnUndoNew := DoSelfUndoNew;
   AUndoList.OnUndo := DoSelfUndo;
   AUndoList.OnRedo := DoSelfRedo;
+  AUndoList.OnUndoDestroy := DoSelfUndoDestroy;
 end;
 
 function THCCustomRectItem.InsertGraphic(const AGraphic: TGraphic;
@@ -859,8 +880,11 @@ end;
 
 procedure THCResizeRectItem.DoSelfUndoDestroy(const AUndo: THCUndo);
 begin
-  if AUndo.Data is THCSizeUndoData then
+  if Assigned(AUndo.Data) and (AUndo.Data is THCSizeUndoData) then
+  begin
     (AUndo.Data as THCSizeUndoData).Free;
+    AUndo.Data := nil;
+  end;
 
   inherited DoSelfUndoDestroy(AUndo);
 end;

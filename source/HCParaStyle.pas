@@ -26,11 +26,12 @@ type
   /// <summary> 首行缩进方式 </summary>
   TParaFirstLineIndent = (pfiNone, pfiIndented, pfiHanging);
 
-  TParaLineSpaceMode = (pls100, pls115, pls150, pls200, plsFix);
+  TParaLineSpaceMode = (pls100, pls115, pls150, pls200, plsMin, plsFix, plsMult);
 
   THCParaStyle = class(TPersistent)
   strict private
     FLineSpaceMode: TParaLineSpaceMode;
+    FLineSpace: Single;
 
     FFirstIndentPix, // 首行缩进
     FLeftIndentPix,  // 左缩进
@@ -41,6 +42,11 @@ type
     FLeftIndent,     // 左缩进
     FRightIndent     // 右缩进
       : Single;     // 单位毫米
+
+    // 行截断时使用粗暴方式
+    // False:不管截断处前面相同类型的字符一起截断，如“你好abc”，从c截断时不处理ab
+    // True: Graceful优雅截断，判断截断处前面类型相同的字符一起截断，从c截断时连ab一起截断
+    FBreakRough: Boolean;
 
     FBackColor: TColor;
     FAlignHorz: TParaAlignHorz;
@@ -62,6 +68,7 @@ type
     procedure ParseXml(const ANode: IHCXmlNode);
   published
     property LineSpaceMode: TParaLineSpaceMode read FLineSpaceMode write FLineSpaceMode;
+    property LineSpace: Single read FLineSpace write FLineSpace;
     /// <summary> 首行缩进(毫米) </summary>
     property FirstIndent: Single read FFirstIndent write SetFirstIndent;
     /// <summary> 左缩进(毫米) </summary>
@@ -75,6 +82,7 @@ type
     /// <summary> 右缩进(像素) </summary>
     property RightIndentPix: Integer read FRightIndentPix;
     property BackColor: TColor read FBackColor write FBackColor;
+    property BreakRough: Boolean read FBreakRough write FBreakRough;
     property AlignHorz: TParaAlignHorz read FAlignHorz write FAlignHorz;
     property AlignVert: TParaAlignVert read FAlignVert write FAlignVert;
   end;
@@ -89,10 +97,12 @@ uses
 procedure THCParaStyle.AssignEx(const ASource: THCParaStyle);
 begin
   FLineSpaceMode := ASource.LineSpaceMode;
+  FLineSpace := ASource.LineSpace;
   FirstIndent := ASource.FirstIndent;
   LeftIndent := ASource.LeftIndent;
   RightIndent := ASource.RightIndent;
   FBackColor := ASource.BackColor;
+  FBreakRough := ASource.BreakRough;
   FAlignHorz := ASource.AlignHorz;
   FAlignVert := ASource.AlignVert;
 end;
@@ -102,7 +112,10 @@ begin
   FirstIndent := 0;
   LeftIndent := 0;
   RightIndent := 0;
+
   FLineSpaceMode := TParaLineSpaceMode.pls100;
+  FLineSpace := 1;
+  FBreakRough := False;
   FBackColor := clSilver;
   FAlignHorz := TParaAlignHorz.pahJustify;
   FAlignVert := TParaAlignVert.pavCenter;
@@ -113,10 +126,12 @@ begin
   Result :=
   //(Self.FLineSpace = ASource.LineSpace)
   (FLineSpaceMode = ASource.LineSpaceMode)
+  and (FLineSpace = ASource.LineSpace)
   and (FFirstIndent = ASource.FirstIndent)
   and (FLeftIndent = ASource.LeftIndent)
   and (FRightIndent = ASource.RightIndent)
   and (FBackColor = ASource.BackColor)
+  and (FBreakRough = ASource.BreakRough)
   and (FAlignHorz = ASource.AlignHorz)
   and (FAlignVert = ASource.AlignVert);
 end;
@@ -124,12 +139,19 @@ end;
 procedure THCParaStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
 var
   vLineSpace: Integer;
+  vByte: Byte;
 begin
   if AFileVersion < 15 then
     AStream.ReadBuffer(vLineSpace, SizeOf(vLineSpace));
 
   if AFileVersion > 16 then
     AStream.ReadBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
+
+  if AFileVersion > 30 then
+    AStream.ReadBuffer(FLineSpace, SizeOf(FLineSpace))
+  else
+  if FLineSpaceMode = TParaLineSpaceMode.plsFix  then  // 旧版本统一按12pt处理
+    FLineSpace := 12;
 
   if AFileVersion < 22 then
   begin
@@ -151,6 +173,12 @@ begin
   else
     AStream.ReadBuffer(FBackColor, SizeOf(FBackColor));
 
+  if AFileVersion > 31 then
+  begin
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
+    FBreakRough := Odd(vByte shr 7);
+  end;
+
   AStream.ReadBuffer(FAlignHorz, SizeOf(FAlignHorz));
 
   if AFileVersion > 17 then
@@ -160,20 +188,29 @@ end;
 procedure THCParaStyle.ParseXml(const ANode: IHCXmlNode);
 
   procedure GetXMLLineSpaceMode_;
+  var
+    vs: string;
   begin
-    if ANode.Attributes['spacemode'] = '100' then
+    vs := ANode.Attributes['spacemode'];
+    if vs = '100' then
       FLineSpaceMode := pls100
     else
-    if ANode.Attributes['spacemode'] = '115' then
+    if vs = '115' then
       FLineSpaceMode := pls115
     else
-    if ANode.Attributes['spacemode'] = '150' then
+    if vs = '150' then
       FLineSpaceMode := pls150
     else
-    if ANode.Attributes['spacemode'] = '200' then
+    if vs = '200' then
       FLineSpaceMode := pls200
     else
-    if ANode.Attributes['spacemode'] = 'fix' then
+    if vs = 'min' then
+      FLineSpaceMode := plsMin
+    else
+    if vs = 'mult' then
+      FLineSpaceMode := plsMult
+    else
+    if vs = 'fix' then
       FLineSpaceMode := plsFix;
   end;
 
@@ -212,18 +249,28 @@ begin
   LeftIndent := ANode.Attributes['leftindent'];
   RightIndent := ANode.Attributes['rightindent'];
   FBackColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);
+  FBreakRough := ANode.Attributes['breakrough'];
   GetXMLLineSpaceMode_;
   GetXMLHorz_;
   GetXMLVert_;
 end;
 
 procedure THCParaStyle.SaveToStream(const AStream: TStream);
+var
+  vByte: Byte;
 begin
   AStream.WriteBuffer(FLineSpaceMode, SizeOf(FLineSpaceMode));
+  AStream.WriteBuffer(FLineSpace, SizeOf(FLineSpace));
   AStream.WriteBuffer(FFirstIndent, SizeOf(FFirstIndent));  // 首行缩进
   AStream.WriteBuffer(FLeftIndent, SizeOf(FLeftIndent));  // 左缩进
   AStream.WriteBuffer(FRightIndent, SizeOf(FRightIndent));  // 右缩进
   HCSaveColorToStream(AStream, FBackColor);
+
+  vByte := 0;
+  if FBreakRough then
+    vByte := vByte or (1 shl 7);
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
+
   AStream.WriteBuffer(FAlignHorz, SizeOf(FAlignHorz));
   AStream.WriteBuffer(FAlignVert, SizeOf(FAlignVert));
 end;
@@ -283,7 +330,11 @@ procedure THCParaStyle.ToXml(const ANode: IHCXmlNode);
       pls115: Result := '115';
       pls150: Result := '150';
       pls200: Result := '200';
+      plsMin: Result := 'min';
       plsFix: Result := 'fix';
+      plsMult: Result := 'mult';
+    else
+      Result := '100';
     end;
   end;
 
@@ -312,6 +363,7 @@ begin
   ANode.Attributes['leftindent'] := FLeftIndent;
   ANode.Attributes['rightindent'] := FRightIndent;
   ANode.Attributes['bkcolor'] := GetColorXmlRGB(FBackColor);
+  ANode.Attributes['breakrough'] := FBreakRough;
   ANode.Attributes['spacemode'] := GetLineSpaceModeXML_;
   ANode.Attributes['horz'] := GetHorzXML_;
   ANode.Attributes['vert'] := GetVertXML_;

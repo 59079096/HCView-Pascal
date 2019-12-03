@@ -32,6 +32,9 @@ uses
   function PixYToMillimeter(const AValue: Integer): Single;
   /// <summary> 毫米转为垂直像素 </summary>
   function MillimeterToPixY(const AValue: Single): Cardinal;
+  /// <summary> 磅转像素，1磅=1/72英寸 </summary>
+  function PtToPixel(const APt: Single; const ADpi: Cardinal): Cardinal;
+  function PixelToPt(const APix, ADPI: Integer): Single;
 
 var
   /// <summary> 水平1毫米dpi数 </summary>
@@ -88,6 +91,16 @@ end;
 function MillimeterToPixY(const AValue: Single): Cardinal;
 begin
   Result := Round(AValue * PixelsPerMMY);
+end;
+
+function PtToPixel(const APt: Single; const ADPI: Cardinal): Cardinal;
+begin
+  Result := Round(APt / 72 * ADPI);
+end;
+
+function PixelToPt(const APix, ADPI: Integer): Single;
+begin
+  Result := APix / ADPI * 72;
 end;
 
 initialization

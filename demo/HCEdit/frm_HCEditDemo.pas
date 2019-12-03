@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, Menus, XPMan, ImgList, ComCtrls, ExtCtrls, StdCtrls, ToolWin,
-  HCEdit, System.ImageList;
+  HCEdit;
 
 type
   TfrmHCEdit = class(TForm)

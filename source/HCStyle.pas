@@ -62,7 +62,7 @@ type
     FTempStyleNo: Integer;
     FLineSpaceMin: Byte;  // 行间距最小值
     FSelColor: TColor;
-    FBackgroudColor: TColor;
+    FBackgroundColor: TColor;
     FTextStyles: TObjectList<THCTextStyle>;
     FParaStyles: TObjectList<THCParaStyle>;
     FUpdateInfo: TUpdateInfo;
@@ -134,7 +134,7 @@ type
 
     property TextStyles: TObjectList<THCTextStyle> read FTextStyles write FTextStyles;
     property ParaStyles: TObjectList<THCParaStyle> read FParaStyles write FParaStyles;
-    property BackgroudColor: TColor read FBackgroudColor write FBackgroudColor;
+    property BackgroundColor: TColor read FBackgroundColor write FBackgroundColor;
     property SelColor: TColor read FSelColor write FSelColor;
     property LineSpaceMin: Byte read FLineSpaceMin write FLineSpaceMin;
     property TempStyleNo: Integer read FTempStyleNo;
@@ -182,7 +182,7 @@ begin
   inherited Create;
   FTempCanvas := CreateStyleCanvas;
   FTempStyleNo := THCStyle.Null;
-  FBackgroudColor := $00FFFFFF;
+  FBackgroundColor := $00FFFFFF;
   FSelColor := clSkyBlue;
   FLineSpaceMin := 8;
   FShowParaLastMark := True;

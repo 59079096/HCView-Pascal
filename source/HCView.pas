@@ -4304,6 +4304,8 @@ procedure THCView.UpdateView(const ARect: TRect);
           FSections[FDisplayLastSection].DisplayLastPageIndex := vLastPage;
           Break;
         end;
+
+        vFirstPage := 0;  // 当前节没找到，下一节从0开始
       end;
 
       if FDisplayLastSection < 0 then  // 没有找到结束页，赋值为最后一节最后一页
@@ -4352,7 +4354,7 @@ begin
       if FViewModel = hvmPage then
         FDataBmp.Canvas.Brush.Color := Self.Color
       else
-        FDataBmp.Canvas.Brush.Color := FStyle.BackgroudColor;
+        FDataBmp.Canvas.Brush.Color := FStyle.BackgroundColor;
 
       FDataBmp.Canvas.FillRect(Rect(0, 0, FDataBmp.Width, FDataBmp.Height));
 

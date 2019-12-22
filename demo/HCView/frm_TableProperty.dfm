@@ -35,11 +35,11 @@ object frmTableProperty: TfrmTableProperty
         Caption = #21333#20803#26684#36793#36317
       end
       object lbl2: TLabel
-        Left = 135
+        Left = 115
         Top = 68
-        Width = 48
+        Width = 68
         Height = 13
-        Caption = #36793#26694#23485#24230
+        Caption = #36793#26694#23485#24230'('#30917')'
       end
       object lbl4: TLabel
         Left = 43
@@ -191,10 +191,6 @@ object frmTableProperty: TfrmTableProperty
     object tsRow: TTabSheet
       Caption = #34892'(0)'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object lbl3: TLabel
         Left = 24
         Top = 50

@@ -1135,12 +1135,12 @@ begin
 end;
 
 function THCCustomSection.GetSectionDataAt(const X, Y: Integer): THCSectionData;
-var
-  vPageIndex, vMarginLeft, vMarginRight: Integer;
+//var
+//  vPageIndex: Integer;
 begin
   Result := nil;
-  vPageIndex := GetPageIndexByFilm(Y);
-  GetPageMarginLeftAndRight(vPageIndex, vMarginLeft, vMarginRight);
+  //vPageIndex := GetPageIndexByFilm(Y);
+  //GetPageMarginLeftAndRight(vPageIndex, vMarginLeft, vMarginRight);
   // 确定点击页面显示区域
   if X < 0 then  // 点在页左边的MinPadding区域TEditArea.eaLeftPad
   begin
@@ -2187,7 +2187,7 @@ begin
   begin
 
     {$REGION ' 非打印时填充纸张背景 '}
-    ACanvas.Brush.Color := FStyle.BackgroudColor;
+    ACanvas.Brush.Color := FStyle.BackgroundColor;
     ACanvas.FillRect(Rect(vPaperDrawLeft, vPaperDrawTop,
       Min(vPaperDrawRight, vScaleWidth),  // 约束边界
       Min(vPaperDrawBottom, vScaleHeight)));

@@ -460,11 +460,11 @@ begin
     vCLeft := vData.DrawItems[vTable.FirstDItemNo].Rect.Left;
 
     FKnots.Clear;
-    vCRight := vCLeft + vTable.BorderWidth;
+    vCRight := vCLeft + vTable.BorderWidthPix;
     FKnots.Add(vCRight);
     for i := 0 to vTable.ColCount - 1 do
     begin
-      vCRight := vCRight + vTable.ColWidth[i] + vTable.BorderWidth;
+      vCRight := vCRight + vTable.ColWidth[i] + vTable.BorderWidthPix;
       FKnots.Add(vCRight);
     end;
 
@@ -472,12 +472,12 @@ begin
       Break;
 
     for i := 0 to vCol - 1 do
-      vCLeft := vCLeft + vTable.ColWidth[i] + vTable.BorderWidth;
+      vCLeft := vCLeft + vTable.ColWidth[i] + vTable.BorderWidthPix;
 
     vSrcCol := vCol + vTable.Cells[vRow, vCol].ColSpan;
     vCRight := vCLeft;
     for i := vCol to vSrcCol do
-      vCRight := vCRight + vTable.ColWidth[i] + vTable.BorderWidth;
+      vCRight := vCRight + vTable.ColWidth[i] + vTable.BorderWidthPix;
 
     FCellRight := FCellRight + vData.Width - (vCRight - vTable.CellHPadding);
     FCellLeft := FCellLeft + vCLeft + vTable.CellHPadding;
@@ -894,11 +894,11 @@ begin
       vRTop := vRTop + vData.DrawItems[vTable.FirstDItemNo].Rect.Top + View.Style.LineSpaceMin div 2;
 
     FKnots.Clear;
-    vRBottom := vRTop + vTable.BorderWidth;
+    vRBottom := vRTop + vTable.BorderWidthPix;
     FKnots.Add(vRBottom);
     for i := 0 to vTable.RowCount - 1 do
     begin
-      vRBottom := vRBottom + vTable.Rows[i].Height + vTable.Rows[i].FmtOffset + vTable.BorderWidth;
+      vRBottom := vRBottom + vTable.Rows[i].Height + vTable.Rows[i].FmtOffset + vTable.BorderWidthPix;
       FKnots.Add(vRBottom);
     end;
 
@@ -906,12 +906,12 @@ begin
       Break;
 
     for i := 0 to vRow - 1 do
-      vRTop := vRTop + vTable.Rows[i].Height + vTable.Rows[i].FmtOffset + vTable.BorderWidth;
+      vRTop := vRTop + vTable.Rows[i].Height + vTable.Rows[i].FmtOffset + vTable.BorderWidthPix;
 
     vSrcRow := vRow + vTable.Cells[vRow, vCol].RowSpan;
     vRBottom := vRTop;
     for i := vRow to vSrcRow do
-      vRBottom := vRBottom + vTable.Rows[i].Height + vTable.Rows[i].FmtOffset + vTable.BorderWidth;
+      vRBottom := vRBottom + vTable.Rows[i].Height + vTable.Rows[i].FmtOffset + vTable.BorderWidthPix;
 
     FCellBottom := FCellBottom + vData.Width - (vRBottom - vTable.CellVPadding);
     FCellTop := FCellTop + vRTop + vTable.CellVPadding;

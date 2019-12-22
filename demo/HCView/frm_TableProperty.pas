@@ -223,7 +223,7 @@ begin
   edtCellHPadding.Text := IntToStr(FTableItem.CellHPadding);
   edtCellVPadding.Text := IntToStr(FTableItem.CellVPadding);
   chkBorderVisible.Checked := FTableItem.BorderVisible;
-  edtBorderWidth.Text := IntToStr(FTableItem.BorderWidth);
+  edtBorderWidth.Text := FormatFloat('0.##', FTableItem.BorderWidthPt);
   if FTableItem.FixRow >= 0 then
   begin
     edtFixRowFirst.Text := IntToStr(FTableItem.FixRow + 1);
@@ -329,7 +329,7 @@ begin
   // ±í¸ñ
   FTableItem.CellHPadding := StrToIntDef(edtCellHPadding.Text, 5);
   FTableItem.CellVPadding := StrToIntDef(edtCellVPadding.Text, 0);
-  FTableItem.BorderWidth := StrToIntDef(edtBorderWidth.Text, 1);
+  FTableItem.BorderWidthPt := StrToFloatDef(edtBorderWidth.Text, 0.5);
   FTableItem.BorderVisible := chkBorderVisible.Checked;
 
   if FFixRowFirst > 0 then

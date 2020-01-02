@@ -63,6 +63,7 @@ type
     FLineSpaceMin: Byte;  // 行间距最小值
     FSelColor: TColor;
     FBackgroundColor: TColor;
+    FDefaultTextStyle: THCTextStyle;
     FTextStyles: TObjectList<THCTextStyle>;
     FParaStyles: TObjectList<THCParaStyle>;
     FUpdateInfo: TUpdateInfo;
@@ -132,6 +133,7 @@ type
 
     procedure InvalidateRect(const ARect: TRect);
 
+    property DefaultTextStyle: THCTextStyle read FDefaultTextStyle;
     property TextStyles: TObjectList<THCTextStyle> read FTextStyles write FTextStyles;
     property ParaStyles: TObjectList<THCParaStyle> read FParaStyles write FParaStyles;
     property BackgroundColor: TColor read FBackgroundColor write FBackgroundColor;
@@ -190,6 +192,7 @@ begin
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;
   FParaStyles := TObjectList<THCParaStyle>.Create;
+  FDefaultTextStyle := THCTextStyle.Create;
 end;
 
 constructor THCStyle.CreateEx(const ADefTextStyle, ADefParaStyle: Boolean);
@@ -214,7 +217,7 @@ end;
 destructor THCStyle.Destroy;
 begin
   DestroyStyleCanvas(FTempCanvas);
-
+  FDefaultTextStyle.Free;
   FTextStyles.Free;
   FParaStyles.Free;
   FUpdateInfo.Free;

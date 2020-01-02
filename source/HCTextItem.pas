@@ -166,7 +166,8 @@ end;
 
 procedure THCTextItem.SetText(const Value: string);
 begin
-  FText := Value;
+  if Value <> '' then
+    FText := StringReplace(Value, sLineBreak, '', [rfReplaceAll, rfIgnoreCase]);
 end;
 
 function THCTextItem.ToHtml(const APath: string): string;

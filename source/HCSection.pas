@@ -1167,7 +1167,7 @@ begin
   end;
 
   // 边距信息，先上下，再左右
-  if Y > FPaper.HeightPix - FPaper.MarginBottomPix then  // 点击在页下边距区域TEditArea.eaMarginBottom
+  if Y >= FPaper.HeightPix - FPaper.MarginBottomPix then  // 20200101001 =号约束到边界内部，防止划选时判断不正确
     Exit(FFooter);
 
   // 页眉区域实际高(页眉内容高度>上边距时，取页眉内容高度)
@@ -1990,7 +1990,7 @@ begin
       else
       begin
         viTemp := GetPageHeight;
-        if AY > viTemp then
+        if AY >= viTemp then  // 20200101001 =号约束到边界内部，防止划选时判断不正确
           AY := viTemp - 1;
       end;
     end;

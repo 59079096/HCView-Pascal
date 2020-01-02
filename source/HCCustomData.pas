@@ -136,8 +136,7 @@ type
     procedure SetCaretDrawItemNo(const Value: Integer);
 
     /// <summary> 计算行高(文本高+行间距) </summary>
-    function CalculateLineHeight(const ACanvas: TCanvas;
-      const ATextStyle: THCTextStyle; const AParaStyle: THCParaStyle): Integer;
+    function CalculateLineHeight(const ATextStyle: THCTextStyle; const AParaStyle: THCParaStyle): Integer;
     function GetUndoList: THCUndoList; virtual;
     /// <summary> 是否允许保存该Item </summary>
     function DoSaveItem(const AItemNo: Integer): Boolean; virtual;
@@ -741,7 +740,7 @@ function THCCustomData.CreateDefaultTextItem: THCCustomItem;
 begin
   Result := HCDefaultTextItemClass.CreateByText('');  // 必需有参数否则不能调用属性创建;
   if FCurStyleNo < THCStyle.Null then
-    Result.StyleNo := 0
+    Result.StyleNo := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True)
   else
     Result.StyleNo := FCurStyleNo;
 
@@ -971,21 +970,20 @@ begin
 end;
 
 function THCCustomData.GetDrawItemLineSpace(const ADrawNo: Integer): Integer;
-var
-  vCanvas: TCanvas;
+//var
+//  vCanvas: TCanvas;
 begin
   Result := FStyle.LineSpaceMin;
 
   if GetDrawItemStyle(ADrawNo) >= THCStyle.Null then
   begin
-    vCanvas := THCStyle.CreateStyleCanvas;
-    try
-      Result := CalculateLineHeight(vCanvas,
-        FStyle.TextStyles[GetDrawItemStyle(ADrawNo)],
+    //vCanvas := THCStyle.CreateStyleCanvas;
+    //try
+      Result := CalculateLineHeight(FStyle.TextStyles[GetDrawItemStyle(ADrawNo)],
         FStyle.ParaStyles[GetDrawItemParaStyle(ADrawNo)]);
-    finally
-      THCStyle.DestroyStyleCanvas(vCanvas);
-    end;
+    //finally
+    //  THCStyle.DestroyStyleCanvas(vCanvas);
+    //end;
   end;
 end;
 
@@ -2407,8 +2405,8 @@ begin
     Result := 0;
 end;
 
-function THCCustomData.CalculateLineHeight(const ACanvas: TCanvas;
-  const ATextStyle: THCTextStyle; const AParaStyle: THCParaStyle): Integer;
+function THCCustomData.CalculateLineHeight(const ATextStyle: THCTextStyle;
+  const AParaStyle: THCParaStyle): Integer;
 var
   //vOutlineTextmetric: ^TOutlineTextmetric;
   //vFontSignature: TFontSignature;
@@ -2769,6 +2767,12 @@ begin
       vItemNo := -1;
 
     FCaretDrawItemNo := Value;
+
+    if FStyle.States.Contain(THCState.hosLoading) then
+      Exit;
+
+    SetCurStyleNo(FItems[FDrawItems[FCaretDrawItemNo].ItemNo].StyleNo);
+    SetCurParaNo(FItems[FDrawItems[FCaretDrawItemNo].ItemNo].ParaNo);
 
     if (FCaretDrawItemNo >= 0) and (FDrawItems[FCaretDrawItemNo].ItemNo <> vItemNo) then  // 有新的
     begin

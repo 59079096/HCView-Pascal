@@ -179,7 +179,7 @@ type
 
     /// <summary> 在光标处插入直线 </summary>
     function InsertLine(const ALineHeight: Integer): Boolean;
-
+    function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
     function TableInsertRowAfter(const ARowCount: Byte): Boolean;
     function TableInsertRowBefor(const ARowCount: Byte): Boolean;
     function ActiveTableDeleteCurRow: Boolean;
@@ -949,6 +949,17 @@ begin
   Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
     begin
       Result := (AItem as THCTableItem).DeleteCurRow;
+    end);
+end;
+
+function THCRichData.ActiveTableResetRowCol(const ARowCount,
+  AColCount: Byte): Boolean;
+begin
+  if not CanEdit then Exit(False);
+
+  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+    begin
+      Result := (AItem as THCTableItem).ResetRowCol(Self.Width, ARowCount, AColCount);
     end);
 end;
 

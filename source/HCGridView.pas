@@ -185,7 +185,7 @@ type
     procedure FormatData;
     procedure ReFormatActiveItem;
     procedure ReFormatActiveParagraph;
-    procedure ReSetRowCol(const ARowCount, AColCount: Cardinal);
+    procedure ResetRowCol(const ARowCount, AColCount: Cardinal);
     /// <summary> ∑≈¥Û ”Õº </summary>
     function ZoomIn(const Value: Integer): Integer;
 
@@ -1613,10 +1613,10 @@ begin
   DoChange;
 end;
 
-procedure THCCustomGridView.ReSetRowCol(const ARowCount, AColCount: Cardinal);
+procedure THCCustomGridView.ResetRowCol(const ARowCount, AColCount: Cardinal);
 begin
-  FTable.ReSetRowCol(ARowCount, AColCount);
-  FPage.Width := FTable.GetFormatWidth;
+  FTable.ResetRowCol(FPage.Width, ARowCount, AColCount);
+  //FPage.Width := FTable.GetFormatWidth;
   FPage.ReFormat;
   FStyle.UpdateInfoReCaret;
   DoMapChanged;

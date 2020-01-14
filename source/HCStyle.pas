@@ -70,6 +70,7 @@ type
     FShowParaLastMark: Boolean;  // 是否显示换行符
     FHtmlFileTempName: Integer;
     FStates: THCStates;  // 全局操作状态
+    FFormatVersion: Byte;  // 排版算法版本
 
     FOnInvalidateRect: TInvalidateRectEvent;
   protected
@@ -145,6 +146,7 @@ type
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
     property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
     property States: THCStates read FStates;
+    property FormatVersion: Byte read FFormatVersion;
     property OnInvalidateRect: TInvalidateRectEvent read FOnInvalidateRect write FOnInvalidateRect;
   end;
 
@@ -188,6 +190,7 @@ begin
   FSelColor := clSkyBlue;
   FLineSpaceMin := 8;
   FShowParaLastMark := True;
+  FFormatVersion := 1;
   FStates := THCStates.Create;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;
@@ -324,6 +327,11 @@ var
 begin
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
   //
+  if (AFileVersion > 33) then
+    AStream.ReadBuffer(FFormatVersion, SizeOf(FFormatVersion))
+  else
+    FFormatVersion := 1;
+
   LoadParaStyles;
   LoadTextStyles;
 end;
@@ -388,6 +396,7 @@ begin
   vBegPos := AStream.Position;
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位，便于越过
   //
+  AStream.WriteBuffer(FFormatVersion, SizeOf(FFormatVersion));
   SaveParaStyles;
   SaveTextStyles;
   //

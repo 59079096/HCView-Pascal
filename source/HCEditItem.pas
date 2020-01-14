@@ -27,7 +27,7 @@ type
     FText: string;
     FBorderWidth: Byte;
     FBorderSides: TBorderSides;
-    FMouseIn, FReadOnly: Boolean;
+    FMouseIn, FReadOnly, FPrintOnlyText: Boolean;
     FCaretOffset: ShortInt;
   protected
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
@@ -59,6 +59,7 @@ type
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
     property ReadOnly: Boolean read FReadOnly write FReadOnly;
+    property PrintOnlyText: Boolean read FPrintOnlyText write FPrintOnlyText;
     property BorderSides: TBorderSides read FBorderSides write FBorderSides;
     property BorderWidth: Byte read FBorderWidth write FBorderWidth;
   end;
@@ -75,6 +76,7 @@ begin
   inherited Assign(Source);
   FText := (Source as THCEditItem).Text;
   FReadOnly := (Source as THCEditItem).ReadOnly;
+  FPrintOnlyText := (Source as THCEditItem).PrintOnlyText;
   FBorderSides := (Source as THCEditItem).BorderSides;
   FBorderWidth := (Source as THCEditItem).BorderWidth;
 end;
@@ -88,6 +90,7 @@ begin
   FMargin := 4;
   FCaretOffset := -1;
   Width := 50;
+  FPrintOnlyText := False;
   FBorderWidth := 1;
   FBorderSides := [cbsLeft, cbsTop, cbsRight, cbsBottom];
 end;
@@ -113,7 +116,10 @@ begin
     ACanvas.TextOut(ADrawRect.Left + FMargin,// + (ADrawRect.Width - FMargin - ACanvas.TextWidth(FText) - FMargin) div 2,
       ADrawRect.Top + FMargin, FText);
 
-  if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
+  if APaintInfo.Print and FPrintOnlyText then Exit;
+
+  // 非打印
+  if FMouseIn then  // 鼠标在其中
     ACanvas.Pen.Color := clBlue
   else  // 鼠标不在其中或打印
     ACanvas.Pen.Color := clBlack;
@@ -320,6 +326,7 @@ procedure THCEditItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
   FReadOnly := ANode.Attributes['readonly'];
+  FPrintOnlyText := ANode.Attributes['printonlytext'];
   SetBorderSideByPro(ANode.Attributes['border'], FBorderSides);
   FBorderWidth := ANode.Attributes['borderwidth'];
   FText := ANode.Text;
@@ -327,10 +334,23 @@ end;
 
 procedure THCEditItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vByte: Byte;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   HCLoadTextFromStream(AStream, FText, AFileVersion);  // 读取Text
-  AStream.ReadBuffer(FReadOnly, SizeOf(FReadOnly));
+
+  if AFileVersion > 33 then
+  begin
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
+    FReadOnly := Odd(vByte shr 7);
+    FPrintOnlyText := Odd(vByte shr 6);
+  end
+  else
+  begin
+    AStream.ReadBuffer(FReadOnly, SizeOf(FReadOnly));
+    FPrintOnlyText := False;
+  end;
 
   if AFileVersion > 15 then
   begin
@@ -341,10 +361,20 @@ end;
 
 procedure THCEditItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
+var
+  vByte: Byte;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FText); // 存Text
-  AStream.WriteBuffer(FReadOnly, SizeOf(FReadOnly));
+
+  vByte := 0;
+  if FReadOnly then
+    vByte := vByte or (1 shl 7);
+
+  if FPrintOnlyText then
+    vByte := vByte or (1 shl 6);
+
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
   AStream.WriteBuffer(FBorderSides, SizeOf(FBorderSides));
   AStream.WriteBuffer(FBorderWidth, SizeOf(FBorderWidth));
 end;
@@ -372,6 +402,7 @@ procedure THCEditItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
   ANode.Attributes['readonly'] := FReadOnly;
+  ANode.Attributes['printonlytext'] := FPrintOnlyText;
   ANode.Attributes['border'] := GetBorderSidePro(FBorderSides);
   ANode.Attributes['borderwidth'] := FBorderWidth;
   ANode.Text := FText;

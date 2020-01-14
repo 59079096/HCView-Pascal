@@ -95,7 +95,9 @@ type
     FParaNo,
     FStyleNo,
     FFirstDItemNo: Integer;
-    FActive, FVisible: Boolean;
+    FActive, FVisible,
+    FPrintInvisible  // 打印时不可见
+      : Boolean;
     FOptions: TItemOptions;
     FSelectState: TItemSelectState;
   protected
@@ -184,6 +186,7 @@ type
     property FirstDItemNo: Integer read FFirstDItemNo write FFirstDItemNo;
     property Active: Boolean read FActive write SetActive;
     property Visible: Boolean read FVisible write FVisible;
+    property PrintInvisible: Boolean read FPrintInvisible write FPrintInvisible;
   end;
 
   TItemNotifyEvent = procedure(const AItem: THCCustomItem) of object;
@@ -214,6 +217,7 @@ procedure THCCustomItem.Assign(Source: THCCustomItem);
 begin
   Self.FStyleNo := Source.StyleNo;
   Self.FParaNo := Source.ParaNo;
+  Self.FPrintInvisible := Source.PrintInvisible;
   Self.FOptions := Source.Options;
 end;
 
@@ -247,6 +251,7 @@ begin
   FSelectState := issNone;
   FVisible := True;
   FActive := False;
+  FPrintInvisible := False;
 end;
 
 procedure THCCustomItem.DblClick(const X, Y: Integer);
@@ -312,6 +317,7 @@ procedure THCCustomItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vParFirst: Boolean;
+  vByte: Byte;
 begin
   //AStream.ReadBuffer(FStyleNo, SizeOf(FStyleNo));  // 由TCustomData.InsertStream处加载了
   AStream.ReadBuffer(FParaNo, SizeOf(FParaNo));
@@ -322,6 +328,12 @@ begin
   begin
     AStream.ReadBuffer(vParFirst, SizeOf(vParFirst));
     ParaFirst := vParFirst;
+  end;
+
+  if AFileVersion > 33 then
+  begin
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
+    FPrintInvisible := Odd(vByte shr 7);
   end;
 end;
 
@@ -355,6 +367,8 @@ procedure THCCustomItem.PaintTo(const AStyle: THCStyle; const ADrawRect: TRect;
 var
   vDCState: Integer;
 begin
+  if APaintInfo.Print and FPrintInvisible then Exit;
+
   vDCState := Windows.SaveDC(ACanvas.Handle);
   try
     DoPaint(AStyle, ADrawRect, APageDataDrawTop, APageDataDrawBottom,
@@ -375,6 +389,10 @@ begin
   FParaNo := ANode.Attributes['pno'];
   Self.ParaFirst := ANode.Attributes['parafirst'];
   Self.PageBreak := ANode.Attributes['pagebreak'];
+  if ANode.HasAttribute('printvisible') then
+    FPrintInvisible := ANode.Attributes['printvisible']
+  else
+    FPrintInvisible := False;
 end;
 
 procedure THCCustomItem.Redo(const ARedoAction: THCCustomUndoAction);
@@ -411,6 +429,8 @@ begin
   ANode.Attributes['pno'] := FParaNo;
   ANode.Attributes['parafirst'] := Self.ParaFirst;
   ANode.Attributes['pagebreak'] := Self.PageBreak;
+  if FPrintInvisible then
+    ANode.Attributes['printvisible'] := '1';
 end;
 
 procedure THCCustomItem.Undo(const AUndoAction: THCCustomUndoAction);
@@ -424,10 +444,18 @@ end;
 
 procedure THCCustomItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
+var
+  vByte: Byte;
 begin
   AStream.WriteBuffer(FStyleNo, SizeOf(FStyleNo));
   AStream.WriteBuffer(FParaNo, SizeOf(FParaNo));
   AStream.WriteBuffer(FOptions, SizeOf(FOptions));
+
+  vByte := 0;
+  if FPrintInvisible then
+    vByte := vByte or (1 shl 7);
+
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
 end;
 
 procedure THCCustomItem.SetActive(const Value: Boolean);

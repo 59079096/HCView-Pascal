@@ -144,9 +144,6 @@ begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
-  FButtonDrawRect := FButtonRect;
-  FButtonDrawRect.Offset(ADrawRect.Location);
-
   if IsSelectComplate then
     ACanvas.Brush.Color := AStyle.SelColor
   else
@@ -155,6 +152,10 @@ begin
   else
     ACanvas.Brush.Color := clWindow;
 
+  if APaintInfo.Print and Self.PrintOnlyText then Exit;
+
+  FButtonDrawRect := FButtonRect;
+  FButtonDrawRect.Offset(ADrawRect.Location);
   ACanvas.FillRect(FButtonDrawRect);
 
   ACanvas.Pen.Color := clBlack;
@@ -185,11 +186,6 @@ end;
 
 procedure THCComboboxItem.DoPopupFormClose(Sender: TObject);
 begin
-  if FItemIndex < 0 then
-    Text := ''
-  else
-    Text := FItems[FItemIndex];
-
   FMoveItemIndex := -1;
   OwnerData.Style.UpdateInfoRePaint;
 end;
@@ -233,7 +229,7 @@ begin
   vRect := GetItemRect;
   if PtInRect(vRect, Point(X, Y)) then
   begin
-    FItemIndex := GetItemIndexAt(X, Y);
+    Self.ItemIndex := GetItemIndexAt(X, Y);
     FPopupForm.ClosePopup(False);
   end
   else

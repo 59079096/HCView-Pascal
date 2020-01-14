@@ -401,6 +401,9 @@ type
     /// <summary> 插入域 </summary>
     function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
 
+    /// <summary> 当前表格重设为指定的行列数 </summary>
+    function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
+
     /// <summary> 当前表格选中行下面插入行 </summary>
     function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
 
@@ -1354,7 +1357,8 @@ begin
     ACanvas.Brush.Style := bsClear;
     ACanvas.Font.Size := 10;
     ACanvas.Font.Name := '宋体';
-    ACanvas.TextOut(ARect.Left + (ARect.Width - ACanvas.TextWidth(vS)) div 2, ARect.Top + 20, vS);
+    ACanvas.TextOut(ARect.Left + (ARect.Width - ACanvas.TextWidth(vS)) div 2,
+      ARect.Top + vSection.Footer.Height, vS);
   end;
 
   if Assigned(FOnSectionPaintFooter) then
@@ -2172,6 +2176,11 @@ end;
 function THCView.ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
 begin
   Result := ActiveSection.ActiveTableInsertRowBefor(ARowCount);
+end;
+
+function THCView.ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
+begin
+  Result := ActiveSection.ActiveTableResetRowCol(ARowCount, AColCount);
 end;
 
 function THCView.ActiveTableSplitCurCol: Boolean;

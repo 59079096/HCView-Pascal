@@ -23,6 +23,7 @@ type
 
     FOnTableToolPropertyClick: TNotifyEvent;
 
+    procedure DoTableToolResetRowColClick(Sender: TObject);
     procedure DoTableToolPropertyClick(Sender: TObject);
     procedure DoImageShapeStructOver(Sender: TObject);
 
@@ -77,7 +78,7 @@ implementation
 
 constructor THCViewTool.Create(AOwner: TComponent);
 var
-  vMenuItem: TMenuItem;
+  vMenuItem, vResetMenuItem: TMenuItem;
 begin
   inherited Create(AOwner);
   FToolOffset := -4;
@@ -85,6 +86,14 @@ begin
   FHotToolBar := nil;
 
   FTableToolMenu := TPopupMenu.Create(Self);
+  vMenuItem := TMenuItem.Create(FTableToolMenu);
+  vMenuItem.Caption := '重设行列';
+  vResetMenuItem := TMenuItem.Create(FTableToolMenu);
+  vResetMenuItem.Tag := 22;
+  vResetMenuItem.OnClick := DoTableToolResetRowColClick;
+  vMenuItem.Add(vResetMenuItem);
+  FTableToolMenu.Items.Add(vMenuItem);
+
   vMenuItem := TMenuItem.Create(FTableToolMenu);
   vMenuItem.Caption := '属性';
   vMenuItem.OnClick := DoTableToolPropertyClick;
@@ -131,6 +140,13 @@ procedure THCViewTool.DoTableToolPropertyClick(Sender: TObject);
 begin
   if Assigned(FOnTableToolPropertyClick) then
     FOnTableToolPropertyClick(Sender);
+end;
+
+procedure THCViewTool.DoTableToolResetRowColClick(Sender: TObject);
+begin
+  case (Sender as TMenuItem).Tag of
+    22: Self.ActiveTableResetRowCol(2, 2);
+  end;
 end;
 
 function THCViewTool.ImageKeyDown(var Key: Word; Shift: TShiftState): Boolean;

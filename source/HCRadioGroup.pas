@@ -18,6 +18,8 @@ uses
   HCRectItem, HCStyle, HCCustomData, HCCommon, HCXml;
 
 type
+  THCRadioStyle = (Radio, CheckBox);
+
   THCRadioButton = class(TObject)
     Checked: Boolean;
     Text: string;
@@ -28,6 +30,7 @@ type
   private
     FMultSelect, FMouseIn: Boolean;
     FItems: TObjectList<THCRadioButton>;
+    FRadioStyle: THCRadioStyle;
     function GetItemAt(const X, Y: Integer): Integer;
   protected
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
@@ -54,6 +57,7 @@ type
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
     property MultSelect: Boolean read FMultSelect write FMultSelect;
+    property RadioStyle: THCRadioStyle read FRadioStyle write FRadioStyle;
     property Items: TObjectList<THCRadioButton> read FItems;
   end;
 
@@ -93,6 +97,7 @@ begin
   Self.StyleNo := THCStyle.RadioGroup;
   Width := 100;
   FItems := TObjectList<THCRadioButton>.Create;
+  FRadioStyle := THCRadioStyle.Radio;
 end;
 
 destructor THCRadioGroup.Destroy;
@@ -128,13 +133,29 @@ begin
 
     if FItems[i].Checked then
     begin
-      DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-        DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONRADIO)
+      if FRadioStyle = THCRadioStyle.Radio then
+      begin
+        DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+          DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONRADIO);
+      end
+      else
+      begin
+        DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+          DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONCHECK);
+      end;
     end
     else
     begin
-      DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-        DFC_BUTTON, DFCS_BUTTONRADIO)
+      if FRadioStyle = THCRadioStyle.Radio then
+      begin
+        DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+          DFC_BUTTON, DFCS_BUTTONRADIO);
+      end
+      else
+      begin
+        DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+          DFC_BUTTON, DFCS_BUTTONCHECK);
+      end;
     end;
 
     ACanvas.TextOut(vPoint.X + RadioButtonWidth, vPoint.Y, FItems[i].Text);
@@ -160,7 +181,7 @@ begin
     else
       vSize := ARichData.Style.TempCanvas.TextExtent('H');
 
-    if vLeft + vSize.cx + RadioButtonWidth > Width then
+    if Self.AutoSize and (vLeft + vSize.cx + RadioButtonWidth > Width) then
     begin
       vLeft := FMargin;
       vTop := vTop + vSize.cy + FMargin;
@@ -171,6 +192,9 @@ begin
 
     vLeft := vLeft + RadioButtonWidth + vSize.cx + FMargin;
   end;
+
+  if Self.AutoSize then
+    Width := vLeft;
 
   Height := vTop + vSize.cy + FMargin;
 
@@ -189,15 +213,18 @@ end;
 function THCRadioGroup.GetItemAt(const X, Y: Integer): Integer;
 var
   i: Integer;
-  vSize: TSize;
+  //vSize: TSize;
 begin
   Result := -1;
   Self.OwnerData.Style.ApplyTempStyle(TextStyleNo);
   for i := 0 to FItems.Count - 1 do
   begin
-    vSize := Self.OwnerData.Style.TempCanvas.TextExtent(FItems[i].Text);
+    //vSize := Self.OwnerData.Style.TempCanvas.TextExtent(FItems[i].Text);
+    //if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
+    //  RadioButtonWidth + vSize.cx, vSize.cy), Point(X, Y))
+
     if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
-      RadioButtonWidth + vSize.cx, vSize.cy), Point(X, Y))
+      RadioButtonWidth, RadioButtonWidth), Point(x, y))
     then
     begin
       Result := i;
@@ -254,6 +281,9 @@ begin
       Fitems[i].Checked := vBool;
     end;
   end;
+
+  if AFileVersion > 33 then
+    AStream.ReadBuffer(FRadioStyle, SizeOf(FRadioStyle));
 end;
 
 function THCRadioGroup.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -319,6 +349,8 @@ begin
   finally
     FreeAndNil(vList);
   end;
+
+  FRadioStyle := THCRadioStyle(ANode.Attributes['radiostyle']);
 end;
 
 procedure THCRadioGroup.SaveToStream(const AStream: TStream; const AStart,
@@ -332,16 +364,8 @@ begin
   if FItems.Count > 0 then
   begin
     vS := FItems[0].Text;
-    if vS = '' then
-      vS := 'Î´ÃüÃû';
-
     for i := 1 to FItems.Count - 1 do
-    begin
-      if FItems[i].Text <> '' then
-        vS := vS + sLineBreak + FItems[i].Text
-      else
-        vS := vS + sLineBreak + 'Î´ÃüÃû';
-    end;
+      vS := vS + sLineBreak + FItems[i].Text;
   end
   else
     vS := '';
@@ -350,6 +374,8 @@ begin
 
   for i := 0 to FItems.Count - 1 do
     AStream.WriteBuffer(FItems[i].Checked, SizeOf(Boolean));
+
+  AStream.WriteBuffer(FRadiostyle, SizeOf(FRadioStyle));
 end;
 
 procedure THCRadioGroup.ToXml(const ANode: IHCXMLNode);
@@ -382,6 +408,7 @@ begin
     vS := '';
 
   ANode.Attributes['check'] := vS;
+  ANode.Attributes['radiostyle'] := Ord(FRadioStyle);
 end;
 
 end.

@@ -273,6 +273,7 @@ type
     /// <summary> 当前选中的内容添加批注 </summary>
     function InsertAnnotate(const ATitle, AText: string): Boolean;
     //
+    function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
     function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
     function ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
     function ActiveTableDeleteCurRow: Boolean;
@@ -528,6 +529,15 @@ begin
   Result := ActiveDataChangeByAction(function(): Boolean
     begin
       Result := FActiveData.TableInsertRowBefor(ARowCount);
+    end);
+end;
+
+function THCCustomSection.ActiveTableResetRowCol(const ARowCount,
+  AColCount: Byte): Boolean;
+begin
+  Result := ActiveDataChangeByAction(function(): Boolean
+    begin
+      Result := FActiveData.ActiveTableResetRowCol(ARowCount, AColCount);
     end);
 end;
 
@@ -2213,6 +2223,14 @@ begin
           ACanvas.Pen.Color := clBlue;
           ACanvas.MoveTo(vPageDrawLeft, vPageDrawTop);
           ACanvas.LineTo(vPageDrawRight, vPageDrawTop);
+
+          // 正在编辑页眉提示
+          ACanvas.Brush.Color := $00F5E8D8;
+          ACanvas.FillRect(Rect(vPageDrawLeft - 40, vPageDrawTop, vPageDrawLeft, vPageDrawTop + 20));
+          ACanvas.Font.Size := 10;
+          ACanvas.Font.Name := '宋体';
+          ACanvas.Font.Color := $008B4215;
+          ACanvas.TextOut(vPageDrawLeft - 32, vPageDrawTop + 4, '页眉');
         end
         else
           ACanvas.Pen.Color := clGray;
@@ -2236,6 +2254,14 @@ begin
           ACanvas.Pen.Color := clBlue;
           ACanvas.MoveTo(vPageDrawLeft, vPageDrawBottom);
           ACanvas.LineTo(vPageDrawRight, vPageDrawBottom);
+
+          // 正在编辑页脚提示
+          ACanvas.Brush.Color := $00F5E8D8;
+          ACanvas.FillRect(Rect(vPageDrawLeft - 40, vPageDrawBottom, vPageDrawLeft, vPageDrawBottom - 20));
+          ACanvas.Font.Size := 10;
+          ACanvas.Font.Name := '宋体';
+          ACanvas.Font.Color := $008B4215;
+          ACanvas.TextOut(vPageDrawLeft - 32, vPageDrawBottom - 16, '页脚');
         end
         else
           ACanvas.Pen.Color := clGray;

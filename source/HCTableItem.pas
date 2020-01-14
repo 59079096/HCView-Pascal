@@ -278,7 +278,7 @@ type
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
-    procedure ReSetRowCol(const ARowCount, AColCount: Integer);
+    function ResetRowCol(const AWidth, ARowCount, AColCount: Integer): Boolean;
 
     /// <summary> 获取当前表格格式化宽度 </summary>
     function GetFormatWidth: Integer;
@@ -515,10 +515,6 @@ begin
     raise Exception.Create('异常：不能创建列数为0的表格！');
 
   GripSize := 2;
-  FFixCol := -1;
-  FFixColCount := 0;
-  FFixRow := -1;
-  FFixRowCount := 0;
   FCellHPadding := 2;
   FCellVPadding := 2;
   FFormatHeight := 0;
@@ -533,28 +529,12 @@ begin
   CanPageBreak := True;
   FPageBreaks := TObjectList<TPageBreak>.Create;
   FMulCellUndo := THCMulCellUndo.Create;
-
-  //FWidth := FRows[0].ColCount * (MinColWidth + FBorderWidth) + FBorderWidth;
-  Height := ARowCount * (MinRowHeight + FBorderWidthPix) + FBorderWidthPix;
+  FSelectCellRang := TSelectCellRang.Create;
+  FColWidths := TList<Integer>.Create;
   FRows := THCTableRows.Create;
   FRows.OnRowAdd := DoRowAdd;  // 添加行时触发的事件
-  FSelectCellRang := TSelectCellRang.Create;
-  Self.InitializeMouseInfo;
-  //
-  vDataWidth := AWidth - (AColCount + 1) * FBorderWidthPix;
-  for i := 0 to ARowCount - 1 do
-  begin
-    vRow := THCTableRow.Create(OwnerData.Style, AColCount);
-    vRow.SetRowWidth(vDataWidth);
-    FRows.Add(vRow);
-  end;
-
-  FColWidths := TList<Integer>.Create;
-  for i := 0 to AColCount - 1 do
-    FColWidths.Add(FRows[0][i].Width);
-
+  Self.ResetRowCol(AWidth, ARowCount, AColCount);
   FMangerUndo := True;  // 自己管理自己的撤销和恢复操作
-  FLastChangeFormated := False;
 end;
 
 function THCTableItem.CurColCanDelete: Boolean;
@@ -2820,13 +2800,16 @@ begin
         vEditCell.CellData.ReFormatActiveItem;
       end);
   end;
+
+  FLastChangeFormated := False;  // 对于修改表格整体属性，如边框宽度等并不仅仅是某个单元格的变化，需要强制重新格式化
 end;
 
-procedure THCTableItem.ReSetRowCol(const ARowCount, AColCount: Integer);
+function THCTableItem.ResetRowCol(const AWidth, ARowCount, AColCount: Integer): Boolean;
 var
-  i, vWidth: Integer;
+  i, vDataWidth: Integer;
   vRow: THCTableRow;
 begin
+  Result := False;
   FFixRow := -1;
   FFixRowCount := 0;
   FFixCol := -1;
@@ -2835,29 +2818,24 @@ begin
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
 
-  {if FColWidths.Count > AColCount then
-    FColWidths.DeleteRange(AColCount, FColWidths.Count - AColCount)
-  else
-  begin
-    while FColWidths.Count < AColCount do
-      FColWidths.Add(DefaultColWidth);
-  end;}
-
-  FColWidths.Clear;
-  for i := 0 to AColCount - 1 do
-    FColWidths.Add(DefaultColWidth);
-
-  vWidth := GetFormatWidth;
+  Self.Width := AWidth;
+  Height := ARowCount * (MinRowHeight + FBorderWidthPix) + FBorderWidthPix;
+  vDataWidth := AWidth - (AColCount + 1) * FBorderWidthPix;
 
   FRows.Clear;
   for i := 0 to ARowCount - 1 do
   begin
     vRow := THCTableRow.Create(OwnerData.Style, AColCount);
-    vRow.SetRowWidth(vWidth);
+    vRow.SetRowWidth(vDataWidth);
     FRows.Add(vRow);
   end;
 
+  FColWidths.Clear;
+  for i := 0 to AColCount - 1 do
+    FColWidths.Add(FRows[0][i].Width);
+
   FLastChangeFormated := False;
+  Result := True;
 end;
 
 function THCTableItem.RowCanDelete(const ARow: Integer): Boolean;

@@ -897,8 +897,8 @@ begin
     begin
       vItemLen := Length(vText);
 
-      if vItemLen > 38347922 then  // 65535
-        raise Exception.Create(HCS_EXCEPTION_STRINGLENGTHLIMIT);
+      //if vItemLen > 38347922 then  // 65535
+      //  raise Exception.Create(HCS_EXCEPTION_STRINGLENGTHLIMIT);
 
       SetLength(vCharWidths, vItemLen);
 
@@ -1051,12 +1051,12 @@ begin
 
   if SelectInfo.StartItemNo >= 0 then
   begin
-    // 单元格边框改变后，调用了此方法但是因下面的代码没有格式化表格
-    //if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
-    //  (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ReFormatActiveItem;
-
     GetFormatRange(vFirstDrawItemNo, vLastItemNo);
     FormatPrepare(vFirstDrawItemNo, vLastItemNo);
+
+    if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then  // 当表格里是RadioItem修改引起大小变化时需要重新格式化
+      (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ReFormatActiveItem;
+
     ReFormatData(vFirstDrawItemNo, vLastItemNo);
 
     Style.UpdateInfoRePaint;

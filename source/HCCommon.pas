@@ -28,7 +28,7 @@ const
   HCS_EXCEPTION_TEXTOVER = HC_EXCEPTION + 'TextItem的内容超出允许的最大字节数4294967295！';
   HCS_EXCEPTION_MEMORYLESS = HC_EXCEPTION + '复制时没有申请到足够的内存！';
   //HCS_EXCEPTION_UNACCEPTDATATYPE = HC_EXCEPTION + '不可接受的数据类型！';
-  HCS_EXCEPTION_STRINGLENGTHLIMIT = HC_EXCEPTION + '此版本不支持连续不换行样式字符串超过65535！';
+  //HCS_EXCEPTION_STRINGLENGTHLIMIT = HC_EXCEPTION + '此版本不支持连续不换行样式字符串超过65535！';
   HCS_EXCEPTION_VOIDSOURCECELL = HC_EXCEPTION + '源单元格无法再获取源单元格！';
   HCS_EXCEPTION_TIMERRESOURCEOUTOF = HC_EXCEPTION + '安装计时器的资源不足！';
 
@@ -60,10 +60,11 @@ const
    3.1 增加行间距 最小值、固定值、多倍的存储
    3.2 表格边框改用磅为单位、段样式增加BreakRough处理截断、兼容EmrView使用TDeImageItem类处理ImageItem
    3.3 兼容32版本图片保存时没有按DeImageItem保存，读取时不正确的问题
+   3.4 RadioGroun控件保存选项样式、保存文件所用的排版算法版本、增加Item打印不可见属性，EditItem增加仅打印文本属性
   }
 
-  HC_FileVersion = '3.3';
-  HC_FileVersionInt = 33;
+  HC_FileVersion = '3.4';
+  HC_FileVersionInt = 34;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;

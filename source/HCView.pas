@@ -120,6 +120,7 @@ type
       : TNotifyEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
     FOnSectionCanEdit: TOnCanEditEvent;
+    FOnSectionInsertText: TTextEvent;
     FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemEvent;
     FOnSectionSaveItem: TSectionDataItemNoFunEvent;
     FOnSectionDeleteItem: TSectionDataItemFunEvent;
@@ -164,10 +165,6 @@ type
     procedure DoMapChanged;
     procedure DoSectionReadOnlySwitch(Sender: TObject);
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
-    procedure DoSectionItemMouseDown(const Sender: TObject; const AData: THCCustomData;
-      const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-    procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
-      const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoSectionItemResize(const AData: THCCustomData; const AItemNo: Integer);
     procedure DoSectionPaintHeader(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
@@ -243,7 +240,12 @@ type
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     function DoSectionSaveItem(const Sender: TObject; const AData: THCCustomData; const AItemNo: Integer): Boolean; virtual;
+    procedure DoSectionItemMouseDown(const Sender: TObject; const AData: THCCustomData;
+      const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
+    procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
+      const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
     function DoSectionCanEdit(const Sender: TObject): Boolean; virtual;
+    function DoSectionInsertText(const AData: THCCustomData; const AText: string): Boolean; virtual;
     procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -844,6 +846,8 @@ type
 
     /// <summary> 当编辑只读状态的Data时触发 </summary>
     property OnSectionCanEdit: TOnCanEditEvent read FOnSectionCanEdit write FOnSectionCanEdit;
+
+    property OnSectionInsertText: TTextEvent read FOnSectionInsertText write FOnSectionInsertText;
 
     /// <summary> 节当前位置段样式和上一次不一样时触发 </summary>
     property OnSectionCurParaNoChange: TNotifyEvent read FOnSectionCurParaNoChange write FOnSectionCurParaNoChange;
@@ -1674,6 +1678,15 @@ procedure THCView.DoSectionInsertItem(const Sender: TObject;
 begin
   if Assigned(FOnSectionInsertItem) then
     FOnSectionInsertItem(Sender, AData, AItem);
+end;
+
+function THCView.DoSectionInsertText(const AData: THCCustomData;
+  const AText: string): Boolean;
+begin
+  if Assigned(FOnSectionInsertText) then
+    Result := FOnSectionInsertText(AData, AText)
+  else
+    Result := True;
 end;
 
 procedure THCView.DoSectionItemMouseDown(const Sender: TObject;
@@ -2654,6 +2667,7 @@ begin
   Result.OnDeleteItem := DoSectionDeleteItem;
   Result.OnCreateItemByStyle := DoSectionCreateStyleItem;
   Result.OnCanEdit := DoSectionCanEdit;
+  Result.OnInsertText := DoSectionInsertText;
   Result.OnInsertItem := DoSectionInsertItem;
   Result.OnRemoveItem := DoSectionRemoveItem;
   Result.OnSaveItem := DoSectionSaveItem;

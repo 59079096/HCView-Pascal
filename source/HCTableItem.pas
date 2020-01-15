@@ -3286,6 +3286,7 @@ begin
   ACellData.OnDrawItemAnnotate := (OwnerData as THCViewData).OnDrawItemAnnotate;
 
   ACellData.OnCanEdit := (OwnerData as THCViewData).OnCanEdit;
+  ACellData.OnInsertText := (OwnerData as THCViewData).OnInsertText;
   ACellData.OnItemResized := (OwnerData as THCRichData).OnItemResized;
   ACellData.OnCurParaNoChange := (OwnerData as THCRichData).OnCurParaNoChange;
 

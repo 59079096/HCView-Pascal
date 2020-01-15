@@ -33,6 +33,7 @@ type
 
   TStyleItemEvent = function (const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem of object;
   TOnCanEditEvent = function(const Sender: TObject): Boolean of object;
+  TTextEvent = function(const AData: THCCustomData; const AText: string): Boolean of object;
 
   THCViewData = class(THCViewDevData)  // 富文本数据类，可做为其他显示富文本类的基类
   private
@@ -45,6 +46,7 @@ type
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
+    FOnInsertText: TTextEvent;
     /// <summary> 获取指定位置所在的域信息 </summary>
     procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
   protected
@@ -80,6 +82,8 @@ type
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem;
       const AOffsetBefor: Boolean = True): Boolean; overload; override;
     function CanEdit: Boolean; override;
+
+    function DoInsertText(const AText: string): Boolean; override;
 
     /// <summary> 根据传入的域"模具"创建域 </summary>
     /// <param name="AMouldDomain">"模具"调用完此方法后请自行释放</param>
@@ -118,6 +122,7 @@ type
     property ActiveDomain: THCDomainInfo read FActiveDomain;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
+    property OnInsertText: TTextEvent read FOnInsertText write FOnInsertText;
   end;
 
 implementation
@@ -468,6 +473,13 @@ begin
       end;
     end;
   end;
+end;
+
+function THCViewData.DoInsertText(const AText: string): Boolean;
+begin
+  Result := inherited DoInsertText(AText);
+  if Result and Assigned(FOnInsertText) then
+    Result := FOnInsertText(Self, AText);
 end;
 
 function THCViewData.DoSaveItem(const AItemNo: Integer): Boolean;
@@ -1202,23 +1214,15 @@ begin
     vEndOffset := vStartOffset;
   end;
 
-  SelectInfo.StartItemNo := AStartNo;
-  SelectInfo.StartItemOffset := AStartOffset;
-
-  if (vEndNo < 0) or ((vEndNo = vStartNo) and (vEndOffset = vStartOffset)) then
-  begin
-    SelectInfo.EndItemNo := -1;
-    SelectInfo.EndItemOffset := -1;
-  end
-  else
-  begin
-    SelectInfo.EndItemNo := vEndNo;
-    SelectInfo.EndItemOffset := vEndOffset;
-  end;
+  Self.AdjustSelectRange(vStartNo, vStartOffset, vEndNo, vEndOffset);
+  Self.MatchItemSelectState();
 
   //FSelectSeekNo  如果需要确定 FSelectSeekNo，此方法得移动到CustomRichData
   if not ASilence then
-    ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, True);
+  begin
+    ReSetSelectAndCaret(vStartNo, AStartOffset, True);
+    Self.Style.UpdateInfoRePaint;
+  end;
 end;
 
 procedure THCViewData.TraverseItem(const ATraverse: THCItemTraverse);

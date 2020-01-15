@@ -100,6 +100,7 @@ type
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
+    FOnInsertText: TTextEvent;
     FOnGetUndoList: TGetUndoListEvent;
 
     /// <summary> 返回当前节指定的垂直偏移处对应的页 </summary>
@@ -143,6 +144,7 @@ type
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
     function DoDataCanEdit(const Sender: TObject): Boolean;
+    function DoDataInsertText(const AData: THCCustomData; const AText: string): Boolean;
     procedure DoDataCreateItem(Sender: TObject);
     procedure DoDataCurParaNoChange(Sender: TObject);
     function DoDataGetUndoList: THCUndoList;
@@ -444,6 +446,7 @@ type
     property OnDeleteItem: TSectionDataItemFunEvent read FOnDeleteItem write FOnDeleteItem;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
+    property OnInsertText: TTextEvent read FOnInsertText write FOnInsertText;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
     property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
     property OnActivePageChange: TNotifyEvent read FOnActivePageChange write FOnActivePageChange;
@@ -706,6 +709,7 @@ var
     AData.OnItemMouseUp := DoDataItemMouseUp;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
     AData.OnCanEdit := DoDataCanEdit;
+    AData.OnInsertText := DoDataInsertText;
     AData.OnCreateItem := DoDataCreateItem;
     AData.OnReadOnlySwitch := DoDataReadOnlySwitch;
     AData.OnGetScreenCoord := DoGetScreenCoordEvent;
@@ -861,6 +865,15 @@ procedure THCCustomSection.DoDataInsertItem(const AData: THCCustomData; const AI
 begin
   if Assigned(FOnInsertItem) then
     FOnInsertItem(Self, AData, AItem);
+end;
+
+function THCCustomSection.DoDataInsertText(const AData: THCCustomData;
+  const AText: string): Boolean;
+begin
+  if Assigned(FOnInsertText) then
+    Result := FOnInsertText(AData, AText)
+  else
+    Result := True;
 end;
 
 function THCCustomSection.DoDataDeleteItem(const AData: THCCustomData;

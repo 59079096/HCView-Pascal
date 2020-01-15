@@ -66,19 +66,14 @@ type
     /// <param name="AMouseDownItemOffset"></param>
     function SelectByMouseDownShift(var AMouseDownItemNo, AMouseDownItemOffset: Integer): Boolean;
 
-    /// <summary> 给定起始结束位置，判断正确的选中位置并修正输出 </summary>
-    /// <param name="ADrawItemNo">光标处的DrawItem(暂时无意义)</param>
-    /// <param name="AStartItemNo"></param>
-    /// <param name="AStartItemOffset"></param>
-    /// <param name="AEndItemNo"></param>
-    /// <param name="AEndItemNoOffset"></param>
-    procedure AdjustSelectRange(var AStartItemNo, AStartItemOffset, AEndItemNo, AEndItemNoOffset: Integer);
-
     /// <summary> 初始化为只有一个空Item的Data</summary>
     procedure SetEmptyData;
 
     /// <summary> Data只有空行Item时插入Item(用于替换当前空行Item的情况) </summary>
     function EmptyDataInsertItem(const AItem: THCCustomItem): Boolean;
+
+    /// <summary> 是否完美选中（判断文本和Rect混合选择时，Rect全选中。无选中是返回true）</summary>
+    function SelectPerfect: Boolean;
 
     /// <summary> 为避免表格插入行、列大量重复代码，使用匿名方法，但不支持D7 </summary>
     function TableInsertRC(const AProc: TInsertProc): Boolean;
@@ -102,6 +97,15 @@ type
     function GetHeight: Cardinal; virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
     procedure DeleteItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
+
+    /// <summary> 给定起始结束位置，判断正确的选中位置并修正输出 </summary>
+    /// <param name="ADrawItemNo">光标处的DrawItem(暂时无意义)</param>
+    /// <param name="AStartItemNo"></param>
+    /// <param name="AStartItemOffset"></param>
+    /// <param name="AEndItemNo"></param>
+    /// <param name="AEndItemNoOffset"></param>
+    procedure AdjustSelectRange(var AStartItemNo, AStartItemOffset, AEndItemNo, AEndItemNoOffset: Integer);
+
     property MouseMoveDrawItemNo: Integer read FMouseMoveDrawItemNo;
   public
     constructor Create(const AStyle: THCStyle); override;
@@ -114,7 +118,7 @@ type
 
     function DisSelect: Boolean; override;
 
-    /// <summary> 删除选中内容(内部已经判断了是否有选中) </summary>
+    /// <summary> 是否成功删除了选中内容（无选中返回true） </summary>
     /// <returns>True:有选中且删除成功</returns>
     function DeleteSelected: Boolean; override;
 
@@ -158,6 +162,7 @@ type
 
     /// <summary> 在Data层面是否可编辑 </summary>
     function CanEdit: Boolean; virtual;
+    function DoInsertText(const AText: string): Boolean; virtual;
     //
     procedure DblClick(X, Y: Integer);
     procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
@@ -458,90 +463,91 @@ var
   function DeleteItemSelectComplate: Boolean;
   begin
     Result := False;
-    if CanDeleteItem(SelectInfo.StartItemNo) then  // 允许删除
-    begin
-      UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
-      Items.Delete(SelectInfo.StartItemNo);
+    if not CanDeleteItem(SelectInfo.StartItemNo) then Exit;  // 允许删除
 
-      Inc(vDelCount);
-      if (SelectInfo.StartItemNo > vFormatFirstItemNo)
-        and (SelectInfo.StartItemNo < vFormatLastItemNo)
-      then  // 全选中的Item在起始格式化和结束格式化中间
+    UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
+    Items.Delete(SelectInfo.StartItemNo);
+
+    Inc(vDelCount);
+
+    if (SelectInfo.StartItemNo > vFormatFirstItemNo)
+      and (SelectInfo.StartItemNo < vFormatLastItemNo)
+    then  // 全选中的Item在起始格式化和结束格式化中间
+    begin
+      vLen := Items[SelectInfo.StartItemNo - 1].Length;
+      if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.StartItemNo]) then  // 删除位置前后可合并
+      begin
+        UndoAction_InsertText(SelectInfo.StartItemNo - 1, vLen + 1, Items[SelectInfo.StartItemNo].Text);
+        UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
+        Items.Delete(SelectInfo.StartItemNo);
+        Inc(vDelCount);
+
+        SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+        SelectInfo.StartItemOffset := vLen;
+      end
+      else  // 删除位置前后不能合并，光标置为前一个后面
+      begin
+        SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+        SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
+      end;
+    end
+    else
+    if SelectInfo.StartItemNo = vParaFirstItemNo then  // 段第一个ItemNo
+    begin
+      if vParaFirstItemNo = vParaLastItemNo then  // 段就一个Item全删除了，补充空Item
+      begin
+        vNewItem := CreateDefaultTextItem;
+        Self.CurStyleNo := vNewItem.StyleNo;  // 防止RectItem删除插入文本当前样式不正确
+        vNewItem.ParaFirst := True;
+        Items.Insert(SelectInfo.StartItemNo, vNewItem);
+        UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+
+        SelectInfo.StartItemOffset := 0;
+        Dec(vDelCount);
+      end
+      else
+      begin
+        SelectInfo.StartItemOffset := 0;
+
+        UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
+        Items[SelectInfo.StartItemNo].ParaFirst := True;
+      end;
+    end
+    else
+    if SelectInfo.StartItemNo = vParaLastItemNo then  // 段最后一个ItemNo
+    begin
+      {if vParaFirstItemNo = vParaLastItemNo then  // 段就一个Item全删除了,不会走到这里吧
+      begin
+        vItem := CreateDefaultTextItem;
+        vItem.ParaFirst := True;
+        Items.Insert(SelectInfo.StartItemNo, vItem);
+        SelectInfo.StartItemOffset := 0;
+        Dec(vDelCount);
+      end
+      else}
+      begin
+        SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+        SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
+      end;
+    end
+    else  // 全选中的Item是起始格式化或结束格式化或在段内
+    begin  // 这里的代码会触发吗？
+      if SelectInfo.StartItemNo > 0 then
       begin
         vLen := Items[SelectInfo.StartItemNo - 1].Length;
-        if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.StartItemNo]) then  // 删除位置前后可合并
+        if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.StartItemNo]) then
         begin
           UndoAction_InsertText(SelectInfo.StartItemNo - 1, vLen + 1, Items[SelectInfo.StartItemNo].Text);
           UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
           Items.Delete(SelectInfo.StartItemNo);
           Inc(vDelCount);
-
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
           SelectInfo.StartItemOffset := vLen;
-        end
-        else  // 删除位置前后不能合并，光标置为前一个后面
-        begin
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-          SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
         end;
-      end
-      else
-      if SelectInfo.StartItemNo = vParaFirstItemNo then  // 段第一个ItemNo
-      begin
-        if vParaFirstItemNo = vParaLastItemNo then  // 段就一个Item全删除了，补充空Item
-        begin
-          vNewItem := CreateDefaultTextItem;
-          Self.CurStyleNo := vNewItem.StyleNo;  // 防止RectItem删除插入文本当前样式不正确
-          vNewItem.ParaFirst := True;
-          Items.Insert(SelectInfo.StartItemNo, vNewItem);
-          UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
 
-          SelectInfo.StartItemOffset := 0;
-          Dec(vDelCount);
-        end
-        else
-        begin
-          SelectInfo.StartItemOffset := 0;
-
-          UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
-          Items[SelectInfo.StartItemNo].ParaFirst := True;
-        end;
-      end
-      else
-      if SelectInfo.StartItemNo = vParaLastItemNo then  // 段最后一个ItemNo
-      begin
-        {if vParaFirstItemNo = vParaLastItemNo then  // 段就一个Item全删除了,不会走到这里吧
-        begin
-          vItem := CreateDefaultTextItem;
-          vItem.ParaFirst := True;
-          Items.Insert(SelectInfo.StartItemNo, vItem);
-          SelectInfo.StartItemOffset := 0;
-          Dec(vDelCount);
-        end
-        else}
-        begin
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-          SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
-        end;
-      end
-      else  // 全选中的Item是起始格式化或结束格式化或在段内
-      begin  // 这里的代码会触发吗？
-        if SelectInfo.StartItemNo > 0 then
-        begin
-          vLen := Items[SelectInfo.StartItemNo - 1].Length;
-          if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.StartItemNo]) then
-          begin
-            UndoAction_InsertText(SelectInfo.StartItemNo - 1, vLen + 1, Items[SelectInfo.StartItemNo].Text);
-            UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
-            Items.Delete(SelectInfo.StartItemNo);
-            Inc(vDelCount);
-            SelectInfo.StartItemOffset := vLen;
-          end;
-          
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-        end;
+        SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
       end;
     end;
+
     Result := True;
   end;
   {$ENDREGION}
@@ -559,289 +565,298 @@ begin
 
   if not CanEdit then Exit;
 
-  if SelectExists then
+  if not SelectPerfect then
   begin
-    vSelectSeekStart := IsSelectSeekStart;
+    Self.DisSelect;
+    Exit;
+  end;
 
-    vDelCount := 0;
-    Self.InitializeField;  // 删除后原鼠标处可能已经没有了
+  if not SelectExists then
+  begin
+    Result := True;
+    Exit;
+  end;
 
-    if (SelectInfo.EndItemNo < 0)
-      and (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)
-    then  // 选择仅发生在RectItem内部
+  vSelectSeekStart := IsSelectSeekStart;
+
+  vDelCount := 0;
+  Self.InitializeField;  // 删除后原鼠标处可能已经没有了
+
+  if (SelectInfo.EndItemNo < 0)
+    and (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)
+  then  // 选择仅发生在RectItem内部
+  begin
+    // 如果变动会引起RectItem的宽度变化，则需要格式化到段最后一个Item
+    GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+    FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+    vFormatFirstItemNo := DrawItems[vFormatFirstDrawItemNo].ItemNo;
+
+    Undo_New;
+
+    if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).IsSelectComplateTheory then  // 理论全选了
     begin
-      // 如果变动会引起RectItem的宽度变化，则需要格式化到段最后一个Item
+      GetParaItemRang(SelectInfo.StartItemNo, vParaFirstItemNo, vParaLastItemNo);
+      Result := DeleteItemSelectComplate;
+    end
+    else
+    begin
+      if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).MangerUndo then
+        UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+      else
+        UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
+      Result := (Items[SelectInfo.StartItemNo] as THCCustomRectItem).DeleteSelected;
+    end;
+
+    ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
+  end
+  else  // 选中不是发生在RectItem内部
+  begin
+    vEndItem := Items[SelectInfo.EndItemNo];  // 选中结束Item
+    if SelectInfo.EndItemNo = SelectInfo.StartItemNo then  // 选择发生在同一个Item
+    begin
+      Undo_New;
+
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
       vFormatFirstItemNo := DrawItems[vFormatFirstDrawItemNo].ItemNo;
 
-      Undo_New;
-
-      if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).IsSelectComplateTheory then  // 理论全选了
+      if vEndItem.IsSelectComplate then  // 该TextItem全选中了
       begin
         GetParaItemRang(SelectInfo.StartItemNo, vParaFirstItemNo, vParaLastItemNo);
         Result := DeleteItemSelectComplate;
       end
-      else
+      else  // Item部分选中
       begin
-        if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).MangerUndo then
-          UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
-        else
-          UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+        if vEndItem.StyleNo < THCStyle.Null then  // 同一个RectItem  表格从前选中到一部分？
+        begin
+          if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).MangerUndo then
+            UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+          else
+            UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
-        Result := (Items[SelectInfo.StartItemNo] as THCCustomRectItem).DeleteSelected;
+          (vEndItem as THCCustomRectItem).DeleteSelected;
+        end
+        else  // 同一个TextItem
+        begin
+          vText := vEndItem.Text;
+          UndoAction_DeleteBackText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1,
+            Copy(vText, SelectInfo.StartItemOffset + 1, SelectInfo.EndItemOffset - SelectInfo.StartItemOffset));
+          Delete(vText, SelectInfo.StartItemOffset + 1, SelectInfo.EndItemOffset - SelectInfo.StartItemOffset);
+          vEndItem.Text := vText;
+        end;
       end;
 
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
     end
-    else  // 选中不是发生在RectItem内部
+    else  // 选中发生在不同Item，起始(可能是段首)全选中结尾没全选，起始没全选结尾全选，起始结尾都没全选
     begin
-      vEndItem := Items[SelectInfo.EndItemNo];  // 选中结束Item
-      if SelectInfo.EndItemNo = SelectInfo.StartItemNo then  // 选择发生在同一个Item
+      vFormatFirstItemNo := GetParaFirstItemNo(SelectInfo.StartItemNo);  // 取段第一个为起始
+      vFormatFirstDrawItemNo := Items[vFormatFirstItemNo].FirstDItemNo;
+      vFormatLastItemNo := GetParaLastItemNo(SelectInfo.EndItemNo);  // 取段最后一个为结束，如果变更注意下面
+
+      FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+      vSelStartParaFirst := Items[SelectInfo.StartItemNo].ParaFirst;
+      vSelStartComplate := Items[SelectInfo.StartItemNo].IsSelectComplate;  // 起始是否全选
+      vSelEndComplate := Items[SelectInfo.EndItemNo].IsSelectComplate;  // 结尾是否全选
+
+      Undo_New;
+
+      // 先处理选中结束Item
+      if vEndItem.StyleNo < THCStyle.Null then  // RectItem
       begin
-        Undo_New;
-
-        GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        vFormatFirstItemNo := DrawItems[vFormatFirstDrawItemNo].ItemNo;
-
-        if vEndItem.IsSelectComplate then  // 该TextItem全选中了
+        if vSelEndComplate then  // 选中在最后面，即全选  SelectInfo.EndItemOffset = OffsetAfter
         begin
-          GetParaItemRang(SelectInfo.StartItemNo, vParaFirstItemNo, vParaLastItemNo);
-          Result := DeleteItemSelectComplate;
-        end
-        else  // Item部分选中
-        begin
-          if vEndItem.StyleNo < THCStyle.Null then  // 同一个RectItem  表格从前选中到一部分？
+          if CanDeleteItem(SelectInfo.EndItemNo) then  // 允许删除
           begin
-            if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).MangerUndo then
-              UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
-            else
-              UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
-
-            (vEndItem as THCCustomRectItem).DeleteSelected;
-          end
-          else  // 同一个TextItem
-          begin
-            vText := vEndItem.Text;
-            UndoAction_DeleteBackText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1,
-              Copy(vText, SelectInfo.StartItemOffset + 1, SelectInfo.EndItemOffset - SelectInfo.StartItemOffset));
-            Delete(vText, SelectInfo.StartItemOffset + 1, SelectInfo.EndItemOffset - SelectInfo.StartItemOffset);
-            vEndItem.Text := vText;
-          end;
-        end;
-
-        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
-      end
-      else  // 选中发生在不同Item，起始(可能是段首)全选中结尾没全选，起始没全选结尾全选，起始结尾都没全选
-      begin
-        vFormatFirstItemNo := GetParaFirstItemNo(SelectInfo.StartItemNo);  // 取段第一个为起始
-        vFormatFirstDrawItemNo := Items[vFormatFirstItemNo].FirstDItemNo;
-        vFormatLastItemNo := GetParaLastItemNo(SelectInfo.EndItemNo);  // 取段最后一个为结束，如果变更注意下面
-
-        FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-
-        vSelStartParaFirst := Items[SelectInfo.StartItemNo].ParaFirst;
-        vSelStartComplate := Items[SelectInfo.StartItemNo].IsSelectComplate;  // 起始是否全选
-        vSelEndComplate := Items[SelectInfo.EndItemNo].IsSelectComplate;  // 结尾是否全选
-
-        Undo_New;
-
-        // 先处理选中结束Item
-        if vEndItem.StyleNo < THCStyle.Null then  // RectItem
-        begin
-          if vSelEndComplate then  // 选中在最后面，即全选  SelectInfo.EndItemOffset = OffsetAfter
-          begin
-            if CanDeleteItem(SelectInfo.EndItemNo) then  // 允许删除
-            begin
-              UndoAction_DeleteItem(SelectInfo.EndItemNo, OffsetAfter);
-              Items.Delete(SelectInfo.EndItemNo);
-
-              Inc(vDelCount);
-            end;
-          end
-          else
-          if SelectInfo.EndItemOffset = OffsetInner then  // 在其上
-            (vEndItem as THCCustomRectItem).DeleteSelected;
-        end
-        else  // TextItem
-        begin
-          if vSelEndComplate then  // 在选中文本Item结束最后 SelectInfo.EndItemOffset = vEndItem.Length
-          begin
-            if CanDeleteItem(SelectInfo.EndItemNo) then  // 允许删除
-            begin
-              UndoAction_DeleteItem(SelectInfo.EndItemNo, vEndItem.Length);
-              Items.Delete(SelectInfo.EndItemNo);
-              Inc(vDelCount);
-            end;
-          end
-          else  // 文本且不在选中结束Item最后
-          begin
-            UndoAction_DeleteBackText(SelectInfo.EndItemNo, 1, Copy(vEndItem.Text, 1, SelectInfo.EndItemOffset));
-            // 结束Item留下的内容
-            vText := (vEndItem as THCTextItem).SubString(SelectInfo.EndItemOffset + 1,
-              vEndItem.Length - SelectInfo.EndItemOffset);
-            vEndItem.Text := vText;
-          end;
-        end;
-
-        // 删除选中起始Item下一个到结束Item上一个
-        for i := SelectInfo.EndItemNo - 1 downto SelectInfo.StartItemNo + 1 do
-        begin
-          if CanDeleteItem(i) then  // 允许删除
-          begin
-            UndoAction_DeleteItem(i, 0);
-            Items.Delete(i);
+            UndoAction_DeleteItem(SelectInfo.EndItemNo, OffsetAfter);
+            Items.Delete(SelectInfo.EndItemNo);
 
             Inc(vDelCount);
           end;
-        end;
-
-        vStartItem := Items[SelectInfo.StartItemNo];  // 选中起始Item
-        if vStartItem.StyleNo < THCStyle.Null then  // 起始是RectItem
-        begin
-          if SelectInfo.StartItemOffset = OffsetBefor then  // 在其前
-          begin
-            if CanDeleteItem(SelectInfo.StartItemNo) then  // 允许删除
-            begin
-              UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
-              Items.Delete(SelectInfo.StartItemNo);
-              Inc(vDelCount);
-            end;
-
-            if SelectInfo.StartItemNo > vFormatFirstItemNo then
-              SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-          end
-          else
-          if SelectInfo.StartItemOffset = OffsetInner then  // 在其上
-            (vStartItem as THCCustomRectItem).DeleteSelected;
         end
-        else  // 选中起始是TextItem
+        else
+        if SelectInfo.EndItemOffset = OffsetInner then  // 在其上
+          (vEndItem as THCCustomRectItem).DeleteSelected;
+      end
+      else  // TextItem
+      begin
+        if vSelEndComplate then  // 在选中文本Item结束最后 SelectInfo.EndItemOffset = vEndItem.Length
         begin
-          if vSelStartComplate then  // 在最前起始全选了 SelectInfo.StartItemOffset = 0
+          if CanDeleteItem(SelectInfo.EndItemNo) then  // 允许删除
           begin
-            if CanDeleteItem(SelectInfo.StartItemNo) then  // 允许删除
-            begin
-              UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
-              Items.Delete(SelectInfo.StartItemNo);
-              Inc(vDelCount);
-            end;
-          end
-          else
-          //if SelectInfo.StartItemOffset < vStartItem.Length then  // 在中间(不用判断了吧？)
-          begin
-            UndoAction_DeleteBackText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1,
-              Copy(vStartItem.Text, SelectInfo.StartItemOffset + 1, vStartItem.Length - SelectInfo.StartItemOffset));
-            vText := (vStartItem as THCTextItem).SubString(1, SelectInfo.StartItemOffset);
-            vStartItem.Text := vText;  // 起始留下的内容
-          end;
-        end;
-
-        if vSelStartComplate and vSelEndComplate then  // 选中的Item都删除完
-        begin
-          if SelectInfo.StartItemNo = vFormatFirstItemNo then  // 选中起始在段最前
-          begin
-            if SelectInfo.EndItemNo = vFormatLastItemNo then  // 选中结束在当前段或后面某段最后(段里内容全删除了)，补充空行
-            begin
-              vNewItem := CreateDefaultTextItem;
-              Self.CurStyleNo := vNewItem.StyleNo;  // 防止RectItem删除插入文本当前样式不正确
-              vNewItem.ParaFirst := True;
-              Items.Insert(SelectInfo.StartItemNo, vNewItem);
-              UndoAction_InsertItem(SelectInfo.StartItemNo, vNewItem.Length);
-
-              Dec(vDelCount);
-            end
-            else  // 选中结束不在段最后
-              Items[SelectInfo.EndItemNo - vDelCount + 1].ParaFirst := True;  // 选中结束位置后面的成为段首
-          end
-          else
-          if SelectInfo.EndItemNo = vFormatLastItemNo then  // 结束在段最后
-          begin
-            SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-            SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
-          end
-          else  // 选中起始在起始段中间，选中结束在结束段中间
-          begin
-            vLen := Items[SelectInfo.StartItemNo - 1].Length;
-            if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.EndItemNo - vDelCount + 1]) then  // 起始前面和结束后面可合并
-            begin
-              UndoAction_InsertText(SelectInfo.StartItemNo - 1,
-                Items[SelectInfo.StartItemNo - 1].Length - Items[SelectInfo.EndItemNo - vDelCount + 1].Length + 1,
-                Items[SelectInfo.EndItemNo - vDelCount + 1].Text);
-
-              SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-              SelectInfo.StartItemOffset := vLen;
-
-              UndoAction_DeleteItem(SelectInfo.EndItemNo - vDelCount + 1, 0);
-              Items.Delete(SelectInfo.EndItemNo - vDelCount + 1);
-              Inc(vDelCount);
-            end
-            else  // 起始前面和结束后面不能合并，如果选中起始和结束不在同一段
-            begin
-              if Items[SelectInfo.EndItemNo - vDelCount + 1].ParaFirst then
-              begin
-                UndoAction_ItemParaFirst(SelectInfo.EndItemNo - vDelCount + 1, 0, False);
-                Items[SelectInfo.EndItemNo - vDelCount + 1].ParaFirst := False;  // 合并不成功就挨着
-              end;
-            end;
+            UndoAction_DeleteItem(SelectInfo.EndItemNo, vEndItem.Length);
+            Items.Delete(SelectInfo.EndItemNo);
+            Inc(vDelCount);
           end;
         end
-        else  // 选中范围内的Item没有删除完
+        else  // 文本且不在选中结束Item最后
         begin
-          if vSelStartComplate then  // 起始删除完了
-          begin
-            if Items[SelectInfo.EndItemNo - vDelCount].ParaFirst <> vSelStartParaFirst then
-            begin
-              UndoAction_ItemParaFirst(SelectInfo.EndItemNo - vDelCount, 0, vSelStartParaFirst);
-              Items[SelectInfo.EndItemNo - vDelCount].ParaFirst := vSelStartParaFirst;
-            end;
-          end
-          else
-          if (not vSelEndComplate) and (SelectInfo.StartItemNo + 1 = SelectInfo.EndItemNo - vDelCount) then  // 起始和结束都没有删除完且中间没有不可删除的
-          begin
-            if MergeItemText(Items[SelectInfo.StartItemNo], Items[SelectInfo.EndItemNo - vDelCount])  // 起始和结束挨在一起了
-            then  // 选中起始、结束位置的Item合并成功
-            begin
-              UndoAction_InsertText(SelectInfo.StartItemNo,
-                Items[SelectInfo.StartItemNo].Length - Items[SelectInfo.EndItemNo - vDelCount].Length + 1,
-                Items[SelectInfo.EndItemNo - vDelCount].Text);
-
-              UndoAction_DeleteItem(SelectInfo.EndItemNo - vDelCount, 0);
-              Items.Delete(SelectInfo.EndItemNo - vDelCount);
-              Inc(vDelCount);
-            end
-            else  // 选中起始、结束位置的Item不能合并
-            begin
-              if SelectInfo.EndItemNo <> vFormatLastItemNo then  // 选中结束不是段最后一个
-              begin
-                if Items[SelectInfo.EndItemNo - vDelCount].ParaFirst then
-                begin
-                  UndoAction_ItemParaFirst(SelectInfo.EndItemNo - vDelCount, 0, False);
-                  Items[SelectInfo.EndItemNo - vDelCount].ParaFirst := False;  // 合并不成功就挨着
-                end;
-              end;
-            end;
-          end;
+          UndoAction_DeleteBackText(SelectInfo.EndItemNo, 1, Copy(vEndItem.Text, 1, SelectInfo.EndItemOffset));
+          // 结束Item留下的内容
+          vText := (vEndItem as THCTextItem).SubString(SelectInfo.EndItemOffset + 1,
+            vEndItem.Length - SelectInfo.EndItemOffset);
+          vEndItem.Text := vText;
         end;
-
-        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
       end;
 
-      for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo - vDelCount do
-        Items[i].DisSelect;
+      // 删除选中起始Item下一个到结束Item上一个
+      for i := SelectInfo.EndItemNo - 1 downto SelectInfo.StartItemNo + 1 do
+      begin
+        if CanDeleteItem(i) then  // 允许删除
+        begin
+          UndoAction_DeleteItem(i, 0);
+          Items.Delete(i);
 
-      SelectInfo.EndItemNo := -1;
-      SelectInfo.EndItemOffset := -1;
+          Inc(vDelCount);
+        end;
+      end;
+
+      vStartItem := Items[SelectInfo.StartItemNo];  // 选中起始Item
+      if vStartItem.StyleNo < THCStyle.Null then  // 起始是RectItem
+      begin
+        if SelectInfo.StartItemOffset = OffsetBefor then  // 在其前
+        begin
+          if CanDeleteItem(SelectInfo.StartItemNo) then  // 允许删除
+          begin
+            UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
+            Items.Delete(SelectInfo.StartItemNo);
+            Inc(vDelCount);
+          end;
+
+          if SelectInfo.StartItemNo > vFormatFirstItemNo then
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+        end
+        else
+        if SelectInfo.StartItemOffset = OffsetInner then  // 在其上
+          (vStartItem as THCCustomRectItem).DeleteSelected;
+      end
+      else  // 选中起始是TextItem
+      begin
+        if vSelStartComplate then  // 在最前起始全选了 SelectInfo.StartItemOffset = 0
+        begin
+          if CanDeleteItem(SelectInfo.StartItemNo) then  // 允许删除
+          begin
+            UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
+            Items.Delete(SelectInfo.StartItemNo);
+            Inc(vDelCount);
+          end;
+        end
+        else
+        //if SelectInfo.StartItemOffset < vStartItem.Length then  // 在中间(不用判断了吧？)
+        begin
+          UndoAction_DeleteBackText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1,
+            Copy(vStartItem.Text, SelectInfo.StartItemOffset + 1, vStartItem.Length - SelectInfo.StartItemOffset));
+          vText := (vStartItem as THCTextItem).SubString(1, SelectInfo.StartItemOffset);
+          vStartItem.Text := vText;  // 起始留下的内容
+        end;
+      end;
+
+      if vSelStartComplate and vSelEndComplate then  // 选中的Item都删除完
+      begin
+        if SelectInfo.StartItemNo = vFormatFirstItemNo then  // 选中起始在段最前
+        begin
+          if SelectInfo.EndItemNo = vFormatLastItemNo then  // 选中结束在当前段或后面某段最后(段里内容全删除了)，补充空行
+          begin
+            vNewItem := CreateDefaultTextItem;
+            Self.CurStyleNo := vNewItem.StyleNo;  // 防止RectItem删除插入文本当前样式不正确
+            vNewItem.ParaFirst := True;
+            Items.Insert(SelectInfo.StartItemNo, vNewItem);
+            UndoAction_InsertItem(SelectInfo.StartItemNo, vNewItem.Length);
+
+            Dec(vDelCount);
+          end
+          else  // 选中结束不在段最后
+            Items[SelectInfo.EndItemNo - vDelCount + 1].ParaFirst := True;  // 选中结束位置后面的成为段首
+        end
+        else
+        if SelectInfo.EndItemNo = vFormatLastItemNo then  // 结束在段最后
+        begin
+          SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+          SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
+        end
+        else  // 选中起始在起始段中间，选中结束在结束段中间
+        begin
+          vLen := Items[SelectInfo.StartItemNo - 1].Length;
+          if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.EndItemNo - vDelCount + 1]) then  // 起始前面和结束后面可合并
+          begin
+            UndoAction_InsertText(SelectInfo.StartItemNo - 1,
+              Items[SelectInfo.StartItemNo - 1].Length - Items[SelectInfo.EndItemNo - vDelCount + 1].Length + 1,
+              Items[SelectInfo.EndItemNo - vDelCount + 1].Text);
+
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+            SelectInfo.StartItemOffset := vLen;
+
+            UndoAction_DeleteItem(SelectInfo.EndItemNo - vDelCount + 1, 0);
+            Items.Delete(SelectInfo.EndItemNo - vDelCount + 1);
+            Inc(vDelCount);
+          end
+          else  // 起始前面和结束后面不能合并，如果选中起始和结束不在同一段
+          begin
+            if Items[SelectInfo.EndItemNo - vDelCount + 1].ParaFirst then
+            begin
+              UndoAction_ItemParaFirst(SelectInfo.EndItemNo - vDelCount + 1, 0, False);
+              Items[SelectInfo.EndItemNo - vDelCount + 1].ParaFirst := False;  // 合并不成功就挨着
+            end;
+          end;
+        end;
+      end
+      else  // 选中范围内的Item没有删除完
+      begin
+        if vSelStartComplate then  // 起始删除完了
+        begin
+          if Items[SelectInfo.EndItemNo - vDelCount].ParaFirst <> vSelStartParaFirst then
+          begin
+            UndoAction_ItemParaFirst(SelectInfo.EndItemNo - vDelCount, 0, vSelStartParaFirst);
+            Items[SelectInfo.EndItemNo - vDelCount].ParaFirst := vSelStartParaFirst;
+          end;
+        end
+        else
+        if (not vSelEndComplate) and (SelectInfo.StartItemNo + 1 = SelectInfo.EndItemNo - vDelCount) then  // 起始和结束都没有删除完且中间没有不可删除的
+        begin
+          if MergeItemText(Items[SelectInfo.StartItemNo], Items[SelectInfo.EndItemNo - vDelCount])  // 起始和结束挨在一起了
+          then  // 选中起始、结束位置的Item合并成功
+          begin
+            UndoAction_InsertText(SelectInfo.StartItemNo,
+              Items[SelectInfo.StartItemNo].Length - Items[SelectInfo.EndItemNo - vDelCount].Length + 1,
+              Items[SelectInfo.EndItemNo - vDelCount].Text);
+
+            UndoAction_DeleteItem(SelectInfo.EndItemNo - vDelCount, 0);
+            Items.Delete(SelectInfo.EndItemNo - vDelCount);
+            Inc(vDelCount);
+          end
+          else  // 选中起始、结束位置的Item不能合并
+          begin
+            if SelectInfo.EndItemNo <> vFormatLastItemNo then  // 选中结束不是段最后一个
+            begin
+              if Items[SelectInfo.EndItemNo - vDelCount].ParaFirst then
+              begin
+                UndoAction_ItemParaFirst(SelectInfo.EndItemNo - vDelCount, 0, False);
+                Items[SelectInfo.EndItemNo - vDelCount].ParaFirst := False;  // 合并不成功就挨着
+              end;
+            end;
+          end;
+        end;
+      end;
+
+      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
     end;
 
-    Style.UpdateInfoRePaint;
-    Style.UpdateInfoReCaret;
+    for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo - vDelCount do
+      Items[i].DisSelect;
 
-    inherited DeleteSelected;
-
-    ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, not vSelectSeekStart);
-    Result := True;
+    SelectInfo.EndItemNo := -1;
+    SelectInfo.EndItemOffset := -1;
   end;
+
+  Style.UpdateInfoRePaint;
+  Style.UpdateInfoReCaret;
+
+  inherited DeleteSelected;
+
+  ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, not vSelectSeekStart);
+  Result := True;
 end;
 
 procedure THCRichData.DisActive;
@@ -872,6 +887,11 @@ begin
   end;
 
   Style.UpdateInfoReCaret;  // 选择起始信息被重置为-1
+end;
+
+function THCRichData.DoInsertText(const AText: string): Boolean;
+begin
+  Result := AText <> '';
 end;
 
 procedure THCRichData.DoItemMouseEnter(const AItemNo: Integer);
@@ -2142,6 +2162,8 @@ begin
 
   if not CanEdit then Exit;
 
+  if not SelectPerfect then Exit;
+
   vAfterItem := nil;
   vInsertBefor := False;
   vInsertEmptyLine := False;
@@ -2398,7 +2420,7 @@ begin
 
   if not CanEdit then Exit;
 
-  DeleteSelected;
+  if not DeleteSelected then Exit;
 
   if AItem.ParaNo > Self.Style.ParaStyles.Count - 1 then
     AItem.ParaNo := CurParaNo;
@@ -2712,8 +2734,8 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION 'DoInsertText'}
-  procedure DoInsertText(const AText: string; const ANewPara: Boolean);
+  {$REGION 'DoInsertTextEx'}
+  procedure DoInsertTextEx(const AText: string; const ANewPara: Boolean);
   var
     vItem: THCCustomItem;
   begin
@@ -2731,7 +2753,7 @@ var
           SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
           SelectInfo.StartItemOffset := 0;
           CurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;
-          DoInsertText(AText, ANewPara);  // 在下一个TextItem前面插入
+          DoInsertTextEx(AText, ANewPara);  // 在下一个TextItem前面插入
         end
         else  // 最后或下一个还是RectItem或当前是段尾
         begin
@@ -2758,7 +2780,7 @@ var
           SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
           SelectInfo.StartItemOffset := Items[SelectInfo.StartItemNo].Length;
           CurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;
-          DoInsertText(AText, ANewPara);  // 在前一个后面插入
+          DoInsertTextEx(AText, ANewPara);  // 在前一个后面插入
         end
         else  // 在段最前或前一个还是RectItem
         begin
@@ -2798,12 +2820,11 @@ begin
   Result := False;
 
   if not CanEdit then Exit;
-  if AText = '' then Exit;
+  if not DoInsertText(AText) then Exit;
+  if not DeleteSelected then Exit;
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
-    DeleteSelected;
-
     Undo_New;
 
     if (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)  // 当前位置是 RectItem
@@ -2827,7 +2848,7 @@ begin
       else
         Self.FormatInit;
     end
-    else
+    else  // 当前位置是TextItem
     begin
       vNewPara := False;
       vAddCount := 0;
@@ -2844,7 +2865,7 @@ begin
           #13:
             begin
               System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-              DoInsertText(vS, vNewPara);
+              DoInsertTextEx(vS, vNewPara);
               vNewPara := True;
 
               Inc(vPtr);
@@ -2864,7 +2885,7 @@ begin
       end;
 
       System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-      DoInsertText(vS, vNewPara);
+      DoInsertTextEx(vS, vNewPara);
 
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + vAddCount, vAddCount);
       Result := True;
@@ -3013,7 +3034,7 @@ var
     end;
 
   var
-    vNewCaretDrawItemNo: Integer;
+    vNewCaretDrawItemNo, i: Integer;
   begin
     if Shift = [ssShift] then  // Shift+方向键选择
     begin
@@ -3053,6 +3074,9 @@ var
     begin
       if vSelectExist then  // 有选中内容
       begin
+        for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
+            Items[i].DisSelect;
+
         SelectInfo.EndItemNo := -1;
         SelectInfo.EndItemOffset := -1;
       end
@@ -3099,6 +3123,8 @@ var
           else
             CaretDrawItemNo := vNewCaretDrawItemNo;
         end;
+
+        Style.UpdateInfoRePaint;
       end;
     end;
   end;
@@ -3157,7 +3183,7 @@ var
     end;
 
   var
-    vNewCaretDrawItemNo: Integer;
+    vNewCaretDrawItemNo, i: Integer;
   begin
     if Shift = [ssShift] then  // Shift+方向键选择
     begin
@@ -3209,6 +3235,9 @@ var
     begin
       if vSelectExist then  // 有选中内容
       begin
+        for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
+          Items[i].DisSelect;
+
         SelectInfo.StartItemNo := SelectInfo.EndItemNo;
         SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
         SelectInfo.EndItemNo := -1;
@@ -3254,6 +3283,8 @@ var
         end
         else
           CaretDrawItemNo := vNewCaretDrawItemNo;
+
+        Style.UpdateInfoRePaint;
       end;
     end;
   end;
@@ -3262,7 +3293,7 @@ var
   {$REGION ' HomeKeyDown 按键 '}
   procedure HomeKeyDown;
   var
-    vFirstDItemNo, vLastDItemNo: Integer;
+    vFirstDItemNo, vLastDItemNo, i: Integer;
   begin
     if Shift = [ssShift] then  // Shift+Home
     begin
@@ -3329,6 +3360,9 @@ var
     begin
       if vSelectExist then  // 有选中内容
       begin
+        for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
+          Items[i].DisSelect;
+
         SelectInfo.EndItemNo := -1;
         SelectInfo.EndItemOffset := -1;
       end
@@ -3342,6 +3376,8 @@ var
 
       if Key <> 0 then
         CaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+
+      Style.UpdateInfoRePaint;
     end;
   end;
   {$ENDREGION}
@@ -3349,7 +3385,7 @@ var
   {$REGION ' EndKeyDown 按键 '}
   procedure EndKeyDown;
   var
-    vFirstDItemNo, vLastDItemNo: Integer;
+    vFirstDItemNo, vLastDItemNo, i: Integer;
   begin
     if Shift = [ssShift] then  // Shift+End
     begin
@@ -3423,6 +3459,9 @@ var
     begin
       if vSelectExist then  // 有选中内容
       begin
+        for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
+          Items[i].DisSelect;
+
         SelectInfo.StartItemNo := SelectInfo.EndItemNo;
         SelectInfo.StartItemOffset := SelectInfo.EndItemOffset;
         SelectInfo.EndItemNo := -1;
@@ -3438,6 +3477,8 @@ var
 
       if Key <> 0 then
         CaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+
+      Style.UpdateInfoRePaint;
     end;
   end;
   {$ENDREGION}
@@ -4942,10 +4983,8 @@ begin
 
   if vSelectExist and (Key in [VK_BACK, VK_DELETE, VK_RETURN, VK_TAB]) then
   begin
-    if DeleteSelected then
-    begin
-      if Key in [VK_BACK, VK_DELETE] then Exit;
-    end;
+    if not DeleteSelected then Exit;
+    if Key in [VK_BACK, VK_DELETE] then Exit;
   end;
 
   GetParaItemRang(SelectInfo.StartItemNo, vParaFirstItemNo, vParaLastItemNo);
@@ -4995,7 +5034,7 @@ var
 begin
   if not CanEdit then Exit;
 
-  DeleteSelected;
+  //DeleteSelected;
 
   vCarteItem := GetActiveItem;
   if not Assigned(vCarteItem) then Exit;  // 跨页合并时，合并后并没有当前Item
@@ -5167,6 +5206,7 @@ begin
 
       SelectInfo.StartItemNo := FMouseDownItemNo;
       SelectInfo.StartItemOffset := FMouseDownItemOffset;
+      SelectInfo.StartRestrain := vRestrain;
       CaretDrawItemNo := vDrawItemNo;
     end;
 
@@ -5665,6 +5705,23 @@ begin
   end;
 end;
 
+function THCRichData.SelectPerfect: Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+  if SelectInfo.EndItemNo >= 0 then  // 混选时某RectItem只有一部分选中时不处理,仅取消选中
+  begin
+    for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
+    begin
+      if (Self.Items[i].StyleNo < THCStyle.Null) and (not Self.Items[i].IsSelectComplate) then
+        Exit;
+    end;
+  end;
+
+  Result := True;
+end;
+
 procedure THCRichData.SetActiveItemText(const AText: string);
 var
   vActiveItem: THCCustomItem;
@@ -5672,6 +5729,8 @@ var
   vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
   if not CanEdit then Exit;
+
+  if AText = '' then Exit;  
 
   Self.InitializeField;
   vActiveItem := GetActiveItem;
@@ -5725,6 +5784,10 @@ begin
     ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
     SelectInfo.StartItemOffset := Length(AText);
+    SelectInfo.EndItemNo := -1;
+    SelectInfo.EndItemOffset := -1;
+    Items[SelectInfo.StartItemNo].DisSelect;
+
     ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   end;
 

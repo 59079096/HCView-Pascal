@@ -27,18 +27,17 @@ type
     FEndItemNo,
     FEndItemOffset  // 选中结束在第几个字符后面
       : Integer;
+    FStartRestrain: Boolean;
   public
     constructor Create; virtual;
     procedure Initialize; virtual;
 
     /// <summary> 选中起始Item序号 </summary>
     property StartItemNo: Integer read FStartItemNo write FStartItemNo;
-
     property StartItemOffset: Integer read FStartItemOffset write FStartItemOffset;
-
+    property StartRestrain: Boolean read FStartRestrain write FStartRestrain;
     /// <summary> 选中结束Item序号 </summary>
     property EndItemNo: Integer read FEndItemNo write FEndItemNo;
-
     property EndItemOffset: Integer read FEndItemOffset write FEndItemOffset;
   end;
 
@@ -313,7 +312,7 @@ type
 
     /// <summary> 获取选中内容是否在同一个DrawItem中 </summary>
     /// <returns></returns>
-    function SelectInSameDItem: Boolean;
+    function SelectInSameDrawItem: Boolean;
 
     /// <summary> 取消选中 </summary>
     /// <returns>取消时当前是否有选中，True：有选中；False：无选中</returns>
@@ -2736,7 +2735,7 @@ begin
   end;
 end;
 
-function THCCustomData.SelectInSameDItem: Boolean;
+function THCCustomData.SelectInSameDrawItem: Boolean;
 var
   vStartDNo: Integer;
 begin
@@ -2782,9 +2781,9 @@ begin
           FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True
       end
       else
-      if (FSelectInfo.StartItemOffset > 0)  // 在Item上
-        and (FSelectInfo.StartItemOffset < FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Length)
-      then
+      //if (FSelectInfo.StartItemOffset > 0)  // 在Item上
+      //  and (FSelectInfo.StartItemOffset < FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Length)
+      //then
         FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;  // 激活新的
     end;
   end;
@@ -3067,6 +3066,7 @@ procedure TSelectInfo.Initialize;
 begin
   FStartItemNo := -1;
   FStartItemOffset := -1;
+  FStartRestrain := False;
   FEndItemNo := -1;
   FEndItemOffset := -1;
 end;

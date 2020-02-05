@@ -186,7 +186,7 @@ function THCCheckBoxItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
   Result := inherited MouseUp(Button, Shift, X, Y);
-  if PtInRect(GetBoxRect, Point(X, Y)) then  // 点在了勾选框中
+  if OwnerData.CanEdit and PtInRect(GetBoxRect, Point(X, Y)) then  // 点在了勾选框中
     Checked := not FChecked;
 end;
 

@@ -120,10 +120,10 @@ type
       : TNotifyEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
     FOnSectionCanEdit: TOnCanEditEvent;
-    FOnSectionInsertText: TTextEvent;
+    FOnSectionInsertTextBefor: TTextEvent;
     FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemEvent;
     FOnSectionSaveItem: TSectionDataItemNoFunEvent;
-    FOnSectionDeleteItem: TSectionDataItemFunEvent;
+    FOnSectionAcceptAction: TSectionDataActionEvent;
     FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent;
 
     FOnSectionPaintHeader, FOnSectionPaintFooter, FOnSectionPaintPage,
@@ -235,7 +235,8 @@ type
     procedure DoCaretChange; virtual;
     procedure DoKillFocus; virtual;
     procedure DoSectionCreateItem(Sender: TObject); virtual;
-    function DoSectionDeleteItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem): Boolean; virtual;
+    function DoSectionAcceptAction(const Sender: TObject; const AData: THCCustomData;
+      const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
@@ -245,7 +246,8 @@ type
     procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
     function DoSectionCanEdit(const Sender: TObject): Boolean; virtual;
-    function DoSectionInsertText(const AData: THCCustomData; const AText: string): Boolean; virtual;
+    function DoSectionInsertTextBefor(const AData: THCCustomData; const AItemNo, AOffset: Integer;
+      const AText: string): Boolean; virtual;
     procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -335,7 +337,7 @@ type
     procedure ResetActiveSectionMargin;
 
     /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
-    procedure ReAdaptActiveItem;
+    procedure ActiveItemReAdaptEnvironment;
 
     /// <summary> 全部清空(清除各节页眉、页脚、页面的Item及DrawItem) </summary>
     procedure Clear;
@@ -402,6 +404,9 @@ type
 
     /// <summary> 插入域 </summary>
     function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
+
+    /// <summary> 当前图片重设为指定的图像和大小 </summary>
+    function SetActiveImage(const AImageStream: TStream): Boolean;
 
     /// <summary> 当前表格重设为指定的行列数 </summary>
     function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
@@ -775,6 +780,9 @@ type
     /// <summary> 节保存Item前触发，控制是否允许保存该Item </summary>
     property OnSectionSaveItem: TSectionDataItemNoFunEvent read FOnSectionSaveItem write FOnSectionSaveItem;
 
+    /// <summary> 节中指定事件发生时触发，控制是否允许该事件 </summary>
+    property OnSectionAcceptAction: TSectionDataActionEvent read FOnSectionAcceptAction write FOnSectionAcceptAction;
+
     /// <summary> Item绘制开始前触发 </summary>
     property OnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent read FOnSectionDrawItemPaintBefor write FOnSectionDrawItemPaintBefor;
 
@@ -847,7 +855,7 @@ type
     /// <summary> 当编辑只读状态的Data时触发 </summary>
     property OnSectionCanEdit: TOnCanEditEvent read FOnSectionCanEdit write FOnSectionCanEdit;
 
-    property OnSectionInsertText: TTextEvent read FOnSectionInsertText write FOnSectionInsertText;
+    property OnSectionInsertTextBefor: TTextEvent read FOnSectionInsertTextBefor write FOnSectionInsertTextBefor;
 
     /// <summary> 节当前位置段样式和上一次不一样时触发 </summary>
     property OnSectionCurParaNoChange: TNotifyEvent read FOnSectionCurParaNoChange write FOnSectionCurParaNoChange;
@@ -1569,11 +1577,11 @@ begin
   CheckUpdateInfo;
 end;
 
-function THCView.DoSectionDeleteItem(const Sender: TObject; const AData: THCCustomData;
-  const AItem: THCCustomItem): Boolean;
+function THCView.DoSectionAcceptAction(const Sender: TObject; const AData: THCCustomData;
+  const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean;
 begin
-  if Assigned(FOnSectionDeleteItem) then
-    Result := FOnSectionDeleteItem(Sender, AData, AItem)
+  if Assigned(FOnSectionAcceptAction) then
+    Result := FOnSectionAcceptAction(Sender, AData, AItemNo, AOffset, AAction)
   else
     Result := True;
 end;
@@ -1680,11 +1688,11 @@ begin
     FOnSectionInsertItem(Sender, AData, AItem);
 end;
 
-function THCView.DoSectionInsertText(const AData: THCCustomData;
-  const AText: string): Boolean;
+function THCView.DoSectionInsertTextBefor(const AData: THCCustomData;
+  const AItemNo, AOffset: Integer; const AText: string): Boolean;
 begin
-  if Assigned(FOnSectionInsertText) then
-    Result := FOnSectionInsertText(AData, AText)
+  if Assigned(FOnSectionInsertTextBefor) then
+    Result := FOnSectionInsertTextBefor(AData, AItemNo, AOffset, AText)
   else
     Result := True;
 end;
@@ -1728,6 +1736,15 @@ procedure THCView.DoSectionDrawItemPaintAfter(const Sender: TObject;
   const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
+  if AData.Items[AItemNo].HyperLink <> '' then
+  begin
+    ACanvas.Pen.Style := psSolid;
+    ACanvas.Pen.Color := clBlue;
+    ACanvas.Pen.Width := 1;
+    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Bottom);
+    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom);
+  end;
+
   if Assigned(FOnSectionDrawItemPaintAfter) then
     FOnSectionDrawItemPaintAfter(Sender, AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
@@ -2206,6 +2223,11 @@ begin
   Result := ActiveSection.ActiveTableSplitCurRow;
 end;
 
+function THCView.SetActiveImage(const AImageStream: TStream): Boolean;
+begin
+  Result := ActiveSection.SetActiveImage(AImageStream);
+end;
+
 function THCView.ActiveSectionTopLevelData: THCCustomData;
 begin
   Result := ActiveSection.ActiveData.GetTopLevelData;
@@ -2664,10 +2686,10 @@ begin
   Result.OnChangeTopLevelData := DoSectionChangeTopLevelData;
   Result.OnCheckUpdateInfo := DoSectionDataCheckUpdateInfo;
   Result.OnCreateItem := DoSectionCreateItem;
-  Result.OnDeleteItem := DoSectionDeleteItem;
+  Result.OnDataAcceptAction := DoSectionAcceptAction;
   Result.OnCreateItemByStyle := DoSectionCreateStyleItem;
   Result.OnCanEdit := DoSectionCanEdit;
-  Result.OnInsertText := DoSectionInsertText;
+  Result.OnInsertTextBefor := DoSectionInsertTextBefor;
   Result.OnInsertItem := DoSectionInsertItem;
   Result.OnRemoveItem := DoSectionRemoveItem;
   Result.OnSaveItem := DoSectionSaveItem;
@@ -3386,9 +3408,9 @@ begin
   Result := Print(APrinter, 1, vPages);  // 奇数页
 end;
 
-procedure THCView.ReAdaptActiveItem;
+procedure THCView.ActiveItemReAdaptEnvironment;
 begin
-  ActiveSection.ReAdaptActiveItem;
+  ActiveSection.ActiveItemReAdaptEnvironment;
 end;
 
 procedure THCView.ReBuildCaret;
@@ -3423,7 +3445,7 @@ begin
   FCaret.Y := ZoomIn(GetSectionTopFilm(FActiveSectionIndex) + vCaretInfo.Y) - FVScrollBar.Position;
   FCaret.Height := ZoomIn(vCaretInfo.Height);
 
-  if not FStyle.UpdateInfo.ReScroll then // 滚动条平滑滚动时，可能将光标卷掉看不见
+  if not FStyle.UpdateInfo.ReScroll then // 滚动条滚动触发的获取光标位置，可能将光标卷掉看不见
   begin
     if (FCaret.X < 0) or (FCaret.X > FViewWidth) then
     begin
@@ -3441,19 +3463,37 @@ begin
   begin
     if FCaret.Height < FViewHeight then
     begin
-      if FCaret.Y < 0 then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - FPagePadding
-      else
-      if FCaret.Y + FCaret.Height + FPagePadding > FViewHeight then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + FPagePadding - FViewHeight;
+      if not FCaret.VScroll then
+      begin
+        FCaret.VScroll := True;  // 防止下面滚动变化后再次取滚动条位置，造成死循环
+        try
+          if FCaret.Y < 0 then
+            FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - FPagePadding
+          else
+          if FCaret.Y + FCaret.Height + FPagePadding > FViewHeight then
+            FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + FPagePadding - FViewHeight;
+        finally
+          FCaret.VScroll := False;
+        end;
+      end;
 
-      if FCaret.X < 0 then
-        FHScrollBar.Position := FHScrollBar.Position + FCaret.X - FPagePadding
-      else
-      if FCaret.X + FPagePadding > FViewWidth then
-        FHScrollBar.Position := FHScrollBar.Position + FCaret.X + FPagePadding - FViewWidth;
+      if not FCaret.HScroll then
+      begin
+        FCaret.HScroll := True;
+        try
+          if FCaret.X < 0 then
+            FHScrollBar.Position := FHScrollBar.Position + FCaret.X - FPagePadding
+          else
+          if FCaret.X + FPagePadding > FViewWidth then
+            FHScrollBar.Position := FHScrollBar.Position + FCaret.X + FPagePadding - FViewWidth;
+        finally
+          FCaret.HScroll := False;
+        end;
+      end;
     end;
   end;
+
+  if FCaret.VScroll or FCaret.HScroll then Exit;  //Exit;  // 防止滚动条重新计算光标位置后重复执行下面的代码
 
   if FCaret.Y + FCaret.Height > FViewHeight then
     FCaret.Height := FViewHeight - FCaret.Y;

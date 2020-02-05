@@ -40,8 +40,8 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   TSectionDataItemEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItem: THCCustomItem) of object;
-  TSectionDataItemFunEvent = function(const Sender: TObject; const AData: THCCustomData;
-    const AItem: THCCustomItem): Boolean of object;
+  TSectionDataActionEvent = function(const Sender: TObject; const AData: THCCustomData;
+    const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean of object;
   TSectionDataItemNoFunEvent = function(const Sender: TObject; const AData: THCCustomData;
     const AItemNo: Integer): Boolean of object;
   TSectionDrawItemAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
@@ -94,13 +94,13 @@ type
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemEvent;
     FOnSaveItem: TSectionDataItemNoFunEvent;
-    FOnDeleteItem: TSectionDataItemFunEvent;
+    FOnDataAcceptAction: TSectionDataActionEvent;
     FOnItemMouseDown, FOnItemMouseUp: TSectionDataItemMouseEvent;
     FOnItemResize: TDataItemNoEvent;
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
-    FOnInsertText: TTextEvent;
+    FOnInsertTextBefor: TTextEvent;
     FOnGetUndoList: TGetUndoListEvent;
 
     /// <summary> 返回当前节指定的垂直偏移处对应的页 </summary>
@@ -133,18 +133,20 @@ type
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
     function DoDataSaveItem(const AData: THCCustomData; const AItemNo: Integer): Boolean;
-    function DoDataDeleteItem(const AData: THCCustomData; const AItem: THCCustomItem): Boolean;
+    function DoDataAcceptAction(const AData: THCCustomData; const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean;
     procedure DoDataItemMouseDown(const AData: THCCustomData; const AItemNo, AOffset: Integer;
        Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataItemMouseUp(const AData: THCCustomData; const AItemNo, AOffset: Integer;
        Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataChanged(Sender: TObject);
+    procedure DoDataItemRequestFormat(const ASectionData: THCCustomData; const AItem: THCCustomItem);
 
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
     function DoDataCanEdit(const Sender: TObject): Boolean;
-    function DoDataInsertText(const AData: THCCustomData; const AText: string): Boolean;
+    function DoDataInsertTextBefor(const AData: THCCustomData; const AItemNo, AOffset: Integer;
+      const AText: string): Boolean;
     procedure DoDataCreateItem(Sender: TObject);
     procedure DoDataCurParaNoChange(Sender: TObject);
     function DoDataGetUndoList: THCUndoList;
@@ -209,7 +211,7 @@ type
     /// <param name="AVertical"></param>
     /// <returns></returns>
     function GetDataFmtTopFilm(const AVertical: Integer): Integer;
-    function ActiveDataChangeByAction(const AFunction: THCFunction): Boolean;
+    function DoSectionDataAction(const AData: THCSectionData; const AAction: THCFunction): Boolean;
 
     property Style: THCStyle read FStyle;
   public
@@ -219,7 +221,7 @@ type
     /// <summary> 修改纸张边距 </summary>
     procedure ResetMargin;
     /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
-    procedure ReAdaptActiveItem;
+    procedure ActiveItemReAdaptEnvironment;
     procedure DisActive;
     function SelectExists: Boolean;
     procedure SelectAll;
@@ -274,6 +276,8 @@ type
 
     /// <summary> 当前选中的内容添加批注 </summary>
     function InsertAnnotate(const ATitle, AText: string): Boolean;
+
+    function SetActiveImage(const AImageStream: TStream): Boolean;
     //
     function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
     function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
@@ -443,10 +447,10 @@ type
     property OnRemoveAnnotate: TSectionAnnotateEvent read FOnRemoveAnnotate write FOnRemoveAnnotate;
     property OnDrawItemAnnotate: TSectionDrawItemAnnotateEvent read FOnDrawItemAnnotate write FOnDrawItemAnnotate;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
-    property OnDeleteItem: TSectionDataItemFunEvent read FOnDeleteItem write FOnDeleteItem;
+    property OnDataAcceptAction: TSectionDataActionEvent read FOnDataAcceptAction write FOnDataAcceptAction;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
-    property OnInsertText: TTextEvent read FOnInsertText write FOnInsertText;
+    property OnInsertTextBefor: TTextEvent read FOnInsertTextBefor write FOnInsertTextBefor;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
     property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
     property OnActivePageChange: TNotifyEvent read FOnActivePageChange write FOnActivePageChange;
@@ -487,9 +491,17 @@ begin
   DoActiveDataCheckUpdateInfo;
 end;
 
+function THCCustomSection.SetActiveImage(const AImageStream: TStream): Boolean;
+begin
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
+    begin
+      Result := FActiveData.SetActiveImage(AImageStream);
+    end);
+end;
+
 function THCCustomSection.ActiveTableDeleteCurCol: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.ActiveTableDeleteCurCol;
     end);
@@ -497,7 +509,7 @@ end;
 
 function THCCustomSection.ActiveTableDeleteCurRow: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.ActiveTableDeleteCurRow;
     end);
@@ -505,7 +517,7 @@ end;
 
 function THCCustomSection.ActiveTableInsertColAfter(const AColCount: Byte): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.TableInsertColAfter(AColCount);
     end);
@@ -513,7 +525,7 @@ end;
 
 function THCCustomSection.ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.TableInsertColBefor(AColCount);
     end);
@@ -521,7 +533,7 @@ end;
 
 function THCCustomSection.ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.TableInsertRowAfter(ARowCount);
     end);
@@ -529,7 +541,7 @@ end;
 
 function THCCustomSection.ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.TableInsertRowBefor(ARowCount);
     end);
@@ -538,7 +550,7 @@ end;
 function THCCustomSection.ActiveTableResetRowCol(const ARowCount,
   AColCount: Byte): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.ActiveTableResetRowCol(ARowCount, AColCount);
     end);
@@ -546,7 +558,7 @@ end;
 
 function THCCustomSection.ActiveTableSplitCurCol: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.ActiveTableSplitCurCol;
     end);
@@ -554,7 +566,7 @@ end;
 
 function THCCustomSection.ActiveTableSplitCurRow: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.ActiveTableSplitCurRow;
     end);
@@ -562,7 +574,7 @@ end;
 
 procedure THCCustomSection.ApplyParaAlignHorz(const AAlign: TParaAlignHorz);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyParaAlignHorz(AAlign);
     end);
@@ -570,7 +582,7 @@ end;
 
 procedure THCCustomSection.ApplyParaAlignVert(const AAlign: TParaAlignVert);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyParaAlignVert(AAlign);
     end);
@@ -578,7 +590,7 @@ end;
 
 procedure THCCustomSection.ApplyParaBackColor(const AColor: TColor);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyParaBackColor(AColor);
     end);
@@ -586,7 +598,7 @@ end;
 
 procedure THCCustomSection.ApplyParaBreakRough(const ARough: Boolean);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyParaBreakRough(ARough);
     end);
@@ -594,7 +606,7 @@ end;
 
 procedure THCCustomSection.ApplyParaFirstIndent(const AIndent: Single);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyParaFirstIndent(AIndent);
     end);
@@ -602,7 +614,7 @@ end;
 
 procedure THCCustomSection.ApplyParaLeftIndent(const AIndent: Single);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     var
       vContentWidth: Single;
     begin
@@ -622,7 +634,7 @@ end;
 procedure THCCustomSection.ApplyParaLineSpace(const ASpaceMode: TParaLineSpaceMode;
   const ASpace: Single);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyParaLineSpace(ASpaceMode, ASpace);
     end);
@@ -630,7 +642,7 @@ end;
 
 procedure THCCustomSection.ApplyParaRightIndent(const AIndent: Single);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyParaRightIndent(AIndent);
     end);
@@ -638,7 +650,7 @@ end;
 
 procedure THCCustomSection.ApplyTableCellAlign(const AAlign: THCContentAlign);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyTableCellAlign(AAlign);
     end);
@@ -646,7 +658,7 @@ end;
 
 procedure THCCustomSection.ApplyTextBackColor(const AColor: TColor);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyTextBackColor(AColor);
     end);
@@ -654,7 +666,7 @@ end;
 
 procedure THCCustomSection.ApplyTextColor(const AColor: TColor);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyTextColor(AColor);
     end);
@@ -662,7 +674,7 @@ end;
 
 procedure THCCustomSection.ApplyTextFontName(const AFontName: TFontName);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyTextFontName(AFontName);
     end);
@@ -670,7 +682,7 @@ end;
 
 procedure THCCustomSection.ApplyTextFontSize(const AFontSize: Single);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyTextFontSize(AFontSize);
     end);
@@ -678,7 +690,7 @@ end;
 
 procedure THCCustomSection.ApplyTextStyle(const AFontStyle: THCFontStyle);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ApplyTextStyle(AFontStyle);
     end);
@@ -703,13 +715,14 @@ var
     AData.OnInsertItem := DoDataInsertItem;
     AData.OnRemoveItem := DoDataRemoveItem;
     AData.OnSaveItem := DoDataSaveItem;
-    AData.OnDeleteItem := DoDataDeleteItem;
+    AData.OnAcceptAction := DoDataAcceptAction;
     AData.OnItemResized := DoDataItemResized;
     AData.OnItemMouseDown := DoDataItemMouseDown;
     AData.OnItemMouseUp := DoDataItemMouseUp;
+    AData.OnItemRequestFormat := DoDataItemRequestFormat;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
     AData.OnCanEdit := DoDataCanEdit;
-    AData.OnInsertText := DoDataInsertText;
+    AData.OnInsertTextBefor := DoDataInsertTextBefor;
     AData.OnCreateItem := DoDataCreateItem;
     AData.OnReadOnlySwitch := DoDataReadOnlySwitch;
     AData.OnGetScreenCoord := DoGetScreenCoordEvent;
@@ -764,7 +777,7 @@ end;
 procedure THCCustomSection.DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
   const AKeepPara: Boolean);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.DeleteActiveDataItems(AStartNo, AEndNo, AKeepPara);
       Result := True;
@@ -773,7 +786,7 @@ end;
 
 function THCCustomSection.DeleteActiveDomain: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.DeleteActiveDomain;
     end);
@@ -781,7 +794,7 @@ end;
 
 function THCCustomSection.DeleteSelected: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.DeleteSelected;
     end);
@@ -867,20 +880,20 @@ begin
     FOnInsertItem(Self, AData, AItem);
 end;
 
-function THCCustomSection.DoDataInsertText(const AData: THCCustomData;
-  const AText: string): Boolean;
+function THCCustomSection.DoDataInsertTextBefor(const AData: THCCustomData;
+  const AItemNo, AOffset: Integer; const AText: string): Boolean;
 begin
-  if Assigned(FOnInsertText) then
-    Result := FOnInsertText(AData, AText)
+  if Assigned(FOnInsertTextBefor) then
+    Result := FOnInsertTextBefor(AData, AItemNo, AOffset, AText)
   else
     Result := True;
 end;
 
-function THCCustomSection.DoDataDeleteItem(const AData: THCCustomData;
-  const AItem: THCCustomItem): Boolean;
+function THCCustomSection.DoDataAcceptAction(const AData: THCCustomData;
+  const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean;
 begin
-  if Assigned(FOnDeleteItem) then
-    Result := FOnDeleteItem(Self, AData, AItem)
+  if Assigned(FOnDataAcceptAction) then
+    Result := FOnDataAcceptAction(Self, AData, AItemNo, AOffset, AAction)
   else
     Result := True;
 end;
@@ -940,6 +953,16 @@ procedure THCCustomSection.DoDataItemMouseUp(const AData: THCCustomData;
 begin
   if Assigned(FOnItemMouseUp) then
     FOnItemMouseUp(Self, AData, AItemNo, AOffset, Button, Shift, X, Y);
+end;
+
+procedure THCCustomSection.DoDataItemRequestFormat(const ASectionData: THCCustomData;
+  const AItem: THCCustomItem);
+begin
+  DoSectionDataAction(ASectionData as THCSectionData, function(): Boolean
+    begin
+      (ASectionData as THCSectionData).ReFormatActiveItem;
+      Result := True;
+    end);
 end;
 
 procedure THCCustomSection.DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
@@ -1026,7 +1049,7 @@ end;
 
 procedure THCCustomSection.SetActiveItemText(const AText: string);
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.SetActiveItemText(AText);
     end);
@@ -1500,7 +1523,7 @@ end;
 
 function THCCustomSection.InsertAnnotate(const ATitle, AText: string): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertAnnotate(ATitle, AText);
     end);
@@ -1508,7 +1531,7 @@ end;
 
 function THCCustomSection.InsertBreak: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertBreak;
     end);
@@ -1516,7 +1539,7 @@ end;
 
 function THCCustomSection.InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertDomain(AMouldDomain);
     end);
@@ -1524,7 +1547,7 @@ end;
 
 function THCCustomSection.InsertGifImage(const AFile: string): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertGifImage(AFile);
     end);
@@ -1532,7 +1555,7 @@ end;
 
 function THCCustomSection.InsertImage(const AImage: TGraphic): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertImage(AImage);
     end);
@@ -1541,7 +1564,7 @@ end;
 function THCCustomSection.InsertItem(const AIndex: Integer;
   const AItem: THCCustomItem): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertItem(AIndex, AItem);
     end);
@@ -1549,7 +1572,7 @@ end;
 
 function THCCustomSection.InsertItem(const AItem: THCCustomItem): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertItem(AItem);
     end);
@@ -1557,7 +1580,7 @@ end;
 
 function THCCustomSection.InsertLine(const ALineHeight: Integer): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertLine(ALineHeight);
     end);
@@ -1565,25 +1588,25 @@ end;
 
 function THCCustomSection.InsertPageBreak: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FPage.InsertPageBreak;
     end);
 end;
 
-function THCCustomSection.ActiveDataChangeByAction(const AFunction: THCFunction): Boolean;
+function THCCustomSection.DoSectionDataAction(const AData: THCSectionData; const AAction: THCFunction): Boolean;
 begin
-  if not FActiveData.CanEdit then Exit(False);
-  if FActiveData.FloatItemIndex >= 0 then Exit(False);
+  if not AData.CanEdit then Exit(False);
+  if AData.FloatItemIndex >= 0 then Exit(False);
 
-  Result := AFunction;  // 处理变动
+  Result := AAction;  // 处理变动
 
-  if FActiveData.FormatChange then  // 数据高度变化了
+  if AData.FormatChange then  // 数据高度变化了
   begin
-    FActiveData.FormatChange := False;
+    AData.FormatChange := False;  // 防止下次表格里变动并未引起表格高度变化，本次格式化FormatChange为True的影响
 
-    if FActiveData = FPage then
-      BuildSectionPages(FActiveData.FormatStartDrawItemNo)
+    if AData = FPage then
+      BuildSectionPages(AData.FormatStartDrawItemNo)
     else
       BuildSectionPages(0);
   end;
@@ -1597,7 +1620,7 @@ var
   vResult: Boolean;
 begin
   Result := False;
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertStream(AStream, AStyle, AFileVersion);
       vResult := Result;
@@ -1607,7 +1630,7 @@ end;
 
 function THCCustomSection.InsertTable(const ARowCount, AColCount: Integer): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertTable(ARowCount, AColCount);
     end);
@@ -1615,7 +1638,7 @@ end;
 
 function THCCustomSection.InsertText(const AText: string): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.InsertText(AText);
     end);
@@ -1639,7 +1662,7 @@ begin
       VK_BACK, VK_DELETE, VK_RETURN, VK_TAB:
         begin
           vKey := Key;
-          ActiveDataChangeByAction(function(): Boolean
+          DoSectionDataAction(FActiveData, function(): Boolean
             begin
               FActiveData.KeyDown(vKey, Shift);
             end);
@@ -1665,7 +1688,7 @@ begin
   if IsKeyPressWant(Key) then
   begin
     vKey := Key;
-    ActiveDataChangeByAction(function(): Boolean
+    DoSectionDataAction(FActiveData, function(): Boolean
       begin
         FActiveData.KeyPress(vKey);
       end);
@@ -1757,7 +1780,7 @@ end;
 
 function THCCustomSection.MergeTableSelectCells: Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.MergeTableSelectCells;
     end);
@@ -1932,7 +1955,7 @@ begin
   // RectItem的缩放在MouseUp中处理，所以需要判断是否需要改变
   if FActiveData.SelectedResizing then
   begin
-    ActiveDataChangeByAction(function(): Boolean
+    DoSectionDataAction(FActiveData, function(): Boolean
       begin
         FActiveData.MouseUp(Button, Shift, vX, vY);
       end);
@@ -2242,6 +2265,7 @@ begin
           ACanvas.FillRect(Rect(vPageDrawLeft - 40, vPageDrawTop, vPageDrawLeft, vPageDrawTop + 20));
           ACanvas.Font.Size := 10;
           ACanvas.Font.Name := '宋体';
+          ACanvas.Font.Style := [];
           ACanvas.Font.Color := $008B4215;
           ACanvas.TextOut(vPageDrawLeft - 32, vPageDrawTop + 4, '页眉');
         end
@@ -2273,6 +2297,7 @@ begin
           ACanvas.FillRect(Rect(vPageDrawLeft - 40, vPageDrawBottom, vPageDrawLeft, vPageDrawBottom - 20));
           ACanvas.Font.Size := 10;
           ACanvas.Font.Name := '宋体';
+          ACanvas.Font.Style := [];
           ACanvas.Font.Color := $008B4215;
           ACanvas.TextOut(vPageDrawLeft - 32, vPageDrawBottom - 16, '页脚');
         end
@@ -2690,11 +2715,11 @@ begin
   end;
 end;
 
-procedure THCCustomSection.ReAdaptActiveItem;
+procedure THCCustomSection.ActiveItemReAdaptEnvironment;
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
-      FActiveData.ReAdaptActiveItem;
+      FActiveData.ActiveItemReAdaptEnvironment;
     end);
 end;
 
@@ -2709,7 +2734,7 @@ begin
     if FActiveData <> ARedo.Data then
       SetActiveData(ARedo.Data as THCSectionData);
 
-    ActiveDataChangeByAction(function(): Boolean
+    DoSectionDataAction(FActiveData, function(): Boolean
       begin
         FActiveData.Redo(ARedo);
       end);
@@ -2720,7 +2745,7 @@ end;
 
 procedure THCCustomSection.ReFormatActiveItem;
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ReFormatActiveItem;
     end);
@@ -2728,7 +2753,7 @@ end;
 
 procedure THCCustomSection.ReFormatActiveParagraph;
 begin
-  ActiveDataChangeByAction(function(): Boolean
+  DoSectionDataAction(FActiveData, function(): Boolean
     begin
       FActiveData.ReFormatActiveParagraph;
     end);
@@ -2885,7 +2910,7 @@ end;
 function THCCustomSection.TableApplyContentAlign(
   const AAlign: THCContentAlign): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.TableApplyContentAlign(AAlign);
     end);
@@ -2902,7 +2927,7 @@ begin
     if FActiveData <> AUndo.Data then
       SetActiveData(AUndo.Data as THCSectionData);
 
-    ActiveDataChangeByAction(function(): Boolean
+    DoSectionDataAction(FActiveData, function(): Boolean
       begin
         FActiveData.Undo(AUndo);
       end);
@@ -2923,7 +2948,7 @@ end;
 
 function THCSection.ParseHtml(const AHtmlText: string): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     var
       vHtmlFmt: THCHtmlFormat;
     begin
@@ -3007,7 +3032,7 @@ end;
 
 function THCSection.Replace(const AText: string): Boolean;
 begin
-  Result := ActiveDataChangeByAction(function(): Boolean
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
       Result := FActiveData.Replace(AText);
     end);

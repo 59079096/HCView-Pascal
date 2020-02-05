@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem, HCStyle,
-  HCCustomData, HCCommon, HCXml;
+  HCCustomData, HCFormatData, HCCommon, HCXml;
 
 const
   BTNWIDTH = 16;
@@ -51,7 +51,7 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
-
+    procedure Clear; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -79,6 +79,11 @@ begin
   FPrintOnlyText := (Source as THCEditItem).PrintOnlyText;
   FBorderSides := (Source as THCEditItem).BorderSides;
   FBorderWidth := (Source as THCEditItem).BorderWidth;
+end;
+
+procedure THCEditItem.Clear;
+begin
+  Self.Text := '';
 end;
 
 constructor THCEditItem.Create(const AOwnerData: THCCustomData; const AText: string);
@@ -125,6 +130,7 @@ begin
     ACanvas.Pen.Color := clBlack;
 
   ACanvas.Pen.Width := FBorderWidth;
+  ACanvas.Pen.Style := psSolid;
 
   if cbsLeft in FBorderSides then
   begin
@@ -394,7 +400,10 @@ begin
     if FCaretOffset > System.Length(FText) then
       FCaretOffset := 0;
 
-    OwnerData.Style.UpdateInfoRePaint;
+    if Self.AutoSize then
+      (OwnerData as THCFormatData).ItemRequestFormat(Self)
+    else
+      OwnerData.Style.UpdateInfoRePaint;
   end;
 end;
 

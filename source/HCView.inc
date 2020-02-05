@@ -10,6 +10,9 @@
 
 {$DEFINE UNPLACEHOLDERCHAR}  // 支持紧缩文本，如藏文HIMALAYA等
 
+{$DEFINE RESETTABLEUSEFIRSTROWHEIGHT}  // 重设表格行列数时使用第一行的高度
+{$DEFINE TABLEROWRESTOREAUTOHEIGHT}  // 表格行手动调整大小后如果内容变化超过高度后恢复为自动计算行高
+
 {$IFDEF VER210} { Borland Delphi 14 2010}
   {$DEFINE DELPHI2010}
   {$IFDEF BCB}  { Borland C++Builder 14 }

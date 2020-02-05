@@ -92,7 +92,7 @@ type
   protected
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
-    procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); override;
+    procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCAction); override;
     procedure DoDrawItemPaintContent(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string;
       const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -290,7 +290,7 @@ begin
 end;
 
 procedure THCAnnotateData.DoItemAction(const AItemNo, AOffset: Integer;
-  const AAction: THCItemAction);
+  const AAction: THCAction);
 
   procedure _AnnotateRemove;
   begin
@@ -441,10 +441,10 @@ procedure THCAnnotateData.DoItemAction(const AItemNo, AOffset: Integer;
 
 begin
   case AAction of
-    hiaRemove: _AnnotateRemove;
-    hiaInsertChar: _AnnotateInsertChar;
-    hiaBackDeleteChar: _AnnotateBackChar;
-    hiaDeleteChar: _AnnotateDeleteChar;
+    actDeleteItem: _AnnotateRemove;
+    actInsertText: _AnnotateInsertChar;
+    actBackDeleteText: _AnnotateBackChar;
+    actDeleteText: _AnnotateDeleteChar;
   end;
 end;
 

@@ -2,7 +2,7 @@ object frmHCViewDemo: TfrmHCViewDemo
   Left = 0
   Top = 0
   Caption = 'HCViewDemo'
-  ClientHeight = 722
+  ClientHeight = 726
   ClientWidth = 896
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -333,7 +333,7 @@ object frmHCViewDemo: TfrmHCViewDemo
   end
   object statbar: TStatusBar
     Left = 0
-    Top = 703
+    Top = 707
     Width = 896
     Height = 19
     Panels = <
@@ -343,6 +343,7 @@ object frmHCViewDemo: TfrmHCViewDemo
       item
         Width = 50
       end>
+    ExplicitTop = 703
   end
   object il1: TImageList
     ColorDepth = cd32Bit

@@ -176,6 +176,8 @@ procedure THCComboboxItem.DoPopup;
 var
   vPt: TPoint;
 begin
+  if not OwnerData.CanEdit then Exit;
+
   if Assigned(FOnPopupItem) then
     FOnPopupItem(Self);
 
@@ -429,6 +431,7 @@ procedure THCComboboxItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
   FItems.Text := ANode.Attributes['item'];
+  FSaveItem := FItems.Count > 0;
 end;
 
 procedure THCComboboxItem.LoadFromStream(const AStream: TStream;
@@ -439,6 +442,7 @@ begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   HCLoadTextFromStream(AStream, vText, AFileVersion); // ¶ÁItems
   FItems.Text := vText;
+  FSaveItem := FItems.Count > 0;
 end;
 
 procedure THCComboboxItem.SaveToStream(const AStream: TStream; const AStart,

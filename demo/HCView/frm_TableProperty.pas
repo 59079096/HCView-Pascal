@@ -48,6 +48,8 @@ type
     btnCellRTLBBorder: TSpeedButton;
     btnCellLTRBBorder: TSpeedButton;
     lbl16: TLabel;
+    lbl17: TLabel;
+    lbl18: TLabel;
     procedure btnOkClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure edtCellHPaddingChange(Sender: TObject);
@@ -220,8 +222,8 @@ var
   vCell: THCTableCell;
 begin
   // 表格
-  edtCellHPadding.Text := IntToStr(FTableItem.CellHPadding);
-  edtCellVPadding.Text := IntToStr(FTableItem.CellVPadding);
+  edtCellHPadding.Text := IntToStr(FTableItem.CellHPaddingPix);
+  edtCellVPadding.Text := IntToStr(FTableItem.CellVPaddingPix);
   chkBorderVisible.Checked := FTableItem.BorderVisible;
   edtBorderWidth.Text := FormatFloat('0.##', FTableItem.BorderWidthPt);
   if FTableItem.FixRow >= 0 then
@@ -327,8 +329,8 @@ var
   vCell: THCTableCell;
 begin
   // 表格
-  FTableItem.CellHPadding := StrToIntDef(edtCellHPadding.Text, 5);
-  FTableItem.CellVPadding := StrToIntDef(edtCellVPadding.Text, 0);
+  FTableItem.CellHPaddingMM := StrToFloatDef(edtCellHPadding.Text, 0.5);
+  FTableItem.CellVPaddingMM := StrToFloatDef(edtCellVPadding.Text, 0);
   FTableItem.BorderWidthPt := StrToFloatDef(edtBorderWidth.Text, 0.5);
   FTableItem.BorderVisible := chkBorderVisible.Checked;
 

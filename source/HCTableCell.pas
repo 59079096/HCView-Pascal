@@ -248,6 +248,7 @@ procedure THCTableCell.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
 var
   vX, vY: Integer;
 begin
+  Self.Active := True;
   if Assigned(FCellData) then
   begin
     vX := X - ACellHPadding;

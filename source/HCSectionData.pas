@@ -665,7 +665,7 @@ begin
     begin
       if ATraverse.Stop then Break;
 
-      ATraverse.Process(Self, i, ATraverse.Tag, ATraverse.Stop);
+      ATraverse.Process(Self, i, ATraverse.Tag, ATraverse.DomainStack, ATraverse.Stop);
       //if FFloatItems[i].StyleNo < THCStyle.Null then
       //  (FFloatItems[i] as THCCustomRectItem).TraverseItem(ATraverse);
     end;

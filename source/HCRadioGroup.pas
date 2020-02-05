@@ -21,9 +21,15 @@ type
   THCRadioStyle = (Radio, CheckBox);
 
   THCRadioButton = class(TObject)
-    Checked: Boolean;
+  private
+    FChecked: Boolean;
+    FOnSetChecked: TNotifyEvent;
+    procedure SetChecked(const Value: Boolean);
+  public
     Text: string;
     Position: TPoint;
+    property Checked: Boolean read FChecked write SetChecked;
+    property OnSetChecked: TNotifyEvent read FOnSetChecked write FOnSetChecked;
   end;
 
   THCRadioGroup = class(THCControlItem)
@@ -33,6 +39,8 @@ type
     FRadioStyle: THCRadioStyle;
     function GetItemAt(const X, Y: Integer): Integer;
   protected
+    procedure DoItemNotify(Sender: TObject; const Item: THCRadioButton; Action: TCollectionNotification);
+    procedure DoItemSetChecked(Sender: TObject);
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -97,6 +105,7 @@ begin
   Self.StyleNo := THCStyle.RadioGroup;
   Width := 100;
   FItems := TObjectList<THCRadioButton>.Create;
+  FItems.OnNotify := DoItemNotify;
   FRadioStyle := THCRadioStyle.Radio;
 end;
 
@@ -104,6 +113,28 @@ destructor THCRadioGroup.Destroy;
 begin
   FreeAndNil(FItems);
   inherited;
+end;
+
+procedure THCRadioGroup.DoItemNotify(Sender: TObject;
+  const Item: THCRadioButton; Action: TCollectionNotification);
+begin
+  if Action = TCollectionNotification.cnAdded then
+    Item.OnSetChecked := DoItemSetChecked;
+end;
+
+procedure THCRadioGroup.DoItemSetChecked(Sender: TObject);
+var
+  i, vIndex: Integer;
+begin
+  if (not FMultSelect) and THCRadioButton(Sender).Checked then
+  begin
+    vIndex := FItems.IndexOf(THCRadioButton(Sender));
+    for i := 0 to FItems.Count - 1 do
+    begin
+      if i <> vIndex then
+        FItems[i].Checked := False;
+    end;
+  end;
 end;
 
 procedure THCRadioGroup.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -289,24 +320,14 @@ end;
 function THCRadioGroup.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 var
-  i, vIndex: Integer;
+  vIndex: Integer;
 begin
   Result := inherited MouseDown(Button, Shift, X, Y);
-  if Button = mbLeft then
+  if OwnerData.CanEdit and (Button = mbLeft) then
   begin
     vIndex := GetItemAt(X, Y);
     if vIndex >= 0 then
-    begin
       FItems[vIndex].Checked := not FItems[vIndex].Checked;
-      if not FMultSelect then
-      begin
-        for i := 0 to FItems.Count - 1 do
-        begin
-          if i <> vIndex then
-            FItems[i].Checked := False;
-        end;
-      end;
-    end;
   end;
 end;
 
@@ -409,6 +430,18 @@ begin
 
   ANode.Attributes['check'] := vS;
   ANode.Attributes['radiostyle'] := Ord(FRadioStyle);
+end;
+
+{ THCRadioButton }
+
+procedure THCRadioButton.SetChecked(const Value: Boolean);
+begin
+  if FChecked <> Value then
+  begin
+    FChecked := Value;
+    if Assigned(FOnSetChecked) then
+      FOnSetChecked(Self);
+  end;
 end;
 
 end.

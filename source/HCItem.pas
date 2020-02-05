@@ -14,7 +14,8 @@ unit HCItem;
 interface
 
 uses
-  Windows, Classes, Controls, Graphics, Generics.Collections, HCStyle, HCUndo, HCXml;
+  Windows, Classes, Controls, Graphics, Generics.Collections, HCCommon, HCStyle,
+  HCUndo, HCXml;
 
 type
   TScaleInfo = record
@@ -37,8 +38,6 @@ type
   TItemOptions = set of (ioParaFirst, ioPageBreak);
 
   TItemSelectState = (issNone, issPart, issComplate);
-
-  THCItemAction = (hiaRemove, hiaInsertChar, hiaBackDeleteChar, hiaDeleteChar);
 
   THCCustomItemClass = class of THCCustomItem;
 
@@ -154,7 +153,7 @@ type
     procedure SelectPart;
     function Selected: Boolean;
     /// <summaryy 在指定的位置是否可接受插入、删除等操作 </summary>
-    function CanAccept(const AOffset: Integer; const AAction: THCItemAction): Boolean; virtual;
+    function AcceptAction(const AOffset: Integer; const AAction: THCAction): Boolean; virtual;
     /// <summary> 从指定位置将当前item分成前后两部分 </summary>
     /// <param name="AOffset">分裂位置</param>
     /// <returns>后半部分对应的Item</returns>
@@ -229,7 +228,7 @@ begin
   Result.ParaFirst := False;  // 打断后，后面的肯定不是断首
 end;
 
-function THCCustomItem.CanAccept(const AOffset: Integer; const AAction: THCItemAction): Boolean;
+function THCCustomItem.AcceptAction(const AOffset: Integer; const AAction: THCAction): Boolean;
 begin
   Result := True;
 end;

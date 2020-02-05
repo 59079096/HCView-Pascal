@@ -19,23 +19,12 @@ uses
   HCCommon, HCViewDevData, HCList;
 
 type
-  THCDomainInfo = class(TObject)
-  strict private
-    FBeginNo, FEndNo: Integer;
-  public
-    constructor Create;
-    procedure Clear;
-    /// <summary> 域中是否包含此Item(头、尾也算) </summary>
-    function Contain(const AItemNo: Integer): Boolean;
-    property BeginNo: Integer read FBeginNo write FBeginNo;
-    property EndNo: Integer read FEndNo write FEndNo;
-  end;
-
   TStyleItemEvent = function (const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem of object;
   TOnCanEditEvent = function(const Sender: TObject): Boolean of object;
-  TTextEvent = function(const AData: THCCustomData; const AText: string): Boolean of object;
+  TTextEvent = function(const AData: THCCustomData; const AItemNo, AOffset: Integer;
+    const AText: string): Boolean of object;
 
-  THCViewData = class(THCViewDevData)  // 富文本数据类，可做为其他显示富文本类的基类
+  THCViewData = class(THCViewDevData)  // 具有高亮域和操作Items功能的Data类
   private
     FDomainStartDeletes: THCIntegerList;  // 仅用于选中删除时，当域起始结束都选中时，删除了结束后标明起始的可删除
     FHotDomain,  // 当前高亮域
@@ -46,11 +35,12 @@ type
     FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
-    FOnInsertText: TTextEvent;
+    FOnInsertTextBefor: TTextEvent;
+    procedure GetDomainStackFrom(const AItemNo, AOffset: Integer; const ADomainStack: TDomainStack);
     /// <summary> 获取指定位置所在的域信息 </summary>
     procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
   protected
-    function CanDeleteItem(const AItemNo: Integer): Boolean; override;
+    function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; override;
     /// <summary> 是否允许保存该Item </summary>
     function DoSaveItem(const AItemNo: Integer): Boolean; override;
 
@@ -76,6 +66,7 @@ type
     function DeleteSelected: Boolean; override;
     function DeleteActiveDomain: Boolean;
     function DeleteDomain(const ADomain: THCDomainInfo): Boolean;
+    function DeleteDomainByItemNo(const AStartNo, AEndNo: Integer): Boolean;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     function InsertItem(const AItem: THCCustomItem): Boolean; overload; override;
@@ -83,7 +74,7 @@ type
       const AOffsetBefor: Boolean = True): Boolean; overload; override;
     function CanEdit: Boolean; override;
 
-    function DoInsertText(const AText: string): Boolean; override;
+    function DoInsertTextBefor(const AItemNo, AOffset: Integer; const AText: string): Boolean; override;
 
     /// <summary> 根据传入的域"模具"创建域 </summary>
     /// <param name="AMouldDomain">"模具"调用完此方法后请自行释放</param>
@@ -122,7 +113,7 @@ type
     property ActiveDomain: THCDomainInfo read FActiveDomain;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
-    property OnInsertText: TTextEvent read FOnInsertText write FOnInsertText;
+    property OnInsertTextBefor: TTextEvent read FOnInsertTextBefor write FOnInsertTextBefor;
   end;
 
 implementation
@@ -132,12 +123,12 @@ uses
 
 { THCViewData }
 
-function THCViewData.CanDeleteItem(const AItemNo: Integer): Boolean;
+function THCViewData.DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean;
 var
   vItemNo: Integer;
 begin
-  Result := inherited CanDeleteItem(AItemNo);
-  if Result then
+  Result := inherited DoAcceptAction(AItemNo, AOffset, AAction);
+  if Result and (AAction = THCAction.actDeleteItem) then
   begin
     if Items[AItemNo].StyleNo = THCStyle.Domain then  // 是域标识
     begin
@@ -150,9 +141,7 @@ begin
       end
       else  // 域起始标记
         Result := FDomainStartDeletes.IndexOf(AItemNo) >= 0;  // 结束标识已经被标记为可删除
-    end
-    else
-      Result := Items[AItemNo].CanAccept(0, THCItemAction.hiaRemove);
+    end;
   end;
 end;
 
@@ -282,40 +271,44 @@ begin
 end;
 
 function THCViewData.DeleteDomain(const ADomain: THCDomainInfo): Boolean;
+begin
+  Result := DeleteDomainByItemNo(ADomain.BeginNo, ADomain.EndNo);
+end;
+
+function THCViewData.DeleteDomainByItemNo(const AStartNo,
+  AEndNo: Integer): Boolean;
 var
-  i, vFirstDrawItemNo, vParaLastItemNo, vDelCount, vBeginItemNo: Integer;
+  i, vFirstDrawItemNo, vParaLastItemNo, vDelCount: Integer;
   vBeginPageBreak: Boolean;
   vItem: THCCustomItem;
 begin
   Result := False;
-  if ADomain.BeginNo < 0 then Exit;
+  if AStartNo < 0 then Exit;
 
   Undo_New;
 
-  vBeginItemNo := ADomain.BeginNo;
-
-  vFirstDrawItemNo := GetFormatFirstDrawItem(Items[ADomain.BeginNo].FirstDItemNo);
-  vParaLastItemNo := GetParaLastItemNo(ADomain.EndNo);
-  if Items[ADomain.BeginNo].ParaFirst then  // 域起始是段首
+  vFirstDrawItemNo := GetFormatFirstDrawItem(Items[AStartNo].FirstDItemNo);
+  vParaLastItemNo := GetParaLastItemNo(AEndNo);
+  if Items[AStartNo].ParaFirst then  // 域起始是段首
   begin
-    if ADomain.EndNo = vParaLastItemNo then  // 域结束是段尾
+    if AEndNo = vParaLastItemNo then  // 域结束是段尾
     begin
-      if ADomain.BeginNo > 0 then  // 段删除干净了要从上一段最后开始格式化
-        vFirstDrawItemNo := GetFormatFirstDrawItem(Items[ADomain.BeginNo].FirstDItemNo - 1);
+      if AStartNo > 0 then  // 段删除干净了要从上一段最后开始格式化
+        vFirstDrawItemNo := GetFormatFirstDrawItem(Items[AStartNo].FirstDItemNo - 1);
     end
     else  // 域结束不是段尾，起始是段首
     begin
-      UndoAction_ItemParaFirst(ADomain.EndNo + 1, 0, True);
-      Items[ADomain.EndNo + 1].ParaFirst := True;
+      UndoAction_ItemParaFirst(AEndNo + 1, 0, True);
+      Items[AEndNo + 1].ParaFirst := True;
     end;
   end;
 
   FormatPrepare(vFirstDrawItemNo, vParaLastItemNo);
 
   vDelCount := 0;
-  vBeginPageBreak := Items[vBeginItemNo].PageBreak;
+  vBeginPageBreak := Items[AStartNo].PageBreak;
 
-  for i := ADomain.EndNo downto ADomain.BeginNo do  // 删除域及域范围内的Item
+  for i := AEndNo downto AStartNo do  // 删除域及域范围内的Item
   begin
     //if CanDeleteItem(i) then  // 允许删除
     begin
@@ -328,24 +321,24 @@ begin
 
   FActiveDomain.Clear;
 
-  if vBeginItemNo = 0 then  // 删除完了
+  if AStartNo = 0 then  // 删除完了
   begin
     vItem := CreateDefaultTextItem;
     vItem.ParaFirst := True;
     vItem.PageBreak := vBeginPageBreak;
 
-    Items.Insert(vBeginItemNo, vItem);
-    UndoAction_InsertItem(vBeginItemNo, 0);
+    Items.Insert(AStartNo, vItem);
+    UndoAction_InsertItem(AStartNo, 0);
     Dec(vDelCount);
   end;
 
   ReFormatData(vFirstDrawItemNo, vParaLastItemNo - vDelCount, -vDelCount);
 
   Self.InitializeField;
-  if vBeginItemNo > Items.Count - 1 then
-    ReSetSelectAndCaret(vBeginItemNo - 1)
+  if AStartNo > Items.Count - 1 then
+    ReSetSelectAndCaret(AStartNo - 1)
   else
-    ReSetSelectAndCaret(vBeginItemNo, 0);
+    ReSetSelectAndCaret(AStartNo, 0);
 
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
@@ -475,11 +468,11 @@ begin
   end;
 end;
 
-function THCViewData.DoInsertText(const AText: string): Boolean;
+function THCViewData.DoInsertTextBefor(const AItemNo, AOffset: Integer; const AText: string): Boolean;
 begin
-  Result := inherited DoInsertText(AText);
-  if Result and Assigned(FOnInsertText) then
-    Result := FOnInsertText(Self, AText);
+  Result := inherited DoInsertTextBefor(AItemNo, AOffset, AText);
+  if Result and Assigned(FOnInsertTextBefor) then
+    Result := FOnInsertTextBefor(Self, AItemNo, AOffset, AText);
 end;
 
 function THCViewData.DoSaveItem(const AItemNo: Integer): Boolean;
@@ -701,6 +694,29 @@ begin
 
     if ADomainInfo.EndNo < 0 then
       raise Exception.Create('异常：获取域结束位置出错！');
+  end;
+end;
+
+procedure THCViewData.GetDomainStackFrom(const AItemNo, AOffset: Integer;
+  const ADomainStack: TDomainStack);
+var
+  i: Integer;
+  vDomainInfo: THCDomainInfo;
+begin
+  for i := 0 to AItemNo - 1 do
+  begin
+    if Items[i] is THCDomainItem then
+    begin
+      if THCDomainItem.IsBeginMark(Items[i]) then
+      begin
+        vDomainInfo := THCDomainInfo.Create;
+        //GetDomainFrom(i, OffsetAfter, vDomainInfo);
+        vDomainInfo.BeginNo := i;
+        ADomainStack.Push(vDomainInfo);
+      end
+      else
+        ADomainStack.Pop;
+    end;
   end;
 end;
 
@@ -1228,6 +1244,7 @@ end;
 procedure THCViewData.TraverseItem(const ATraverse: THCItemTraverse);
 var
   i: Integer;
+  vDomainInfo: THCDomainInfo;
 begin
   if ATraverse <> nil then
   begin
@@ -1235,29 +1252,23 @@ begin
     begin
       if ATraverse.Stop then Break;
 
-      ATraverse.Process(Self, i, ATraverse.Tag, ATraverse.Stop);
+      if Items[i] is THCDomainItem then
+      begin
+        if THCDomainItem.IsBeginMark(Items[i]) then
+        begin
+          vDomainInfo := THCDomainInfo.Create;
+          GetDomainFrom(i, OffsetAfter, vDomainInfo);
+          ATraverse.DomainStack.Push(vDomainInfo);
+        end
+        else
+          ATraverse.DomainStack.Pop;
+      end;
+
+      ATraverse.Process(Self, i, ATraverse.Tag, ATraverse.DomainStack, ATraverse.Stop);
       if Items[i].StyleNo < THCStyle.Null then
         (Items[i] as THCCustomRectItem).TraverseItem(ATraverse);
     end;
   end;
-end;
-
-{ THCDomainInfo }
-
-procedure THCDomainInfo.Clear;
-begin
-  FBeginNo := -1;
-  FEndNo := -1;
-end;
-
-function THCDomainInfo.Contain(const AItemNo: Integer): Boolean;
-begin
-  Result := (AItemNo >= FBeginNo) and (AItemNo <= FEndNo);
-end;
-
-constructor THCDomainInfo.Create;
-begin
-  Clear;
 end;
 
 end.

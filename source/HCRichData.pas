@@ -26,12 +26,12 @@ uses
   HCTextItem, HCUndoData, HCXml;
 
 type
-  TInsertProc = reference to function(const AItem: THCCustomItem): Boolean;
-
+  TTextItemActionEvent = reference to function(const ATextItem: THCTextItem): Boolean;
+  TRectItemActionEvent = reference to function(const ARectItem: THCCustomRectItem): Boolean;
   TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo, AOffset: Integer;
     Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
-  THCRichData = class(THCUndoData)
+  THCRichData = class(THCUndoData)  // 富文本数据类，可做为其他显示富文本类的基类
   strict private
     /// <summary> 鼠标左键按下(打开文件对话框双击文件后会触发MouseMouse，MouseUp) </summary>
     FMouseLBDowning,
@@ -59,7 +59,7 @@ type
     FOnItemResized: TDataItemNoEvent;
     FOnItemMouseDown, FOnItemMouseUp: TItemMouseEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
-    FOnDeleteItem: TDataItemFunEvent;
+    FOnAcceptAction: TDataActionEvent;
 
     /// <summary> Shift按键按下时鼠标点击，根据按下位置适配选择范围 </summary>
     /// <param name="AMouseDonwItemNo"></param>
@@ -75,9 +75,13 @@ type
     /// <summary> 是否完美选中（判断文本和Rect混合选择时，Rect全选中。无选中是返回true）</summary>
     function SelectPerfect: Boolean;
 
-    /// <summary> 为避免表格插入行、列大量重复代码，使用匿名方法，但不支持D7 </summary>
-    function TableInsertRC(const AProc: TInsertProc): Boolean;
+    /// <summary> 当前TextItem内部变化后重新格式化（避免大量重复代码） </summary>
+    function TextItemAction(const AAction: TTextItemActionEvent): Boolean;
 
+    /// <summary> 当前RectItem内部变化后重新格式化（避免量重复代码） </summary>
+    function RectItemAction(const AAction: TRectItemActionEvent): Boolean;
+
+    /// <summary> 初始化鼠标相关字段 </summary>
     procedure InitializeMouseField;
 
     /// <summary> 划完完成后最后操作位置是否在选中范围起始 </summary>
@@ -86,8 +90,8 @@ type
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
-    /// <summary> 是否能删除指定的Item(常用于Data层面Items.Delete(i)前判断是否可删除) </summary>
-    function CanDeleteItem(const AItemNo: Integer): Boolean; virtual;
+    /// <summary> 是否接受指定的事件 </summary>
+    function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; virtual;
 
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; virtual;
@@ -96,7 +100,6 @@ type
     procedure DoItemResized(const AItemNo: Integer);
     function GetHeight: Cardinal; virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
-    procedure DeleteItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
 
     /// <summary> 给定起始结束位置，判断正确的选中位置并修正输出 </summary>
     /// <param name="ADrawItemNo">光标处的DrawItem(暂时无意义)</param>
@@ -110,6 +113,10 @@ type
   public
     constructor Create(const AStyle: THCStyle); override;
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; override;
+
+    /// <summary> 在Data层面是否可编辑 </summary>
+    function CanEdit: Boolean; override;
+
     procedure Clear; override;
     // 选中内容应用样式
     procedure ApplySelectTextStyle(const AMatchStyle: THCStyleMatch); override;
@@ -160,11 +167,11 @@ type
     // Key返回0表示此键按下Data没有做任何事情
     procedure KeyUp(var Key: Word; Shift: TShiftState); virtual;
 
-    /// <summary> 在Data层面是否可编辑 </summary>
-    function CanEdit: Boolean; virtual;
-    function DoInsertText(const AText: string): Boolean; virtual;
+    function DoInsertTextBefor(const AItemNo, AOffset: Integer;
+      const AText: string): Boolean; virtual;
     //
     procedure DblClick(X, Y: Integer);
+    procedure DeleteItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
     procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
       const AKeepPara: Boolean);
     /// <summary> 添加Data到当前 </summary>
@@ -184,6 +191,7 @@ type
 
     /// <summary> 在光标处插入直线 </summary>
     function InsertLine(const ALineHeight: Integer): Boolean;
+    function SetActiveImage(const AImageStream: TStream): Boolean;
     function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
     function TableInsertRowAfter(const ARowCount: Byte): Boolean;
     function TableInsertRowBefor(const ARowCount: Byte): Boolean;
@@ -197,7 +205,7 @@ type
     function TableApplyContentAlign(const AAlign: THCContentAlign): Boolean;
 
     /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
-    procedure ReAdaptActiveItem;
+    procedure ActiveItemReAdaptEnvironment;
 
     /// <summary> 取消激活(用于页眉、页脚、正文切换时原激活的取消) </summary>
     procedure DisActive;
@@ -217,7 +225,7 @@ type
     property OnItemMouseDown: TItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
-    property OnDeleteItem: TDataItemFunEvent read FOnDeleteItem write FOnDeleteItem;
+    property OnAcceptAction: TDataActionEvent read FOnAcceptAction write FOnAcceptAction;
   end;
 
 implementation
@@ -463,7 +471,7 @@ var
   function DeleteItemSelectComplate: Boolean;
   begin
     Result := False;
-    if not CanDeleteItem(SelectInfo.StartItemNo) then Exit;  // 允许删除
+    if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, THCAction.actDeleteItem) then Exit;  // 允许删除
 
     UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
     Items.Delete(SelectInfo.StartItemNo);
@@ -545,6 +553,7 @@ var
         end;
 
         SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+        SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);  // 删除选中再插入时如果是RectItem用原有Offset不行
       end;
     end;
 
@@ -589,7 +598,10 @@ begin
     // 如果变动会引起RectItem的宽度变化，则需要格式化到段最后一个Item
     GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
     FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-    vFormatFirstItemNo := DrawItems[vFormatFirstDrawItemNo].ItemNo;
+    if Self.FormatCount > 0 then
+      vFormatFirstItemNo := SelectInfo.StartItemNo
+    else
+      vFormatFirstItemNo := DrawItems[vFormatFirstDrawItemNo].ItemNo;
 
     Undo_New;
 
@@ -619,7 +631,10 @@ begin
 
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-      vFormatFirstItemNo := DrawItems[vFormatFirstDrawItemNo].ItemNo;
+      if Self.FormatCount > 0 then
+        vFormatFirstItemNo := SelectInfo.StartItemNo
+      else
+        vFormatFirstItemNo := DrawItems[vFormatFirstDrawItemNo].ItemNo;
 
       if vEndItem.IsSelectComplate then  // 该TextItem全选中了
       begin
@@ -668,7 +683,7 @@ begin
       begin
         if vSelEndComplate then  // 选中在最后面，即全选  SelectInfo.EndItemOffset = OffsetAfter
         begin
-          if CanDeleteItem(SelectInfo.EndItemNo) then  // 允许删除
+          if DoAcceptAction(SelectInfo.EndItemNo, SelectInfo.EndItemOffset, THCAction.actDeleteItem) then  // 允许删除
           begin
             UndoAction_DeleteItem(SelectInfo.EndItemNo, OffsetAfter);
             Items.Delete(SelectInfo.EndItemNo);
@@ -684,7 +699,7 @@ begin
       begin
         if vSelEndComplate then  // 在选中文本Item结束最后 SelectInfo.EndItemOffset = vEndItem.Length
         begin
-          if CanDeleteItem(SelectInfo.EndItemNo) then  // 允许删除
+          if DoAcceptAction(SelectInfo.EndItemNo, SelectInfo.EndItemOffset, THCAction.actDeleteItem) then  // 允许删除
           begin
             UndoAction_DeleteItem(SelectInfo.EndItemNo, vEndItem.Length);
             Items.Delete(SelectInfo.EndItemNo);
@@ -704,7 +719,7 @@ begin
       // 删除选中起始Item下一个到结束Item上一个
       for i := SelectInfo.EndItemNo - 1 downto SelectInfo.StartItemNo + 1 do
       begin
-        if CanDeleteItem(i) then  // 允许删除
+        if DoAcceptAction(i, 0, THCAction.actDeleteItem) then  // 允许删除
         begin
           UndoAction_DeleteItem(i, 0);
           Items.Delete(i);
@@ -718,7 +733,7 @@ begin
       begin
         if SelectInfo.StartItemOffset = OffsetBefor then  // 在其前
         begin
-          if CanDeleteItem(SelectInfo.StartItemNo) then  // 允许删除
+          if DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, THCAction.actDeleteItem) then  // 允许删除
           begin
             UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
             Items.Delete(SelectInfo.StartItemNo);
@@ -736,7 +751,7 @@ begin
       begin
         if vSelStartComplate then  // 在最前起始全选了 SelectInfo.StartItemOffset = 0
         begin
-          if CanDeleteItem(SelectInfo.StartItemNo) then  // 允许删除
+          if DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, THCAction.actDeleteItem) then  // 允许删除
           begin
             UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
             Items.Delete(SelectInfo.StartItemNo);
@@ -889,7 +904,8 @@ begin
   Style.UpdateInfoReCaret;  // 选择起始信息被重置为-1
 end;
 
-function THCRichData.DoInsertText(const AText: string): Boolean;
+function THCRichData.DoInsertTextBefor(const AItemNo, AOffset: Integer;
+  const AText: string): Boolean;
 begin
   Result := AText <> '';
 end;
@@ -952,13 +968,24 @@ begin
     Result := '';
 end;
 
+function THCRichData.SetActiveImage(const AImageStream: TStream): Boolean;
+begin
+  if not CanEdit then Exit(False);
+
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+    begin
+      (ARectItem as THCImageItem).Image.LoadFromStream(AImageStream);
+      Result := True;
+    end);
+end;
+
 function THCRichData.ActiveTableDeleteCurCol: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).DeleteCurCol;
+      Result := (ARectItem as THCTableItem).DeleteCurCol;
     end);
 end;
 
@@ -966,20 +993,19 @@ function THCRichData.ActiveTableDeleteCurRow: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).DeleteCurRow;
+      Result := (ARectItem as THCTableItem).DeleteCurRow;
     end);
 end;
 
-function THCRichData.ActiveTableResetRowCol(const ARowCount,
-  AColCount: Byte): Boolean;
+function THCRichData.ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).ResetRowCol(Self.Width, ARowCount, AColCount);
+      Result := (ARectItem as THCTableItem).ResetRowCol(Self.Width, ARowCount, AColCount);
     end);
 end;
 
@@ -987,9 +1013,9 @@ function THCRichData.ActiveTableSplitCurCol: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).SplitCurCol;
+      Result := (ARectItem as THCTableItem).SplitCurCol;
     end);
 end;
 
@@ -997,9 +1023,9 @@ function THCRichData.ActiveTableSplitCurRow: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).SplitCurRow;
+      Result := (ARectItem as THCTableItem).SplitCurRow;
     end);
 end;
 
@@ -1722,18 +1748,21 @@ procedure THCRichData.ApplyTableCellAlign(const AAlign: THCContentAlign);
 begin
   if not CanEdit then Exit;
 
-  TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      (AItem as THCTableItem).ApplyContentAlign(AAlign);
+      (ARectItem as THCTableItem).ApplyContentAlign(AAlign);
       Result := True;
     end);
 end;
 
-function THCRichData.CanDeleteItem(const AItemNo: Integer): Boolean;
+function THCRichData.DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean;
 begin
   Result := CanEdit;
-  if Result and Assigned(FOnDeleteItem) then
-    Result := FOnDeleteItem(Self, Self.Items[AItemNo]);
+  if Result then
+    Result := Items[AItemNo].AcceptAction(AOffset, AAction);
+
+  if Result and Assigned(FOnAcceptAction) then
+    Result := FOnAcceptAction(Self, AItemNo, AOffset, AAction);
 end;
 
 function THCRichData.CanEdit: Boolean;
@@ -2076,9 +2105,9 @@ function THCRichData.TableApplyContentAlign(const AAlign: THCContentAlign): Bool
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      (AItem as THCTableItem).ApplyContentAlign(AAlign);
+      (ARectItem as THCTableItem).ApplyContentAlign(AAlign);
       Result := True;
     end);
 end;
@@ -2087,9 +2116,9 @@ function THCRichData.TableInsertColAfter(const AColCount: Byte): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).InsertColAfter(AColCount);
+      Result := (ARectItem as THCTableItem).InsertColAfter(AColCount);
     end);
 end;
 
@@ -2097,30 +2126,35 @@ function THCRichData.TableInsertColBefor(const AColCount: Byte): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).InsertColBefor(AColCount);
+      Result := (ARectItem as THCTableItem).InsertColBefor(AColCount);
     end);
 end;
 
-function THCRichData.TableInsertRC(const AProc: TInsertProc): Boolean;
+function THCRichData.RectItemAction(const AAction: TRectItemActionEvent): Boolean;
 var
   vCurItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
   Result := False;
   vCurItemNo := GetActiveItemNo;
-  if Items[vCurItemNo] is THCTableItem then
+  if Items[vCurItemNo] is THCCustomRectItem then
   begin
     GetFormatRange(vCurItemNo, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
     FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
     Undo_New;
+    if (Items[vCurItemNo] as THCCustomRectItem).MangerUndo then
+      UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+    else
+      UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
     UndoAction_ItemSelf(vCurItemNo, OffsetInner);
-    Result := AProc(Items[vCurItemNo]);
+    Result := AAction(Items[vCurItemNo] as THCCustomRectItem);
     if Result then
     begin
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0);
-      // DisSelect;  // 合并后清空选中，会导致当前ItemNo没有了，通过方法往表格里插入时会出错
+      // DisSelect;  // 表格合并后清空选中，会导致当前ItemNo没有了，通过方法往表格里插入时会出错
       Style.UpdateInfoRePaint;
       Style.UpdateInfoReCaret;
     end;
@@ -2133,9 +2167,9 @@ function THCRichData.TableInsertRowAfter(const ARowCount: Byte): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).InsertRowAfter(ARowCount);
+      Result := (ARectItem as THCTableItem).InsertRowAfter(ARowCount);
     end);
 end;
 
@@ -2143,10 +2177,38 @@ function THCRichData.TableInsertRowBefor(const ARowCount: Byte): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).InsertRowBefor(ARowCount);
+      Result := (ARectItem as THCTableItem).InsertRowBefor(ARowCount);
     end);
+end;
+
+function THCRichData.TextItemAction(const AAction: TTextItemActionEvent): Boolean;
+var
+  vCurItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
+begin
+  Result := False;
+  vCurItemNo := GetActiveItemNo;
+  if Items[vCurItemNo] is THCTextItem then
+  begin
+    GetFormatRange(vCurItemNo, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
+    FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+
+    Undo_New;
+    UndoAction_ItemMirror(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+
+    //UndoAction_ItemSelf(vCurItemNo, OffsetInner);
+    Result := AAction(Items[vCurItemNo] as THCTextItem);
+    if Result then
+    begin
+      ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0);
+      //DisSelect;
+      Style.UpdateInfoRePaint;
+      Style.UpdateInfoReCaret;
+    end;
+
+    InitializeMouseField;
+  end;
 end;
 
 function THCRichData.InsertStream(const AStream: TStream;
@@ -2562,7 +2624,7 @@ var
 
     if vTextItem.StyleNo = CurStyleNo then  // 当前样式和插入位置TextItem样式相同
     begin
-      if vTextItem.CanAccept(SelectInfo.StartItemOffset, hiaInsertChar) then  // TextItem此偏移位置可接受输入
+      if DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actInsertText) then  // TextItem此偏移位置可接受输入
       begin
         if SelectInfo.StartItemOffset = 0 then  // 在TextItem最前面插入
         begin
@@ -2820,7 +2882,7 @@ begin
   Result := False;
 
   if not CanEdit then Exit;
-  if not DoInsertText(AText) then Exit;
+  if not DoInsertTextBefor(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, AText) then Exit;
   if not DeleteSelected then Exit;
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
@@ -3075,7 +3137,7 @@ var
       if vSelectExist then  // 有选中内容
       begin
         for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
-            Items[i].DisSelect;
+          Items[i].DisSelect;
 
         SelectInfo.EndItemNo := -1;
         SelectInfo.EndItemOffset := -1;
@@ -3122,6 +3184,12 @@ var
             // 不更换
           else
             CaretDrawItemNo := vNewCaretDrawItemNo;
+        end
+        else
+        if SelectInfo.StartRestrain then
+        begin
+          SelectInfo.StartRestrain := False;
+          Items[DrawItems[vNewCaretDrawItemNo].ItemNo].Active := True;
         end;
 
         Style.UpdateInfoRePaint;
@@ -3611,6 +3679,7 @@ var
           SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
           SelectInfo.StartItemOffset := vDrawItemOffset;
           CaretDrawItemNo := vDrawItemNo;
+          Style.UpdateInfoRePaint;
         end
         else
           Key := 0;
@@ -3747,6 +3816,7 @@ var
           SelectInfo.StartItemNo := DrawItems[vDrawItemNo].ItemNo;
           SelectInfo.StartItemOffset := vDrawItemOffset;
           CaretDrawItemNo := vDrawItemNo;
+          Style.UpdateInfoRePaint;
         end
         else  // 当前行是最后一行
           Key := 0;
@@ -3945,7 +4015,7 @@ var
 
         VK_DELETE:  // 在RectItem前
           begin
-            if not CanDeleteItem(SelectInfo.StartItemNo) then  // 不可删除
+            if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actDeleteItem) then  // 不可删除
             begin
               SelectInfo.StartItemOffset := OffsetAfter;
               Exit;
@@ -4033,7 +4103,7 @@ var
       case Key of
         VK_BACK:
           begin
-            if not CanDeleteItem(SelectInfo.StartItemNo) then  // 不可删除
+            if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actDeleteItem) then  // 不可删除
             begin
               SelectInfo.StartItemOffset := OffsetBefor;
               Exit;
@@ -4444,11 +4514,8 @@ var
     end
     else  // 光标不在Item最右边
     begin
-      if not CanDeleteItem(vCurItemNo) then  // 不可删除
-        SelectInfo.StartItemOffset := SelectInfo.StartItemOffset + 1
-      else
-      if not vCurItem.CanAccept(SelectInfo.StartItemOffset, hiaDeleteChar) then
-        SelectInfo.StartItemOffset := SelectInfo.StartItemOffset + 1
+      if not DoAcceptAction(vCurItemNo, SelectInfo.StartItemOffset, actDeleteText) then  // 不可删除
+        SelectInfo.StartItemOffset := Items[vCurItemNo].Length  // SelectInfo.StartItemOffset + 1
       else  // 可删除
       begin
         vText := Items[vCurItemNo].Text;
@@ -4460,7 +4527,7 @@ var
         vsDelete := Copy(vText, SelectInfo.StartItemOffset + 1, 1);
         Delete(vText, SelectInfo.StartItemOffset + 1, 1);
         {$ENDIF}
-        DoItemAction(vCurItemNo, SelectInfo.StartItemOffset + 1, hiaDeleteChar);
+        DoItemAction(vCurItemNo, SelectInfo.StartItemOffset + 1, actDeleteText);
 
         if vText = '' then  // 删除后没有内容了
         begin
@@ -4722,7 +4789,7 @@ var
           if Items[SelectInfo.StartItemNo - 1].StyleNo < THCStyle.Null then  // 前面是RectItem
           begin
             vCurItemNo := SelectInfo.StartItemNo - 1;
-            if CanDeleteItem(vCurItemNo) then  // 能删除
+            if DoAcceptAction(vCurItemNo, OffsetBefor, actDeleteItem) then  // 能删除
             begin
               Undo_New;
 
@@ -4779,8 +4846,12 @@ var
     end
     else  // 光标不在Item最开始  文本TextItem
     begin
-      if not vCurItem.CanAccept(SelectInfo.StartItemOffset, hiaBackDeleteChar) then  // 不允许删除
-        LeftKeyDown  // 往前走
+      if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actBackDeleteText) then  // 不允许删除
+      begin
+        //LeftKeyDown  // 往前走
+        SelectInfo.StartItemOffset := 0;
+        ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+      end
       else
       if vCurItem.Length = 1 then  // 删除后没有内容了
       begin
@@ -4951,7 +5022,7 @@ var
         GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
         FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
-        DoItemAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, hiaBackDeleteChar);
+        DoItemAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actBackDeleteText);
         vText := vCurItem.Text;  // 和上面 201806242257 处一样
 
         Undo_New;
@@ -5106,9 +5177,9 @@ function THCRichData.MergeTableSelectCells: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := TableInsertRC(function(const AItem: THCCustomItem): Boolean
+  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
     begin
-      Result := (AItem as THCTableItem).MergeSelectCells;
+      Result := (ARectItem as THCTableItem).MergeSelectCells;
     end);
 end;
 
@@ -5387,12 +5458,14 @@ var
     begin
       SelectInfo.StartItemNo := vUpItemNo;
       SelectInfo.StartItemOffset := vUpItemOffset;
+      SelectInfo.StartRestrain := vRestrain;
       CaretDrawItemNo := vDrawItemNo;
     end
     else
     begin
       SelectInfo.StartItemNo := FMouseMoveItemNo;
       SelectInfo.StartItemOffset := FMouseMoveItemOffset;
+      SelectInfo.StartRestrain := vRestrain;
       CaretDrawItemNo := FMouseMoveDrawItemNo;
     end;
 
@@ -5522,7 +5595,7 @@ begin
   Style.UpdateInfoReScroll;
 end;
 
-procedure THCRichData.ReAdaptActiveItem;
+procedure THCRichData.ActiveItemReAdaptEnvironment;
 var
   vActiveItem: THCCustomItem;
   vRectItem: THCCustomRectItem;
@@ -5546,7 +5619,7 @@ begin
     else
       UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
-    vRectItem.ReAdaptActiveItem;
+    vRectItem.ActiveItemReAdaptEnvironment;
     if vRectItem.SizeChanged then
     begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
@@ -5730,7 +5803,8 @@ var
 begin
   if not CanEdit then Exit;
 
-  if AText = '' then Exit;  
+  //if not DoInsertTextBefor(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, AText) then Exit;
+  if AText = '' then Exit;
 
   Self.InitializeField;
   vActiveItem := GetActiveItem;

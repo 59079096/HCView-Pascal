@@ -61,10 +61,11 @@ const
    3.2 表格边框改用磅为单位、段样式增加BreakRough处理截断、兼容EmrView使用TDeImageItem类处理ImageItem
    3.3 兼容32版本图片保存时没有按DeImageItem保存，读取时不正确的问题
    3.4 RadioGroun控件保存选项样式、保存文件所用的排版算法版本、增加Item打印不可见属性，EditItem增加仅打印文本属性
+   3.5 数据元增加DeleteProtect控制是否能删除掉整个数据元，表格存储CellPadding，FloatBarCode存储单线条宽度
   }
 
-  HC_FileVersion = '3.4';
-  HC_FileVersionInt = 34;
+  HC_FileVersion = '3.5';
+  HC_FileVersionInt = 35;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -133,34 +134,46 @@ type
     //jctCNFH   // 全角符号
     );
 
-  TPaperSize = (psCustom, ps4A0, ps2A0, psA0, psA1, psA2,
-    psA3, psA4, psA5, psA6, psA7, psA8,
-    psA9, psA10, psB0, psB1, psB2, psB3,
-    psB4, psB5, psB6, psB7, psB8, psB9,
-    psB10, psC0, psC1, psC2, psC3, psC4,
-    psC5, psC6, psC7, psC8, psC9, psC10,
-    psLetter, psLegal, psLedger, psTabloid,
-    psStatement, psQuarto, psFoolscap, psFolio,
-    psExecutive, psMonarch, psGovernmentLetter,
-    psPost, psCrown, psLargePost, psDemy,
-    psMedium, psRoyal, psElephant, psDoubleDemy,
-    psQuadDemy, psIndexCard3_5, psIndexCard4_6,
-    psIndexCard5_8, psInternationalBusinessCard,
-    psUSBusinessCard, psEmperor, psAntiquarian,
-    psGrandEagle, psDoubleElephant, psAtlas,
-    psColombier, psImperial, psDoubleLargePost,
-    psPrincess, psCartridge, psSheet, psHalfPost,
-    psDoublePost, psSuperRoyal, psCopyDraught,
-    psPinchedPost, psSmallFoolscap, psBrief, psPott,
-    psPA0, psPA1, psPA2, psPA3, psPA4, psPA5,
-    psPA6, psPA7, psPA8, psPA9, psPA10, psF4,
-    psA0a, psJISB0, psJISB1, psJISB2, psJISB3,
-    psJISB4, psJISB5, psJISB6, psJISB7, psJISB8,
-    psJISB9, psJISB10, psJISB11, psJISB12,
-    psANSI_A, psANSI_B, psANSI_C, psANSI_D,
-    psANSI_E, psArch_A, psArch_B, psArch_C,
-    psArch_D, psArch_E, psArch_E1,
-    ps16K, ps32K);
+  THCAction = (
+    actBackDeleteText,  // 向前删除文本
+    actDeleteText,  // 向后删除文本
+    actInsertText,  // 插入文本
+    actSetItemText,    // 直接赋值Item的Text
+    actDeleteItem,  // 删除Item
+    actInsertItem,  // 插入Item
+    actItemProperty,  // Item属性变化
+    actItemSelf,  // Item自己管理
+    actItemMirror  // Item镜像
+    );
+
+//  TPaperSize = (psCustom, ps4A0, ps2A0, psA0, psA1, psA2,
+//    psA3, psA4, psA5, psA6, psA7, psA8,
+//    psA9, psA10, psB0, psB1, psB2, psB3,
+//    psB4, psB5, psB6, psB7, psB8, psB9,
+//    psB10, psC0, psC1, psC2, psC3, psC4,
+//    psC5, psC6, psC7, psC8, psC9, psC10,
+//    psLetter, psLegal, psLedger, psTabloid,
+//    psStatement, psQuarto, psFoolscap, psFolio,
+//    psExecutive, psMonarch, psGovernmentLetter,
+//    psPost, psCrown, psLargePost, psDemy,
+//    psMedium, psRoyal, psElephant, psDoubleDemy,
+//    psQuadDemy, psIndexCard3_5, psIndexCard4_6,
+//    psIndexCard5_8, psInternationalBusinessCard,
+//    psUSBusinessCard, psEmperor, psAntiquarian,
+//    psGrandEagle, psDoubleElephant, psAtlas,
+//    psColombier, psImperial, psDoubleLargePost,
+//    psPrincess, psCartridge, psSheet, psHalfPost,
+//    psDoublePost, psSuperRoyal, psCopyDraught,
+//    psPinchedPost, psSmallFoolscap, psBrief, psPott,
+//    psPA0, psPA1, psPA2, psPA3, psPA4, psPA5,
+//    psPA6, psPA7, psPA8, psPA9, psPA10, psF4,
+//    psA0a, psJISB0, psJISB1, psJISB2, psJISB3,
+//    psJISB4, psJISB5, psJISB6, psJISB7, psJISB8,
+//    psJISB9, psJISB10, psJISB11, psJISB12,
+//    psANSI_A, psANSI_B, psANSI_C, psANSI_D,
+//    psANSI_E, psArch_A, psArch_B, psArch_C,
+//    psArch_D, psArch_E, psArch_E1,
+//    ps16K, ps32K);
 
   THCCaretInfo = record
     X, Y, Height, PageIndex: Integer;
@@ -196,7 +209,7 @@ type
 
   THCCaret = Class(TObject)
   private
-    FReCreate, FDisFocus: Boolean;
+    FReCreate, FDisFocus, FVScroll, FHScroll: Boolean;
     FHeight: Integer;
     FOwnHandle: THandle;
     FX, FY: Integer;
@@ -218,6 +231,8 @@ type
     property X: Integer read FX write SetX;
     property Y: Integer read FY write SetY;
     property DisFocus: Boolean read FDisFocus;
+    property VScroll: Boolean read FVScroll write FVScroll;
+    property HScroll: Boolean read FHScroll write FHScroll;
   end;
 
   function SwapBytes(AValue: Word): Word;
@@ -925,6 +940,8 @@ begin
   CreateCaret(FOwnHandle, 0, FWidth, 20);
   FReCreate := False;
   FDisFocus := False;
+  FVScroll := False;
+  FHScroll := False;
 end;
 
 destructor THCCaret.Destroy;

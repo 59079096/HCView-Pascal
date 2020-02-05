@@ -33,6 +33,8 @@ type
     constructor CreateByText(const AText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
+    function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
+
     // 保存和读取
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -60,6 +62,13 @@ uses
 
 { THCTextItem }
 
+function THCTextItem.CanConcatItems(const AItem: THCCustomItem): Boolean;
+begin
+  Result := inherited CanConcatItems(AItem);
+  if Result then
+    Result := FHyperLink = AItem.HyperLink;
+end;
+
 constructor THCTextItem.CreateByText(const AText: string);
 begin
   Create;  // 这里如果 inherited Create; 则调用THCCustomItem的Create，子类TEmrTextItem调用CreateByText时不能执行自己的Create
@@ -71,6 +80,7 @@ procedure THCTextItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
   FText := (Source as THCTextItem).Text;
+  FHyperLink := (Source as THCTextItem).HyperLink;
 end;
 
 function THCTextItem.BreakByOffset(const AOffset: Integer): THCCustomItem;
@@ -131,6 +141,11 @@ begin
     else
       FText := StringOf(vBuffer);
   end;
+
+  if AFileVersion > 34 then
+    HCLoadTextFromStream(AStream, FHyperLink, AFileVersion)
+  else
+    FHyperLink := '';
 end;
 
 procedure THCTextItem.ParseXml(const ANode: IHCXMLNode);
@@ -157,6 +172,8 @@ begin
   AStream.WriteBuffer(vSize, SizeOf(vSize));
   if vSize > 0 then
     AStream.WriteBuffer(vBuffer[0], vSize);
+
+  HCSaveTextToStream(AStream, FHyperLink);
 end;
 
 procedure THCTextItem.SetHyperLink(const Value: string);

@@ -41,6 +41,8 @@ type
     /// <summary> 多次格式化是否有变动，外部由此决定是否重新计算分页起始结束DrawItemNo </summary>
     FFormatChange: Boolean;
 
+    FOnItemRequestFormat: TDataItemEvent;
+
     procedure FormatRange(const AStartDrawItemNo, ALastItemNo: Integer);
 
     procedure CalcItemFormatHeigh(const AItem: THCCustomItem);
@@ -104,6 +106,7 @@ type
     procedure ReFormatActiveParagraph; virtual;
     /// <summary> 重新格式化当前Item(用于仅修改当前Item属性或内容) </summary>
     procedure ReFormatActiveItem; virtual;
+    procedure ItemRequestFormat(const AItem: THCCustomItem); virtual;
     procedure BeginFormat;
     procedure EndFormat(const AReformat: Boolean = True);
     property Width: Integer read FWidth write FWidth;
@@ -111,6 +114,8 @@ type
     property FormatHeightChange: Boolean read FFormatHeightChange;
     property FormatDrawItemCountChange: Boolean read FFormatDrawItemCountChange;
     property FormatChange: Boolean read FFormatChange write FFormatChange;
+    property FormatCount: Integer read FFormatCount;
+    property OnItemRequestFormat: TDataItemEvent read FOnItemRequestFormat write FOnItemRequestFormat;
   end;
 
 implementation
@@ -785,8 +790,11 @@ var
 
       FindLineBreak(vText, ACharOffset, viPlaceOffset);  // 判断从viPlaceOffset后打断是否合适
 
-      if (viPlaceOffset = 0) and (not vLineFirst) then  // 能放下的都不合适放到当前行且不是行首格式化，整体下移
-      begin
+      if (viPlaceOffset = 0)  // 没找到合适的截断位置
+        //and (not vLineFirst)  // 不是行第一个DrawItem，才考虑往下换行（用下面的判断代替了）
+        and (APos.X > AFmtLeft)  // 如果此DrawItem不是行首但排版位置是从最左边开始(行首是0宽RectItem)，
+      then                       // 整体下移后的排版计算仍会是最左边，所以只对不在最左边开始排版的才下移
+      begin                      // 避免当前行排版不放东西又往下一行，死循环
         vRemainderWidth := APlaceWidth;
         FinishLine(ALastDrawItemNo, vRemainderWidth);
         APos.X := AFmtLeft;  // 偏移到下一行开始计算
@@ -1019,6 +1027,12 @@ begin
 //  ALastItemNo := GetParaLastItemNo(AItemNo);
 end;
 
+procedure THCFormatData.ItemRequestFormat(const AItem: THCCustomItem);
+begin
+  if Assigned(FOnItemRequestFormat) then
+    FOnItemRequestFormat(Self, AItem);
+end;
+
 procedure THCFormatData.ReFormat;
 begin
   if FFormatCount = 0 then
@@ -1111,6 +1125,7 @@ begin
                         or (DrawItems[AFirstDrawItemNo].Rect.Top <> FFormatStartTop)  // 段格式化后，高度的增量
                         or (DrawItems[vLastDrawItemNo].Rect.Bottom <> FFormatEndBottom);
 
+  FFormatChange := False;
   if FFormatHeightChange or (AExtraItemCount <> 0) or FFormatDrawItemCountChange then
   begin                            {FFormatDrawItemCountChange能被前两者代表吗？}
     FFormatChange := True;

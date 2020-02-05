@@ -20,6 +20,7 @@ type
     FTableToolBar: THCTableToolBar;
     FImageToolBar: THCImageToolBar;
     FMouseViewPt: TPoint;
+    FUseTableTool, FUseImageTool: Boolean;
 
     FOnTableToolPropertyClick: TNotifyEvent;
 
@@ -27,8 +28,11 @@ type
     procedure DoTableToolPropertyClick(Sender: TObject);
     procedure DoImageShapeStructOver(Sender: TObject);
 
-    procedure SetActiveToolItem(const Value: THCCustomItem);
-    procedure SetToolImageList(const Value: TCustomImageList);
+    procedure SetUseTableTool(const Value: Boolean);
+    procedure SetUseImageTool(const Value: Boolean);
+
+    procedure SetActiveToolItem(const AItem: THCCustomItem);
+    procedure SetToolImageList(const AItem: TCustomImageList);
     function PtInTableToolBar(const X, Y: Integer): Boolean;
     function PtInImageToolBar(const X, Y: Integer): Boolean;
     procedure DoTableToolBarUpdateView(const ARect: TRect; const ACanvas: TCanvas);
@@ -68,6 +72,8 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    property UseTableTool: Boolean read FUseTableTool write SetUseTableTool;
+    property UseImageTool: Boolean read FUseImageTool write SetUseImageTool;
     property OnTableToolPropertyClick: TNotifyEvent read FOnTableToolPropertyClick write FOnTableToolPropertyClick;
     property ToolImageList: TCustomImageList read FToolImageList write SetToolImageList;
   end;
@@ -84,11 +90,14 @@ begin
   FToolOffset := -4;
   FActiveItem := nil;
   FHotToolBar := nil;
+  FUseTableTool := True;
+  FUseImageTool := True;
 
   FTableToolMenu := TPopupMenu.Create(Self);
   vMenuItem := TMenuItem.Create(FTableToolMenu);
   vMenuItem.Caption := '重设行列';
   vResetMenuItem := TMenuItem.Create(FTableToolMenu);
+  vResetMenuItem.Caption := '2 x 2';
   vResetMenuItem.Tag := 22;
   vResetMenuItem.OnClick := DoTableToolResetRowColClick;
   vMenuItem.Add(vResetMenuItem);
@@ -455,13 +464,13 @@ begin
 
   if not Self.ReadOnly then
   begin
-    if FTableToolBar.Visible and TableMouseDown(Button, Shift, X, Y) then
+    if FUseTableTool and FTableToolBar.Visible and TableMouseDown(Button, Shift, X, Y) then
     begin
       FCaptureToolBar := FTableToolBar;
       Exit;
     end;
 
-    if FImageToolBar.Visible and ImageMouseDown(Button, Shift, X, Y) then
+    if FUseImageTool and FImageToolBar.Visible and ImageMouseDown(Button, Shift, X, Y) then
     begin
       FCaptureToolBar := FImageToolBar;
       Exit;
@@ -505,7 +514,7 @@ begin
     end;
 
     if FTableToolBar.Visible and TableMouseMove(Shift, X, Y) then Exit;
-    if FImageToolBar.Visible and ImageMouseMove(Shift, X, Y) then Exit;    
+    if FImageToolBar.Visible and ImageMouseMove(Shift, X, Y) then Exit;
   end;
 
   if Assigned(FHotToolBar) then
@@ -560,7 +569,7 @@ begin
   Result := PtInRect(FTableToolBar.Bound, vPt);
 end;
 
-procedure THCViewTool.SetActiveToolItem(const Value: THCCustomItem);
+procedure THCViewTool.SetActiveToolItem(const AItem: THCCustomItem);
 var
   vPt: TPoint;
 begin
@@ -568,29 +577,29 @@ begin
   // 会重新触发重绘，重绘是通过DoImageToolBarUpdateView(Rect)，需要先计算区域参数
   // 然后触发UpdateView，所以需要提前计算ToolBar的坐标vPt位置
 
-  if FActiveItem <> Value then
+  if FActiveItem <> AItem then
   begin
-    if FActiveItem is THCTableItem then
+    if FUseTableTool and (FActiveItem is THCTableItem) then
       FTableToolBar.Visible := False
     else
-    if FActiveItem is THCImageItem then
+    if FUseImageTool and (FActiveItem is THCImageItem) then
       FImageToolBar.Visible := False;
 
-    if Assigned(Value) and Value.Active then
+    if Assigned(AItem) and AItem.Active then
     begin
       vPt := Self.GetTopLevelRectDrawItemViewCoord;
-      if (Value is THCTableItem) and (FTableToolBar.Controls.Count > 0) then
+      if FUseTableTool and (AItem is THCTableItem) and (FTableToolBar.Controls.Count > 0) then
       begin
-        FActiveItem := Value;
+        FActiveItem := AItem;
 
         FTableToolBar.Left := vPt.X - FTableToolBar.Width + FToolOffset;
         FTableToolBar.Top := vPt.Y;// - FTableToolBar.Height + FToolOffset;
         FTableToolBar.Visible := True;  // False 不使用该功能时不显示
       end
       else
-      if (Value is THCImageItem) and (FImageToolBar.Controls.Count > 0) then
+      if FUseImageTool and (AItem is THCImageItem) and (FImageToolBar.Controls.Count > 0) then
       begin
-        FActiveItem := Value;
+        FActiveItem := AItem;
         (FActiveItem as THCImageItem).ShapeManager.OnStructOver := DoImageShapeStructOver;
         FImageToolBar.Left := vPt.X;
         FImageToolBar.Top := vPt.Y - FImageToolBar.Height + FToolOffset;
@@ -605,21 +614,41 @@ begin
   else
   if Assigned(FActiveItem) and (not FActiveItem.Active) then
   begin
-    if FActiveItem is THCTableItem then
+    if FUseTableTool and (FActiveItem is THCTableItem) then
       FTableToolBar.Visible := False
     else
-    if FActiveItem is THCImageItem then
+    if FUseImageTool and (FActiveItem is THCImageItem) then
       FImageToolBar.Visible := False;
 
     FActiveItem := nil;
   end;
 end;
 
-procedure THCViewTool.SetToolImageList(const Value: TCustomImageList);
+procedure THCViewTool.SetToolImageList(const AItem: TCustomImageList);
 begin
-  FToolImageList := Value;
+  FToolImageList := AItem;
   FTableToolBar.UpdateView;
   FImageToolBar.UpdateView;
+end;
+
+procedure THCViewTool.SetUseImageTool(const Value: Boolean);
+begin
+  if FUseImageTool <> Value then
+  begin
+    FUseImageTool := Value;
+    if not Value then
+      FImageToolBar.Visible := False;
+  end;
+end;
+
+procedure THCViewTool.SetUseTableTool(const Value: Boolean);
+begin
+  if FUseTableTool <> Value then
+  begin
+    FUseTableTool := Value;
+    if not Value then
+      FTableToolBar.Visible := False;
+  end;
 end;
 
 function THCViewTool.TableKeyDown(var Key: Word; Shift: TShiftState): Boolean;

@@ -78,6 +78,7 @@ type
     procedure Clear; override;
     procedure Undo(const AUndo: THCCustomUndo); virtual;
     procedure Redo(const ARedo: THCCustomUndo); virtual;
+    procedure UndoItemMirror(const AItemNo, AOffset: Integer);
   end;
 
 implementation
@@ -410,15 +411,15 @@ var
 
   begin
     case AAction.Tag of
-      uatDeleteBackText: UndoRedoDeleteBackText;
-      uatDeleteText: UndoRedoDeleteText;
-      uatInsertText: UndoRedoInsertText;
-      uatSetItemText: UndoRedoSetItemText;
-      uatDeleteItem: UndoRedoDeleteItem;
-      uatInsertItem: UndoRedoInsertItem;
-      uatItemProperty: UndoRedoItemProperty;
-      uatItemSelf: UndoRedoItemSelf;
-      uatItemMirror: UndoRedoItemMirror;
+      actBackDeleteText: UndoRedoDeleteBackText;
+      actDeleteText: UndoRedoDeleteText;
+      actInsertText: UndoRedoInsertText;
+      actSetItemText: UndoRedoSetItemText;
+      actDeleteItem: UndoRedoDeleteItem;
+      actInsertItem: UndoRedoInsertItem;
+      actItemProperty: UndoRedoItemProperty;
+      actItemSelf: UndoRedoItemSelf;
+      actItemMirror: UndoRedoItemMirror;
     end;
   end;
 
@@ -430,13 +431,13 @@ var
     Result := AAction.ItemNo;
 
     case AAction.Tag of
-      uatDeleteItem:
+      actDeleteItem:
         begin
           if Result > 0 then
             Dec(Result);
         end;
 
-      uatInsertItem:
+      actInsertItem:
         begin
           if AUndo.IsUndo then  // 是撤销
           begin
@@ -450,7 +451,7 @@ var
           end;
         end;
 
-      uatItemProperty:
+      actItemProperty:
         begin
           vPropAction := AAction as THCItemPropertyUndoAction;
           if (vPropAction.ItemProperty = TItemProperty.uipParaFirst)  // 段首属性变化
@@ -473,7 +474,7 @@ var
     Result := AAction.ItemNo;
 
     case AAction.Tag of
-      uatDeleteItem:
+      actDeleteItem:
         begin
           if AUndo.IsUndo then
           begin
@@ -487,7 +488,7 @@ var
           end;
         end;
 
-      uatInsertItem:
+      actInsertItem:
         begin
           if AUndo.IsUndo then
           begin
@@ -809,7 +810,7 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vItemAction := vUndo.ActionAppend(uatDeleteItem, AItemNo, AOffset,
+      vItemAction := vUndo.ActionAppend(actDeleteItem, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCItemUndoAction;
       SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
     end;
@@ -829,7 +830,7 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vTextAction := vUndo.ActionAppend(uatDeleteText, AItemNo, AOffset,
+      vTextAction := vUndo.ActionAppend(actDeleteText, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCTextUndoAction;
       vTextAction.Text := AText;
     end;
@@ -849,7 +850,7 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vTextAction := vUndo.ActionAppend(uatDeleteBackText, AItemNo, AOffset,
+      vTextAction := vUndo.ActionAppend(actBackDeleteText, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCTextUndoAction;
       vTextAction.Text := AText;
     end;
@@ -869,7 +870,7 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vItemAction := vUndo.ActionAppend(uatInsertItem, AItemNo, AOffset,
+      vItemAction := vUndo.ActionAppend(actInsertItem, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCItemUndoAction;
       SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
     end;
@@ -889,7 +890,7 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vTextAction := vUndo.ActionAppend(uatInsertText, AItemNo, AOffset,
+      vTextAction := vUndo.ActionAppend(actInsertText, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCTextUndoAction;
       vTextAction.Text := AText;
     end;
@@ -909,7 +910,7 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vItemAction := vUndo.ActionAppend(uatItemMirror, AItemNo, AOffset,
+      vItemAction := vUndo.ActionAppend(actItemMirror, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCItemUndoAction;
       SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
     end;
@@ -998,7 +999,7 @@ begin
   begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
-      vUndo.ActionAppend(uatItemSelf, AItemNo, AOffset, Items[AItemNo].ParaFirst);
+      vUndo.ActionAppend(actItemSelf, AItemNo, AOffset, Items[AItemNo].ParaFirst);
   end;
 end;
 
@@ -1038,12 +1039,17 @@ begin
     vUndo := vUndoList.Last;
     if vUndo <> nil then
     begin
-      vTextAction := vUndo.ActionAppend(uatSetItemText, AItemNo, AOffset,
+      vTextAction := vUndo.ActionAppend(actSetItemText, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCSetItemTextUndoAction;
       vTextAction.Text := Items[AItemNo].Text;
       vTextAction.NewText := ANewText;
     end;
   end;
+end;
+
+procedure THCUndoData.UndoItemMirror(const AItemNo, AOffset: Integer);
+begin
+  Self.UndoAction_ItemMirror(AItemNo, AOffset);
 end;
 
 procedure THCUndoData.Undo_GroupBegin(const AItemNo, AOffset: Integer);

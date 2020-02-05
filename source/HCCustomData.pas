@@ -16,8 +16,9 @@ interface
 {$I HCView.inc}
 
 uses
-  Windows, Classes, Types, Controls, Graphics, HCItem, HCDrawItem, HCStyle,
-  HCParaStyle, HCTextStyle, HCStyleMatch, HCCommon, HCUndo, HCXml, HCList;
+  Windows, Classes, Types, Controls, Graphics, Generics.Collections, HCItem,
+  HCDrawItem, HCStyle, HCParaStyle, HCTextStyle, HCStyleMatch, HCCommon, HCUndo,
+  HCXml, HCList;
 
 type
   TSelectInfo = class(TObject)
@@ -41,12 +42,26 @@ type
     property EndItemOffset: Integer read FEndItemOffset write FEndItemOffset;
   end;
 
+  THCDomainInfo = class(TObject)
+  strict private
+    FBeginNo, FEndNo: Integer;
+  public
+    constructor Create;
+    procedure Clear;
+    /// <summary> 域中是否包含此Item(头、尾也算) </summary>
+    function Contain(const AItemNo: Integer): Boolean;
+    property BeginNo: Integer read FBeginNo write FBeginNo;
+    property EndNo: Integer read FEndNo write FEndNo;
+  end;
+
+  TDomainStack = class(TObjectStack<THCDomainInfo>);
   THCCustomData = class;
 
+  TDataDomainItemNoEvent = procedure(const AData: THCCustomData; const ADomainStack: TDomainStack; const AItemNo: Integer) of object;
   TDataItemEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
-  TDataItemFunEvent = function(const AData: THCCustomData; const AItem: THCCustomItem): Boolean of object;
   TDataItemNoEvent = procedure(const AData: THCCustomData; const AItemNo: Integer) of object;
   TDataItemNoFunEvent = function(const AData: THCCustomData; const AItemNo: Integer): Boolean of object;
+  TDataActionEvent = function(const AData: THCCustomData; const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean of object;
 
   TDrawItemPaintEvent = procedure(const AData: THCCustomData;
     const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
@@ -70,7 +85,7 @@ type
     FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
 
     FOnInsertItem, FOnRemoveItem: TDataItemEvent;
-    FOnSaveItem: TDataItemNoFunEvent;
+    FOnSaveItem: TDataItemNoFunEvent;  // 可控制保存时不保存指定的Item实现一次性的功能
     FOnGetUndoList: TGetUndoListEvent;
     FOnCurParaNoChange: TNotifyEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
@@ -141,7 +156,7 @@ type
     function DoSaveItem(const AItemNo: Integer): Boolean; virtual;
     procedure DoInsertItem(const AItem: THCCustomItem); virtual;
     procedure DoRemoveItem(const AItem: THCCustomItem); virtual;
-    procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCItemAction); virtual;
+    procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCAction); virtual;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
@@ -159,6 +174,9 @@ type
   public
     constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
+
+    /// <summary> 在Data层面是否可编辑 </summary>
+    function CanEdit: Boolean; virtual;
 
     /// <summary> 全选 </summary>
     procedure SelectAll; virtual;
@@ -400,6 +418,8 @@ type
     function SelectExists(const AIfRectItem: Boolean = True): Boolean;
     procedure MarkStyleUsed(const AMark: Boolean);
 
+    procedure SaveItemToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
+      AEndItemNo, AEndOffset: Integer);
     procedure SaveToStream(const AStream: TStream); overload; virtual;
     procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
       AEndItemNo, AEndOffset: Integer); overload; virtual;
@@ -439,9 +459,8 @@ type
     property OnSaveItem: TDataItemNoFunEvent read FOnSaveItem write FOnSaveItem;
   end;
 
-type
   TTraverseItemEvent = reference to procedure(const AData: THCCustomData;
-    const AItemNo, ATag: Integer; var AStop: Boolean);
+    const AItemNo, ATag: Integer; const ADomainStack: TDomainStack; var AStop: Boolean);
 
   THCItemTraverse = class(TObject)
   public
@@ -449,6 +468,9 @@ type
     Tag: Integer;
     Stop: Boolean;
     Process: TTraverseItemEvent;
+    DomainStack: TDomainStack;
+    constructor Create;
+    destructor Destroy; override;
   end;
 
 implementation
@@ -848,7 +870,7 @@ begin
 end;
 
 procedure THCCustomData.DoItemAction(const AItemNo, AOffset: Integer;
-  const AAction: THCItemAction);
+  const AAction: THCAction);
 begin
 end;
 
@@ -2315,7 +2337,7 @@ begin
         end;
         {$ENDREGION}
 
-        vItem.PaintTo(FStyle, vDrawRect, ADataDrawTop, ADataDrawBottom,
+        vItem.PaintTo(FStyle, vClearRect, ADataDrawTop, ADataDrawBottom,
           ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);  // 触发Item绘制事件
 
         // 绘制文本
@@ -2490,53 +2512,18 @@ begin
   end;
 end;
 
+function THCCustomData.CanEdit: Boolean;
+begin
+  Result := True;
+end;
+
 procedure THCCustomData.SaveToStream(const AStream: TStream);
 begin
   SaveToStream(AStream, 0, 0, FItems.Count - 1, FItems.Last.Length);
 end;
 
-procedure THCCustomData.SaveSelectToStream(const AStream: TStream);
-begin
-  if SelectExists then
-  begin
-    if (FSelectInfo.EndItemNo < 0)
-      and (FItems[FSelectInfo.StartItemNo].StyleNo < THCStyle.Null)
-    then  // 选择仅发生在同一个RectItem
-    begin
-      if (FItems[FSelectInfo.StartItemNo] as THCCustomRectItem).IsSelectComplateTheory then  // 理论全选中了
-      begin
-        Self.SaveToStream(AStream, FSelectInfo.StartItemNo, OffsetBefor,
-          FSelectInfo.StartItemNo, OffsetAfter);
-      end
-      else
-        (FItems[FSelectInfo.StartItemNo] as THCCustomRectItem).SaveSelectToStream(AStream);
-    end
-    else
-    begin
-      Self.SaveToStream(AStream, FSelectInfo.StartItemNo, FSelectInfo.StartItemOffset,
-        FSelectInfo.EndItemNo, FSelectInfo.EndItemOffset);
-    end;
-  end;
-end;
-
-function THCCustomData.SaveSelectToText: string;
-begin
-  Result := '';
-
-  if SelectExists then
-  begin
-    if (FSelectInfo.EndItemNo < 0) and (FItems[FSelectInfo.StartItemNo].StyleNo < THCStyle.Null) then
-      Result := (FItems[FSelectInfo.StartItemNo] as THCCustomRectItem).SaveSelectToText
-    else
-    begin
-      Result := Self.SaveToText(FSelectInfo.StartItemNo, FSelectInfo.StartItemOffset,
-        FSelectInfo.EndItemNo, FSelectInfo.EndItemOffset);
-    end;
-  end;
-end;
-
-procedure THCCustomData.SaveToStream(const AStream: TStream; const AStartItemNo,
-  AStartOffset, AEndItemNo, AEndOffset: Integer);
+procedure THCCustomData.SaveItemToStream(const AStream: TStream;
+  const AStartItemNo, AStartOffset, AEndItemNo, AEndOffset: Integer);
 var
   i, vCount, vCountAct: Integer;
   vBegPos, vEndPos: Int64;
@@ -2590,6 +2577,52 @@ begin
     AStream.WriteBuffer(vCountAct, SizeOf(vCountAct));  // 实际数量
 
   AStream.Position := vEndPos;
+end;
+
+procedure THCCustomData.SaveSelectToStream(const AStream: TStream);
+begin
+  if SelectExists then
+  begin
+    if (FSelectInfo.EndItemNo < 0)
+      and (FItems[FSelectInfo.StartItemNo].StyleNo < THCStyle.Null)
+    then  // 选择仅发生在同一个RectItem
+    begin
+      if (FItems[FSelectInfo.StartItemNo] as THCCustomRectItem).IsSelectComplateTheory then  // 理论全选中了
+      begin
+        Self.SaveToStream(AStream, FSelectInfo.StartItemNo, OffsetBefor,
+          FSelectInfo.StartItemNo, OffsetAfter);
+      end
+      else
+        (FItems[FSelectInfo.StartItemNo] as THCCustomRectItem).SaveSelectToStream(AStream);
+    end
+    else
+    begin
+      Self.SaveToStream(AStream, FSelectInfo.StartItemNo, FSelectInfo.StartItemOffset,
+        FSelectInfo.EndItemNo, FSelectInfo.EndItemOffset);
+    end;
+  end;
+end;
+
+function THCCustomData.SaveSelectToText: string;
+begin
+  Result := '';
+
+  if SelectExists then
+  begin
+    if (FSelectInfo.EndItemNo < 0) and (FItems[FSelectInfo.StartItemNo].StyleNo < THCStyle.Null) then
+      Result := (FItems[FSelectInfo.StartItemNo] as THCCustomRectItem).SaveSelectToText
+    else
+    begin
+      Result := Self.SaveToText(FSelectInfo.StartItemNo, FSelectInfo.StartItemOffset,
+        FSelectInfo.EndItemNo, FSelectInfo.EndItemOffset);
+    end;
+  end;
+end;
+
+procedure THCCustomData.SaveToStream(const AStream: TStream; const AStartItemNo,
+  AStartOffset, AEndItemNo, AEndOffset: Integer);
+begin
+  Self.SaveItemToStream(AStream, AStartItemNo, AStartOffset, AEndItemNo, AEndOffset);
 end;
 
 function THCCustomData.SaveToText(const AStartItemNo, AStartOffset, AEndItemNo,
@@ -3069,6 +3102,40 @@ begin
   FStartRestrain := False;
   FEndItemNo := -1;
   FEndItemOffset := -1;
+end;
+
+{ THCDomainInfo }
+
+procedure THCDomainInfo.Clear;
+begin
+  FBeginNo := -1;
+  FEndNo := -1;
+end;
+
+function THCDomainInfo.Contain(const AItemNo: Integer): Boolean;
+begin
+  Result := (AItemNo >= FBeginNo) and (AItemNo <= FEndNo);
+end;
+
+constructor THCDomainInfo.Create;
+begin
+  Clear;
+end;
+
+{ THCItemTraverse }
+
+constructor THCItemTraverse.Create;
+begin
+  Areas := [];
+  Tag := 0;
+  Stop := False;
+  DomainStack := TDomainStack.Create;
+end;
+
+destructor THCItemTraverse.Destroy;
+begin
+  FreeAndNil(DomainStack);
+  inherited Destroy;
 end;
 
 end.

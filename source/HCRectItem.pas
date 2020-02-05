@@ -45,6 +45,8 @@ type
     procedure SetWidth(const Value: Integer); virtual;
     function GetHeight: Integer; virtual;
     procedure SetHeight(const Value: Integer); virtual;
+    procedure DoSizeChanged; virtual;
+    procedure SetSizeChanged(const Value: Boolean);
     //
     procedure SelfUndoListInitializate(const AUndoList: THCUndoList);
     procedure SelfUndo_New;
@@ -72,7 +74,7 @@ type
     function ClearFormatExtraHeight: Integer; virtual;
     procedure ReFormatActiveItem; virtual;
     /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
-    procedure ReAdaptActiveItem; virtual;
+    procedure ActiveItemReAdaptEnvironment; virtual;
     function DeleteSelected: Boolean; virtual;
     /// <summary> 删除当前域 </summary>
     function DeleteActiveDomain: Boolean; virtual;
@@ -141,7 +143,7 @@ type
     /// <param name="AMatchCase">True：区分大小写，False：不区分大小写</param>
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; virtual;
-
+    procedure Clear; virtual;
 
     /// <summary> 返回指定位置处的顶层Data(为松耦合请返回TCustomData类型) </summary>
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
@@ -172,7 +174,7 @@ type
     property Width: Integer read GetWidth write SetWidth;
     property Height: Integer read GetHeight write SetHeight;
     property TextWrapping: Boolean read FTextWrapping write FTextWrapping;  // 文本环绕
-    property SizeChanged: Boolean read FSizeChanged write FSizeChanged;
+    property SizeChanged: Boolean read FSizeChanged write SetSizeChanged;
 
     /// <summary> 在当前页显示不下时是否可以分页截断显示 </summary>
     property CanPageBreak: Boolean read FCanPageBreak write FCanPageBreak;
@@ -305,6 +307,10 @@ type
     function GetOffsetAt(const X: Integer): Integer; override;
   end;
 
+  THCDataItem = class(THCResizeRectItem)  // 内部有管理Data的Item，也便于统一判断是否进入RectItem内部判断或寻找
+  { to do: 将不是所有RectItem用到的方法移植到这里来}
+  end;
+
 var
   HCDefaultDomainItemClass: THCDomainItemClass = THCDomainItem;
 
@@ -419,6 +425,11 @@ begin
   Result := THCUndo.Create;
 end;
 
+procedure THCCustomRectItem.DoSizeChanged;
+begin
+  FormatDirty;
+end;
+
 procedure THCCustomRectItem.DoSelfRedo(const ARedo: THCUndo);
 begin
 end;
@@ -473,6 +484,10 @@ begin
 end;
 
 procedure THCCustomRectItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
+begin
+end;
+
+procedure THCCustomRectItem.Clear;
 begin
 end;
 
@@ -624,7 +639,7 @@ begin
   Result := Self.Active;
 end;
 
-procedure THCCustomRectItem.ReAdaptActiveItem;
+procedure THCCustomRectItem.ActiveItemReAdaptEnvironment;
 begin
 end;
 
@@ -712,6 +727,15 @@ end;
 procedure THCCustomRectItem.SetHeight(const Value: Integer);
 begin
   FHeight := Value;
+end;
+
+procedure THCCustomRectItem.SetSizeChanged(const Value: Boolean);
+begin
+  if FSizeChanged <> Value then
+  begin
+    FSizeChanged := Value;
+    DoSizeChanged;
+  end;
 end;
 
 procedure THCCustomRectItem.SetWidth(const Value: Integer);

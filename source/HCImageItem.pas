@@ -37,6 +37,7 @@ type
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
     procedure PaintTop(const ACanvas: TCanvas); override;
+    procedure Clear; override;
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
@@ -145,11 +146,19 @@ begin
   FImage.Assign((Source as THCImageItem).Image);
 end;
 
+procedure THCImageItem.Clear;
+begin
+  if Assigned(FImage) then
+    FreeAndNil(FImage);
+
+  FImage := {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF}.Create;
+  FImage.OnChange := DoImageChange;
+end;
+
 constructor THCImageItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  FImage := {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF}.Create;
-  FImage.OnChange := DoImageChange;
+  Clear;
   StyleNo := THCStyle.Image;
   FShapeManager := THCShapeManager.Create;
 end;

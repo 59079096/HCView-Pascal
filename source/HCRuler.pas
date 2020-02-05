@@ -479,8 +479,8 @@ begin
     for i := vCol to vSrcCol do
       vCRight := vCRight + vTable.ColWidth[i] + vTable.BorderWidthPix;
 
-    FCellRight := FCellRight + vData.Width - (vCRight - vTable.CellHPadding);
-    FCellLeft := FCellLeft + vCLeft + vTable.CellHPadding;
+    FCellRight := FCellRight + vData.Width - (vCRight - vTable.CellHPaddingPix);
+    FCellLeft := FCellLeft + vCLeft + vTable.CellHPaddingPix;
 
     vData := vTable.Cells[vRow, vCol].CellData;
     vItem := vData.GetActiveItem;
@@ -913,8 +913,8 @@ begin
     for i := vRow to vSrcRow do
       vRBottom := vRBottom + vTable.Rows[i].Height + vTable.Rows[i].FmtOffset + vTable.BorderWidthPix;
 
-    FCellBottom := FCellBottom + vData.Width - (vRBottom - vTable.CellVPadding);
-    FCellTop := FCellTop + vRTop + vTable.CellVPadding;
+    FCellBottom := FCellBottom + vData.Width - (vRBottom - vTable.CellVPaddingPix);
+    FCellTop := FCellTop + vRTop + vTable.CellVPaddingPix;
 
     vData := vTable.Cells[vRow, vCol].CellData;
     vItem := vData.GetActiveItem;

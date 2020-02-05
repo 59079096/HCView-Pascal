@@ -9,6 +9,8 @@ uses
 type
   THCFloatBarCodeItem = class(THCCustomFloatItem)
   private
+    FAutoSize, FShowText: Boolean;
+    FPenWidth: Byte;
     FText: string;
   protected
     function GetText: string; override;
@@ -23,6 +25,9 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
+    property PenWidth: Byte read FPenWidth write FPenWidth;
+    property AutoSize: Boolean read FAutoSize write FAutoSize;
+    property ShowText: Boolean read FShowText write FShowText;
   end;
 
 implementation
@@ -39,6 +44,9 @@ constructor THCFloatBarCodeItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
   Self.StyleNo := Ord(THCStyle.FloatBarCode);
+  FAutoSize := True;
+  FShowText := True;
+  FPenWidth := 2;
   Width := 80;
   Height := 60;
   SetText('0000');
@@ -56,8 +64,12 @@ begin
     vCode128B := THCCode128B.Create;
     try
       vCode128B.Margin := 2;
-      vCode128B.Height := Height;
+      vCode128B.PenWidth := FPenWidth;
       vCode128B.CodeKey := FText;
+      vCode128B.ShowCodeKey := FShowText;
+
+      if not FAutoSize then
+        vCode128B.Height := Height;
 
       vBitmap.SetSize(vCode128B.Width, vCode128B.Height);
       vCode128B.PaintToEx(vBitmap.Canvas);
@@ -84,12 +96,33 @@ procedure THCFloatBarCodeItem.LoadFromStream(const AStream: TStream;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   HCLoadTextFromStream(AStream, FText, AFileVersion);
+  if AFileVersion > 34 then
+  begin
+    AStream.ReadBuffer(FAutoSize, SizeOf(FAutoSize));
+    AStream.ReadBuffer(FShowText, SizeOf(FShowText));
+    AStream.ReadBuffer(FPenWidth, SizeOf(FPenWidth));
+  end;
 end;
 
 procedure THCFloatBarCodeItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
   FText := ANode.Text;
+
+  if ANode.HasAttribute('autosize') then
+    FAutoSize := ANode.Attributes['autosize']
+  else
+    FAutoSize := True;
+
+  if ANode.HasAttribute('showtext') then
+    FShowText := ANode.Attributes['showtext']
+  else
+    FShowText := True;
+
+  if ANode.HasAttribute('penwidth') then
+    FPenWidth := ANode.Attributes['penwidth']
+  else
+    FPenWidth := 2;
 end;
 
 procedure THCFloatBarCodeItem.SaveToStream(const AStream: TStream; const AStart,
@@ -97,6 +130,9 @@ procedure THCFloatBarCodeItem.SaveToStream(const AStream: TStream; const AStart,
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FText);
+  AStream.WriteBuffer(FAutoSize, SizeOf(FAutoSize));
+  AStream.WriteBuffer(FShowText, SizeOf(FShowText));
+  AStream.WriteBuffer(FPenWidth, SizeOf(FPenWidth));
 end;
 
 procedure THCFloatBarCodeItem.SetText(const Value: string);
@@ -107,13 +143,18 @@ begin
   begin
     FText := Value;
 
-    vBarCode := THCCode128B.Create;
-    try
-      vBarCode.Margin := 2;
-      vBarCode.CodeKey := FText;
-      Width := vBarCode.Width;
-    finally
-      vBarCode.Free;
+    if FAutoSize then
+    begin
+      vBarCode := THCCode128B.Create;
+      try
+        vBarCode.Margin := 2;
+        vBarCode.PenWidth := FPenWidth;
+        vBarCode.CodeKey := FText;
+        vBarCode.ShowCodeKey := FShowText;
+        Width := vBarCode.Width;
+      finally
+        vBarCode.Free;
+      end;
     end;
   end;
 end;
@@ -122,6 +163,9 @@ procedure THCFloatBarCodeItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
   ANode.Text := FText;
+  ANode.Attributes['autosize'] := FAutoSize;
+  ANode.Attributes['showtext'] := FShowText;
+  ANode.Attributes['penwidth'] := FPenWidth;
 end;
 
 end.

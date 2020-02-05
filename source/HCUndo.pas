@@ -14,7 +14,7 @@ unit HCUndo;
 interface
 
 uses
-  Classes, Generics.Collections;
+  Classes, Generics.Collections, HCCommon;
 
 type
 
@@ -72,21 +72,9 @@ type
 
   { UndoAction部分 }
 
-  TUndoActionTag = (
-    uatDeleteBackText,  // 向前删除文本
-    uatDeleteText,  // 向后删除文本
-    uatInsertText,  // 插入文本
-    uatSetItemText,    // 直接赋值Item的Text
-    uatDeleteItem,  // 删除Item
-    uatInsertItem,  // 插入Item
-    uatItemProperty,  // Item属性变化
-    uatItemSelf,  // Item自己管理
-    uatItemMirror  // Item镜像
-    );
-
   THCCustomUndoAction = class(TObject)
   private
-    FTag: TUndoActionTag;
+    FTag: THCAction;
     FItemNo,  // 事件发生时的ItemNo
     FOffset  // 事件发生时的Offset
       : Integer;
@@ -96,7 +84,7 @@ type
     property ItemNo: Integer read FItemNo write FItemNo;
     property Offset: Integer read FOffset write FOffset;
     property ParaFirst: Boolean read FParaFirst write FParaFirst;
-    property Tag: TUndoActionTag read FTag write FTag;
+    property Tag: THCAction read FTag write FTag;
   end;
 
   THCTextUndoAction = class(THCCustomUndoAction)
@@ -203,7 +191,7 @@ type
     FData: TObject;  // 存放各类撤销对象
   public
     constructor Create; override;
-    function ActionAppend(const ATag: TUndoActionTag;
+    function ActionAppend(const ATag: THCAction;
       const AItemNo, AOffset: Integer; const AParaFirst: Boolean): THCCustomUndoAction;
     property Data: TObject read FData write FData;
   end;
@@ -617,23 +605,23 @@ end;
 
 { THCUndo }
 
-function THCUndo.ActionAppend(const ATag: TUndoActionTag;
+function THCUndo.ActionAppend(const ATag: THCAction;
   const AItemNo, AOffset: Integer; const AParaFirst: Boolean): THCCustomUndoAction;
 begin
   case ATag of
-    uatDeleteBackText, uatDeleteText, uatInsertText:
+    actBackDeleteText, actDeleteText, actInsertText:
       Result := THCTextUndoAction.Create;
 
-    uatSetItemText:
+    actSetItemText:
       Result := THCSetItemTextUndoAction.Create;
 
-    uatDeleteItem, uatInsertItem, uatItemMirror:
+    actDeleteItem, actInsertItem, actItemMirror:
       Result := THCItemUndoAction.Create;
 
     //uatItemProperty:  // 不需要吧，属性的改变直接Create了各自的Action不走ActionAppend
     //  Result := THCItemParaFirstUndoAction.Create;
 
-    uatItemSelf:
+    actItemSelf:
       Result := THCItemSelfUndoAction.Create;
   else
     Result := THCCustomUndoAction.Create;
@@ -681,7 +669,7 @@ end;
 constructor THCItemPropertyUndoAction.Create;
 begin
   inherited Create;
-  Self.Tag := TUndoActionTag.uatItemProperty;
+  Self.Tag := THCAction.actItemProperty;
 end;
 
 { THCItemParaFirstUndoAction }
@@ -697,7 +685,7 @@ end;
 constructor THCItemSelfUndoAction.Create;
 begin
   inherited Create;
-  Self.Tag := TUndoActionTag.uatItemSelf;
+  Self.Tag := THCAction.actItemSelf;
   FObject := nil;
 end;
 

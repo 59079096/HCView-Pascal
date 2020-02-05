@@ -49,7 +49,7 @@ object frmTableProperty: TfrmTableProperty
         Caption = #24038#21491
       end
       object lbl5: TLabel
-        Left = 159
+        Left = 187
         Top = 33
         Width = 24
         Height = 13
@@ -111,6 +111,20 @@ object frmTableProperty: TfrmTableProperty
         Height = 13
         Caption = #21015
       end
+      object lbl17: TLabel
+        Left = 144
+        Top = 33
+        Width = 24
+        Height = 13
+        Caption = #27627#31859
+      end
+      object lbl18: TLabel
+        Left = 288
+        Top = 33
+        Width = 24
+        Height = 13
+        Caption = #27627#31859
+      end
       object edtCellHPadding: TEdit
         Left = 73
         Top = 30
@@ -121,7 +135,7 @@ object frmTableProperty: TfrmTableProperty
         OnChange = edtCellHPaddingChange
       end
       object edtCellVPadding: TEdit
-        Left = 189
+        Left = 217
         Top = 30
         Width = 65
         Height = 21

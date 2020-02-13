@@ -62,10 +62,11 @@ const
    3.3 兼容32版本图片保存时没有按DeImageItem保存，读取时不正确的问题
    3.4 RadioGroun控件保存选项样式、保存文件所用的排版算法版本、增加Item打印不可见属性，EditItem增加仅打印文本属性
    3.5 数据元增加DeleteProtect控制是否能删除掉整个数据元，表格存储CellPadding，FloatBarCode存储单线条宽度
+   3.6 Combobox和RadioGrou的选项改为键值对的形式
   }
 
-  HC_FileVersion = '3.5';
-  HC_FileVersionInt = 35;
+  HC_FileVersion = '3.6';
+  HC_FileVersionInt = 36;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -120,7 +121,8 @@ type
   THCState = (hosLoading,  // 文档加载
               hosCopying,  // 复制
               hosPasting,  // 粘贴
-              hosBatchInsert  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确
+              hosBatchInsert,  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确
+              hosDestroying  // 编辑器在销毁中
               );
 
   TCharType = (

@@ -23,7 +23,7 @@ type
     FUseTableTool, FUseImageTool: Boolean;
 
     FOnTableToolPropertyClick: TNotifyEvent;
-
+    procedure LoadImageList;
     procedure DoTableToolResetRowColClick(Sender: TObject);
     procedure DoTableToolPropertyClick(Sender: TObject);
     procedure DoImageShapeStructOver(Sender: TObject);
@@ -32,7 +32,7 @@ type
     procedure SetUseImageTool(const Value: Boolean);
 
     procedure SetActiveToolItem(const AItem: THCCustomItem);
-    procedure SetToolImageList(const AItem: TCustomImageList);
+    procedure CancelActiveToolItem;
     function PtInTableToolBar(const X, Y: Integer): Boolean;
     function PtInImageToolBar(const X, Y: Integer): Boolean;
     procedure DoTableToolBarUpdateView(const ARect: TRect; const ACanvas: TCanvas);
@@ -75,18 +75,36 @@ type
     property UseTableTool: Boolean read FUseTableTool write SetUseTableTool;
     property UseImageTool: Boolean read FUseImageTool write SetUseImageTool;
     property OnTableToolPropertyClick: TNotifyEvent read FOnTableToolPropertyClick write FOnTableToolPropertyClick;
-    property ToolImageList: TCustomImageList read FToolImageList write SetToolImageList;
   end;
 
 implementation
 
+{$R HCViewTool.RES}
+
 { THCViewTool }
+
+procedure THCViewTool.CancelActiveToolItem;
+begin
+  if FActiveItem is THCImageItem then
+  begin
+    (FActiveItem as THCImageItem).ShapeManager.DisActive;
+    FImageToolBar.Visible := False;
+  end
+  else
+  if FActiveItem is THCTableItem then  // 是表格
+    FTableToolBar.Visible := False;
+
+  FActiveItem := nil;
+end;
 
 constructor THCViewTool.Create(AOwner: TComponent);
 var
   vMenuItem, vResetMenuItem: TMenuItem;
 begin
   inherited Create(AOwner);
+  FToolImageList := TImageList.Create(nil);
+  LoadImageList;
+
   FToolOffset := -4;
   FActiveItem := nil;
   FHotToolBar := nil;
@@ -119,9 +137,11 @@ end;
 
 destructor THCViewTool.Destroy;
 begin
+  CancelActiveToolItem;
   FreeAndNil(FTableToolMenu);
   FreeAndNil(FTableToolBar);
   FreeAndNil(FImageToolBar);
+  FreeAndNil(FToolImageList);
   inherited Destroy;
 end;
 
@@ -129,8 +149,7 @@ procedure THCViewTool.DoTableToolBarControlPaint(
   const AControl: THCToolBarControl; const ALeft, ATop: Integer;
   const ACanvas: TCanvas);
 begin
-  if Assigned(FToolImageList) then
-    FToolImageList.Draw(ACanvas, ALeft + 4, ATop + 4, AControl.Tag);
+  FToolImageList.Draw(ACanvas, ALeft + 4, ATop + 4, AControl.Tag);
 end;
 
 procedure THCViewTool.DoTableToolBarUpdateView(const ARect: TRect; const ACanvas: TCanvas);
@@ -327,8 +346,7 @@ end;
 procedure THCViewTool.DoImageToolBarControlPaint(const AControl: THCToolBarControl;
   const ALeft, ATop: Integer; const ACanvas: TCanvas);
 begin
-  if Assigned(FToolImageList) then
-    FToolImageList.Draw(ACanvas, ALeft + 4, ATop + 4, AControl.Tag);
+  FToolImageList.Draw(ACanvas, ALeft + 4, ATop + 4, AControl.Tag);
 end;
 
 procedure THCViewTool.DoImageToolBarUpdateView(const ARect: TRect;
@@ -429,7 +447,7 @@ procedure THCViewTool.DoSectionRemoveItem(const Sender: TObject;
 begin
   inherited DoSectionRemoveItem(Sender, AData, AItem);
   if AItem = FActiveItem then
-    FActiveItem := nil;
+    CancelActiveToolItem;
 end;
 
 procedure THCViewTool.KeyDown(var Key: Word; Shift: TShiftState);
@@ -440,7 +458,12 @@ begin
     if FImageToolBar.Visible and ImageKeyDown(Key, Shift) then Exit;
   end;
 
-  inherited KeyDown(Key, Shift);
+  Self.BeginUpdate;
+  try
+    inherited KeyDown(Key, Shift);  // 删除Item时会触发ToolBar隐藏，重绘时环境还没有准备好
+  finally
+    Self.EndUpdate;
+  end;
 end;
 
 procedure THCViewTool.KeyPress(var Key: Char);
@@ -452,6 +475,51 @@ end;
 procedure THCViewTool.KeyUp(var Key: Word; Shift: TShiftState);
 begin
   inherited KeyUp(Key, Shift);
+end;
+
+procedure THCViewTool.LoadImageList;
+var
+  vIcon: TIcon;
+begin
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'ARROW');  // 箭头0
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'LINE');  // 直线1
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'RECT');  // 矩形2
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'ES');  // 椭圆3
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'DBX');  // 多边形4
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'CUS');  // 自由线条5
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'FH');  // 缝合线6
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'TEXT');  // 文本7
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'COLOR');  // 颜色8
+  FToolImageList.AddIcon(vIcon);
+
+  vIcon := TIcon.Create;
+  vIcon.LoadFromResourceName(HInstance, 'TABLE');  // 表格9
+  FToolImageList.AddIcon(vIcon);
 end;
 
 procedure THCViewTool.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -622,13 +690,6 @@ begin
 
     FActiveItem := nil;
   end;
-end;
-
-procedure THCViewTool.SetToolImageList(const AItem: TCustomImageList);
-begin
-  FToolImageList := AItem;
-  FTableToolBar.UpdateView;
-  FImageToolBar.UpdateView;
 end;
 
 procedure THCViewTool.SetUseImageTool(const Value: Boolean);

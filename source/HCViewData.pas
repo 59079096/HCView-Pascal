@@ -230,7 +230,9 @@ constructor THCViewData.Create(const AStyle: THCStyle);
 begin
   FDomainStartDeletes := THCIntegerList.Create;
   FHotDomain := THCDomainInfo.Create;
+  FHotDomain.Data := Self;
   FActiveDomain := THCDomainInfo.Create;
+  FActiveDomain.Data := Self;
   inherited Create(AStyle);
 end;
 
@@ -554,6 +556,7 @@ begin
     begin
       if AOffset = OffsetAfter then  // 光标在后面
       begin
+        ADomainInfo.Data := Self;
         ADomainInfo.BeginNo := AItemNo;  // 当前即为起始标识
         vLevel := (Items[AItemNo] as THCDomainItem).Level;
         vEndNo := AItemNo + 1;
@@ -710,7 +713,8 @@ begin
       if THCDomainItem.IsBeginMark(Items[i]) then
       begin
         vDomainInfo := THCDomainInfo.Create;
-        //GetDomainFrom(i, OffsetAfter, vDomainInfo);
+        vDomainInfo.Data := Self;
+        //GetDomainFrom(i, OffsetAfter, vDomainInfo);  // 如果用这句，注释掉上句，因为里面取了Data了
         vDomainInfo.BeginNo := i;
         ADomainStack.Push(vDomainInfo);
       end

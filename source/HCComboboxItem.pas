@@ -23,7 +23,7 @@ type
   THCComboboxItem = class(THCEditItem)
   private
     FSaveItem: Boolean;
-    FItems: TStrings;
+    FItems, FItemValues: TStrings;
     FItemIndex, FMoveItemIndex: Integer;
     FButtonRect, FButtonDrawRect: TRect;
     FMouseInButton: Boolean;
@@ -56,7 +56,6 @@ type
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure MouseLeave; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
-    procedure SetItems(const Value: TStrings);
     procedure SetItemIndex(const Value: Integer);
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); override;
@@ -69,7 +68,8 @@ type
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
-    property Items: TStrings read FItems write SetItems;
+    property Items: TStrings read FItems;// write SetItems;
+    property ItemValues: TStrings read FItemValues;
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
     /// <summary> 是否保存选项 </summary>
     property SaveItem: Boolean read FSaveItem write FSaveItem;
@@ -92,6 +92,7 @@ procedure THCComboboxItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
   FItems.Assign((Source as THCComboboxItem).Items);
+  FItemValues.Assign((Source as THCComboboxItem).ItemValues);
 end;
 
 constructor THCComboboxItem.Create(const AOwnerData: THCCustomData; const AText: string);
@@ -102,6 +103,8 @@ begin
   FSaveItem := True;
   FItems := TStringList.Create;
   TStringList(FItems).OnChange := DoItemsChange;
+
+  FItemValues := TStringList.Create;
 
   FScrollBar := THCComScrollBar.Create(nil);
   FScrollBar.Orientation := TOrientation.oriVertical;
@@ -120,6 +123,7 @@ destructor THCComboboxItem.Destroy;
 begin
   FPopupForm.Free;
   FItems.Free;
+  FItemValues.Free;
   FScrollBar.Free;
   inherited Destroy;
 end;
@@ -431,6 +435,11 @@ procedure THCComboboxItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
   FItems.Text := ANode.Attributes['item'];
+  if ANode.HasAttribute('itemvalue') then
+    FItemValues.Text := ANode.Attributes['itemvalue']
+  else
+    FItemValues.Clear;
+
   FSaveItem := FItems.Count > 0;
 end;
 
@@ -442,6 +451,14 @@ begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   HCLoadTextFromStream(AStream, vText, AFileVersion); // 读Items
   FItems.Text := vText;
+  if (vText <> '') and (AFileVersion > 35) then
+  begin
+    HCLoadTextFromStream(AStream, vText, AFileVersion); // 读ItemValues
+    FItemValues.Text := vText;
+  end
+  else
+    FItemValues.Clear;
+
   FSaveItem := FItems.Count > 0;
 end;
 
@@ -453,7 +470,10 @@ begin
   inherited SaveToStream(AStream, AStart, AEnd);
 
   if FSaveItem then  // 存Items
-    HCSaveTextToStream(AStream, FItems.Text)
+  begin
+    HCSaveTextToStream(AStream, FItems.Text);
+    HCSaveTextToStream(AStream, FItemValues.Text);
+  end
   else
   begin
     vSize := 0;
@@ -483,18 +503,15 @@ begin
   end;
 end;
 
-procedure THCComboboxItem.SetItems(const Value: TStrings);
-begin
-  if not ReadOnly then
-    FItems.Assign(Value);
-end;
-
 procedure THCComboboxItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
 
   if FSaveItem then  // 存Items
+  begin
     ANode.Attributes['item'] := FItems.Text;
+    ANode.Attributes['itemvalue'] := FItemValues.Text;
+  end;
 end;
 
 end.

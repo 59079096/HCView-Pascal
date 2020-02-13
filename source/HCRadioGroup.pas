@@ -26,7 +26,7 @@ type
     FOnSetChecked: TNotifyEvent;
     procedure SetChecked(const Value: Boolean);
   public
-    Text: string;
+    Text, TextValue: string;
     Position: TPoint;
     property Checked: Boolean read FChecked write SetChecked;
     property OnSetChecked: TNotifyEvent read FOnSetChecked write FOnSetChecked;
@@ -56,7 +56,8 @@ type
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
-    procedure AddItem(const AText: string; const AChecked: Boolean = False);
+    procedure AddItem(const AText: string; const ATextValue: string = '';
+      const AChecked: Boolean = False);
 
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -76,13 +77,15 @@ const
 
 { THCRadioGroup }
 
-procedure THCRadioGroup.AddItem(const AText: string; const AChecked: Boolean = False);
+procedure THCRadioGroup.AddItem(const AText: string; const ATextValue: string = '';
+  const AChecked: Boolean = False);
 var
   vRadioButton: THCRadioButton;
 begin
   vRadioButton := THCRadioButton.Create;
   vRadioButton.Checked := AChecked;
   vRadioButton.Text := AText;
+  vRadioButton.TextValue := ATextValue;
   FItems.Add(vRadioButton);
 end;
 
@@ -96,7 +99,7 @@ begin
 
   FItems.Clear;
   for i := 0 to vSource.Items.Count - 1 do
-    AddItem(vSource.Items[i].Text, vSource.Items[i].Checked);
+    AddItem(vSource.Items[i].Text, vSource.Items[i].TextValue, vSource.Items[i].Checked);
 end;
 
 constructor THCRadioGroup.Create(const AOwnerData: THCCustomData);
@@ -306,6 +309,32 @@ begin
         Inc(vP);
     end;
 
+    if AFileVersion > 35 then
+    begin
+      i := 0;
+      HCLoadTextFromStream(AStream, vS, AFileVersion);
+      if vS <> '' then
+      begin
+        vP := PChar(vS);
+
+        while vP^ <> #0 do
+        begin
+          vPStart := vP;
+          while not (vP^ in [#0, #10, #13]) do
+            Inc(vP);
+
+          SetString(vText, vPStart, vP - vPStart);
+          Fitems[i].TextValue := vText;
+          Inc(i);
+
+          if vP^ = #13 then
+            Inc(vP);
+          if vP^ = #10 then
+            Inc(vP);
+        end;
+      end;
+    end;
+
     for i := 0 to FItems.Count - 1 do
     begin
       AStream.ReadBuffer(vBool, SizeOf(vBool));
@@ -363,6 +392,13 @@ begin
     for i := 0 to vList.Count - 1 do
       AddItem(vList[i]);
 
+    if ANode.HasAttribute('itemvalue') then
+    begin
+      vList.DelimitedText := ANode.Attributes['itemvalue'];
+      for i := 0 to FItems.Count - 1 do
+        FItems[i].TextValue := vList[i];
+    end;
+
     // Items选中状态
     vList.DelimitedText := ANode.Attributes['check'];
     for i := 0 to vList.Count - 1 do
@@ -378,20 +414,28 @@ procedure THCRadioGroup.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
 var
   i: Integer;
-  vS: string;
+  vTexts, vTextValues: string;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   // 存Items
   if FItems.Count > 0 then
   begin
-    vS := FItems[0].Text;
+    vTexts := FItems[0].Text;
+    vTextValues := FItems[0].TextValue;
     for i := 1 to FItems.Count - 1 do
-      vS := vS + sLineBreak + FItems[i].Text;
+    begin
+      vTexts := vTexts + sLineBreak + FItems[i].Text;
+      vTextValues := vTextValues + sLineBreak + FItems[i].TextValue;
+    end;
   end
   else
-    vS := '';
+  begin
+    vTexts := '';
+    vTextValues := '';
+  end;
 
-  HCSaveTextToStream(AStream, vS);
+  HCSaveTextToStream(AStream, vTexts);
+  HCSaveTextToStream(AStream, vTextValues);
 
   for i := 0 to FItems.Count - 1 do
     AStream.WriteBuffer(FItems[i].Checked, SizeOf(Boolean));
@@ -401,7 +445,7 @@ end;
 
 procedure THCRadioGroup.ToXml(const ANode: IHCXMLNode);
 var
-  vS: string;
+  vText, vTextValue: string;
   i: Integer;
 begin
   inherited ToXml(ANode);
@@ -409,26 +453,34 @@ begin
   // 存Items文本内容
   if FItems.Count > 0 then
   begin
-    vS := FItems[0].Text;
+    vText := FItems[0].Text;
+    vTextValue := FItems[0].TextValue;
     for i := 1 to FItems.Count - 1 do
-      vS := vS + sLineBreak + FItems[i].Text;
+    begin
+      vText := vText + sLineBreak + FItems[i].Text;
+      vTextValue := vTextValue + sLineBreak + FItems[i].TextValue;
+    end;
   end
   else
-    vS := '';
+  begin
+    vText := '';
+    vTextValue := '';
+  end;
 
-  ANode.Attributes['item'] := vS;
+  ANode.Attributes['item'] := vText;
+  ANode.Attributes['itemvalue'] := vTextValue;
 
   // 存Items选中状态
   if FItems.Count > 0 then
   begin
-    vS := HCBoolText[FItems[0].Checked];
+    vText := HCBoolText[FItems[0].Checked];
     for i := 1 to FItems.Count - 1 do
-      vS := vS + sLineBreak + HCBoolText[FItems[i].Checked];
+      vText := vText + sLineBreak + HCBoolText[FItems[i].Checked];
   end
   else
-    vS := '';
+    vText := '';
 
-  ANode.Attributes['check'] := vS;
+  ANode.Attributes['check'] := vText;
   ANode.Attributes['radiostyle'] := Ord(FRadioStyle);
 end;
 

@@ -1125,7 +1125,9 @@ begin
                         or (DrawItems[AFirstDrawItemNo].Rect.Top <> FFormatStartTop)  // 段格式化后，高度的增量
                         or (DrawItems[vLastDrawItemNo].Rect.Bottom <> FFormatEndBottom);
 
-  FFormatChange := False;
+  //FFormatChange := False;  // 如果操作引起多次格式化，如选中内容后输入，先删除选中造成FFormatChange为真
+  // 如果输入的内容这里置否后没有引起变化，则本次变动的格式化并没有影响到重新计算当前页的起始结束DrawItem
+  // 造成绘制时访问DrawItem越界，所以这里不能先置否
   if FFormatHeightChange or (AExtraItemCount <> 0) or FFormatDrawItemCountChange then
   begin                            {FFormatDrawItemCountChange能被前两者代表吗？}
     FFormatChange := True;

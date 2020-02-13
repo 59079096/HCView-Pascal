@@ -42,10 +42,13 @@ type
     property EndItemOffset: Integer read FEndItemOffset write FEndItemOffset;
   end;
 
+  THCCustomData = class;
+
   THCDomainInfo = class(TObject)
   strict private
     FBeginNo, FEndNo: Integer;
   public
+    Data: THCCustomData;
     constructor Create;
     procedure Clear;
     /// <summary> 域中是否包含此Item(头、尾也算) </summary>
@@ -55,7 +58,6 @@ type
   end;
 
   TDomainStack = class(TObjectStack<THCDomainInfo>);
-  THCCustomData = class;
 
   TDataDomainItemNoEvent = procedure(const AData: THCCustomData; const ADomainStack: TDomainStack; const AItemNo: Integer) of object;
   TDataItemEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
@@ -882,7 +884,7 @@ end;
 
 procedure THCCustomData.DoRemoveItem(const AItem: THCCustomItem);
 begin
-  if Assigned(FOnRemoveItem) then
+  if Assigned(FOnRemoveItem) and (not FStyle.States.Contain(THCState.hosDestroying)) then
     FOnRemoveItem(Self, AItem);
 end;
 
@@ -3108,6 +3110,7 @@ end;
 
 procedure THCDomainInfo.Clear;
 begin
+  Data := nil;
   FBeginNo := -1;
   FEndNo := -1;
 end;

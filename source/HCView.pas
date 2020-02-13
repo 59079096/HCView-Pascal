@@ -536,6 +536,10 @@ type
     /// <summary> 返回总页数 </summary>
     function GetPageCount: Integer;
 
+    procedure PageUp;
+
+    procedure PageDown;
+
     /// <summary> 返回指定节页面绘制时Left位置 </summary>
     function GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
 
@@ -1261,6 +1265,7 @@ end;
 
 destructor THCView.Destroy;
 begin
+  FStyle.States.Include(THCState.hosDestroying);
   FreeAndNil(FSections);
   FreeAndNil(FCaret);
   FreeAndNil(FHScrollBar);
@@ -2782,6 +2787,16 @@ begin
       Break;
     end;
   end;
+end;
+
+procedure THCView.PageDown;
+begin
+  DoPageDown(Self);
+end;
+
+procedure THCView.PageUp;
+begin
+  DoPageUp(Self);
 end;
 
 procedure THCView.Paint;
@@ -4397,6 +4412,8 @@ var
   vScaleInfo: TScaleInfo;
   vRgn: HRGN;
 begin
+  if FStyle.States.Contain(THCState.hosDestroying) then Exit;
+
   if (FUpdateCount = 0) and HandleAllocated then
   begin
     FDataBmp.Canvas.Lock;

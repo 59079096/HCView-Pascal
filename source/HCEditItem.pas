@@ -44,7 +44,6 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
 
-    function InsertText(const AText: string): Boolean; override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     function GetText: string; override;
     procedure SetText(const Value: string); override;
@@ -52,6 +51,9 @@ type
     constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
     procedure Clear; override;
+    function InsertStream(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word): Boolean; override;
+    function InsertText(const AText: string): Boolean; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -67,7 +69,7 @@ type
 implementation
 
 uses
-  Math;
+  Math, Clipbrd;
 
 { THCEditItem }
 
@@ -227,6 +229,14 @@ end;
 function THCEditItem.GetText: string;
 begin
   Result := FText;
+end;
+
+function THCEditItem.InsertStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word): Boolean;
+begin
+  Result := False;
+  if OwnerData.Style.States.Contain(THCState.hosPasting) then
+    Result := InsertText(Clipboard.AsText);
 end;
 
 function THCEditItem.InsertText(const AText: string): Boolean;

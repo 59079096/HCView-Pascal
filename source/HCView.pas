@@ -569,7 +569,7 @@ type
     procedure SaveToFile(const AFileName: string; const AQuick: Boolean = False);
 
     /// <summary> 读取hcf文件 </summary>
-    procedure LoadFromFile(const AFileName: string);
+    function LoadFromFile(const AFileName: string): Boolean;
 
     /// <summary> 读取其他格式的文件 </summary>
     procedure LoadFromDocumentFile(const AFileName: string; const AExt: string);
@@ -587,32 +587,32 @@ type
     function SaveToText: string;
 
     /// <summary> 读文本到第一节正文 </summary>
-    procedure LoadFromText(const AText: string);
+    function LoadFromText(const AText: string): Boolean;
 
     /// <summary> 文档各节正文字符串保存为文本格式文件 </summary>
     procedure SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
 
     /// <summary> 读取文本文件内容到第一节正文 </summary>
-    procedure LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
+    function LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding): Boolean;
 
     /// <summary> 文档各节正文字符串保存为文本格式流 </summary>
     procedure SaveToTextStream(const AStream: TStream; const AEncoding: TEncoding);
 
     /// <summary> 读取文本文件流 </summary>
-    procedure LoadFromTextStream(const AStream: TStream; AEncoding: TEncoding);
+    function LoadFromTextStream(const AStream: TStream; AEncoding: TEncoding): Boolean;
 
     /// <summary> 文档保存到流 </summary>
     procedure SaveToStream(const AStream: TStream; const AQuick: Boolean = False;
       const AAreas: TSectionAreas = [saHeader, saPage, saFooter]); virtual;
 
     /// <summary> 读取文件流 </summary>
-    procedure LoadFromStream(const AStream: TStream); virtual;
+    function LoadFromStream(const AStream: TStream): Boolean; virtual;
 
     /// <summary> 文档保存为xml格式 </summary>
     procedure SaveToXml(const AFileName: string; const AEncoding: TEncoding);
 
     /// <summary> 读取xml格式 </summary>
-    procedure LoadFromXml(const AFileName: string);
+    function LoadFromXml(const AFileName: string): Boolean;
 
     /// <summary> 导出为html格式 </summary>
     /// <param name="ASeparateSrc">True：图片等保存到文件夹，False以base64方式存储到页面中</param>
@@ -2165,7 +2165,7 @@ begin
               vSection.Page.SaveToStream(vDataStream);
               vDataStream.Position := 0;
               vDataStream.ReadBuffer(vShowUnderLine, SizeOf(vShowUnderLine));
-              vResult := ActiveSection.InsertStream(vDataStream, vStyle, AFileVersion);  // 只插入第一节的数据
+              vResult := ActiveSection.InsertStream(vDataStream, vStyle, HC_FileVersionInt);  // 只插入第一节的数据
             finally
               FreeAndNil(vSection);
             end;
@@ -2383,21 +2383,26 @@ begin
   end;
 end;
 
-procedure THCView.LoadFromFile(const AFileName: string);
+function THCView.LoadFromFile(const AFileName: string): Boolean;
 var
   vStream: TStream;
 begin
-  FFileName := AFileName;
+  Result := False;
   vStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
   try
-    LoadFromStream(vStream);
+    Result := LoadFromStream(vStream);
+    if Result then
+      FFileName := AFileName;
   finally
     FreeAndNil(vStream);
   end;
 end;
 
-procedure THCView.LoadFromStream(const AStream: TStream);
+function THCView.LoadFromStream(const AStream: TStream): Boolean;
 begin
+  Result := False;
+  if ReadOnly then Exit;
+
   Self.BeginUpdate;
   try
     // 清除撤销恢复数据
@@ -2430,6 +2435,7 @@ begin
         FStyle.States.Exclude(hosLoading);
       end;
 
+      Result := True;
       DoViewResize;
     finally
       FUndoList.RestoreState;
@@ -2439,44 +2445,49 @@ begin
   end;
 end;
 
-procedure THCView.LoadFromText(const AText: string);
+function THCView.LoadFromText(const AText: string): Boolean;
 begin
+  Result := False;
+  if ReadOnly then Exit;
+
   Self.Clear;
   FStyle.Initialize;
 
   if AText <> '' then
-    ActiveSection.InsertText(AText);
+    Result := ActiveSection.InsertText(AText);
 end;
 
-procedure THCView.LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding);
+function THCView.LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding): Boolean;
 var
   vStream: TMemoryStream;
 begin
+  Result := False;
   vStream := TMemoryStream.Create;
   try
     vStream.LoadFromFile(AFileName);
     vStream.Position := 0;
-    LoadFromTextStream(vStream, AEncoding);
+    Result := LoadFromTextStream(vStream, AEncoding);
   finally
     FreeAndNil(vStream);
   end;
 end;
 
-procedure THCView.LoadFromTextStream(const AStream: TStream; AEncoding: TEncoding);
+function THCView.LoadFromTextStream(const AStream: TStream; AEncoding: TEncoding): Boolean;
 var
   vSize: Integer;
   vBuffer: TBytes;
   vS: string;
 begin
+  Result := False;
   vSize := AStream.Size - AStream.Position;
   SetLength(vBuffer, vSize);
   AStream.Read(vBuffer[0], vSize);
   vSize := TEncoding.GetBufferEncoding(vBuffer, AEncoding);
   vS := AEncoding.GetString(vBuffer, vSize, Length(vBuffer) - vSize);
-  LoadFromText(vS);
+  Result := LoadFromText(vS);
 end;
 
-procedure THCView.LoadFromXml(const AFileName: string);
+function THCView.LoadFromXml(const AFileName: string): Boolean;
 
   {function GetEncodingName(const ARaw: string): TEncoding;
   var
@@ -2501,6 +2512,10 @@ var
   vLang: Byte;
   i, j: Integer;
 begin
+  Result := False;
+
+  if ReadOnly then Exit;
+
   Self.BeginUpdate;
   try
     // 清除撤销恢复数据
@@ -2544,6 +2559,7 @@ begin
           FStyle.States.Exclude(hosLoading);
         end;
 
+        Result := True;
         DoViewResize;
       end;
     finally
@@ -2919,62 +2935,62 @@ var
   vLang: Byte;
   vStyle: THCStyle;
 begin
-  if Clipboard.HasFormat(HC_FILEFORMAT) and DoPasteRequest(HC_FILEFORMAT) then
-  begin
-    vStream := TMemoryStream.Create;
-    try
-      Clipboard.Open;
+  FStyle.States.Include(hosPasting);
+  try
+    if Clipboard.HasFormat(HC_FILEFORMAT) and DoPasteRequest(HC_FILEFORMAT) then
+    begin
+      vStream := TMemoryStream.Create;
       try
-        vMem := Clipboard.GetAsHandle(HC_FILEFORMAT);
-        vSize := GlobalSize(vMem);
-        vStream.SetSize(vSize);
-        vPtr := GlobalLock(vMem);
-        Move(vPtr^, vStream.Memory^, vSize);
-        GlobalUnlock(vMem);
-      finally
-        Clipboard.Close;
-      end;
-      //
-      vStream.Position := 0;
-      _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
-      if not DoPasteFromStream(vStream) then Exit;
-
-      vStyle := THCStyle.Create;
-      try
-        vStyle.LoadFromStream(vStream, vFileVersion);
-        Self.BeginUpdate;
+        Clipboard.Open;
         try
-          FStyle.States.Include(hosPasting);
+          vMem := Clipboard.GetAsHandle(HC_FILEFORMAT);
+          vSize := GlobalSize(vMem);
+          vStream.SetSize(vSize);
+          vPtr := GlobalLock(vMem);
+          Move(vPtr^, vStream.Memory^, vSize);
+          GlobalUnlock(vMem);
+        finally
+          Clipboard.Close;
+        end;
+        //
+        vStream.Position := 0;
+        _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
+        if not DoPasteFromStream(vStream) then Exit;
+
+        vStyle := THCStyle.Create;
+        try
+          vStyle.LoadFromStream(vStream, vFileVersion);
+          Self.BeginUpdate;
           try
             ActiveSection.InsertStream(vStream, vStyle, vFileVersion);
           finally
-            FStyle.States.Exclude(hosPasting);
+            Self.EndUpdate;
           end;
         finally
-          Self.EndUpdate;
+          FreeAndNil(vStyle);
         end;
       finally
-        FreeAndNil(vStyle);
+        vStream.Free;
       end;
-    finally
-      vStream.Free;
-    end;
-  end
-  else
-  if Clipboard.HasFormat(CF_RTF) and DoPasteRequest(CF_RTF) then
-    PasteRtf
-  else
-  if Clipboard.HasFormat(CF_HTML) and DoPasteRequest(CF_HTML) then
-    PasteHtml
-  else
-  if Clipboard.HasFormat(CF_TEXT) and DoPasteRequest(CF_TEXT) then
-    InsertText(Clipboard.AsText)
-  else
-  if Clipboard.HasFormat(CF_UNICODETEXT) and DoPasteRequest(CF_UNICODETEXT) then
-    InsertText(Clipboard.AsText)
-  else
-  if Clipboard.HasFormat(CF_BITMAP) and DoPasteRequest(CF_BITMAP) then
-    PasteBitmapImage;
+    end
+    else
+    if Clipboard.HasFormat(CF_RTF) and DoPasteRequest(CF_RTF) then
+      PasteRtf
+    else
+    if Clipboard.HasFormat(CF_HTML) and DoPasteRequest(CF_HTML) then
+      PasteHtml
+    else
+    if Clipboard.HasFormat(CF_TEXT) and DoPasteRequest(CF_TEXT) then
+      InsertText(Clipboard.AsText)
+    else
+    if Clipboard.HasFormat(CF_UNICODETEXT) and DoPasteRequest(CF_UNICODETEXT) then
+      InsertText(Clipboard.AsText)
+    else
+    if Clipboard.HasFormat(CF_BITMAP) and DoPasteRequest(CF_BITMAP) then
+      PasteBitmapImage;
+  finally
+    FStyle.States.Exclude(hosPasting);
+  end;
 end;
 
 function THCView.Print(const APrinter: string; const ACopies: Integer = 1): TPrintResult;
@@ -3519,20 +3535,25 @@ end;
 
 procedure THCView.Redo;
 begin
-  if FUndoList.Enable then  // 恢复过程不要产生新的Redo
-  begin
-    try
-      FUndoList.Enable := False;
-
-      BeginUpdate;
+  FStyle.States.Include(THCState.hosRedoing);
+  try
+    if FUndoList.Enable then  // 恢复过程不要产生新的Redo
+    begin
       try
-        FUndoList.Redo;
+        FUndoList.Enable := False;
+
+        BeginUpdate;
+        try
+          FUndoList.Redo;
+        finally
+          EndUpdate;
+        end;
       finally
-        EndUpdate;
+        FUndoList.Enable := True;
       end;
-    finally
-      FUndoList.Enable := True;
     end;
+  finally
+    FStyle.States.Exclude(THCState.hosRedoing);
   end;
 end;
 
@@ -4266,20 +4287,25 @@ end;
 
 procedure THCView.Undo;
 begin
-  if FUndoList.Enable then  // 撤销过程不要产生新的Undo
-  begin
-    try
-      FUndoList.Enable := False;
-
-      BeginUpdate;
+  FStyle.States.Include(THCState.hosUndoing);
+  try
+    if FUndoList.Enable then  // 撤销过程不要产生新的Undo
+    begin
       try
-        FUndoList.Undo;
+        FUndoList.Enable := False;
+
+        BeginUpdate;
+        try
+          FUndoList.Undo;
+        finally
+          EndUpdate;
+        end;
       finally
-        EndUpdate;
+        FUndoList.Enable := True;
       end;
-    finally
-      FUndoList.Enable := True;
     end;
+  finally
+    FStyle.States.Exclude(THCState.hosUndoing);
   end;
 end;
 

@@ -10,6 +10,7 @@ uses
 type
   THCViewTool = class(THCView)
   strict private
+    FIconList: TObjectList<TIcon>;
     FToolImageList: TCustomImageList;
     FTopData: THCCustomData;
     FActiveItem: THCCustomItem;
@@ -102,6 +103,7 @@ var
   vMenuItem, vResetMenuItem: TMenuItem;
 begin
   inherited Create(AOwner);
+  FIconList := TObjectList<TIcon>.Create;
   FToolImageList := TImageList.Create(nil);
   LoadImageList;
 
@@ -141,7 +143,9 @@ begin
   FreeAndNil(FTableToolMenu);
   FreeAndNil(FTableToolBar);
   FreeAndNil(FImageToolBar);
+  FreeAndNil(FIconList);
   FreeAndNil(FToolImageList);
+
   inherited Destroy;
 end;
 
@@ -482,42 +486,52 @@ var
   vIcon: TIcon;
 begin
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'ARROW');  // 箭头0
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'LINE');  // 直线1
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'RECT');  // 矩形2
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'ES');  // 椭圆3
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'DBX');  // 多边形4
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'CUS');  // 自由线条5
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'FH');  // 缝合线6
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'TEXT');  // 文本7
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'COLOR');  // 颜色8
   FToolImageList.AddIcon(vIcon);
 
   vIcon := TIcon.Create;
+  FIconList.Add(vIcon);
   vIcon.LoadFromResourceName(HInstance, 'TABLE');  // 表格9
   FToolImageList.AddIcon(vIcon);
 end;

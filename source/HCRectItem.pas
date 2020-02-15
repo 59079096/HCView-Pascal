@@ -626,6 +626,7 @@ begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   AStream.ReadBuffer(FWidth, SizeOf(FWidth));
   AStream.ReadBuffer(FHeight, SizeOf(FHeight));
+  FormatDirty;
 end;
 
 procedure THCCustomRectItem.MarkStyleUsed(const AMark: Boolean);

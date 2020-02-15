@@ -36,9 +36,6 @@ type
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
     FOnInsertTextBefor: TTextEvent;
-    procedure GetDomainStackFrom(const AItemNo, AOffset: Integer; const ADomainStack: TDomainStack);
-    /// <summary> 获取指定位置所在的域信息 </summary>
-    procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
   protected
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; override;
     /// <summary> 是否允许保存该Item </summary>
@@ -79,7 +76,10 @@ type
     /// <summary> 根据传入的域"模具"创建域 </summary>
     /// <param name="AMouldDomain">"模具"调用完此方法后请自行释放</param>
     function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
-
+    /// <summary> 获取指定位置所在的域栈信息 </summary>
+    procedure GetDomainStackFrom(const AItemNo, AOffset: Integer; const ADomainStack: TDomainStack);
+    /// <summary> 获取指定位置所在的域信息 </summary>
+    procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
     /// <summary> 设置选中范围 </summary>
     /// <param name="ASilence">是否"静默"调用，False：响应此选中操作的相关动作(光标位置、界面更新) True：不响应(外部自己处理)</param>
     procedure SetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer;
@@ -108,6 +108,13 @@ type
 
     procedure GetCaretInfoCur(var ACaretInfo: THCCaretInfo);
     procedure TraverseItem(const ATraverse: THCItemTraverse);
+
+    /// <summary>
+    /// 保存域内容到文件流
+    /// </summary>
+    /// <param name="AStream">流</param>
+    /// <param name="ADomainItemNo">域起始或结束ItemNo</param>
+    procedure SaveDomainToStream(const AStream: TStream; const ADomainItemNo: Integer);
 
     property HotDomain: THCDomainInfo read FHotDomain;
     property ActiveDomain: THCDomainInfo read FActiveDomain;
@@ -924,6 +931,26 @@ function THCViewData.Replace(const AText: string): Boolean;
 begin
 //  DeleteSelected;
   InsertText(AText);
+end;
+
+procedure THCViewData.SaveDomainToStream(const AStream: TStream;
+  const ADomainItemNo: Integer);
+var
+  vGroupBeg, vGroupEnd: Integer;
+begin
+  vGroupEnd := GetDomainAnother(ADomainItemNo);
+
+  if vGroupEnd > ADomainItemNo then
+    vGroupBeg := ADomainItemNo
+  else
+  begin
+    vGroupBeg := vGroupEnd;
+    vGroupEnd := ADomainItemNo;
+  end;
+
+  _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
+  Self.Style.SaveToStream(AStream);
+  SaveItemToStream(AStream, vGroupBeg + 1, 0, vGroupEnd - 1, GetItemOffsetAfter(vGroupEnd - 1));
 end;
 
 function THCViewData.Search(const AKeyword: string; const AForward,

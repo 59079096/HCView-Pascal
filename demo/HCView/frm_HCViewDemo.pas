@@ -141,7 +141,6 @@ type
     mniAlignBottomLeft: TMenuItem;
     mniAlignBottomCenter: TMenuItem;
     mniAlignBottomRight: TMenuItem;
-    ilTool: TImageList;
     mniFloatBarCode: TMenuItem;
     mniViewText: TMenuItem;
     procedure FormCreate(Sender: TObject);
@@ -579,7 +578,6 @@ begin
   FHCView.Parent := Self;
   FHCView.Align := alClient;
   FHCView.PopupMenu := pmHCView;
-  FHCView.ToolImageList := ilTool;
   //
   FHRuler := THCHorizontalRuler.Create(Self);
   FHRuler.Color := FHCView.Color;

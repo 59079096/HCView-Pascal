@@ -26,14 +26,6 @@ type
   protected
     function GetUndoList: THCUndoList; override;
 
-    // Item单独保存和读取事件
-    procedure SaveItemToStreamAlone(const AItem: THCCustomItem; const AStream: TStream);
-
-    /// <summary> 从流中加载一个Item，如果Item为nil，则会创建它并加载 </summary>
-    /// <param name="AStream"></param>
-    /// <param name="AItem"></param>
-    procedure LoadItemFromStreamAlone(const AStream: TStream; var AItem: THCCustomItem);
-
     { 撤销恢复相关方法+ }
     procedure Undo_New;
     procedure Undo_GroupBegin(const AItemNo, AOffset: Integer);
@@ -79,6 +71,13 @@ type
     procedure Undo(const AUndo: THCCustomUndo); virtual;
     procedure Redo(const ARedo: THCCustomUndo); virtual;
     procedure UndoItemMirror(const AItemNo, AOffset: Integer);
+    // Item单独保存和读取事件
+    procedure SaveItemToStreamAlone(const AStream: TStream; const AItem: THCCustomItem);
+
+    /// <summary> 从流中加载一个Item，如果Item为nil，则会创建它并加载 </summary>
+    /// <param name="AStream"></param>
+    /// <param name="AItem"></param>
+    procedure LoadItemFromStreamAlone(const AStream: TStream; var AItem: THCCustomItem);
   end;
 
 implementation
@@ -738,6 +737,7 @@ var
   viVersion: Word;
   vLang: Byte;
   vStyleNo, vParaNo: Integer;
+  vStyle: THCStyle;
   vTextStyle: THCTextStyle;
   vParaStyle: THCParaStyle;
 begin
@@ -746,34 +746,29 @@ begin
   if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
 
-  AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
-
-  if not Assigned(AItem) then
-    AItem := CreateItemByStyle(vStyleNo);
-
-  AItem.LoadFromStream(AStream, nil, viVersion);
-
-  if vStyleNo > THCStyle.Null then
-  begin
-    vTextStyle := THCTextStyle.Create;
-    try
-      vTextStyle.LoadFromStream(AStream, viVersion);
-      vStyleNo := Style.GetStyleNo(vTextStyle, True);
-      AItem.StyleNo := vStyleNo;
-    finally
-      FreeAndNil(vTextStyle);
-    end;
-  end;
-
-  vParaStyle := THCParaStyle.Create;
+  vStyle := THCStyle.Create;
   try
-    vParaStyle.LoadFromStream(AStream, viVersion);
-    vParaNo := Style.GetParaNo(vParaStyle, True);
-  finally
-    FreeAndNil(vParaStyle);
-  end;
+    vStyle.LoadFromStream(AStream, viVersion);
+    AStream.ReadBuffer(vStyleNo, SizeOf(vStyleNo));
+    if vStyleNo > THCStyle.Null then
+    begin
+      vTextStyle := vStyle.TextStyles[vStyleNo];
+      vStyleNo := Style.GetStyleNo(vTextStyle, True);
+    end;
 
-  AItem.ParaNo := vParaNo;
+    if not Assigned(AItem) then
+      AItem := CreateItemByStyle(vStyleNo);
+
+    AItem.LoadFromStream(AStream, vStyle, viVersion);
+    AItem.StyleNo := vStyleNo;
+
+    vParaNo := AItem.ParaNo;
+    vParaStyle := vStyle.ParaStyles[vParaNo];
+    vParaNo := Style.GetParaNo(vParaStyle, True);
+    AItem.ParaNo := vParaNo;
+  finally
+    vStyle.Free;
+  end;
 end;
 
 procedure THCUndoData.Redo(const ARedo: THCCustomUndo);
@@ -781,15 +776,12 @@ begin
   DoUndoRedo(ARedo);
 end;
 
-procedure THCUndoData.SaveItemToStreamAlone(const AItem: THCCustomItem;
-  const AStream: TStream);
+procedure THCUndoData.SaveItemToStreamAlone(const AStream: TStream;
+  const AItem: THCCustomItem);
 begin
   _SaveFileFormatAndVersion(AStream);
+  Style.SaveToStream(AStream);
   AItem.SaveToStream(AStream);
-  if AItem.StyleNo > THCStyle.Null then
-    Style.TextStyles[AItem.StyleNo].SaveToStream(AStream);
-
-  Style.ParaStyles[AItem.ParaNo].SaveToStream(AStream);
 end;
 
 procedure THCUndoData.Undo(const AUndo: THCCustomUndo);
@@ -812,7 +804,7 @@ begin
     begin
       vItemAction := vUndo.ActionAppend(actDeleteItem, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCItemUndoAction;
-      SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
+      SaveItemToStreamAlone(vItemAction.ItemStream, Items[AItemNo]);
     end;
   end;
 end;
@@ -872,7 +864,7 @@ begin
     begin
       vItemAction := vUndo.ActionAppend(actInsertItem, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCItemUndoAction;
-      SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
+      SaveItemToStreamAlone(vItemAction.ItemStream, Items[AItemNo]);
     end;
   end;
 end;
@@ -912,7 +904,7 @@ begin
     begin
       vItemAction := vUndo.ActionAppend(actItemMirror, AItemNo, AOffset,
         Items[AItemNo].ParaFirst) as THCItemUndoAction;
-      SaveItemToStreamAlone(Items[AItemNo], vItemAction.ItemStream);
+      SaveItemToStreamAlone(vItemAction.ItemStream, Items[AItemNo]);
     end;
   end;
 end;

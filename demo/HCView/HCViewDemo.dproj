@@ -46,7 +46,7 @@
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
 			<DCC_MapFile>3</DCC_MapFile>
 			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
-			<DCC_Define>DEBUG;EUREKALOG;EUREKALOG_VER7;$(DCC_Define)</DCC_Define>
+			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
 		</PropertyGroup>
 		<ItemGroup>
 			<DelphiCompile Include="HCViewDemo.dpr">
@@ -519,19 +519,13 @@
 <!-- EurekaLog First Line
 [Exception Log]
 EurekaLog Version=7007
-Activate=1
-atFixSafeCallException=1
+Activate=0
 atVCL=1
-atWin32=1
 DeleteMapAfterCompile=0
 Encrypt Password=""
 idEurekaLog=1
 idEurekaLogDetailed=1
 idMSClassic=1
 idStepsToReproduce=1
-InjectCode=1
-InjectInfo=1
-InjectOptions=1
-loEnableMMDebugMode=1
 ProjectID="{C970BF9A-7144-4973-AED4-724D450E5D7B}"
 EurekaLog Last Line -->

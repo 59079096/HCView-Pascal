@@ -1,16 +1,6 @@
 program HCViewDemo;
 
 uses
-  EMemLeaks,
-  EResLeaks,
-  EDialogWinAPIMSClassic,
-  EDialogWinAPIEurekaLogDetailed,
-  EDialogWinAPIStepsToReproduce,
-  EDebugExports,
-  EFixSafeCallException,
-  EMapWin32,
-  EAppVCL,
-  ExceptionLog7,
   Forms,
   frm_HCViewDemo in 'frm_HCViewDemo.pas' {frmHCViewDemo},
   frm_InsertTable in 'frm_InsertTable.pas' {frmInsertTable},

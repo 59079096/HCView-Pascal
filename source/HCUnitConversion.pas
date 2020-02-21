@@ -95,7 +95,7 @@ end;
 
 function PtToPixel(const APt: Single; const ADPI: Cardinal): Cardinal;
 begin
-  Result := Round(APt / 72 * ADPI);
+  Result := Round(APt * ADPI / 72);
 end;
 
 function PixelToPt(const APix, ADPI: Integer): Single;

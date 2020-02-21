@@ -440,7 +440,7 @@ begin
   else
     FItemValues.Clear;
 
-  FSaveItem := FItems.Count > 0;
+  FSaveItem := ANode.Attributes['saveitem'] or (FItems.Count > 0);
 end;
 
 procedure THCComboboxItem.LoadFromStream(const AStream: TStream;
@@ -449,35 +449,43 @@ var
   vText: string;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, vText, AFileVersion); // ∂¡Items
-  FItems.Text := vText;
-  if (vText <> '') and (AFileVersion > 35) then
+  if AFileVersion > 36 then
   begin
-    HCLoadTextFromStream(AStream, vText, AFileVersion); // ∂¡ItemValues
-    FItemValues.Text := vText;
+    AStream.ReadBuffer(FSaveItem, SizeOf(FSaveItem));
+    if FSaveItem then
+    begin
+      HCLoadTextFromStream(AStream, vText, AFileVersion); // ∂¡Items
+      FItems.Text := vText;
+      HCLoadTextFromStream(AStream, vText, AFileVersion); // ∂¡ItemValues
+      FItemValues.Text := vText;
+    end;
   end
   else
-    FItemValues.Clear;
+  begin
+    HCLoadTextFromStream(AStream, vText, AFileVersion); // ∂¡Items
+    FItems.Text := vText;
+    if (vText <> '') and (AFileVersion > 35) then
+    begin
+      HCLoadTextFromStream(AStream, vText, AFileVersion); // ∂¡ItemValues
+      FItemValues.Text := vText;
+    end
+    else
+      FItemValues.Clear;
 
-  FSaveItem := FItems.Count > 0;
+    FSaveItem := FItems.Count > 0;
+  end;
 end;
 
 procedure THCComboboxItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
-var
-  vSize: Word;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
 
+  AStream.WriteBuffer(FSaveItem, SizeOf(FSaveItem));
   if FSaveItem then  // ¥ÊItems
   begin
     HCSaveTextToStream(AStream, FItems.Text);
     HCSaveTextToStream(AStream, FItemValues.Text);
-  end
-  else
-  begin
-    vSize := 0;
-    AStream.WriteBuffer(vSize, SizeOf(vSize));
   end;
 end;
 
@@ -507,6 +515,7 @@ procedure THCComboboxItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
 
+  ANode.Attributes['saveitem'] := FSaveItem;
   if FSaveItem then  // ¥ÊItems
   begin
     ANode.Attributes['item'] := FItems.Text;

@@ -1760,13 +1760,6 @@ end;
 
 function THCRichData.DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean;
 begin
-  Result := True;
-  if Style.States.Contain(THCState.hosLoading)
-    or Style.States.Contain(THCState.hosUndoing)
-    or Style.States.Contain(THCState.hosRedoing)
-  then
-    Exit;
-
   Result := CanEdit;
   if Result then
     Result := Items[AItemNo].AcceptAction(AOffset, AAction);
@@ -4521,13 +4514,7 @@ var
         begin
           SelectInfo.StartItemNo := vCurItemNo + 1;
           SelectInfo.StartItemOffset := 0;
-          vCurItem := GetActiveItem;
           CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;  // GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
-          {if vCurItem.StyleNo < THCStyle.RsNull then
-            RectItemKeyDown
-          else
-            DeleteKeyDown;}
-
           KeyDown(Key, Shift);
           Exit;
         end;
@@ -4810,56 +4797,12 @@ var
         end
         else  // 在不是第1个Item开始往前删，且Item不是段起始
         begin
-          if Items[SelectInfo.StartItemNo - 1].StyleNo < THCStyle.Null then  // 前面是RectItem
-          begin
-            vCurItemNo := SelectInfo.StartItemNo - 1;
-
-            Undo_New;
-
-            vParaFirst := Items[vCurItemNo].ParaFirst;  // 记录前面的RectItem段首属性
-
-            GetFormatRange(SelectInfo.StartItemNo - 1, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
-            FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
-
-            // 删除前面的RectItem
-            UndoAction_DeleteItem(vCurItemNo, OffsetAfter);
-            Items.Delete(vCurItemNo);
-            vDelCount := 1;
-
-            if vParaFirst then  // 前面删除的RectItem是段首
-            begin
-              UndoAction_ItemParaFirst(vCurItemNo, 0, vParaFirst);
-              vCurItem.ParaFirst := vParaFirst;  // 赋值前面RectItem的段起始属性
-              vLen := 0;
-            end
-            else  // 前面删除的RectItem不是段首
-            begin
-              vCurItemNo := vCurItemNo - 1;  // 上一个
-              vLen := Items[vCurItemNo].Length;  // 上一个最后面
-
-              if MergeItemText(Items[vCurItemNo], vCurItem) then  // 当前能合并到上一个
-              begin
-                UndoAction_InsertText(vCurItemNo, vLen + 1, vCurItem.Text);
-                UndoAction_DeleteItem(vCurItemNo + 1, 0);
-                Items.Delete(vCurItemNo + 1); // 删除当前的
-                vDelCount := 2;
-              end;
-            end;
-
-            ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - vDelCount, -vDelCount);
-            ReSetSelectAndCaret(vCurItemNo, vLen);
-          end
-          else  // 前面是文本，赋值为前面的最后，再重新处理删除
-          begin
-            SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
-            SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
-            vCurItem := GetActiveItem;
-
-            Style.UpdateInfoReStyle;
-            BackspaceKeyDown;  // 重新处理
-
-            Exit;
-          end;
+          // 从前一个最后开始重新处理
+          SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+          SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
+          CaretDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+          KeyDown(Key, Shift);
+          Exit;
         end;
       end;
     end

@@ -3331,6 +3331,7 @@ begin
   ACellData.OnInsertAnnotate := (OwnerData as THCViewData).OnInsertAnnotate;
   ACellData.OnRemoveAnnotate := (OwnerData as THCViewData).OnRemoveAnnotate;
   ACellData.OnDrawItemAnnotate := (OwnerData as THCViewData).OnDrawItemAnnotate;
+  ACellData.OnCaretItemChanged := (OwnerData as THCViewData).OnCaretItemChanged;
 
   ACellData.OnCanEdit := (OwnerData as THCViewData).OnCanEdit;
   ACellData.OnInsertTextBefor := (OwnerData as THCViewData).OnInsertTextBefor;

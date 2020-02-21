@@ -16,8 +16,9 @@ interface
 uses
   Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, SynPdf,
   Generics.Collections, SysUtils, HCCommon, HCViewData, HCRichData, HCDrawItem,
-  HCSection, HCScrollBar, HCRichScrollBar, HCParaStyle, HCTextStyle, HCRectItem,
-  HCTextItem, HCItem, HCCustomFloatItem, HCUndo, HCAnnotateData, HCSectionData;
+  HCSection, HCScrollBar, HCRichScrollBar, HCStatusScrollBar, HCParaStyle,
+  HCTextStyle, HCRectItem, HCTextItem, HCItem, HCCustomFloatItem, HCUndo,
+  HCAnnotateData, HCSectionData;
 
 type
   TLoadSectionProc = reference to procedure(const AFileVersion: Word);
@@ -98,7 +99,7 @@ type
     FStyle: THCStyle;
     FSections: TObjectList<THCSection>;
     FUndoList: THCUndoList;
-    FHScrollBar: THCScrollBar;
+    FHScrollBar: THCStatusScrollBar;
     FVScrollBar: THCRichScrollBar;
     FDataBmp: TBitmap;  // 数据显示位图
     FActiveSectionIndex,
@@ -118,6 +119,7 @@ type
     FOnCaretChange, FOnVerScroll, FOnHorScroll, FOnSectionCreateItem,
     FOnSectionReadOnlySwitch, FOnSectionCurParaNoChange, FOnSectionActivePageChange
       : TNotifyEvent;
+    FOnSectionCaretItemChanged: TSectionDataItemEvent;
     FOnSectionCreateStyleItem: TStyleItemEvent;
     FOnSectionCanEdit: TOnCanEditEvent;
     FOnSectionInsertTextBefor: TTextEvent;
@@ -226,6 +228,7 @@ type
     function GetActiveSection: THCSection;
 
     procedure AutoScrollTimer(const AStart: Boolean);
+    procedure GetPagesAndActive;
   protected
     { Protected declarations }
     procedure CreateWnd; override;
@@ -238,6 +241,7 @@ type
     function DoSectionAcceptAction(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
+    procedure DoSectionCaretItemChanged(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     function DoSectionSaveItem(const Sender: TObject; const AData: THCCustomData; const AItemNo: Integer): Boolean; virtual;
@@ -611,8 +615,12 @@ type
     /// <summary> 文档保存为xml格式 </summary>
     procedure SaveToXml(const AFileName: string; const AEncoding: TEncoding);
 
+    procedure SaveToXmlStream(const AStream: TStream; const AEncoding: TEncoding);
+
     /// <summary> 读取xml格式 </summary>
     function LoadFromXml(const AFileName: string): Boolean;
+
+    function LoadFromXmlStream(const AStream: TStream): Boolean;
 
     /// <summary> 导出为html格式 </summary>
     /// <param name="ASeparateSrc">True：图片等保存到文件夹，False以base64方式存储到页面中</param>
@@ -731,7 +739,7 @@ type
     property ActiveSection: THCSection read GetActiveSection;
 
     /// <summary> 水平滚动条 </summary>
-    property HScrollBar: THCScrollBar read FHScrollBar;
+    property HScrollBar: THCStatusScrollBar read FHScrollBar;
 
     /// <summary> 垂直滚动条 </summary>
     property VScrollBar: THCRichScrollBar read FVScrollBar;
@@ -863,6 +871,8 @@ type
 
     /// <summary> 节当前位置段样式和上一次不一样时触发 </summary>
     property OnSectionCurParaNoChange: TNotifyEvent read FOnSectionCurParaNoChange write FOnSectionCurParaNoChange;
+
+    property OnSectionCaretItemChanged: TSectionDataItemEvent read FOnSectionCaretItemChanged write FOnSectionCaretItemChanged;
 
     /// <summary> 节当前位置文本样式和上一次不一样时触发 </summary>
     property OnSectionActivePageChange: TNotifyEvent read FOnSectionActivePageChange write FOnSectionActivePageChange;
@@ -1138,8 +1148,9 @@ begin
   FVScrollBar.OnPageUpClick := DoPageUp;
   FVScrollBar.OnPageDownClick := DoPageDown;
   // 水平滚动条，范围在Resize中设置
-  FHScrollBar := THCScrollBar.Create(Self);
+  FHScrollBar := THCStatusScrollBar.Create(Self);
   FHScrollBar.Orientation := TOrientation.oriHorizontal;
+  FHScrollBar.AddStatus(100);
   FHScrollBar.OnScroll := DoHorScroll;
 
   FHScrollBar.Parent := Self;
@@ -1393,15 +1404,15 @@ end;
 procedure THCView.DoSectionPaintPaperAfter(const Sender: TObject; const APageIndex: Integer;
   const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 begin
-  // HCView广告信息，如介意可以删掉
+  // HCView推广信息，本信息属于开源协议一部分，请保留
   if (not APaintInfo.Print) and (FViewModel = THCViewModel.hvmFilm) and ((Sender as THCSection).PagePadding > 10) then
   begin
     ACanvas.Brush.Style := bsClear;
     ACanvas.Font.Size := 10;
     ACanvas.Font.Name := '宋体';
-    ACanvas.Font.Color := clBlack;
-
-    ACanvas.TextOut(ARect.Left, ARect.Bottom + 4, '编辑器由 HCView 提供 QQ群：649023932');
+    ACanvas.Font.Style := [];
+    ACanvas.Font.Color := $D5D1D0;
+    ACanvas.TextOut(ARect.Left, ARect.Bottom + 4, '编辑器由 HCView 提供，技术交流QQ群：649023932');
   end;
 
   if FAnnotatePre.Visible then  // 当前页有批注，绘制批注
@@ -1547,6 +1558,13 @@ begin
     Result := True;
 end;
 
+procedure THCView.DoSectionCaretItemChanged(const Sender: TObject;
+  const AData: THCCustomData; const AItem: THCCustomItem);
+begin
+  if Assigned(FOnSectionCaretItemChanged) then
+    FOnSectionCaretItemChanged(Sender, AData, AItem);
+end;
+
 procedure THCView.DoSectionChangeTopLevelData(Sender: TObject);
 begin
   DoViewResize;
@@ -1604,6 +1622,7 @@ end;
 
 procedure THCView.DoCaretChange;
 begin
+  GetPagesAndActive;
   if Assigned(FOnCaretChange) then
     FOnCaretChange(Self);
 end;
@@ -2488,6 +2507,23 @@ begin
 end;
 
 function THCView.LoadFromXml(const AFileName: string): Boolean;
+var
+  vStream: TMemoryStream;
+begin
+  Result := False;
+  vStream := TMemoryStream.Create;
+  try
+    vStream.LoadFromFile(AFileName);
+    vStream.Position := 0;
+    Result := LoadFromXmlStream(vStream);
+    if Result then
+      FFileName := AFileName;
+  finally
+    vStream.Free;
+  end;
+end;
+
+function THCView.LoadFromXmlStream(const AStream: TStream): Boolean;
 
   {function GetEncodingName(const ARaw: string): TEncoding;
   var
@@ -2526,7 +2562,8 @@ begin
       Self.Clear;
 
       vXml := THCXMLDocument.Create(nil);
-      vXml.LoadFromFile(AFileName);
+      //vXml.LoadFromFile(AFileName);
+      vXml.LoadFromStream(AStream);
       if vXml.DocumentElement.LocalName = 'HCView' then
       begin
         if vXml.DocumentElement.Attributes['EXT'] <> HC_EXT then Exit;
@@ -2732,6 +2769,7 @@ begin
   Result.OnDrawItemAnnotate := DoSectionDrawItemAnnotate;
   Result.OnGetUndoList := DoSectionGetUndoList;
   Result.OnCurParaNoChange := DoSectionCurParaNoChange;
+  Result.OnCaretItemChanged := DoSectionCaretItemChanged;
   Result.OnActivePageChange := DoSectionActivePageChange;
 end;
 
@@ -2741,6 +2779,7 @@ begin
   FStyle.UpdateInfoRePaint;
   FStyle.UpdateInfoReCaret(False);
   CheckUpdateInfo;
+  GetPagesAndActive;
   if Assigned(FOnVerScroll) then
     FOnVerScroll(Self);
 end;
@@ -2788,6 +2827,13 @@ begin
     Result := Result + FSections[i].PageCount;
 
   Result := Result + FSections[FActiveSectionIndex].DisplayFirstPageIndex;
+end;
+
+procedure THCView.GetPagesAndActive;
+begin
+  FHScrollBar.Statuses[0].Text := '预览' + IntToStr(PagePreviewFirst + 1)
+    + ' 光标' + IntToStr(ActivePageIndex + 1)
+    + '/' + IntToStr(PageCount) + '页';
 end;
 
 function THCView.GetReadOnly: Boolean;
@@ -3914,6 +3960,20 @@ end;
 
 procedure THCView.SaveToXml(const AFileName: string; const AEncoding: TEncoding);
 var
+  vStream: TMemoryStream;
+begin
+  vStream := TMemoryStream.Create;
+  try
+    SaveToXmlStream(vStream, AEncoding);
+    vStream.SaveToFile(AFileName);
+  finally
+    FreeAndNil(vStream);
+  end;
+end;
+
+procedure THCView.SaveToXmlStream(const AStream: TStream;
+  const AEncoding: TEncoding);
+var
   vXml: IHCXMLDocument;
   vNode: IHCXMLNode;
   i: Integer;
@@ -3940,7 +4000,8 @@ begin
   for i := 0 to FSections.Count - 1 do  // 各节数据
     FSections[i].ToXml(vNode.AddChild('sc'));
 
-  vXml.SaveToFile(AFileName);
+  //vXml.SaveToFile(AFileName);
+  vXml.SaveToStream(AStream);
 end;
 
 function THCView.ZoomIn(const Value: Integer): Integer;

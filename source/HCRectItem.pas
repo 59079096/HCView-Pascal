@@ -1314,7 +1314,7 @@ begin
     if FMarkType = cmtBeg then
     begin
       ACanvas.Pen.Style := psSolid;
-      ACanvas.Pen.Color := clActiveBorder;
+      ACanvas.Pen.Color := clBlue;
       ACanvas.MoveTo(ADrawRect.Left + 2, ADrawRect.Top - 1);
       ACanvas.LineTo(ADrawRect.Left, ADrawRect.Top - 1);
       ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom + 1);
@@ -1323,7 +1323,7 @@ begin
     else
     begin
       ACanvas.Pen.Style := psSolid;
-      ACanvas.Pen.Color := clActiveBorder;
+      ACanvas.Pen.Color := clBlue;
       ACanvas.MoveTo(ADrawRect.Right - 2, ADrawRect.Top - 1);
       ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top - 1);
       ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom + 1);
@@ -1344,7 +1344,7 @@ begin
     if AItemNo < ARichData.Items.Count - 1 then  // 插入时可能是在Data最后面插入起始，后面不一定有结束
     begin
       vItem := ARichData.Items[AItemNo + 1];
-      if (vItem.StyleNo = Self.StyleNo)  // 下一个是组标识
+      if (vItem.StyleNo = Self.StyleNo)  // 下一个是域标识
         and ((vItem as THCDomainItem).MarkType = TMarkType.cmtEnd)  // 下一个是结束标识
       then
         Self.Width := 10  // 增加宽度以便输入时光标可方便点击

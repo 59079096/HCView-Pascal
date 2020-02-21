@@ -10,6 +10,8 @@
 
 {$DEFINE UNPLACEHOLDERCHAR}  // 支持紧缩文本，如藏文HIMALAYA等
 
+{-$DEFINE SPEEDMODE}  // 极速模式，忽略一些供外部处理的事件，适用对性能有极端要求的场景
+
 {$DEFINE RESETTABLEUSEFIRSTROWHEIGHT}  // 重设表格行列数时使用第一行的高度
 {$DEFINE TABLEROWRESTOREAUTOHEIGHT}  // 表格行手动调整大小后如果内容变化超过高度后恢复为自动计算行高
 

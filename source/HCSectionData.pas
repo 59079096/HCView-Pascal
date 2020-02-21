@@ -433,8 +433,9 @@ function THCSectionData.KeyDownFloatItem(var Key: Word;
   Shift: TShiftState): Boolean;
 begin
   Result := True;
+  if Self.ReadOnly then Exit;
 
-  if FFloatItemIndex >= 0 then
+  if (FFloatItemIndex >= 0) and (not FFloatItems[FFloatItemIndex].Lock) then
   begin
     case Key of
       VK_BACK, VK_DELETE:
@@ -516,6 +517,12 @@ begin
 
   if FFloatItemIndex >= 0 then
   begin
+    if Self.ReadOnly then
+    begin
+      Result := True;
+      Exit;
+    end;
+
     Result := FFloatItems[FFloatItemIndex].MouseDown(Button, Shift,
       X - FFloatItems[FFloatItemIndex].Left, Y - FFloatItems[FFloatItemIndex].Top);
   end;
@@ -533,6 +540,13 @@ begin
 
   if (Shift = [ssLeft]) and (FMouseDownIndex >= 0) then  // °´ÏÂÍÏ×§
   begin
+    if Self.ReadOnly then
+    begin
+      //GCursor := crDefault;
+      Result := True;
+      Exit;
+    end;
+
     vFloatItem := FFloatItems[FMouseDownIndex];
     Result := vFloatItem.MouseMove(Shift, X - vFloatItem.Left, Y - vFloatItem.Top);
     if Result then
@@ -567,6 +581,12 @@ begin
 
   if FMouseDownIndex >= 0 then
   begin
+    if Self.ReadOnly then
+    begin
+      Result := True;
+      Exit;
+    end;
+
     Undo_New;
     UndoAction_FloatItemMirror(FMouseDownIndex);
 

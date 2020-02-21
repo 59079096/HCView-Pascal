@@ -171,6 +171,7 @@ type
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
+    procedure DoCaretItemChanged; virtual;
 
     property Loading: Boolean read FLoading;
   public
@@ -823,6 +824,10 @@ begin
 
   SelectInfo.StartItemNo := -1;
   SelectInfo.StartItemOffset := -1;
+end;
+
+procedure THCCustomData.DoCaretItemChanged;
+begin
 end;
 
 procedure THCCustomData.DoDrawItemPaintAfter(const AData: THCCustomData;
@@ -2795,7 +2800,8 @@ begin
     if (FCaretDrawItemNo >= 0) and (FCaretDrawItemNo < FDrawItems.Count) then  // 有旧的
     begin
       vItemNo := FDrawItems[FCaretDrawItemNo].ItemNo;
-      FItems[vItemNo].Active := False;  // 旧的取消激活
+      if (Value >= 0) and (vItemNo <> FDrawItems[Value].ItemNo) then
+        FItems[vItemNo].Active := False;  // 旧的取消激活
     end
     else
       vItemNo := -1;
@@ -2813,13 +2819,19 @@ begin
       if FItems[FDrawItems[FCaretDrawItemNo].ItemNo].StyleNo < THCStyle.Null then
       begin
         if FSelectInfo.StartItemOffset = OffsetInner then
-          FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True
+        begin
+          FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;
+          DoCaretItemChanged;
+        end;
       end
       else
+      begin
       //if (FSelectInfo.StartItemOffset > 0)  // 在Item上
       //  and (FSelectInfo.StartItemOffset < FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Length)
       //then
         FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;  // 激活新的
+        DoCaretItemChanged;
+      end;
     end;
   end;
 end;

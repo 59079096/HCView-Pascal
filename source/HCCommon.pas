@@ -63,10 +63,12 @@ const
    3.4 RadioGroun控件保存选项样式、保存文件所用的排版算法版本、增加Item打印不可见属性，EditItem增加仅打印文本属性
    3.5 数据元增加DeleteProtect控制是否能删除掉整个数据元，表格存储CellPadding，FloatBarCode存储单线条宽度
    3.6 Combobox和RadioGrou的选项改为键值对的形式
+   3.7 兼容Combobox无下拉选项时保存选项后打不开的问题
+   3.8 浮动Item增加Lock属性用于锁定Item不可移动和修改
   }
 
-  HC_FileVersion = '3.6';
-  HC_FileVersionInt = 36;
+  HC_FileVersion = '3.8';
+  HC_FileVersionInt = 38;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;

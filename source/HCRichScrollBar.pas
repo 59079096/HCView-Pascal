@@ -17,7 +17,7 @@ uses
   Windows, Classes, Controls, Graphics, Generics.Collections, HCScrollBar;
 
 type
-  TAreaMark = class(TObject)  // 区域标记
+  TAreaMark = class(TObject)  // 滚动区域标记
   strict private
     FTag, FPosition, FHeight: Integer;
   public

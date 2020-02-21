@@ -23,6 +23,7 @@ type
     FLeft, FTop,  // 位置
     FPageIndex  // 当前在哪一页  20190906001
       : Integer;
+    FLock: Boolean;
     FDrawRect: TRect;
     FMousePt: TPoint;
   public
@@ -45,6 +46,7 @@ type
     property Left: Integer read FLeft write FLeft;
     property Top: Integer read FTop write FTop;
     property PageIndex: Integer read FPageIndex write FPageIndex;
+    property Lock: Boolean read FLock write FLock;
   end;
 
   THCFloatItems = class(TObjectList<THCCustomFloatItem>)
@@ -74,6 +76,7 @@ constructor THCCustomFloatItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
   //Self.StyleNo := THCStyle.FloatItem;
+  FLock := False;
 end;
 
 function THCCustomFloatItem.PointInClient(const APoint: TPoint): Boolean;
@@ -109,25 +112,40 @@ begin
 
   if AFileVersion > 28 then
     AStream.ReadBuffer(FPageIndex, SizeOf(FPageIndex));
+
+  if AFileVersion > 37 then
+    AStream.ReadBuffer(FLock, SizeOf(FLock))
+  else
+    FLock := False;
 end;
 
 function THCCustomFloatItem.MouseDown(Button: TMouseButton; Shift: TShiftState;
   X, Y: Integer): Boolean;
 begin
-  Result := inherited MouseDown(Button, Shift, X, Y);
-  if not Self.Resizing then
-    FMousePt := Point(X, Y);
+  if FLock then
+    Result := Self.Active
+  else
+  begin
+    Result := inherited MouseDown(Button, Shift, X, Y);
+    if not Self.Resizing then
+      FMousePt := Point(X, Y);
+  end;
 end;
 
 function THCCustomFloatItem.MouseMove(Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
-  Result := inherited MouseMove(Shift, X, Y);
-  if (not Self.Resizing) and (Shift = [ssLeft]) then
+  if FLock then
+    Result := Self.Active
+  else
   begin
-    FLeft := FLeft + X - FMousePt.X;
-    FTop := FTop + Y - FMousePt.Y;
-    // 因为移动后，Left和Top变化，原鼠标位置相对左上角的位置不变，所以不用修正FMousePt
+    Result := inherited MouseMove(Shift, X, Y);
+    if (not Self.Resizing) and (Shift = [ssLeft]) then
+    begin
+      FLeft := FLeft + X - FMousePt.X;
+      FTop := FTop + Y - FMousePt.Y;
+      // 因为移动后，Left和Top变化，原鼠标位置相对左上角的位置不变，所以不用修正FMousePt
+    end;
   end;
 end;
 
@@ -137,6 +155,8 @@ begin
   //Result := inherited MouseUp(Button, Shift, X, Y);
   // 继承里的Undo没有处理好，处理时可考虑继承父类的MouseUp方法
   Result := False;
+  if FLock then Exit;
+
   if Self.Resizing then
   begin
     Self.Resizing := False;
@@ -157,6 +177,10 @@ begin
   Width := ANode.Attributes['width'];
   Height := ANode.Attributes['height'];
   FPageIndex := ANode.Attributes['pageindex'];
+  if ANode.HasAttribute('lock') then
+    FLock := ANode.Attributes['lock']
+  else
+    FLock := False;
 end;
 
 function THCCustomFloatItem.PointInClient(const X, Y: Integer): Boolean;
@@ -181,6 +205,7 @@ begin
   // 20190906001 FloatItem不能通过GetPageIndexByFormat(FPage.FloatItems[0].Top)来计算FloatItem
   // 的页序号，因为正文的可能拖到页眉页脚处，按Top算GetPageIndexByFormat并不在当前页中，所以单独存
   AStream.WriteBuffer(FPageIndex, SizeOf(FPageIndex));
+  AStream.WriteBuffer(FLock, SizeOf(FLock));
 end;
 
 procedure THCCustomFloatItem.ToXml(const ANode: IHCXMLNode);
@@ -191,6 +216,7 @@ begin
   ANode.Attributes['width'] := Width;
   ANode.Attributes['height'] := Height;
   ANode.Attributes['pageindex'] := FPageIndex;
+  ANode.Attributes['lock'] := FLock;
 end;
 
 { THCFloatItems }

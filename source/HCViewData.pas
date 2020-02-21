@@ -26,6 +26,7 @@ type
 
   THCViewData = class(THCViewDevData)  // 具有高亮域和操作Items功能的Data类
   private
+    FCaretItemChanged: Boolean;
     FDomainStartDeletes: THCIntegerList;  // 仅用于选中删除时，当域起始结束都选中时，删除了结束后标明起始的可删除
     FHotDomain,  // 当前高亮域
     FActiveDomain  // 当前激活域
@@ -36,6 +37,7 @@ type
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
     FOnInsertTextBefor: TTextEvent;
+    FOnCaretItemChanged: TDataItemEvent;
   protected
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; override;
     /// <summary> 是否允许保存该Item </summary>
@@ -43,6 +45,7 @@ type
 
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; override;
+    procedure DoCaretItemChanged; override;
 
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
@@ -116,6 +119,8 @@ type
     /// <param name="ADomainItemNo">域起始或结束ItemNo</param>
     procedure SaveDomainToStream(const AStream: TStream; const ADomainItemNo: Integer);
 
+    property OnCaretItemChanged: TDataItemEvent read FOnCaretItemChanged write FOnCaretItemChanged;
+
     property HotDomain: THCDomainInfo read FHotDomain;
     property ActiveDomain: THCDomainInfo read FActiveDomain;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
@@ -124,6 +129,8 @@ type
   end;
 
 implementation
+
+{$I HCView.inc}
 
 uses
   StrUtils;
@@ -134,8 +141,15 @@ function THCViewData.DoAcceptAction(const AItemNo, AOffset: Integer; const AActi
 var
   vItemNo: Integer;
 begin
-  Result := inherited DoAcceptAction(AItemNo, AOffset, AAction);
-  if Result and (AAction = THCAction.actDeleteItem) then
+  Result := True;
+
+  if Style.States.Contain(THCState.hosLoading)
+    or Style.States.Contain(THCState.hosUndoing)
+    or Style.States.Contain(THCState.hosRedoing)
+  then
+    Exit;
+
+  if AAction = THCAction.actDeleteItem then
   begin
     if Items[AItemNo].StyleNo = THCStyle.Domain then  // 是域标识
     begin
@@ -150,6 +164,14 @@ begin
         Result := FDomainStartDeletes.IndexOf(AItemNo) >= 0;  // 结束标识已经被标记为可删除
     end;
   end;
+
+  if Result then
+    Result := inherited DoAcceptAction(AItemNo, AOffset, AAction);
+end;
+
+procedure THCViewData.DoCaretItemChanged;
+begin
+  FCaretItemChanged := True;
 end;
 
 function THCViewData.CanEdit: Boolean;
@@ -235,6 +257,7 @@ end;
 
 constructor THCViewData.Create(const AStyle: THCStyle);
 begin
+  FCaretItemChanged := False;
   FDomainStartDeletes := THCIntegerList.Create;
   FHotDomain := THCDomainInfo.Create;
   FHotDomain.Data := Self;
@@ -737,7 +760,7 @@ var
   vTopData: THCCustomData;
 begin
   inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
-
+  {$IFNDEF SPEEDMODE}
   // 赋值激活Group信息，清除在 MouseDown
   if Self.SelectInfo.StartItemNo >= 0 then
   begin
@@ -760,6 +783,14 @@ begin
       end;
     end;
   end;
+
+  if FCaretItemChanged then
+  begin
+    FCaretItemChanged := False;
+    if Assigned(FOnCaretItemChanged) then
+      FOnCaretItemChanged(Self, Items[SelectInfo.StartItemNo]);
+  end;
+  {$ENDIF}
 end;
 
 procedure THCViewData.GetCaretInfoCur(var ACaretInfo: THCCaretInfo);

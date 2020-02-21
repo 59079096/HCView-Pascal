@@ -98,6 +98,7 @@ type
     FOnItemMouseDown, FOnItemMouseUp: TSectionDataItemMouseEvent;
     FOnItemResize: TDataItemNoEvent;
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
+    FOnCaretItemChanged: TSectionDataItemEvent;
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
     FOnInsertTextBefor: TTextEvent;
@@ -149,6 +150,7 @@ type
       const AText: string): Boolean;
     procedure DoDataCreateItem(Sender: TObject);
     procedure DoDataCurParaNoChange(Sender: TObject);
+    procedure DoDataCaretItemChanged(const AData: THCCustomData; const AItem: THCCustomItem);
     function DoDataGetUndoList: THCUndoList;
 
     /// <summary> 返回页面Data指定DrawItem所在的页(跨页的按最后位置所在页) </summary>
@@ -453,6 +455,7 @@ type
     property OnInsertTextBefor: TTextEvent read FOnInsertTextBefor write FOnInsertTextBefor;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
     property OnCurParaNoChange: TNotifyEvent read FOnCurParaNoChange write FOnCurParaNoChange;
+    property OnCaretItemChanged: TSectionDataItemEvent read FOnCaretItemChanged write FOnCaretItemChanged;
     property OnActivePageChange: TNotifyEvent read FOnActivePageChange write FOnActivePageChange;
   end;
 
@@ -734,6 +737,7 @@ var
     AData.OnDrawItemAnnotate := DoDataDrawItemAnnotate;
     AData.OnGetUndoList := DoDataGetUndoList;
     AData.OnCurParaNoChange := DoDataCurParaNoChange;
+    AData.OnCaretItemChanged := DoDataCaretItemChanged;
   end;
 
 begin
@@ -838,6 +842,13 @@ begin
     Result := FOnCanEdit(Sender)
   else
     Result := True;
+end;
+
+procedure THCCustomSection.DoDataCaretItemChanged(const AData: THCCustomData;
+  const AItem: THCCustomItem);
+begin
+  if Assigned(FOnCaretItemChanged) then
+    FOnCaretItemChanged(Self, AData, AItem);
 end;
 
 procedure THCCustomSection.DoDataChanged(Sender: TObject);

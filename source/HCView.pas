@@ -132,7 +132,7 @@ type
       FOnSectionPaintPaperBefor, FOnSectionPaintPaperAfter: TSectionPaintEvent;
     FOnPaintViewBefor, FOnPaintViewAfter: TPaintEvent;
 
-    FOnChange, FOnChangeSwitch, FOnZoomChange,
+    FOnChange, FOnChangeSwitch, FOnZoomChange, FOnSetFocus,
     FOnViewResize  // 视图大小发生变化
       : TNotifyEvent;
 
@@ -237,6 +237,7 @@ type
     procedure DoChange; virtual;
     procedure DoCaretChange; virtual;
     procedure DoKillFocus; virtual;
+    procedure DoSetFocus; virtual;  // 为处理DLL和主程序的DBGrid焦点问题增加此事件供主程序处理
     procedure DoSectionCreateItem(Sender: TObject); virtual;
     function DoSectionAcceptAction(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; virtual;
@@ -880,6 +881,8 @@ type
     /// <summary> 文档视图有变动时触发 </summary>
     property OnViewResize: TNotifyEvent read FOnViewResize write FOnViewResize;
 
+    property OnSetFocus: TNotifyEvent read FOnSetFocus write FOnSetFocus;
+
     property Color;
     property PopupMenu;
   end;
@@ -1459,6 +1462,12 @@ begin
     Result := FOnSectionSaveItem(Sender, AData, AItemNo)
   else
     Result := True;
+end;
+
+procedure THCView.DoSetFocus;
+begin
+  if Assigned(FOnSetFocus) then
+    FOnSetFocus(Self);
 end;
 
 function THCView.DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
@@ -3186,7 +3195,6 @@ begin
   vPaintInfo := TSectionPaintInfo.Create;
   try
     vPaintInfo.Print := True;
-    vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
     vPaintInfo.SectionIndex := Self.ActiveSectionIndex;
     vPaintInfo.PageIndex := Self.ActiveSection.ActivePageIndex;
 
@@ -3219,7 +3227,7 @@ begin
       vPrintCanvas := TCanvas.Create;
       try
         vPrintCanvas.Handle := HCPrinter.Canvas.Handle;  // 为什么不用vPageCanvas中介打印就不行呢？
-
+        vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
         vScaleInfo := vPaintInfo.ScaleCanvas(vPrintCanvas);
         try
           Self.ActiveSection.PaintPaper(Self.ActiveSection.ActivePageIndex,
@@ -3308,7 +3316,6 @@ begin
   vPaintInfo := TSectionPaintInfo.Create;
   try
     vPaintInfo.Print := True;
-    vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
     vPaintInfo.SectionIndex := Self.ActiveSectionIndex;
     vPaintInfo.PageIndex := Self.ActiveSection.ActivePageIndex;
 
@@ -3341,7 +3348,7 @@ begin
       vPrintCanvas := TCanvas.Create;
       try
         vPrintCanvas.Handle := HCPrinter.Canvas.Handle;  // 为什么不用vPageCanvas中介打印就不行呢？
-
+        vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
         vScaleInfo := vPaintInfo.ScaleCanvas(vPrintCanvas);
         try
           Self.ActiveSection.PaintPaper(Self.ActiveSection.ActivePageIndex,
@@ -4703,6 +4710,7 @@ end;
 procedure THCView.WMSetFocus(var Message: TWMSetFocus);
 begin
   inherited;
+  DoSetFocus;
   // 光标在行最后，通过工具栏修改光标处字号后会重新设置焦点到HCView，如果不停止重取样式，
   // 则会以当前光标前文本样式做为当前样式了，如果是焦点失去后鼠标重新点击获取焦点
   // 会先触发这里，再触发MouseDown，在MouseDown里会重新取当前样式不受影响

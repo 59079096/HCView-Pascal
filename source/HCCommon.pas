@@ -150,7 +150,8 @@ type
     actInsertItem,  // 插入Item
     actItemProperty,  // Item属性变化
     actItemSelf,  // Item自己管理
-    actItemMirror  // Item镜像
+    actItemMirror,  // Item镜像
+    actConcatText  // 粘接文本(两头)
     );
 
 //  TPaperSize = (psCustom, ps4A0, ps2A0, psA0, psA1, psA2,

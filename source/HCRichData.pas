@@ -1762,7 +1762,7 @@ function THCRichData.DoAcceptAction(const AItemNo, AOffset: Integer; const AActi
 begin
   Result := CanEdit;
   if Result then
-    Result := Items[AItemNo].AcceptAction(AOffset, AAction);
+    Result := Items[AItemNo].AcceptAction(AOffset, SelectInfo.StartRestrain, AAction);
 
   if Result and Assigned(FOnAcceptAction) then
     Result := FOnAcceptAction(Self, AItemNo, AOffset, AAction);
@@ -2619,127 +2619,185 @@ var
     vTextItem: THCTextItem;
     vNewItem, vAfterItem: THCCustomItem;
     vS: string;
-    vLen: Integer;
+    vOffset: Integer;
   begin
     Result := False;
     vTextItem := Items[SelectInfo.StartItemNo] as THCTextItem;
     if vTextItem.StyleNo = CurStyleNo then  // 当前样式和插入位置TextItem样式相同
     begin
-      //if DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actInsertText) then  // TextItem此偏移位置可接受输入
+      if SelectInfo.StartItemOffset = 0 then  // 在TextItem最前面插入
       begin
-        if SelectInfo.StartItemOffset = 0 then  // 在TextItem最前面插入
-        begin
-          UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
-          vTextItem.Text := AText + vTextItem.Text;
-          if ANewPara and (not vTextItem.ParaFirst) then
-          begin
-            UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
-            vTextItem.ParaFirst := True;
-          end;
+        vOffset := Length(AText);
 
-          vLen := Length(AText);
-        end
-        else
-        if SelectInfo.StartItemOffset = vTextItem.Length then  // 在TextItem最后插入
+        if ANewPara then  // 另起一段
         begin
-          if ANewPara then  // 另起一段
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.ParaFirst := True;
+          vNewItem.Text := AText;
+
+          Items.Insert(SelectInfo.StartItemNo, vNewItem);
+          UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+          Inc(vAddCount);
+        end
+        else  // 同段
+        if vTextItem.AcceptAction(0, SelectInfo.StartRestrain, actConcatText) then  // TextItem最前面可接受连接字符
+        begin
+          UndoAction_InsertText(SelectInfo.StartItemNo, 1, AText);
+          vTextItem.Text := AText + vTextItem.Text;
+        end
+        else  // TextItem最前面不接收字符
+        begin
+          if vTextItem.ParaFirst then  // 段最前面不接收，新插入的作为段首
           begin
-            if (not IsParaLastItem(SelectInfo.StartItemNo))  // 不是段最后一个
-              and (Items[SelectInfo.StartItemNo + 1].StyleNo > THCStyle.Null) // 下一个是文本
-            then
+            vNewItem := CreateDefaultTextItem;
+            vNewItem.Text := AText;
+            vNewItem.ParaFirst := True;
+
+            UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
+            vTextItem.ParaFirst := False;
+
+            Items.Insert(SelectInfo.StartItemNo, vNewItem);
+            UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+            Inc(vAddCount);
+          end
+          else  // TextItem最前面不接收字符，TextItem不是段最前面
+          if Items[SelectInfo.StartItemNo - 1].StyleNo > THCStyle.Null then  // 前一个是文本
+          begin
+            vTextItem := Items[SelectInfo.StartItemNo - 1] as THCTextItem;
+            if vTextItem.AcceptAction(vTextItem.Length, True, actConcatText) then // 前一个在最后可接受连接字符
+              //and MergeItemText(Items[SelectInfo.StartItemNo - 1], vNewItem)
             begin
-              SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-              SelectInfo.StartItemOffset := 0;
-              Result := DoTextItemInsert(AText, ANewPara);
-              Exit;
+              UndoAction_InsertText(SelectInfo.StartItemNo - 1, vTextItem.Length + 1, AText);
+              vTextItem.Text := vTextItem.Text + AText;
+              SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+              vOffset := vTextItem.Length;
             end
             else
             begin
               vNewItem := CreateDefaultTextItem;
-              vNewItem.ParaFirst := True;
+              vNewItem.Text := AText;
+
+              Items.Insert(SelectInfo.StartItemNo, vNewItem);
+              UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+              Inc(vAddCount);
+            end;
+          end
+          else  // 前一个不是文本
+          begin
+            vNewItem := CreateDefaultTextItem;
+            vNewItem.Text := AText;
+
+            Items.Insert(SelectInfo.StartItemNo, vNewItem);
+            UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+            Inc(vAddCount);
+          end;
+        end;
+      end
+      else
+      if SelectInfo.StartItemOffset = vTextItem.Length then  // 在TextItem最后插入
+      begin
+        if ANewPara then  // 另起一段
+        begin
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.ParaFirst := True;
+          vNewItem.Text := AText;
+
+          Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
+          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+          Inc(vAddCount);
+
+          SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+          vOffset := vNewItem.Length;
+        end
+        else  // 最后面插入文本不另起一段
+        if vTextItem.AcceptAction(SelectInfo.StartItemOffset, SelectInfo.StartRestrain, actConcatText) then  // 最后面能接收文本
+        begin
+          UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
+          vTextItem.Text := vTextItem.Text + AText;
+          vOffset := vTextItem.Length;
+        end
+        else  // 最后面不能接收输入
+        if not IsParaLastItem(SelectInfo.StartItemNo) then  // 同段后面还有内容
+        begin
+          if Items[SelectInfo.StartItemNo + 1].StyleNo > THCStyle.Null then  // 同段后面是文本
+          begin
+            vTextItem := Items[SelectInfo.StartItemNo + 1] as THCTextItem;
+            if vTextItem.AcceptAction(0, True, actConcatText) then  // 后一个在最前可接受连接字符
+              //and MergeItemText(Items[SelectInfo.StartItemNo - 1], vNewItem)
+            begin
+              UndoAction_InsertText(SelectInfo.StartItemNo + 1, 1, AText);
+              vTextItem.Text := AText + vTextItem.Text;
+              SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+              vOffset := Length(AText);
+            end
+            else
+            begin
+              vNewItem := CreateDefaultTextItem;
               vNewItem.Text := AText;
 
               Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
               UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
               Inc(vAddCount);
-
               SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-              vLen := vNewItem.Length;
+              vOffset := Length(AText);
             end;
           end
-          else  // TextItem增加字符
+          else  // 同段后面不是文本
           begin
-            UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
-            vTextItem.Text := vTextItem.Text + AText;
-            vLen := vTextItem.Length;
-          end;
-        end
-        else  // 在Item中间
-        begin
-          if ANewPara then  // 在TextItem中间按新段插入Text
-          begin
-            // 原TextItem打断
-            vS := vTextItem.SubString(SelectInfo.StartItemOffset + 1, vTextItem.Length - SelectInfo.StartItemOffset);
-            UndoAction_DeleteText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, vS);
-            // 原位置后半部分
-            vAfterItem := vTextItem.BreakByOffset(SelectInfo.StartItemOffset);
-            vAfterItem.Text := AText + vAfterItem.Text;
-            vAfterItem.ParaFirst := True;
-            // 插入原TextItem后半部分增加Text后的
-            Items.Insert(SelectInfo.StartItemNo + 1, vAfterItem);
-            UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-            Inc(vAddCount);
+            vNewItem := CreateDefaultTextItem;
+            vNewItem.Text := AText;
 
-            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-            vLen := Length(AText);
-          end
-          else
-          begin
-            vLen := SelectInfo.StartItemOffset + Length(AText);
-            vS := vTextItem.Text;
-            Insert(AText, vS, SelectInfo.StartItemOffset + 1);
-            UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
-            vTextItem.Text := vS;
-          end;
-        end;
-
-        SelectInfo.StartItemOffset := vLen;
-
-        Result := True;
-      end;
-      {else  // 此位置不可接受输入
-      begin
-        if (SelectInfo.StartItemOffset = 0)
-          or (SelectInfo.StartItemOffset = vTextItem.Length)   // 在首尾不可接受时，插入到前后位置
-        then
-        begin
-          vNewItem := CreateDefaultTextItem;
-          vNewItem.ParaFirst := ANewPara;
-          vNewItem.Text := AText;
-
-          if SelectInfo.StartItemOffset = 0 then  // 在首
-          begin
-            if (not vNewItem.ParaFirst) and vTextItem.ParaFirst then  // 在段首插入非段首Item
-            begin
-              vNewItem.ParaFirst := True;
-              UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
-              vTextItem.ParaFirst := False;
-            end;
-
-            Items.Insert(SelectInfo.StartItemNo, vNewItem);
-            UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
-          end
-          else
-          begin
             Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
             UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+            Inc(vAddCount);
             SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+            vOffset := Length(AText);
           end;
+        end
+        else  // 段最后一个后面不接收输入
+        begin
+          vNewItem := CreateDefaultTextItem;
+          vNewItem.Text := AText;
 
+          Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
+          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
           Inc(vAddCount);
-          SelectInfo.StartItemOffset := vNewItem.Length;
+          SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+          vOffset := Length(AText);
         end;
-      end;}
+      end
+      else  // 在Item中间
+      begin
+        if ANewPara then  // 在TextItem中间按新段插入Text
+        begin
+          // 原TextItem打断
+          vS := vTextItem.SubString(SelectInfo.StartItemOffset + 1, vTextItem.Length - SelectInfo.StartItemOffset);
+          UndoAction_DeleteText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, vS);
+          // 原位置后半部分
+          vAfterItem := vTextItem.BreakByOffset(SelectInfo.StartItemOffset);
+          vAfterItem.Text := AText + vAfterItem.Text;
+          vAfterItem.ParaFirst := True;
+          // 插入原TextItem后半部分增加Text后的
+          Items.Insert(SelectInfo.StartItemNo + 1, vAfterItem);
+          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+          Inc(vAddCount);
+
+          SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+          vOffset := Length(AText);
+        end
+        else
+        begin
+          vOffset := SelectInfo.StartItemOffset + Length(AText);
+          vS := vTextItem.Text;
+          Insert(AText, vS, SelectInfo.StartItemOffset + 1);
+          UndoAction_InsertText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1, AText);
+          vTextItem.Text := vS;
+        end;
+      end;
+
+      SelectInfo.StartItemOffset := vOffset;
+
+      Result := True;
     end
     else  // 插入位置TextItem样式和当前样式不同，在TextItem头、中、尾没选中，但应用了新样式，以新样式处理
     begin
@@ -2912,10 +2970,11 @@ begin
       else
         Self.FormatInit;
     end
-    else  // 当前位置是TextItem
+    else  // 当前位置是TextItem或RectItem前后
     begin
       vNewPara := False;
       vAddCount := 0;
+      CurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;  // 防止静默移动选中位置没有更新当前样式
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
@@ -2954,11 +3013,12 @@ begin
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + vAddCount, vAddCount);
       Result := True;
     end;
+
+    ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);  // 便于Undo记录CaretDrawItem
   finally
     Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   end;
 
-  ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   InitializeMouseField;  // 201807311101
 
   Style.UpdateInfoRePaint;

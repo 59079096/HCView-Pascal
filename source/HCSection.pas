@@ -2648,6 +2648,8 @@ var
   vPage: THCPage;
   vItem: THCCustomItem;
 begin
+  if FPage.FormatCount <> 0 then Exit;
+
   // 上一行所在页作为格式化起始页
   vPrioDrawItemNo := AStartDrawItemNo; // FPageData.GetItemLastDrawItemNo(AStartItemNo - 1)  // 上一个最后的DItem
   while vPrioDrawItemNo > 0 do

@@ -349,6 +349,7 @@ procedure THCUndoList.UndoGroupBegin(const AItemNo, AOffset: Integer);
 var
   vUndoGroupBegin: THCUndoGroupBegin;
 begin
+  FGroupWorking := True;
   if Assigned(FOnUndoGroupStart) then
     vUndoGroupBegin := FOnUndoGroupStart(AItemNo, AOffset)
   else
@@ -402,7 +403,7 @@ begin
       Self.Clear;
   end;
 
-  if Self.Count > FMaxUndoCount then  // 超出列表最大允许的数量
+  if (Self.Count > FMaxUndoCount) and (not FGroupWorking) then  // 超出列表最大允许的数量
   begin
     vOver := 0;
 
@@ -448,6 +449,7 @@ begin
   vUndoGroupEnd.Offset := AOffset;
 
   DoNewUndo(vUndoGroupEnd);
+  FGroupWorking := False;
 end;
 
 function THCUndoList.UndoNew: THCUndo;

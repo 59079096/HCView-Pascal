@@ -935,6 +935,7 @@ begin
 
   if (AItem.StyleNo > THCStyle.Null) and (AItem.Text = '') then Exit;  // 空行不能再插入空行
 
+  AItem.ParaNo := Items[0].ParaNo;  // 插入在表格上，AItem的StyleNo是和表格一样，在实际的单元格时要以单元格当前的StyleNo为准
   UndoAction_DeleteItem(0, 0);
   Items.Clear;
   DrawItems.Clear;
@@ -4024,7 +4025,7 @@ var
         VK_BACK:  // 在RectItem前
           begin
             if vCurItem.ParaFirst  // 是段首
-              and DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actReturnItem)
+              and DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actBackDeleteText)
             then
             begin
               if SelectInfo.StartItemNo > 0 then  // 第一个前回删不处理，停止格式化

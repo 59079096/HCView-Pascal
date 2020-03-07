@@ -13,8 +13,10 @@ unit HCView;
 
 interface
 
+{-$DEFINE SYNPDF}
+
 uses
-  Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, SynPdf,
+  Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, {$IFDEF SYNPDF}SynPdf,{$ENDIF}
   Generics.Collections, SysUtils, HCCommon, HCViewData, HCRichData, HCDrawItem,
   HCSection, HCScrollBar, HCRichScrollBar, HCStatusScrollBar, HCParaStyle,
   HCTextStyle, HCRectItem, HCTextItem, HCItem, HCCustomFloatItem, HCUndo,
@@ -588,6 +590,8 @@ type
     /// <summary> 文档保存为PDF格式 </summary>
     procedure SaveToPDF(const AFileName: string);
 
+    procedure SaveToPDFStream(const AStream: TStream);
+
     /// <summary> 以字符串形式获取文档各节正文内容 </summary>
     function SaveToText: string;
 
@@ -895,18 +899,6 @@ uses
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
-
-function GetPDFPaperSize(const APaperSize: Integer): TPDFPaperSize;
-begin
-  case APaperSize of
-    DMPAPER_A3: Result := TPDFPaperSize.psA3;
-    DMPAPER_A4: Result := TPDFPaperSize.psA4;
-    DMPAPER_A5: Result := TPDFPaperSize.psA5;
-    //DMPAPER_B5: Result := TPDFPaperSize.psB5;
-  else
-    Result := TPDFPaperSize.psUserDefined;
-  end;
-end;
 
 { THCView }
 
@@ -3175,7 +3167,7 @@ var
   vPt: TPoint;
   vPrintCanvas: TCanvas;
   vPrintWidth, vPrintHeight, vPrintOffsetX, vPrintOffsetY: Integer;
-  vMarginLeft, vMarginRight: Integer;
+  //vMarginLeft, vMarginRight: Integer;
   vRect: TRect;
   vPaintInfo: TSectionPaintInfo;
   vScaleInfo: TScaleInfo;
@@ -3244,16 +3236,17 @@ begin
             Exit;
           end;
 
-          Self.ActiveSection.GetPageMarginLeftAndRight(Self.ActiveSection.ActivePageIndex,
-            vMarginLeft, vMarginRight);
+          //Self.ActiveSection.GetPageMarginLeftAndRight(Self.ActiveSection.ActivePageIndex,
+          //  vMarginLeft, vMarginRight);
 
           // "抹"掉不需要显示的地方
           vPrintCanvas.Brush.Color := clWhite;
 
           if APrintHeader then  // 打印页眉
-            vRect := Bounds(vPrintOffsetX + vMarginLeft,
+            vRect := Bounds(vPrintOffsetX,// + vMarginLeft,
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight,  // 页眉下边
-              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight, vPt.Y)
+              Self.ActiveSection.PaperWidthPix,// - vMarginLeft - vMarginRight,
+              vPt.Y)
           else  // 不打印页眉
             vRect := Bounds(vPrintOffsetX,// + vMarginLeft, 防止页眉浮动Item在页边距中
               vPrintOffsetY,
@@ -3375,13 +3368,14 @@ begin
 
           // 抹选中内容上面
           if APrintHeader then  // 打印页眉
-            vRect := Bounds(vPrintOffsetX + vMarginLeft,
+            vRect := Bounds(vPrintOffsetX,  // + vMarginLeft,
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight,  // 页眉下边
-              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight, vPt.Y)
+              Self.ActiveSection.PaperWidthPix,  // - vMarginLeft - vMarginRight,
+              vPt.Y)
           else  // 不打印页眉
             vRect := Bounds(vPrintOffsetX, // + vMarginLeft, 防止页眉浮动Item在页边距中
               vPrintOffsetY,
-              Self.ActiveSection.PaperWidthPix - vMarginLeft - vMarginRight,
+              Self.ActiveSection.PaperWidthPix,  // - vMarginLeft - vMarginRight,
               Self.ActiveSection.GetHeaderAreaHeight + vPt.Y);
 
           vPrintCanvas.FillRect(vRect);
@@ -3419,9 +3413,9 @@ begin
           end
           else  // 打印页脚
           begin
-            vRect := Rect(vPrintOffsetX + vMarginLeft,
+            vRect := Rect(vPrintOffsetX,  // + vMarginLeft,
               vPrintOffsetY + Self.ActiveSection.GetHeaderAreaHeight + vPt.Y + vData.DrawItems[vDrawItemNo].Rect.Height,
-              vPrintOffsetX + Self.ActiveSection.PaperWidthPix - vMarginRight,
+              vPrintOffsetX + Self.ActiveSection.PaperWidthPix,  // - vMarginRight,
               vPrintOffsetY + Self.ActiveSection.PaperHeightPix - Self.ActiveSection.PaperMarginBottomPix);
 
             vPrintCanvas.FillRect(vRect);
@@ -3829,76 +3823,14 @@ end;
 
 procedure THCView.SaveToPDF(const AFileName: string);
 var
-  i, j, vDPI: Integer;
-  vPDF: TPdfDocumentGDI;
-  vPage: TPdfPage;
-  vPaintInfo: TSectionPaintInfo;
+  vStream: TMemoryStream;
 begin
-  vPDF := TPdfDocumentGDI.Create;
+  vStream := TMemoryStream.Create;
   try
-    {vPDF.ScreenLogPixels := 96;
-    vPDF.DefaultPaperSize := TPDFPaperSize.psA4;
-    vPDF.AddPage;
-    vPDF.VCLCanvas.Brush.Style := bsClear;
-    vPDF.VCLCanvas.Font.Name := '宋体'; // 宋体
-    vPDF.VCLCanvas.TextOut( 20, 20, '发现双引号不正确“问题”' );
-    vPDF.SaveToFile('c:\Syntest.pdf');
-
-    Exit;}
-
-
-    vPDF.Info.Author := 'HCView';
-    vPDF.Info.CreationDate := Now;
-    vPDF.Info.Creator := 'HCView';  // jt
-    vPDF.Info.Keywords := '';  // 入院记录
-    vPDF.Info.ModDate := Now;
-    vPDF.Info.Subject := '';  // HIT 电子病历
-    vPDF.Info.Title := '';  // 张三第1次
-
-    //vPDF.UseUniscribe := True;
-
-    vDPI := PixelsPerInchX;
-    vPDF.ScreenLogPixels := vDPI;
-    //vPDF.VCLCanvas.Font.Charset = ANSI_CHARSET
-    //https://synopse.info/forum/viewtopic.php?id=2494
-
-    vPaintInfo := TSectionPaintInfo.Create;
-    try
-      vPaintInfo.Print := True;
-
-      for i := 0 to FSections.Count - 1 do
-      begin
-        vPaintInfo.SectionIndex := i;
-        vPaintInfo.Zoom := vPDF.ScreenLogPixels / vDPI;
-        vPaintInfo.ScaleX := vPaintInfo.Zoom;
-        vPaintInfo.ScaleY := vPaintInfo.Zoom;
-
-        for j := 0 to FSections[i].PageCount - 1 do
-        begin
-          vPage := vPDF.AddPage;
-
-          vPage.PageLandscape := False;
-          vPDF.DefaultPaperSize := GetPDFPaperSize(FSections[i].PaperSize);
-          if vPDF.DefaultPaperSize = TPDFPaperSize.psUserDefined then
-          begin  // 英寸单位下总共多少像素
-            vPage.PageWidth := Round(FSections[i].PaperWidth / 25.4 * 72);
-            vPage.PageHeight := Round(FSections[i].PaperHeight / 25.4 * 72);
-          end;
-
-          vPaintInfo.PageIndex := j;
-          vPaintInfo.WindowWidth := FSections[i].PaperWidthPix;
-          vPaintInfo.WindowHeight := FSections[i].PaperHeightPix;
-
-          FSections[i].PaintPaper(j, 0, 0, vPDF.VCLCanvas, vPaintInfo);
-        end;
-      end;
-    finally
-      vPaintInfo.Free;
-    end;
-
-    vPDF.SaveToFile(AFileName);
+    SaveToPDFStream(vStream);
+    vStream.SaveToFile(AFileName);
   finally
-    vPDF.Free;
+    vStream.Free;
   end;
 end;
 
@@ -4009,6 +3941,97 @@ begin
 
   //vXml.SaveToFile(AFileName);
   vXml.SaveToStream(AStream);
+end;
+
+procedure THCView.SaveToPDFStream(const AStream: TStream);
+  {$IFDEF SYNPDF}
+  function GetPDFPaperSize(const APaperSize: Integer): TPDFPaperSize;
+  begin
+    case APaperSize of
+      DMPAPER_A3: Result := TPDFPaperSize.psA3;
+      DMPAPER_A4: Result := TPDFPaperSize.psA4;
+      DMPAPER_A5: Result := TPDFPaperSize.psA5;
+      //DMPAPER_B5: Result := TPDFPaperSize.psB5;
+    else
+      Result := TPDFPaperSize.psUserDefined;
+    end;
+  end;
+
+var
+  i, j, vDPI: Integer;
+  vPDF: TPdfDocumentGDI;
+  vPage: TPdfPage;
+  vPaintInfo: TSectionPaintInfo;
+begin
+  vPDF := TPdfDocumentGDI.Create;
+  try
+    {vPDF.ScreenLogPixels := 96;
+    vPDF.DefaultPaperSize := TPDFPaperSize.psA4;
+    vPDF.AddPage;
+    vPDF.VCLCanvas.Brush.Style := bsClear;
+    vPDF.VCLCanvas.Font.Name := '宋体'; // 宋体
+    vPDF.VCLCanvas.TextOut( 20, 20, '发现双引号不正确“问题”' );
+    vPDF.SaveToFile('c:\Syntest.pdf');
+
+    Exit;}
+
+
+    vPDF.Info.Author := 'HCView';
+    vPDF.Info.CreationDate := Now;
+    vPDF.Info.Creator := 'HCView';  // jt
+    vPDF.Info.Keywords := '';  // 入院记录
+    vPDF.Info.ModDate := Now;
+    vPDF.Info.Subject := '';  // HIT 电子病历
+    vPDF.Info.Title := '';  // 张三第1次
+
+    //vPDF.UseUniscribe := True;
+
+    vDPI := PixelsPerInchX;
+    vPDF.ScreenLogPixels := vDPI;
+    //vPDF.VCLCanvas.Font.Charset = ANSI_CHARSET
+    //https://synopse.info/forum/viewtopic.php?id=2494
+
+    vPaintInfo := TSectionPaintInfo.Create;
+    try
+      vPaintInfo.Print := True;
+
+      for i := 0 to FSections.Count - 1 do
+      begin
+        vPaintInfo.SectionIndex := i;
+        vPaintInfo.Zoom := vPDF.ScreenLogPixels / vDPI;
+        vPaintInfo.ScaleX := vPaintInfo.Zoom;
+        vPaintInfo.ScaleY := vPaintInfo.Zoom;
+
+        for j := 0 to FSections[i].PageCount - 1 do
+        begin
+          vPage := vPDF.AddPage;
+
+          vPage.PageLandscape := False;
+          vPDF.DefaultPaperSize := GetPDFPaperSize(FSections[i].PaperSize);
+          if vPDF.DefaultPaperSize = TPDFPaperSize.psUserDefined then
+          begin  // 英寸单位下总共多少像素
+            vPage.PageWidth := Round(FSections[i].PaperWidth / 25.4 * 72);
+            vPage.PageHeight := Round(FSections[i].PaperHeight / 25.4 * 72);
+          end;
+
+          vPaintInfo.PageIndex := j;
+          vPaintInfo.WindowWidth := FSections[i].PaperWidthPix;
+          vPaintInfo.WindowHeight := FSections[i].PaperHeightPix;
+
+          FSections[i].PaintPaper(j, 0, 0, vPDF.VCLCanvas, vPaintInfo);
+        end;
+      end;
+    finally
+      vPaintInfo.Free;
+    end;
+
+    vPDF.SaveToStream(AStream);
+  finally
+    vPDF.Free;
+  end;
+  {$ELSE}
+begin
+  {$ENDIF}
 end;
 
 function THCView.ZoomIn(const Value: Integer): Integer;
@@ -4918,6 +4941,8 @@ begin
     if vFirst >= 0 then  // 本页有批注
     begin
       ACanvas.Font.Size := 8;
+      ACanvas.Font.Name := '宋体';
+      ACanvas.Font.Color := clBlack;
 
       // 计算本页各批注显示位置
       vTop := FDrawAnnotates[vFirst].DrawRect.Top;

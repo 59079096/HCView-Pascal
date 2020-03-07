@@ -247,10 +247,9 @@ end;
 procedure THCStyleMatch.SetAppend(const Value: Boolean);
 begin
   if (FAppend <> Value) and (not FLock) then
-  begin
     FAppend := Value;
-    FLock := True;
-  end;
+
+  FLock := True;  // 只要设置过就要Lock，不管是否append
 end;
 
 function THCStyleMatch.StyleHasMatch(const AStyle: THCStyle;

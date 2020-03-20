@@ -4,19 +4,26 @@ interface
 
 uses
   Windows, Classes, Controls, SysUtils, Graphics, HCStyle, HCCustomData, HCXml,
-  HCItem, HCCustomFloatItem, HCCode128B, HCCommon;
+  HCItem, HCCustomFloatItem, HCCode128, HCCommon;
 
 type
   THCFloatBarCodeItem = class(THCCustomFloatItem)
   private
-    FAutoSize, FShowText: Boolean;
-    FPenWidth: Byte;
-    FText: string;
+    FCode128: THCCode128;
+    FAutoSize: Boolean;  // 无用的占位变量
+    procedure DoCodeWidthChanged(Sender: TObject);
+    function GetPenWidth: Byte;
+    procedure SetPenWidth(const Value: Byte);
+    function GetShowText: Boolean;
+    procedure SetShowText(const Value: Boolean);
   protected
     function GetText: string; override;
     procedure SetText(const Value: string); override;
+    procedure SetWidth(const Value: Integer); override;
+    procedure SetHeight(const Value: Integer); override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+    destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -25,9 +32,9 @@ type
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
-    property PenWidth: Byte read FPenWidth write FPenWidth;
+    property PenWidth: Byte read GetPenWidth write SetPenWidth;
     property AutoSize: Boolean read FAutoSize write FAutoSize;
-    property ShowText: Boolean read FShowText write FShowText;
+    property ShowText: Boolean read GetShowText write SetShowText;
   end;
 
 implementation
@@ -37,77 +44,78 @@ implementation
 procedure THCFloatBarCodeItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
-  FText := (Source as THCFloatBarCodeItem).Text;
+  FCode128.Text := (Source as THCFloatBarCodeItem).Text;
 end;
 
 constructor THCFloatBarCodeItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
   Self.StyleNo := Ord(THCStyle.FloatBarCode);
-  FAutoSize := True;
-  FShowText := True;
-  FPenWidth := 2;
-  Width := 80;
-  Height := 60;
-  SetText('0000');
+  FCode128 := THCCode128.Create('123456');
+  FCode128.OnWidthChanged := DoCodeWidthChanged;
+  Width := FCode128.Width;
+  Height := 100;
+end;
+
+destructor THCFloatBarCodeItem.Destroy;
+begin
+  FreeAndNil(FCode128);
+  inherited Destroy;
+end;
+
+procedure THCFloatBarCodeItem.DoCodeWidthChanged(Sender: TObject);
+begin
+  Self.Width := FCode128.Width;
 end;
 
 procedure THCFloatBarCodeItem.DoPaint(const AStyle: THCStyle;
   const ADrawRect: TRect; const ADataDrawTop, ADataDrawBottom, ADataScreenTop,
   ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-var
-  vCode128B: THCCode128B;
-  vBitmap: TBitmap;
 begin
-  vBitmap := TBitmap.Create;
-  try
-    vCode128B := THCCode128B.Create;
-    try
-      vCode128B.Margin := 2;
-      vCode128B.PenWidth := FPenWidth;
-      vCode128B.CodeKey := FText;
-      vCode128B.ShowCodeKey := FShowText;
-
-      if not FAutoSize then
-        vCode128B.Height := Height;
-
-      vBitmap.SetSize(vCode128B.Width, vCode128B.Height);
-      vCode128B.PaintToEx(vBitmap.Canvas);
-
-      ACanvas.StretchDraw(ADrawRect, vBitmap);
-    finally
-      FreeAndNil(vCode128B);
-    end;
-  finally
-    vBitmap.Free;
-  end;
-
+  FCode128.PaintTo(ACanvas, ADrawRect);
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
+function THCFloatBarCodeItem.GetPenWidth: Byte;
+begin
+  Result := FCode128.Zoom;
+end;
+
+function THCFloatBarCodeItem.GetShowText: Boolean;
+begin
+  Result := FCode128.TextVisible;
+end;
+
 function THCFloatBarCodeItem.GetText: string;
 begin
-  Result := FText;
+  Result := FCode128.Text;
 end;
 
 procedure THCFloatBarCodeItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vText: string;
+  vShowText: Boolean;
+  vPenWidth: Byte;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  HCLoadTextFromStream(AStream, FText, AFileVersion);
+  HCLoadTextFromStream(AStream, vText, AFileVersion);
+  FCode128.Text := vText;
   if AFileVersion > 34 then
   begin
     AStream.ReadBuffer(FAutoSize, SizeOf(FAutoSize));
-    AStream.ReadBuffer(FShowText, SizeOf(FShowText));
-    AStream.ReadBuffer(FPenWidth, SizeOf(FPenWidth));
+    AStream.ReadBuffer(vShowText, SizeOf(vShowText));
+    FCode128.TextVisible := vShowText;
+    AStream.ReadBuffer(vPenWidth, SizeOf(vPenWidth));
+    FCode128.Zoom := vPenWidth;
   end;
 end;
 
 procedure THCFloatBarCodeItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
-  FText := ANode.Text;
+  FCode128.Text := ANode.Text;
 
   if ANode.HasAttribute('autosize') then
     FAutoSize := ANode.Attributes['autosize']
@@ -115,57 +123,64 @@ begin
     FAutoSize := True;
 
   if ANode.HasAttribute('showtext') then
-    FShowText := ANode.Attributes['showtext']
+    FCode128.TextVisible := ANode.Attributes['showtext']
   else
-    FShowText := True;
+    FCode128.TextVisible := True;
 
   if ANode.HasAttribute('penwidth') then
-    FPenWidth := ANode.Attributes['penwidth']
+    FCode128.Zoom := ANode.Attributes['penwidth']
   else
-    FPenWidth := 2;
+    FCode128.Zoom := 1;
 end;
 
 procedure THCFloatBarCodeItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
+var
+  vShowText: Boolean;
+  vPenWidth: Byte;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
-  HCSaveTextToStream(AStream, FText);
+  HCSaveTextToStream(AStream, FCode128.Text);
   AStream.WriteBuffer(FAutoSize, SizeOf(FAutoSize));
-  AStream.WriteBuffer(FShowText, SizeOf(FShowText));
-  AStream.WriteBuffer(FPenWidth, SizeOf(FPenWidth));
+  vShowText := FCode128.TextVisible;
+  AStream.WriteBuffer(vShowText, SizeOf(vShowText));
+  vPenWidth := FCode128.Zoom;
+  AStream.WriteBuffer(vPenWidth, SizeOf(vPenWidth));
+end;
+
+procedure THCFloatBarCodeItem.SetHeight(const Value: Integer);
+begin
+  inherited SetHeight(Value);
+  FCode128.Height := Self.Height;
+end;
+
+procedure THCFloatBarCodeItem.SetPenWidth(const Value: Byte);
+begin
+  FCode128.Zoom := Value;
+end;
+
+procedure THCFloatBarCodeItem.SetShowText(const Value: Boolean);
+begin
+  FCode128.TextVisible := Value;
 end;
 
 procedure THCFloatBarCodeItem.SetText(const Value: string);
-var
-  vBarCode: THCCode128B;
 begin
-  if FText <> Value then
-  begin
-    FText := Value;
+  FCode128.Text := Value;
+end;
 
-    if FAutoSize then
-    begin
-      vBarCode := THCCode128B.Create;
-      try
-        vBarCode.Margin := 2;
-        vBarCode.PenWidth := FPenWidth;
-        vBarCode.CodeKey := FText;
-        vBarCode.ShowCodeKey := FShowText;
-        Width := vBarCode.Width;
-      finally
-        vBarCode.Free;
-      end;
-    end;
-  end;
+procedure THCFloatBarCodeItem.SetWidth(const Value: Integer);
+begin
+  inherited SetWidth(FCode128.Width);
 end;
 
 procedure THCFloatBarCodeItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
-  ANode.Text := FText;
+  ANode.Text := FCode128.Text;
   ANode.Attributes['autosize'] := FAutoSize;
-  ANode.Attributes['showtext'] := FShowText;
-  ANode.Attributes['penwidth'] := FPenWidth;
+  ANode.Attributes['showtext'] := FCode128.TextVisible;
+  ANode.Attributes['penwidth'] := FCode128.Zoom;
 end;
 
 end.

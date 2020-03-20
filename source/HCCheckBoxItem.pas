@@ -61,7 +61,7 @@ const
 
 function THCCheckBoxItem.GetBoxRect: TRect;
 begin
-  Result := Classes.Bounds(FMargin, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize);
+  Result := Classes.Bounds(FPaddingLeft, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize);
 end;
 
 function THCCheckBoxItem.GetText: string;
@@ -84,7 +84,7 @@ begin
   FChecked := AChecked;
   FText := AText;
   FMouseIn := False;
-  FMargin := 2;
+  FPaddingLeft := 2;
 end;
 
 procedure THCCheckBoxItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -114,7 +114,7 @@ begin
   ACanvas.Brush.Style := bsClear;
 
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
-  ACanvas.TextOut(ADrawRect.Left + FMargin + CheckBoxSize + FMargin,
+  ACanvas.TextOut(ADrawRect.Left + FPaddingLeft + CheckBoxSize + FPaddingLeft,
     ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2, FText);
 
   if FChecked then  // ¹´Ñ¡
@@ -152,7 +152,7 @@ begin
   begin
     ARichData.Style.ApplyTempStyle(TextStyleNo);
     vSize := ARichData.Style.TempCanvas.TextExtent(FText);
-    Width := FMargin + CheckBoxSize + FMargin + vSize.cx;  // ¼ä¾à
+    Width := FPaddingLeft + CheckBoxSize + FPaddingLeft + vSize.cx;  // ¼ä¾à
     Height := Max(vSize.cy, CheckBoxSize);
   end;
 

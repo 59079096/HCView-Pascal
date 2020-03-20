@@ -1871,7 +1871,7 @@ begin
 
       if (FMouseDownRow <> vMouseDownRow) or (FMouseDownCol <> vMouseDownCol) then
       begin
-        if FMouseDownRow >= 0 then
+        if (FMouseDownRow >= 0) and (Button <> mbRight) then
           FRows[FMouseDownRow][FMouseDownCol].Active := False;
 
         FMouseDownRow := vMouseDownRow;  // 记录拖拽起始单元格

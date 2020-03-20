@@ -237,7 +237,7 @@ type
   private
     FAutoSize: Boolean;  // 是根据内容自动大小，还是外部指定大小
   protected
-    FMargin: Byte;
+    FPaddingLeft, FPaddingRight, FPaddingTop, FPaddingBottom: Byte;
     FMinWidth, FMinHeight: Integer;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
@@ -1089,13 +1089,16 @@ begin
   Result := inherited MouseUp(Button, Shift, X, Y);
   if FResizing then
   begin
-    FResizing := False;
-
-    if (FResizeWidth < 0) or (FResizeHeight < 0) then Exit;
+    if (FResizeWidth < 0) or (FResizeHeight < 0) then
+    begin
+      FResizing := False;
+      Exit;
+    end;
 
     SelfUndo_Resize(FResizeWidth, FResizeHeight);
     Width := FResizeWidth;
     Height := FResizeHeight;
+    FResizing := False;
   end;
 end;
 
@@ -1109,6 +1112,8 @@ begin
     ACanvas.Rectangle(FResizeRect);
     ACanvas.Brush.Color := clWhite;
     ACanvas.Font.Size := 8;
+    ACanvas.Font.Color := clBlack;
+    ACanvas.Font.Style := [];
     ACanvas.TextOut(FResizeRect.Left + 2, FResizeRect.Top + 2,
       IntToStr(FResizeWidth) + ' x ' + IntToStr(FResizeHeight));
   end;
@@ -1259,7 +1264,10 @@ constructor THCControlItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
   FAutoSize := True;
-  FMargin := 5;
+  FPaddingLeft := 5;
+  FPaddingRight := 5;
+  FPaddingTop := 5;
+  FPaddingBottom := 5;
   FMinWidth := 20;
   FMinHeight := 10;
 end;

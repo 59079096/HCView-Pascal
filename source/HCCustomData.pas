@@ -819,7 +819,7 @@ begin
   begin
     vItem := FItems[SelectInfo.StartItemNo];
     vItem.DisSelect;
-    vItem.Active := False;
+    //vItem.Active := False;  // 方向键移动到EditItem里激活，鼠标再点EditItem时不应该取消激活后面再激活
   end;
 
   SelectInfo.StartItemNo := -1;
@@ -2350,24 +2350,29 @@ begin
         // 绘制文本
         if vText <> '' then
         begin
-          ACanvas.Brush.Style := bsClear;  // 防止选中后面的输出文本时背景没有清空的问题
-          case vAlignHorz of  // 水平对齐方式
-            pahLeft, pahRight, pahCenter:  // 一般对齐
-              begin
-                {if GetTextExtentExPoint(FStyle.DefCanvas.Handle, PChar(S), vLen,
-                  vDrawRect.Right, @vFit, PInteger(vCharWidths), vSize)
-                  ExtTextOut(ACanvas.Handle, vDrawRect.Left, vDrawTop, ETO_CLIPPED, @vDrawRect, S, vLen, PInteger(vCharWidths));
-                  Windows.DrawText(ACanvas.Handle, S, -1, vDrawRect, DT_LEFT or DT_SINGLELINE or vAlignVert);} // -1全部
+          if APaintInfo.Print and vItem.PrintInvisible then
 
-                vLen := Length(vText);
+          else
+          begin
+            ACanvas.Brush.Style := bsClear;  // 防止选中后面的输出文本时背景没有清空的问题
+            case vAlignHorz of  // 水平对齐方式
+              pahLeft, pahRight, pahCenter:  // 一般对齐
+                begin
+                  {if GetTextExtentExPoint(FStyle.DefCanvas.Handle, PChar(S), vLen,
+                    vDrawRect.Right, @vFit, PInteger(vCharWidths), vSize)
+                    ExtTextOut(ACanvas.Handle, vDrawRect.Left, vDrawTop, ETO_CLIPPED, @vDrawRect, S, vLen, PInteger(vCharWidths));
+                    Windows.DrawText(ACanvas.Handle, S, -1, vDrawRect, DT_LEFT or DT_SINGLELINE or vAlignVert);} // -1全部
 
-                Windows.ExtTextOut(ACanvas.Handle, vClearRect.Left, vTextDrawTop,
-                  0, nil, PChar(vText), vLen, nil);  // 参数说明见 201805161718
-                //Windows.TextOut(ACanvas.Handle, vDrawRect.Left, vTextDrawTop, PChar(S), vLen);
-              end;
+                  vLen := Length(vText);
 
-            pahJustify, pahScatter:  // 两端、分散对齐
-              DrawTextJsutify(vClearRect, vText, IsLineLastDrawItem(i));
+                  Windows.ExtTextOut(ACanvas.Handle, vClearRect.Left, vTextDrawTop,
+                    0, nil, PChar(vText), vLen, nil);  // 参数说明见 201805161718
+                  //Windows.TextOut(ACanvas.Handle, vDrawRect.Left, vTextDrawTop, PChar(S), vLen);
+                end;
+
+              pahJustify, pahScatter:  // 两端、分散对齐
+                DrawTextJsutify(vClearRect, vText, IsLineLastDrawItem(i));
+            end;
           end;
         end
         else  // 空行

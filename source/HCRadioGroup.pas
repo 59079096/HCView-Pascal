@@ -206,8 +206,8 @@ begin
 
   ARichData.Style.ApplyTempStyle(TextStyleNo);
 
-  vLeft := FMargin;
-  vTop := FMargin;
+  vLeft := FPaddingLeft;
+  vTop := FPaddingTop;
   for i := 0 to FItems.Count - 1 do
   begin
     if FItems[i].Text <> '' then
@@ -217,20 +217,20 @@ begin
 
     if Self.AutoSize and (vLeft + vSize.cx + RadioButtonWidth > Width) then
     begin
-      vLeft := FMargin;
-      vTop := vTop + vSize.cy + FMargin;
+      vLeft := FPaddingLeft;
+      vTop := vTop + vSize.cy + FPaddingBottom;
     end;
 
     FItems[i].Position.X := vLeft;
     FItems[i].Position.Y := vTop;
 
-    vLeft := vLeft + RadioButtonWidth + vSize.cx + FMargin;
+    vLeft := vLeft + RadioButtonWidth + vSize.cx + FPaddingRight;
   end;
 
   if Self.AutoSize then
     Width := vLeft;
 
-  Height := vTop + vSize.cy + FMargin;
+  Height := vTop + vSize.cy + FPaddingBottom;
 
   if Width < FMinWidth then
     Width := FMinWidth;
@@ -269,10 +269,10 @@ end;
 
 function THCRadioGroup.GetOffsetAt(const X: Integer): Integer;
 begin
-  if X <= FMargin then
+  if X <= FPaddingLeft then
     Result := OffsetBefor
   else
-  if X >= Width - FMargin then
+  if X >= Width - FPaddingRight then
     Result := OffsetAfter
   else
     Result := OffsetInner;

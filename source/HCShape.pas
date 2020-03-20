@@ -55,7 +55,7 @@ type
     function KeyUp(var Key: Word; Shift: TShiftState): Boolean; virtual;
     function KeyPress(var Key: Char): Boolean; virtual;
     procedure PaintTo(const ACanvas: TCanvas; const ARect: TRect; const APaintInfo: TPaintInfo); virtual; abstract;
-    function PointInClient(const APoint: TPoint): Boolean; virtual;
+    function PointInClient(const X, Y: Integer): Boolean; virtual;
     function ClientRect: TRect; virtual;
     procedure SaveToStream(const AStream: TStream); virtual;
     procedure LoadFromStream(const AStream: TStream); virtual;
@@ -92,7 +92,7 @@ type
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure PaintTo(const ACanvas: TCanvas; const ARect: TRect; const APaintInfo: TPaintInfo); override;
-    function PointInClient(const APoint: TPoint): Boolean; override;
+    function PointInClient(const X, Y: Integer): Boolean; override;
     function ClientRect: TRect; override;
     procedure SaveToStream(const AStream: TStream); override;
     procedure LoadFromStream(const AStream: TStream); override;
@@ -160,7 +160,7 @@ type
     function KeyDown(var Key: Word; Shift: TShiftState): Boolean; override;
 
     procedure PaintTo(const ACanvas: TCanvas; const ARect: TRect; const APaintInfo: TPaintInfo); override;
-    function PointInClient(const APoint: TPoint): Boolean; override;
+    function PointInClient(const X, Y: Integer): Boolean; override;
     function ClientRect: TRect; override;
     procedure StructOver; override;
 
@@ -308,7 +308,7 @@ begin
     vIndex := -1;
     for i := 0 to Count - 1 do
     begin
-      if Self[i].PointInClient(Point(X, Y)) then
+      if Self[i].PointInClient(X, Y) then
       begin
         if Self[i].MouseDown(Button, Shift, X, Y) then
         begin
@@ -346,7 +346,7 @@ begin
   FHotIndex := -1;
   for i := 0 to Count - 1 do
   begin
-    if Self[i].PointInClient(Point(X, Y)) then
+    if Self[i].PointInClient(X, Y) then
     begin
       if Self[i].MouseMove(Shift, X, Y) then
       begin
@@ -725,9 +725,9 @@ begin
   FEndPt.Y := ANode.Attributes['ey'];
 end;
 
-function THCShapeLine.PointInClient(const APoint: TPoint): Boolean;
+function THCShapeLine.PointInClient(const X, Y: Integer): Boolean;
 begin
-  Result := GetObjAt(APoint.X, APoint.Y) <> sloNone;
+  Result := GetObjAt(X, Y) <> sloNone;
 end;
 
 procedure THCShapeLine.SaveToStream(const AStream: TStream);
@@ -846,9 +846,9 @@ begin
   FColor := GetXmlRGBColor(ANode.Attributes['color']);
 end;
 
-function THCShape.PointInClient(const APoint: TPoint): Boolean;
+function THCShape.PointInClient(const X, Y: Integer): Boolean;
 begin
-  Result := PtInRect(ClientRect, APoint);
+  Result := PtInRect(ClientRect, Point(X, Y));
 end;
 
 procedure THCShape.SaveToStream(const AStream: TStream);
@@ -1364,16 +1364,16 @@ begin
   end;
 end;
 
-function THCShapePolygon.PointInClient(const APoint: TPoint): Boolean;
+function THCShapePolygon.PointInClient(const X, Y: Integer): Boolean;
 var
   vIndex: Integer;
 begin
-  vIndex := GetPointAt(APoint.X, APoint.Y);
+  vIndex := GetPointAt(X, Y);
   if vIndex >= 0 then
     Result := True
   else
   begin
-    vIndex := GetLineAt(APoint.X, APoint.Y);
+    vIndex := GetLineAt(X, Y);
     if vIndex >= 0 then
       Result := True;
   end;

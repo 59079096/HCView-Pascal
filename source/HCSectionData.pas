@@ -442,6 +442,7 @@ begin
         begin
           FFloatItems.Delete(FFloatItemIndex);
           FFloatItemIndex := -1;
+          FMouseMoveIndex := -1;
         end;
 
       VK_LEFT: FFloatItems[FFloatItemIndex].Left := FFloatItems[FFloatItemIndex].Left - 1;

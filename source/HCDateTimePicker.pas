@@ -86,7 +86,7 @@ begin
   inherited Create(AOwnerData, FormatDateTime(FFormat, FDateTime));
   Self.StyleNo := THCStyle.DateTimePicker;
   Width := 80;
-  Self.FMargin := 2;
+  Self.FPaddingLeft := 2;
   FActiveArea := dtaNone;
 end;
 
@@ -310,7 +310,7 @@ var
               if AArea = dtaYear then  // 年起始坐标
               begin
                 vS := Copy(Self.Text, 1, vCharOffset);
-                Result.Left := FMargin + vCanvas.TextWidth(vS);
+                Result.Left := FPaddingLeft + vCanvas.TextWidth(vS);
               end;
 
               if Count <= 2 then  // 年数据
@@ -347,7 +347,7 @@ var
               if AArea = dtaYear then // 年起始坐标
               begin
                 vS := Copy(Self.Text, 1, vCharOffset);
-                Result.Left := FMargin + vCanvas.TextWidth(vS);
+                Result.Left := FPaddingLeft + vCanvas.TextWidth(vS);
               end;
 
               // 年数据
@@ -369,7 +369,7 @@ var
               if AArea = dtaMonth then  // 月起始坐标
               begin
                 vS := Copy(Self.Text, 1, vCharOffset);
-                Result.Left := FMargin + vCanvas.TextWidth(vS);
+                Result.Left := FPaddingLeft + vCanvas.TextWidth(vS);
               end;
 
               // 月数据
@@ -398,7 +398,7 @@ var
               if AArea = dtaDay then  // 日起始坐标
               begin
                 vS := Copy(Self.Text, 1, vCharOffset);
-                Result.Left := FMargin + vCanvas.TextWidth(vS);
+                Result.Left := FPaddingLeft + vCanvas.TextWidth(vS);
               end;
 
               // 日数据
@@ -471,7 +471,7 @@ var
               if AArea = dtaHour then  // 时起始坐标
               begin
                 vS := Copy(Self.Text, 1, vCharOffset);
-                Result.Left := FMargin + vCanvas.TextWidth(vS);
+                Result.Left := FPaddingLeft + vCanvas.TextWidth(vS);
               end;
 
               // 时数据
@@ -498,7 +498,7 @@ var
               if AArea = dtaMinute then
               begin
                 vS := Copy(Self.Text, 1, vCharOffset);
-                Result.Left := FMargin + vCanvas.TextWidth(vS);
+                Result.Left := FPaddingLeft + vCanvas.TextWidth(vS);
               end;
 
               // 分数据
@@ -524,7 +524,7 @@ var
               if AArea = dtaSecond then  // 秒起始坐标
               begin
                 vS := Copy(Self.Text, 1, vCharOffset);
-                Result.Left := FMargin + vCanvas.TextWidth(vS);
+                Result.Left := FPaddingLeft + vCanvas.TextWidth(vS);
               end;
 
               // 秒数据
@@ -558,7 +558,7 @@ var
               if AArea = dtaMillisecond then  // 毫秒起始坐标
               begin
                 vS := Copy(Self.Text, 1, vCharOffset);
-                Result.Left := FMargin + vCanvas.TextWidth(vS);
+                Result.Left := FPaddingLeft + vCanvas.TextWidth(vS);
               end;
 
               // 毫秒数据
@@ -799,7 +799,9 @@ begin
               begin
                 vNumber := vNumber * 10 + StrToInt(Key);
                 vDateTime := RecodeMonth(vDateTime, vNumber);  // 直接修改为新键入
-              end;
+              end
+              else
+                vDateTime := RecodeMonth(vDateTime, StrToInt(Key));
             end
             else  // 不是连续输入，是第1次输入
             begin
@@ -848,7 +850,7 @@ begin
             if FJoinKey then  // 当前时是是连续输入
             begin
               vNumber := vNumber * 10 + StrToInt(Key);
-              if vNumber > 24 then
+              if vNumber > 23 then
                 vNumber := StrToInt(Key);
               vDateTime := RecodeHour(vDateTime, vNumber);  // 直接修改为新键入
             end
@@ -873,7 +875,7 @@ begin
             if FJoinKey then  // 当前分是是连续输入
             begin
               vNumber := vNumber * 10 + StrToInt(Key);
-              if vNumber > 60 then
+              if vNumber > 59 then
                 vNumber := StrToInt(Key);
               vDateTime := RecodeMinute(vDateTime, vNumber);  // 直接修改为新键入
             end
@@ -898,7 +900,7 @@ begin
             if FJoinKey then  // 当前秒是是连续输入
             begin
               vNumber := vNumber * 10 + StrToInt(Key);
-              if vNumber > 60 then
+              if vNumber > 59 then
                 vNumber := StrToInt(Key);
               vDateTime := RecodeSecond(vDateTime, vNumber);  // 直接修改为新键入
             end

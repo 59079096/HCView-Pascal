@@ -335,7 +335,7 @@ begin
     if X + vW > vMonitor.WorkareaRect.Right then
       X := vMonitor.WorkareaRect.Right - vW;
     if Y + vH > vMonitor.WorkareaRect.Bottom then
-      Y := vBound.Top - vH;
+      Y := Y - vH - 20;
 
     if X < vMonitor.WorkareaRect.Left then
       X := vMonitor.WorkareaRect.Left;

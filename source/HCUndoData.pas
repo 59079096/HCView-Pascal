@@ -460,11 +460,11 @@ var
             if Result > 0 then
               Dec(Result);
           end;
-        end
-    else
-      if Result > Items.Count - 1 then
-        Result := Items.Count - 1;
+        end;
     end;
+
+    if Result > Items.Count - 1 then
+      Result := Items.Count - 1;
   end;
 
   /// <summary> 根据撤销/恢复的事件类型计算后一个ItemNo是否需要格式化 </summary>

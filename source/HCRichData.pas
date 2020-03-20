@@ -4355,10 +4355,30 @@ var
         if APageBreak then
         begin
           Undo_New;
-          UndoAction_ItemPageBreak(SelectInfo.StartItemNo, 0, True);
-          vCurItem.PageBreak := True;
+          if Self.Items.Count = 1 then  // 文档只有一个Item
+          begin
+            // 补充一个空行
+            vItem := CreateDefaultTextItem;
+            vItem.StyleNo := vCurItem.StyleNo;
+            vItem.ParaNo := vCurItem.ParaNo;
+            vItem.ParaFirst := True;
 
-          ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0, True);
+            UndoAction_ItemPageBreak(SelectInfo.StartItemNo, 0, True);
+            vCurItem.PageBreak := True;
+
+            Items.Insert(SelectInfo.StartItemNo, vItem);  // 插入到当前
+            UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+            ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + 1, 1);
+          end
+          else  // 不是文档唯一Item
+          begin
+            UndoAction_ItemPageBreak(SelectInfo.StartItemNo, 0, True);
+            vCurItem.PageBreak := True;
+
+            ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0, True);
+          end;
         end
         else
         begin
@@ -5373,6 +5393,12 @@ begin
         FMouseMoveRestrain := vRestrain
       else  // 都视为约束
         FMouseMoveRestrain := True;
+
+      DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
+      Style.UpdateInfoRePaint;
+      Style.UpdateInfoReCaret;
+
+      Exit;  // 限制在RectItem内部处理
     end
     else
     begin
@@ -5391,11 +5417,11 @@ begin
     else
       CaretDrawItemNo := FMouseMoveDrawItemNo;  // 按下上一个DrawItem最后，划选到下一个开始时，没有选中内容，要更换CaretDrawIemNo
 
+    if Items[FMouseMoveItemNo].StyleNo < THCStyle.Null then  // RectItem
+      DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
+
     Style.UpdateInfoRePaint;
     Style.UpdateInfoReCaret;
-
-    if (not vRestrain) and (Items[FMouseMoveItemNo].StyleNo < THCStyle.Null) then  // RectItem
-      DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
   end
   else  // 非拖拽，非划选
   if FMouseLBDowning and ((FMouseDownX <> X) or (FMouseDownY <> Y)) then  // 左键按下移动，开始划选
@@ -5498,7 +5524,7 @@ var
 
 var
   i, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
-  vMouseUpInSelect: Boolean;
+  //vMouseUpInSelect: Boolean;
 begin
   //if not FMouseLBDowning then Exit;  // 屏蔽OpenDialog对话框双击引起的弹起
   FMouseLBDowning := False;
@@ -5538,6 +5564,14 @@ begin
       end;
     end;
 
+    if SelectInfo.EndItemNo < 0 then  // 在RectItem里划选或TextItem划选回起始位置
+    begin
+      if (FMouseDownItemNo >= 0) and (Items[FMouseDownItemNo].StyleNo < THCStyle.Null) then  // 弹起时在RectItem
+        DoItemMouseUp(FMouseDownItemNo, OffsetInner)
+      else
+        DoItemMouseUp(vUpItemNo, vUpItemOffset);
+    end
+    else
     if Items[vUpItemNo].StyleNo < THCStyle.Null then  // 弹起时在RectItem
       DoItemMouseUp(vUpItemNo, vUpItemOffset);
   end
@@ -5545,7 +5579,7 @@ begin
   if FDraging or Style.UpdateInfo.Draging then  // 拖拽弹起
   begin
     FDraging := False;
-    vMouseUpInSelect := CoordInSelect(X, Y, vUpItemNo, vUpItemOffset, vRestrain);
+    //vMouseUpInSelect := CoordInSelect(X, Y, vUpItemNo, vUpItemOffset, vRestrain);
 
     // 暂时不支持拖拽
     {if not vMouseUpInSelect then  // 拖拽弹起时不在选中内容中

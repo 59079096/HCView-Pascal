@@ -84,7 +84,7 @@ type
     procedure MouseMove(const X, Y: Integer);
     property DrawCount: Integer read GetDrawCount;
     property DrawAnnotates: TObjectList<THCDrawAnnotate> read FDrawAnnotates;
-    property Visible: Boolean read FVisible write FVisible;
+    property Visible: Boolean read FVisible;// write FVisible;
     property Count: Integer read FCount;
     property DrawRect: TRect read FDrawRect;
     property ActiveDrawAnnotateIndex: Integer read FActiveDrawAnnotateIndex;
@@ -1027,25 +1027,34 @@ end;
 
 procedure THCView.Clear;
 begin
-  FStyle.Initialize;  // 先清样式，防止Data初始化为EmptyData时空Item样式赋值为CurStyleNo
-  FSections.DeleteRange(1, FSections.Count - 1);
-
-  FUndoList.SaveState;
+  Self.BeginUpdate;  // 防止：清空时隐藏工具，工具条隐藏时又触发重绘，重绘时还没有格式化完
   try
-    FUndoList.Enable := False;
-    FSections[0].Clear;
-    FUndoList.Clear;
-  finally
-    FUndoList.RestoreState;
-  end;
+    FStyle.Initialize;  // 先清样式，防止Data初始化为EmptyData时空Item样式赋值为CurStyleNo
+    FSections.DeleteRange(1, FSections.Count - 1);
+    FActiveSectionIndex := 0;
+    FDisplayFirstSection := -1;
+    FDisplayLastSection := -1;
 
-  FHScrollBar.Position := 0;
-  FVScrollBar.Position := 0;
-  FActiveSectionIndex := 0;
-  FStyle.UpdateInfoRePaint;
-  FStyle.UpdateInfoReCaret;
-  DoMapChanged;
-  DoViewResize;
+    FUndoList.SaveState;
+    try
+      FUndoList.Enable := False;
+
+        FSections[0].Clear;
+
+      FUndoList.Clear;
+    finally
+      FUndoList.RestoreState;
+    end;
+
+    FHScrollBar.Position := 0;
+    FVScrollBar.Position := 0;
+    FStyle.UpdateInfoRePaint;
+    FStyle.UpdateInfoReCaret;
+    DoMapChanged;
+    DoViewResize;
+  finally
+    Self.EndUpdate;
+  end;
 end;
 
 procedure THCView.Copy;
@@ -2149,6 +2158,7 @@ begin
   Result := True;
   FStyle.UpdateInfoRePaint;
   FStyle.UpdateInfoReCaret;
+  FStyle.UpdateInfoReScroll;
   DoChange;
 end;
 
@@ -3517,10 +3527,11 @@ begin
     Exit;
   end;
 
+  vCaretInfo.Y := vCaretInfo.Y + GetSectionTopFilm(FActiveSectionIndex);
   FVScrollBar.SetAreaPos(-1, vCaretInfo.Y, vCaretInfo.Height);
 
   FCaret.X := ZoomIn(GetSectionDrawLeft(FActiveSectionIndex) + vCaretInfo.X) - FHScrollBar.Position;
-  FCaret.Y := ZoomIn(GetSectionTopFilm(FActiveSectionIndex) + vCaretInfo.Y) - FVScrollBar.Position;
+  FCaret.Y := ZoomIn(vCaretInfo.Y) - FVScrollBar.Position;
   FCaret.Height := ZoomIn(vCaretInfo.Height);
 
   if not FStyle.UpdateInfo.ReScroll then // 滚动条滚动触发的获取光标位置，可能将光标卷掉看不见
@@ -5069,6 +5080,8 @@ end;
 procedure THCAnnotatePre.RemoveDataAnnotate(const ADataAnnotate: THCDataAnnotate);
 begin
   Dec(FCount);
+  if FCount = 0 then
+    FVisible := False;
 end;
 
 procedure THCAnnotatePre.SetMouseIn(const Value: Boolean);

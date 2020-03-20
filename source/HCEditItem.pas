@@ -28,8 +28,19 @@ type
     FBorderWidth: Byte;
     FBorderSides: TBorderSides;
     FMouseIn, FReadOnly, FPrintOnlyText: Boolean;
-    FCaretOffset: ShortInt;
+    FCaretOffset, FSelEnd,
+    FSelMove,  // to do: shift + 方向键选中
+    FLeftOffset  // 0位置是相对左FMargin
+      : Integer;
+    procedure CalcTextSize;
+    procedure ScrollAdjust(const AOffset: Integer);
+    function GetCharDrawLeft(const AOffset: Integer): Integer;
+    function OffsetInSelect(const AOffset: Integer): Boolean;
+    function SelectTextExists: Boolean;
+    procedure DeleteSelectText;
+    procedure DisSelectText;
   protected
+    FTextSize: TSize;
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -39,6 +50,8 @@ type
     procedure MouseEnter; override;
     procedure MouseLeave; override;
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
+    function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
@@ -83,6 +96,15 @@ begin
   FBorderWidth := (Source as THCEditItem).BorderWidth;
 end;
 
+procedure THCEditItem.CalcTextSize;
+begin
+  OwnerData.Style.ApplyTempStyle(TextStyleNo);
+  if FText <> '' then
+    FTextSize := OwnerData.Style.TempCanvas.TextExtent(FText)
+  else
+    FTextSize := OwnerData.Style.TempCanvas.TextExtent('H');
+end;
+
 procedure THCEditItem.Clear;
 begin
   Self.Text := '';
@@ -94,90 +116,122 @@ begin
   Self.StyleNo := THCStyle.Edit;
   FText := AText;
   FMouseIn := False;
-  FMargin := 4;
+  FPaddingLeft := 4;
+  FPaddingRight := 4;
+  FPaddingTop := 4;
+  FPaddingBottom := 4;
+  FLeftOffset := 0;
   FCaretOffset := -1;
+  FSelEnd := -1;
+  FSelMove := -1;
   Width := 50;
   FPrintOnlyText := False;
   FBorderWidth := 1;
   FBorderSides := [cbsLeft, cbsTop, cbsRight, cbsBottom];
 end;
 
+procedure THCEditItem.DeleteSelectText;
+begin
+  System.Delete(FText, FCaretOffset + 1, FSelEnd - FCaretOffset);
+  FSelEnd := -1;
+  FSelMove := FCaretOffset;
+  CalcTextSize;
+end;
+
+procedure THCEditItem.DisSelectText;
+begin
+  FSelMove := FCaretOffset;
+  if Self.SelectTextExists then
+    FSelEnd := -1;
+end;
+
 procedure THCEditItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+var
+  vLeft, vRight: Integer;
 begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
-  if Self.IsSelectComplate and (not APaintInfo.Print) then
+  if not APaintInfo.Print then
   begin
-    ACanvas.Brush.Color := AStyle.SelColor;
-    ACanvas.FillRect(ADrawRect);
+    if Self.IsSelectComplate then
+    begin
+      ACanvas.Brush.Color := AStyle.SelColor;
+      ACanvas.FillRect(ADrawRect);
+    end
+    else
+    if SelectTextExists then
+    begin
+      ACanvas.Brush.Color := AStyle.SelColor;
+      vLeft := GetCharDrawLeft(FCaretOffset);
+      vRight := GetCharDrawLeft(FSelEnd);
+      vLeft := Max(0, Min(vLeft, Width));
+      vRight := Max(0, Min(vRight, Width));
+      ACanvas.FillRect(Rect(ADrawRect.Left + vLeft, ADrawRect.Top, ADrawRect.Left + vRight, ADrawRect.Bottom));
+    end;
   end;
 
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
 
   if not Self.AutoSize then
-    ACanvas.TextRect(ADrawRect, ADrawRect.Left + FMargin, ADrawRect.Top + FMargin, FText)
+    ACanvas.TextRect(ADrawRect, ADrawRect.Left + FPaddingLeft - FLeftOffset, ADrawRect.Top + FPaddingTop, FText)
   else
-    ACanvas.TextOut(ADrawRect.Left + FMargin,// + (ADrawRect.Width - FMargin - ACanvas.TextWidth(FText) - FMargin) div 2,
-      ADrawRect.Top + FMargin, FText);
+    ACanvas.TextOut(ADrawRect.Left + FPaddingLeft, ADrawRect.Top + FPaddingTop, FText);
 
   if APaintInfo.Print and FPrintOnlyText then Exit;
 
-  // 非打印
-  if FMouseIn then  // 鼠标在其中
-    ACanvas.Pen.Color := clBlue
-  else  // 鼠标不在其中或打印
-    ACanvas.Pen.Color := clBlack;
-
-  ACanvas.Pen.Width := FBorderWidth;
-  ACanvas.Pen.Style := psSolid;
-
-  if cbsLeft in FBorderSides then
+  if FBorderSides <> [] then // 非打印
   begin
-    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Top);
-    ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom);
-  end;
+    if FMouseIn or Active then  // 鼠标在其中
+      ACanvas.Pen.Color := clBlue
+    else  // 鼠标不在其中或打印
+      ACanvas.Pen.Color := clBlack;
 
-  if cbsTop in FBorderSides then
-  begin
-    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Top);
-    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top);
-  end;
+    ACanvas.Pen.Width := FBorderWidth;
+    ACanvas.Pen.Style := psSolid;
 
-  if cbsRight in FBorderSides then
-  begin
-    ACanvas.MoveTo(ADrawRect.Right - 1, ADrawRect.Top);
-    ACanvas.LineTo(ADrawRect.Right - 1, ADrawRect.Bottom);
-  end;
+    if cbsLeft in FBorderSides then
+    begin
+      ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Top);
+      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom);
+    end;
 
-  if cbsBottom in FBorderSides then
-  begin
-    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Bottom - 1);
-    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom - 1);
+    if cbsTop in FBorderSides then
+    begin
+      ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Top);
+      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top);
+    end;
+
+    if cbsRight in FBorderSides then
+    begin
+      ACanvas.MoveTo(ADrawRect.Right - 1, ADrawRect.Top);
+      ACanvas.LineTo(ADrawRect.Right - 1, ADrawRect.Bottom);
+    end;
+
+    if cbsBottom in FBorderSides then
+    begin
+      ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Bottom - 1);
+      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom - 1);
+    end;
   end;
 end;
 
 procedure THCEditItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
-var
-  vSize: TSize;
 begin
+  CalcTextSize;
+
   if Self.AutoSize then
   begin
-    ARichData.Style.ApplyTempStyle(TextStyleNo);
-    if FText <> '' then
-      vSize := ARichData.Style.TempCanvas.TextExtent(FText)
-    else
-      vSize := ARichData.Style.TempCanvas.TextExtent('H');
-
-    Width := FMargin + vSize.cx + FMargin;  // 间距
-    Height := FMargin + vSize.cy + FMargin;
+    Width := FPaddingLeft + FTextSize.cx + FPaddingRight;  // 间距
+    Height := FPaddingTop + FTextSize.cy + FPaddingBottom;
   end;
 
   if Width < FMinWidth then
     Width := FMinWidth;
+
   if Height < FMinHeight then
     Height := FMinHeight;
 end;
@@ -193,6 +247,12 @@ begin
     Exit;
   end;
 
+  if SelectTextExists then
+  begin
+    ACaretInfo.Visible := False;
+    Exit;
+  end;
+
   vS := Copy(FText, 1, FCaretOffset);
   OwnerData.Style.ApplyTempStyle(TextStyleNo);
 
@@ -200,27 +260,44 @@ begin
   begin
     vSize := OwnerData.Style.TempCanvas.TextExtent(vS);
     ACaretInfo.Height := vSize.cy + OwnerData.Style.TextStyles[TextStyleNo].TextMetric.tmExternalLeading;
-    ACaretInfo.X := FMargin + vSize.cx;// + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
+    ACaretInfo.X := FPaddingLeft - FLeftOffset + vSize.cx;// + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   end
   else
   begin
     ACaretInfo.Height := OwnerData.Style.TextStyles[TextStyleNo].FontHeight
       + OwnerData.Style.TextStyles[TextStyleNo].TextMetric.tmExternalLeading;
-    ACaretInfo.X := FMargin;// + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
+    ACaretInfo.X := FPaddingLeft;// - FLeftOffset;// + (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
   end;
 
-  ACaretInfo.Y := FMargin;
+  ACaretInfo.Y := FPaddingTop;
 
   if (not Self.AutoSize) and (ACaretInfo.X > Width) then
     ACaretInfo.Visible := False;
 end;
 
+function THCEditItem.GetCharDrawLeft(const AOffset: Integer): Integer;
+var
+  i: Integer;
+begin
+  Result := 0;
+  if AOffset > 0 then
+  begin
+    if AOffset = System.Length(FText) then
+      Result := Width
+    else
+    begin
+      OwnerData.Style.ApplyTempStyle(TextStyleNo);
+      Result := FPaddingLeft + OwnerData.Style.TempCanvas.TextWidth(Copy(FText, 1, AOffset)) - FLeftOffset;
+    end;
+  end;
+end;
+
 function THCEditItem.GetOffsetAt(const X: Integer): Integer;
 begin
-  if X <= FMargin then
+  if X <= FPaddingLeft then
     Result := OffsetBefor
   else
-  if X >= Width - FMargin then
+  if X >= Width - FPaddingRight then
     Result := OffsetAfter
   else
     Result := OffsetInner;
@@ -243,6 +320,7 @@ function THCEditItem.InsertText(const AText: string): Boolean;
 begin
   System.Insert(AText, FText, FCaretOffset + 1);
   Inc(FCaretOffset, System.Length(AText));
+  ScrollAdjust(FCaretOffset);
   Self.SizeChanged := True;
 end;
 
@@ -250,31 +328,52 @@ procedure THCEditItem.KeyDown(var Key: Word; Shift: TShiftState);
 
   procedure BackspaceKeyDown;
   begin
+    if SelectTextExists then
+      DeleteSelectText
+    else
     if FCaretOffset > 0 then
     begin
       System.Delete(FText, FCaretOffset, 1);
       Dec(FCaretOffset);
+      CalcTextSize;
     end;
+
+    ScrollAdjust(FCaretOffset);
     Self.SizeChanged := True;
   end;
 
   procedure LeftKeyDown;
   begin
+    DisSelectText;
     if FCaretOffset > 0 then
       Dec(FCaretOffset);
+
+    ScrollAdjust(FCaretOffset);
+    OwnerData.Style.UpdateInfoRePaint;
   end;
 
   procedure RightKeyDown;
   begin
+    DisSelectText;
     if FCaretOffset < System.Length(FText) then
       Inc(FCaretOffset);
+
+    ScrollAdjust(FCaretOffset);
+    OwnerData.Style.UpdateInfoRePaint;
   end;
 
   procedure DeleteKeyDown;
   begin
+    if SelectTextExists then
+      DeleteSelectText
+    else
     if FCaretOffset < System.Length(FText) then
+    begin
       System.Delete(FText, FCaretOffset + 1, 1);
+      CalcTextSize;
+    end;
 
+    ScrollAdjust(FCaretOffset);
     Self.SizeChanged := True;
   end;
 
@@ -286,8 +385,16 @@ begin
       VK_LEFT: LeftKeyDown;       // 左方向键
       VK_RIGHT: RightKeyDown;     // 右方向键
       VK_DELETE: DeleteKeyDown;   // 删除键
-      VK_HOME: FCaretOffset := 0;  // Home键
-      VK_END: FCaretOffset := System.Length(FText);  // End键
+      VK_HOME:
+        begin
+          FCaretOffset := 0;  // Home键
+          ScrollAdjust(FCaretOffset);
+        end;
+      VK_END:
+        begin
+          FCaretOffset := System.Length(FText);  // End键
+          ScrollAdjust(FCaretOffset);
+        end;
     else
       inherited KeyDown(Key, Shift);
     end;
@@ -300,9 +407,13 @@ procedure THCEditItem.KeyPress(var Key: Char);
 begin
   if not FReadOnly then
   begin
+    if SelectTextExists then
+      DeleteSelectText;
+
     Inc(FCaretOffset);
     System.Insert(Key, FText, FCaretOffset);
-
+    CalcTextSize;
+    ScrollAdjust(FCaretOffset);
     Self.SizeChanged := True;
   end
   else
@@ -312,16 +423,28 @@ end;
 function THCEditItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 var
-  vX: Integer;
   vOffset: Integer;
 begin
   Result := inherited MouseDown(Button, Shift, X, Y);
+  if not Self.Active then Exit;
+
   OwnerData.Style.ApplyTempStyle(TextStyleNo);
-  vX := X - FMargin;// - (Width - FMargin - OwnerData.Style.DefCanvas.TextWidth(FText) - FMargin) div 2;
-  vOffset := GetNorAlignCharOffsetAt(OwnerData.Style.TempCanvas, FText, vX);
+  vOffset := GetNorAlignCharOffsetAt(OwnerData.Style.TempCanvas, FText, X - FPaddingLeft + FLeftOffset);
+  if Button = mbLeft then
+    DisSelectText
+  else
+  begin
+    if not OffsetInSelect(vOffset) then
+      DisSelectText
+    else
+      Exit;
+  end;
+
   if vOffset <> FCaretOffset then
   begin
     FCaretOffset := vOffset;
+    FSelMove := vOffset;
+    ScrollAdjust(vOffset);
     OwnerData.Style.UpdateInfoReCaret;
   end;
 end;
@@ -336,6 +459,49 @@ procedure THCEditItem.MouseLeave;
 begin
   inherited MouseLeave;
   FMouseIn := False;
+end;
+
+function THCEditItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
+begin
+  Result := inherited MouseMove(Shift, X, Y);
+  if ssLeft in Shift then
+  begin
+    if X < 0 then
+      FLeftOffset := Max(0, FLeftOffset - OwnerData.Style.TextStyles[TextStyleNo].TextMetric.tmAveCharWidth)
+    else
+    if X > Width - FPaddingRight then
+      FLeftOffset := Max(0, Min(FTextSize.cx - Width + FPaddingRight, FLeftOffset + OwnerData.Style.TextStyles[TextStyleNo].TextMetric.tmAveCharWidth));
+
+    FSelEnd := GetNorAlignCharOffsetAt(OwnerData.Style.TempCanvas, FText, X - FPaddingLeft + FLeftOffset);
+    FSelMove := FSelEnd;
+    if (not SelectTextExists) and (FSelEnd >= 0) then  // 回到同一位置
+    begin
+      FSelEnd := -1;
+      FSelMove := FCaretOffset;
+    end;
+
+    ScrollAdjust(FSelMove);
+  end;
+end;
+
+function THCEditItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
+var
+  vSel: ShortInt;
+begin
+  if (Button = mbLeft) and (FSelEnd >= 0) and (FSelEnd < FCaretOffset) then
+  begin
+    vSel := FCaretOffset;
+    FCaretOffset := FSelEnd;
+    FSelEnd := vSel;
+  end;
+
+  Result := inherited MouseUp(Button, Shift, X, Y);
+end;
+
+function THCEditItem.OffsetInSelect(const AOffset: Integer): Boolean;
+begin
+  Result := (AOffset >= FCaretOffset) and (AOffset <= FSelEnd);
 end;
 
 procedure THCEditItem.ParseXml(const ANode: IHCXMLNode);
@@ -395,11 +561,53 @@ begin
   AStream.WriteBuffer(FBorderWidth, SizeOf(FBorderWidth));
 end;
 
+procedure THCEditItem.ScrollAdjust(const AOffset: Integer);
+var
+  vText: string;
+  vRight: Integer;
+begin
+  if Self.AutoSize then
+  begin
+    FLeftOffset := 0;
+    Exit;
+  end;
+
+  if FTextSize.cx + FPaddingLeft <= Width - FPaddingRight then
+  begin
+    FLeftOffset := 0;
+    Exit;
+  end;
+
+  if FTextSize.cx + FPaddingLeft - FLeftOffset < Width - FPaddingRight then
+  begin
+    FLeftOffset := FLeftOffset - (Width - FPaddingLeft - FTextSize.cx + FLeftOffset - FPaddingRight);
+    Exit;
+  end;
+
+  OwnerData.Style.ApplyTempStyle(TextStyleNo);
+  vText := Copy(FText, 1, AOffset);
+  vRight := OwnerData.Style.TempCanvas.TextWidth(vText) + FPaddingLeft - FLeftOffset;
+  if vRight > Width - FPaddingRight then
+    FLeftOffset := FLeftOffset + vRight - Width + FPaddingRight
+  else
+  if vRight < 0 then
+    FLeftOffset := FLeftOffset + vRight;
+end;
+
+function THCEditItem.SelectTextExists: Boolean;
+begin
+  Result := (FSelEnd >= 0) and (FSelEnd <> FCaretOffset);
+end;
+
 procedure THCEditItem.SetActive(const Value: Boolean);
 begin
   inherited SetActive(Value);
   if not Value then
+  begin
+    DisSelectText;
+    FLeftOffset := 0;
     FCaretOffset := -1;
+  end;
 end;
 
 procedure THCEditItem.SetText(const Value: string);
@@ -435,11 +643,13 @@ begin
   if Key = VK_LEFT then
   begin
     if FCaretOffset = 0 then  // 最左再次向左，移出
-
+      FCaretOffset := -1
     else
     if FCaretOffset < 0 then  // 外面左键移入
     begin
       FCaretOffset := System.Length(FText);
+      ScrollAdjust(FCaretOffset);
+      OwnerData.Style.UpdateInfoRePaint;
       Result := True;
     end
     else  // > 0
@@ -449,11 +659,13 @@ begin
   if Key = VK_RIGHT then
   begin
     if FCaretOffset = System.Length(FText) then  // 最右再次向右，移出
-
+      FCaretOffset := -1
     else
     if FCaretOffset < 0 then  // 外面右键移入
     begin
       FCaretOffset := 0;
+      ScrollAdjust(FCaretOffset);
+      OwnerData.Style.UpdateInfoRePaint;
       Result := True;
     end
     else  // < Length

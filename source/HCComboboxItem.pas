@@ -100,6 +100,7 @@ begin
   inherited Create(AOwnerData, AText);
   Self.StyleNo := THCStyle.Combobox;
   Width := 80;
+  FPaddingRight := BTNWIDTH;
   FSaveItem := True;
   FItems := TStringList.Create;
   TStringList(FItems).OnChange := DoItemsChange;
@@ -148,6 +149,8 @@ begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
+  if APaintInfo.Print and Self.PrintOnlyText then Exit;
+
   if IsSelectComplate then
     ACanvas.Brush.Color := AStyle.SelColor
   else
@@ -155,8 +158,6 @@ begin
     ACanvas.Brush.Color := clMenu
   else
     ACanvas.Brush.Color := clWindow;
-
-  if APaintInfo.Print and Self.PrintOnlyText then Exit;
 
   FButtonDrawRect := FButtonRect;
   FButtonDrawRect.Offset(ADrawRect.Location);
@@ -336,25 +337,8 @@ end;
 
 procedure THCComboboxItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
-var
-  vSize: TSize;
 begin
-  if Self.AutoSize then
-  begin
-    ARichData.Style.ApplyTempStyle(TextStyleNo);
-    if Self.Text <> '' then
-      vSize := ARichData.Style.TempCanvas.TextExtent(Self.Text)
-    else
-      vSize := ARichData.Style.TempCanvas.TextExtent('H');
-
-    Width := FMargin + vSize.cx + FMargin + BTNWIDTH;  // ¼ä¾à
-    Height := FMargin + vSize.cy + FMargin;
-  end;
-
-  if Width < FMinWidth then
-    Width := FMinWidth;
-  if Height < FMinHeight then
-    Height := FMinHeight;
+  inherited FormatToDrawItem(ARichData, AItemNo);
 
   FButtonRect := Bounds(Width - BTNMARGIN - BTNWIDTH, BTNMARGIN, BTNWIDTH, Height - BTNMARGIN - BTNMARGIN);
   FPopupForm.Width := Self.Width;
@@ -391,7 +375,7 @@ end;
 function THCComboboxItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
-  if (Button = mbLeft) and PtInRect(FButtonRect, Point(X, Y)) then
+  if OwnerData.CanEdit and (Button = mbLeft) and PtInRect(FButtonRect, Point(X, Y)) then
   begin
     Result := True;
     DoPopup;

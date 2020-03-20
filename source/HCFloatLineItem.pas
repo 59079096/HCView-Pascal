@@ -27,7 +27,7 @@ type
     procedure SetActive(const Value: Boolean); override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
-    function PointInClient(const APoint: TPoint): Boolean; override;
+    function PointInClient(const X, Y: Integer): Boolean; override;
     procedure Assign(Source: THCCustomItem); override;
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
@@ -186,9 +186,9 @@ begin
   FShapeLine.ParseXml(ANode);
 end;
 
-function THCFloatLineItem.PointInClient(const APoint: TPoint): Boolean;
+function THCFloatLineItem.PointInClient(const X, Y: Integer): Boolean;
 begin
-  Result := FShapeLine.PointInClient(APoint);
+  Result := FShapeLine.PointInClient(X, Y);
 end;
 
 procedure THCFloatLineItem.SaveToStream(const AStream: TStream; const AStart,

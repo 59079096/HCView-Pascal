@@ -28,8 +28,7 @@ type
     FMousePt: TPoint;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
-    function PointInClient(const APoint: TPoint): Boolean; overload; virtual;
-    function PointInClient(const X, Y: Integer): Boolean; overload;
+    function PointInClient(const X, Y: Integer): Boolean; overload; virtual;
     procedure Assign(Source: THCCustomItem); override;
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
@@ -77,11 +76,6 @@ begin
   inherited Create(AOwnerData);
   //Self.StyleNo := THCStyle.FloatItem;
   FLock := False;
-end;
-
-function THCCustomFloatItem.PointInClient(const APoint: TPoint): Boolean;
-begin
-  Result := PtInRect(Bounds(0, 0, Width, Height), APoint);
 end;
 
 procedure THCCustomFloatItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -185,7 +179,7 @@ end;
 
 function THCCustomFloatItem.PointInClient(const X, Y: Integer): Boolean;
 begin
-  Result := PointInClient(Point(X, Y));
+  Result := PtInRect(Bounds(0, 0, Width, Height), Point(X, Y));
 end;
 
 procedure THCCustomFloatItem.SaveToStream(const AStream: TStream; const AStart,

@@ -486,7 +486,11 @@ begin
 
     if vDrawHotDomainBorde or vDrawActiveDomainBorde then  // 在Hot域或激活域中
     begin
-      vDliRGN := CreateRectRgn(ADrawRect.Left, ADrawRect.Top, ADrawRect.Right, ADrawRect.Bottom);
+      if ADrawRect.Left = ADrawRect.Right then
+        vDliRGN := CreateRectRgn(ADrawRect.Left, ADrawRect.Top, ADrawRect.Right + 3, ADrawRect.Bottom)
+      else
+        vDliRGN := CreateRectRgn(ADrawRect.Left, ADrawRect.Top, ADrawRect.Right, ADrawRect.Bottom);
+
       try
         if (FHotDomain.BeginNo >= 0) and vDrawHotDomainBorde then
           CombineRgn(FHotDomainRGN, FHotDomainRGN, vDliRGN, RGN_OR);

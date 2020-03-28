@@ -99,6 +99,8 @@ const
     ;
   /// <summary> 不能在行尾的字符 </summary>
   DontLineLastChar = '/\＼“‘';
+  /// <summary> 可以挤压宽度的字符 </summary>
+  LineSqueezeChar = '，。；、？“”';
 
   HCBoolText: array [Boolean] of Char = ('0', '1');
 
@@ -295,6 +297,8 @@ type
   function GetBorderSidePro(const ABorderSides: TBorderSides): string;
   procedure SetBorderSideByPro(const AValue: string; var ABorderSides: TBorderSides);
 
+  function HCDeleteBreak(const S: string): string;
+
   /// <summary> 保存长度小于65536个字节的字符串到流 </summary>
   procedure HCSaveTextToStream(const AStream: TStream; const S: string);
   procedure HCLoadTextFromStream(const AStream: TStream; var S: string; const AFileVersion: Word);
@@ -404,6 +408,11 @@ begin
   end
   else
     S := '';
+end;
+
+function HCDeleteBreak(const S: string): string;
+begin
+  Result := StringReplace(S, sLineBreak, '', [rfReplaceAll]);
 end;
 
 function GetUnicodeCharType(const AChar: Char): TCharType;

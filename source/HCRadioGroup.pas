@@ -37,6 +37,7 @@ type
     FMultSelect, FMouseIn: Boolean;
     FItems: TObjectList<THCRadioButton>;
     FRadioStyle: THCRadioStyle;
+    FItemHit: Boolean;
     function GetItemAt(const X, Y: Integer): Integer;
   protected
     procedure DoItemNotify(Sender: TObject; const Item: THCRadioButton; Action: TCollectionNotification);
@@ -107,6 +108,7 @@ begin
   inherited Create(AOwnerData);
   Self.StyleNo := THCStyle.RadioGroup;
   Width := 100;
+  FItemHit := False;
   FItems := TObjectList<THCRadioButton>.Create;
   FItems.OnNotify := DoItemNotify;
   FRadioStyle := THCRadioStyle.Radio;
@@ -247,22 +249,35 @@ end;
 function THCRadioGroup.GetItemAt(const X, Y: Integer): Integer;
 var
   i: Integer;
-  //vSize: TSize;
+  vSize: TSize;
 begin
   Result := -1;
-  Self.OwnerData.Style.ApplyTempStyle(TextStyleNo);
+
+  if FItemHit then
+    Self.OwnerData.Style.ApplyTempStyle(TextStyleNo);
+
   for i := 0 to FItems.Count - 1 do
   begin
-    //vSize := Self.OwnerData.Style.TempCanvas.TextExtent(FItems[i].Text);
-    //if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
-    //  RadioButtonWidth + vSize.cx, vSize.cy), Point(X, Y))
-
-    if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
-      RadioButtonWidth, RadioButtonWidth), Point(x, y))
-    then
+    if FItemHit then  // 文本就命中
     begin
-      Result := i;
-      Break;
+      vSize := Self.OwnerData.Style.TempCanvas.TextExtent(FItems[i].Text);
+      if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
+        RadioButtonWidth + vSize.cx, vSize.cy), Point(X, Y))
+      then
+      begin
+        Result := i;
+        Break;
+      end;
+    end
+    else  // 只在box命中
+    begin
+      if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
+        RadioButtonWidth, RadioButtonWidth), Point(x, y))
+      then
+      begin
+        Result := i;
+        Break;
+      end;
     end;
   end;
 end;

@@ -2467,6 +2467,21 @@ begin
     Exit;
   end;
 
+  if FStyle.FormatVersion = 2 then
+  begin
+    vTextMetric := ATextStyle.TextMetric;
+
+    case AParaStyle.LineSpaceMode of
+      pls115: Result := Result + Round(vTextMetric.tmHeight * 0.15);
+
+      pls150: Result := Result + Round(vTextMetric.tmHeight * 0.5);
+
+      pls200: Result := Result + vTextMetric.tmHeight;
+
+      plsMult: Result := Result + Round(vTextMetric.tmHeight * AParaStyle.LineSpace);
+    end;
+  end
+  else
   if (ATextStyle.OutMetSize > 0) and ATextStyle.CJKFont then
   begin
     if (ATextStyle.OutlineTextmetric.otmfsSelection and 128) <> 0 then  // 有加粗或其他样式

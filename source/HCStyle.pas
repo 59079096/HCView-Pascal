@@ -190,7 +190,7 @@ begin
   FSelColor := clSkyBlue;
   FLineSpaceMin := 8;
   FShowParaLastMark := True;
-  FFormatVersion := 1;
+  FFormatVersion := 2;
   FStates := THCStates.Create;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;

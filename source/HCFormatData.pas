@@ -705,6 +705,8 @@ var
     viBreakOffset,  // 第几个字符放不下
     vFirstCharWidth  // 第一个字符的宽度
       : Integer;
+
+    vSqueeze: Boolean;
   begin
     vLineFirst := vParaFirst or ((APos.X = AFmtLeft) and (DrawItems[ALastDrawItemNo].Width <> 0));  // 段首、最左但不是域后面
     viBreakOffset := 0;  // 换行位置，第几个字符放不下
@@ -714,12 +716,36 @@ var
       viBreakOffset := 1
     else
     begin
-      for i := ACharOffset - 1 to vItemLen - 1 do
+      if Style.FormatVersion = 2 then
       begin
-        if vCharWidths[i] - ABasePos > APlaceWidth then
+        vSqueeze := False;
+        for i := ACharOffset - 1 to vItemLen - 1 do
         begin
-          viBreakOffset := i + 1;
-          Break;
+          if vCharWidths[i] - ABasePos > APlaceWidth then
+          begin
+            if PosCharHC(vText[i + 1], LineSqueezeChar) > 0 then
+            begin
+              if vCharWidths[i] - ABasePos - APlaceWidth > 3 then  // (vCharWidths[i] - vCharWidths[i - 1]) div 2 then
+              begin
+                vSqueeze := True;
+                Continue;
+              end;
+            end;
+
+            viBreakOffset := i + 1;
+            Break;
+          end;
+        end;
+      end
+      else
+      begin
+        for i := ACharOffset - 1 to vItemLen - 1 do
+        begin
+          if vCharWidths[i] - ABasePos > APlaceWidth then
+          begin
+            viBreakOffset := i + 1;
+            Break;
+          end;
         end;
       end;
     end;
@@ -819,7 +845,10 @@ var
         NewDrawItem(AItemNo, AOffset + ACharOffset - 1, viPlaceOffset - ACharOffset + 1, vRect, vParaFirst, vLineFirst);
         vParaFirst := False;
 
-        vRemainderWidth := AFmtRight - vRect.Right;  // 放入最多后的剩余量
+        if vSqueeze then
+          vRemainderWidth := 0
+        else
+          vRemainderWidth := AFmtRight - vRect.Right;  // 放入最多后的剩余量
 
         FinishLine(ALastDrawItemNo, vRemainderWidth);
 

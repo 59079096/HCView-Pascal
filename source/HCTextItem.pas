@@ -184,7 +184,7 @@ end;
 procedure THCTextItem.SetText(const Value: string);
 begin
   //if Value <> '' then  // 如果判断了，会影响空变为有字符后的撤销时的赋值
-  FText := StringReplace(Value, sLineBreak, '', [rfReplaceAll, rfIgnoreCase]);
+  FText := HCDeleteBreak(Value);
 end;
 
 function THCTextItem.ToHtml(const APath: string): string;

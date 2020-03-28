@@ -113,7 +113,7 @@ begin
   LeftIndent := 0;
   RightIndent := 0;
 
-  FLineSpaceMode := TParaLineSpaceMode.pls100;
+  FLineSpaceMode := TParaLineSpaceMode.pls150;
   FLineSpace := 1;
   FBreakRough := False;
   FBackColor := clSilver;

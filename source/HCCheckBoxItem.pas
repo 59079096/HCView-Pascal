@@ -21,7 +21,7 @@ type
   THCCheckBoxItem = class(THCControlItem)
   private
     FText: string;
-    FChecked, FMouseIn: Boolean;
+    FChecked, FMouseIn, FItemHit: Boolean;
     function GetBoxRect: TRect;
   protected
     procedure SetChecked(const Value: Boolean);
@@ -84,6 +84,7 @@ begin
   FChecked := AChecked;
   FText := AText;
   FMouseIn := False;
+  FItemHit := False;
   FPaddingLeft := 2;
 end;
 
@@ -184,10 +185,25 @@ end;
 
 function THCCheckBoxItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
+var
+  vSize: TSize;
 begin
   Result := inherited MouseUp(Button, Shift, X, Y);
-  if OwnerData.CanEdit and PtInRect(GetBoxRect, Point(X, Y)) then  // 点在了勾选框中
-    Checked := not FChecked;
+  if OwnerData.CanEdit then
+  begin
+    if FItemHit then  // 文本就命中
+    begin
+      Self.OwnerData.Style.ApplyTempStyle(TextStyleNo);
+      vSize := Self.OwnerData.Style.TempCanvas.TextExtent(FText);
+      if PtInRect(Classes.Bounds(FPaddingLeft, 0, FPaddingLeft + CheckBoxSize + FPaddingLeft + vSize.cx, vSize.cy),
+        Point(X, Y))
+      then
+        Checked := not FChecked;
+    end
+    else
+    if PtInRect(GetBoxRect, Point(X, Y)) then  // 点在了勾选框中
+      Checked := not FChecked;
+  end;
 end;
 
 procedure THCCheckBoxItem.ParseXml(const ANode: IHCXMLNode);

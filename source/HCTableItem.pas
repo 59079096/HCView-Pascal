@@ -607,6 +607,7 @@ begin
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
   Self.SizeChanged := True;
+  Self.FormatDirty;
   Result := True;
 end;
 
@@ -670,6 +671,7 @@ begin
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
   Self.SizeChanged := True;
+  Self.FormatDirty;
   Result := True;
 end;
 
@@ -960,10 +962,10 @@ var
   vFirstDrawRowIsBreak: Boolean;
   vExtPen: HPEN;
   vOldPen: HGDIOBJ;
-  vBorderOffs, vFixHeight: Integer;
+  vBorderOffs: Integer;
   vCellRect: TRect;
 begin
-  vFixHeight := GetFixRowHeight;
+  //vFixHeight := GetFixRowHeight;
   vBorderOffs := FBorderWidthPix div 2;
   vFirstDrawRowIsBreak := False;
   vFirstDrawRow := -1;
@@ -3395,6 +3397,7 @@ begin
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
   Self.SizeChanged := True;
+  Self.FormatDirty;
   Result := True;
 end;
 
@@ -3482,6 +3485,7 @@ begin
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
   Self.SizeChanged := True;
+  Self.FormatDirty;
   Result := True;
 end;
 
@@ -4740,6 +4744,7 @@ begin
     end;
   end;
 
+  Self.FormatDirty;
   Result := True;
 end;
 
@@ -4861,6 +4866,7 @@ begin
     end;
   end;
 
+  Self.FormatDirty;
   Result := True;
 end;
 

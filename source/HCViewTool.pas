@@ -10,7 +10,7 @@ uses
 type
   THCViewTool = class(THCView)
   strict private
-    FIconList: TObjectList<TIcon>;
+    FIconList: TObjectList<TBitmap>;
     FToolImageList: TCustomImageList;
     FTopData: THCCustomData;
     FActiveItem: THCCustomItem;
@@ -103,7 +103,7 @@ var
   vMenuItem, vResetMenuItem: TMenuItem;
 begin
   inherited Create(AOwner);
-  FIconList := TObjectList<TIcon>.Create;
+  FIconList := TObjectList<TBitmap>.Create;
   FToolImageList := TImageList.Create(nil);
   LoadImageList;
 
@@ -483,57 +483,57 @@ end;
 
 procedure THCViewTool.LoadImageList;
 var
-  vIcon: TIcon;
+  vBmp: TBitmap;
 begin
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'ARROW');  // 箭头0
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'ARROW');  // 箭头0
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'LINE');  // 直线1
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'LINE');  // 直线1
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'RECT');  // 矩形2
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'RECT');  // 矩形2
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'ES');  // 椭圆3
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'ES');  // 椭圆3
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'DBX');  // 多边形4
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'DBX');  // 多边形4
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'CUS');  // 自由线条5
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'CUS');  // 自由线条5
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'FH');  // 缝合线6
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'FH');  // 缝合线6
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'TEXT');  // 文本7
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'TEXT');  // 文本7
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'COLOR');  // 颜色8
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'COLOR');  // 颜色8
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 
-  vIcon := TIcon.Create;
-  FIconList.Add(vIcon);
-  vIcon.LoadFromResourceName(HInstance, 'TABLE');  // 表格9
-  FToolImageList.AddIcon(vIcon);
+  vBmp := TBitmap.Create;
+  FIconList.Add(vBmp);
+  vBmp.LoadFromResourceName(HInstance, 'TABLE');  // 表格9
+  FToolImageList.AddMasked(vBmp, $FF00FF);
 end;
 
 procedure THCViewTool.MouseDown(Button: TMouseButton; Shift: TShiftState; X,

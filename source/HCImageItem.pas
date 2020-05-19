@@ -22,6 +22,7 @@ uses
 type
   THCImageItem = class(THCResizeRectItem)
   private
+    FEmpty: Boolean;
     FImage: {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF};
     FShapeManager: THCShapeManager;
     procedure DoImageChange(Sender: TObject);
@@ -41,7 +42,8 @@ type
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
-    procedure LoadFromBmpFile(const AFileName: string);
+    procedure LoadGraphicFile(const AFileName: string; const AResize: Boolean = True);
+    procedure LoadGraphicStream(const AStream: TStream; const AResize: Boolean = True);
 
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -153,14 +155,15 @@ begin
 
   FImage := {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF}.Create;
   FImage.OnChange := DoImageChange;
+  FEmpty := True;
 end;
 
 constructor THCImageItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
-  Clear;
   StyleNo := THCStyle.Image;
   FShapeManager := THCShapeManager.Create;
+  Clear;
 end;
 
 destructor THCImageItem.Destroy;
@@ -254,6 +257,8 @@ var
 begin
   if APaintInfo.Print then
   begin
+    if FEmpty then Exit;
+
     vBitmap := TBitmap.Create;
     try
       vStream := TMemoryStream.Create;
@@ -284,6 +289,13 @@ begin
       ACanvas.StretchDraw(ADrawRect, FImage)
     else
       ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, FImage);
+
+    if FEmpty then
+    begin
+      ACanvas.Pen.Color := clBlack;
+      ACanvas.Pen.Width := 1;
+      ACanvas.Rectangle(ADrawRect);
+    end;
   end;
 
   FShapeManager.PaintTo(ACanvas, ADrawRect, APaintInfo);
@@ -306,11 +318,28 @@ begin
     Result := FImage.Width;
 end;
 
-procedure THCImageItem.LoadFromBmpFile(const AFileName: string);
+procedure THCImageItem.LoadGraphicFile(const AFileName: string; const AResize: Boolean = True);
 begin
   FImage.LoadFromFile(AFileName);  // 会触发OnChange
-  Self.Width := FImage.Width;
-  Self.Height := FImage.Height;
+  if AResize then
+  begin
+    Self.Width := FImage.Width;
+    Self.Height := FImage.Height;
+  end;
+
+  FEmpty := False;
+end;
+
+procedure THCImageItem.LoadGraphicStream(const AStream: TStream; const AResize: Boolean = True);
+begin
+  FImage.LoadFromStream(AStream);  // 会触发OnChange
+  if AResize then
+  begin
+    Self.Width := FImage.Width;
+    Self.Height := FImage.Height;
+  end;
+
+  FEmpty := False;
 end;
 
 procedure THCImageItem.LoadFromStream(const AStream: TStream;
@@ -324,7 +353,10 @@ begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
 
   if AFileVersion < 20 then
-    FImage.LoadFromStream(AStream)  // 会触发OnChange
+  begin
+    FImage.LoadFromStream(AStream);  // 会触发OnChange
+    FEmpty := False;
+  end
   else  // 兼容C#版本
   begin
     AStream.ReadBuffer(vImgSize, SizeOf(vImgSize));
@@ -338,11 +370,14 @@ begin
         vStream.CopyFrom(AStream, vImgSize);
         vStream.Position := 0;
         FImage.LoadFromStream(vStream);
+        FEmpty := False;
       finally
         FreeAndNil(vStream);
       end;
       {$ENDIF}
-    end;
+    end
+    else
+      FEmpty := True;
   end;
 
   if AFileVersion > 26 then

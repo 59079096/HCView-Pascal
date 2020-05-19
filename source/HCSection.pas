@@ -50,6 +50,8 @@ type
     const ADataAnnotate: THCDataAnnotate) of object;
   TSectionDataItemMouseEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
+  TSectionDataDrawItemMouseEvent = procedure(const Sender: TObject; const AData: THCCustomData;
+    const AItemNo, AOffset, ADrawItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
   THCCustomSection = class(TObject)
   private
@@ -84,7 +86,9 @@ type
 
     FOnGetScreenCoord: TGetScreenCoordEvent;
 
-    FOnPaintHeader, FOnPaintFooter, FOnPaintPage,
+    FOnPaintHeaderBefor, FOnPaintHeaderAfter,
+    FOnPaintFooterBefor, FOnPaintFooterAfter,
+    FOnPaintPageBefor, FOnPaintPageAfter,
     FOnPaintPaperBefor, FOnPaintPaperAfter: TSectionPaintEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TSectionDrawItemPaintEvent;
 
@@ -93,9 +97,10 @@ type
 
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     FOnInsertItem, FOnRemoveItem: TSectionDataItemEvent;
-    FOnSaveItem: TSectionDataItemNoFunEvent;
+    FOnSaveItem, FOnPaintDomainRegion: TSectionDataItemNoFunEvent;
     FOnDataAcceptAction: TSectionDataActionEvent;
     FOnItemMouseDown, FOnItemMouseUp: TSectionDataItemMouseEvent;
+    FOnDrawItemMouseMove: TSectionDataDrawItemMouseEvent;
     FOnItemResize: TDataItemNoEvent;
     FOnCreateItem, FOnCurParaNoChange, FOnActivePageChange: TNotifyEvent;
     FOnCaretItemChanged: TSectionDataItemEvent;
@@ -134,11 +139,14 @@ type
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
     function DoDataSaveItem(const AData: THCCustomData; const AItemNo: Integer): Boolean;
+    function DoDataPaintDomainRegion(const AData: THCCustomData; const AItemNo: Integer): Boolean;
     function DoDataAcceptAction(const AData: THCCustomData; const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean;
     procedure DoDataItemMouseDown(const AData: THCCustomData; const AItemNo, AOffset: Integer;
        Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataItemMouseUp(const AData: THCCustomData; const AItemNo, AOffset: Integer;
        Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure DoDataDrawItemMouseMove(const AData: THCCustomData; const AItemNo, AOffset,
+       ADrawItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataChanged(Sender: TObject);
     procedure DoDataItemRequestFormat(const ASectionData: THCCustomData; const AItem: THCCustomItem);
 
@@ -305,6 +313,8 @@ type
     procedure ApplyParaLeftIndent(const AIndent: Single);
     procedure ApplyParaRightIndent(const AIndent: Single);
     procedure ApplyParaFirstIndent(const AIndent: Single);
+
+    function DataAction(const AData: THCSectionData; const AAction: THCFunction): Boolean;
     /// <summary> 获取光标在Dtat中的位置信息并映射到指定页面 </summary>
     /// <param name="APageIndex">要映射到的页序号</param>
     /// <param name="ACaretInfo">光标位置信息</param>
@@ -437,9 +447,13 @@ type
     property OnItemResize: TDataItemNoEvent read FOnItemResize write FOnItemResize;
     property OnItemMouseDown: TSectionDataItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TSectionDataItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
-    property OnPaintHeader: TSectionPaintEvent read FOnPaintHeader write FOnPaintHeader;
-    property OnPaintFooter: TSectionPaintEvent read FOnPaintFooter write FOnPaintFooter;
-    property OnPaintPage: TSectionPaintEvent read FOnPaintPage write FOnPaintPage;
+    property OnDrawItemMouseMove: TSectionDataDrawItemMouseEvent read FOnDrawItemMouseMove write FOnDrawItemMouseMove;
+    property OnPaintHeaderBefor: TSectionPaintEvent read FOnPaintHeaderBefor write FOnPaintHeaderBefor;
+    property OnPaintHeaderAfter: TSectionPaintEvent read FOnPaintHeaderAfter write FOnPaintHeaderAfter;
+    property OnPaintFooterBefor: TSectionPaintEvent read FOnPaintFooterBefor write FOnPaintFooterBefor;
+    property OnPaintFooterAfter: TSectionPaintEvent read FOnPaintFooterAfter write FOnPaintFooterAfter;
+    property OnPaintPageBefor: TSectionPaintEvent read FOnPaintPageBefor write FOnPaintPageBefor;
+    property OnPaintPageAfter: TSectionPaintEvent read FOnPaintPageAfter write FOnPaintPageAfter;
     property OnPaintPaperBefor: TSectionPaintEvent read FOnPaintPaperBefor write FOnPaintPaperBefor;
     property OnPaintPaperAfter: TSectionPaintEvent read FOnPaintPaperAfter write FOnPaintPaperAfter;
     property OnDrawItemPaintBefor: TSectionDrawItemPaintEvent read FOnDrawItemPaintBefor write FOnDrawItemPaintBefor;
@@ -451,6 +465,7 @@ type
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnDataAcceptAction: TSectionDataActionEvent read FOnDataAcceptAction write FOnDataAcceptAction;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
+    property OnPaintDomainRegion: TSectionDataItemNoFunEvent read FOnPaintDomainRegion write FOnPaintDomainRegion;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnInsertTextBefor: TTextEvent read FOnInsertTextBefor write FOnInsertTextBefor;
     property OnGetUndoList: TGetUndoListEvent read FOnGetUndoList write FOnGetUndoList;
@@ -722,8 +737,10 @@ var
     AData.OnItemResized := DoDataItemResized;
     AData.OnItemMouseDown := DoDataItemMouseDown;
     AData.OnItemMouseUp := DoDataItemMouseUp;
+    AData.OnDrawItemMouseMove := DoDataDrawItemMouseMove;
     AData.OnItemRequestFormat := DoDataItemRequestFormat;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
+    AData.OnPaintDomainRegion := DoDataPaintDomainRegion;
     AData.OnCanEdit := DoDataCanEdit;
     AData.OnInsertTextBefor := DoDataInsertTextBefor;
     AData.OnCreateItem := DoDataCreateItem;
@@ -776,6 +793,12 @@ begin
   NewEmptyPage;           // 创建空白页
   FPages[0].StartDrawItemNo := 0;
   FPages[0].EndDrawItemNo := 0;
+end;
+
+function THCCustomSection.DataAction(const AData: THCSectionData;
+  const AAction: THCFunction): Boolean;
+begin
+  Result := DoSectionDataAction(AData, AAction);
 end;
 
 procedure THCCustomSection.DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
@@ -916,6 +939,14 @@ begin
     FOnDrawItemAnnotate(Self, AData, ADrawItemNo, ADrawRect, ADataAnnotate);
 end;
 
+procedure THCCustomSection.DoDataDrawItemMouseMove(const AData: THCCustomData;
+  const AItemNo, AOffset, ADrawItemNo: Integer; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Assigned(FOnDrawItemMouseMove) then
+    FOnDrawItemMouseMove(Self, AData, AItemNo, AOffset, ADrawItemNo, Button, Shift, X, Y);
+end;
+
 procedure THCCustomSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
   const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -999,6 +1030,15 @@ begin
 
   if Assigned(FOnItemResize) then
     FOnItemResize(AData, AItemNo);
+end;
+
+function THCCustomSection.DoDataPaintDomainRegion(const AData: THCCustomData;
+  const AItemNo: Integer): Boolean;
+begin
+  if Assigned(FOnPaintDomainRegion) then
+    Result := FOnPaintDomainRegion(Self, AData, AItemNo)
+  else
+    Result := True;
 end;
 
 procedure THCCustomSection.DoDataReadOnlySwitch(Sender: TObject);
@@ -2084,7 +2124,8 @@ var
   {$REGION ' 绘制页眉数据 '}
   procedure PaintHeader;
   var
-    vHeaderDataDrawTop, vDCState, vScreenBottom: Integer;
+    vHeaderDataDrawTop, vScreenBottom: Integer;
+    vDCState: THCCanvas;
   begin
     // 计算ScreenBottom时，如果缩放变小的情况，APaintInfo.WindowHeight比vPageDrawTop还小，
     // 传入PaintData计算显示不出来Item，所以不能用Min(vPageDrawTop, APaintInfo.WindowHeight),
@@ -2094,19 +2135,32 @@ var
       vScreenBottom := vHeaderAreaHeight + vPaperDrawTop;
 
     vHeaderDataDrawTop := vPaperDrawTop + GetHeaderPageDrawTop;
+
+    if Assigned(FOnPaintHeaderBefor) then
+    begin
+      vDCState := SaveCanvas(ACanvas);
+      try
+        FOnPaintHeaderBefor(Self, APageIndex, Rect(vPageDrawLeft, vHeaderDataDrawTop,
+          vPageDrawRight, vPageDrawTop), ACanvas, APaintInfo);
+      finally
+        vDCState.ToCanvas(ACanvas);
+        FreeAndNil(vDCState);
+      end;
+    end;
+
     FHeader.PaintData(vPageDrawLeft, vHeaderDataDrawTop, vPageDrawRight,
       vPageDrawTop, Max(vHeaderDataDrawTop, 0),
       vScreenBottom, 0, ACanvas, APaintInfo);
 
-    if Assigned(FOnPaintHeader) then
+    if Assigned(FOnPaintHeaderAfter) then
     begin
-      vDCState := Windows.SaveDC(ACanvas.Handle);
+      vDCState := SaveCanvas(ACanvas);
       try
-        FOnPaintHeader(Self, APageIndex, Rect(vPageDrawLeft, vHeaderDataDrawTop,
+        FOnPaintHeaderAfter(Self, APageIndex, Rect(vPageDrawLeft, vHeaderDataDrawTop,
           vPageDrawRight, vPageDrawTop), ACanvas, APaintInfo);
       finally
-        Windows.RestoreDC(ACanvas.Handle, vDCState);
-        ACanvas.Refresh;
+        vDCState.ToCanvas(ACanvas);
+        FreeAndNil(vDCState);
       end;
     end;
   end;
@@ -2115,7 +2169,8 @@ var
   {$REGION ' 绘制页脚数据 '}
   procedure PaintFooter;
   var
-    vDCState, vScreenBottom: Integer;
+    vDCState: THCCanvas;
+    vScreenBottom: Integer;
   begin
     // 计算ScreenBottom时，如果缩放变小的情况，APaintInfo.WindowHeight比vPageDrawBottom还小，
     // 传入PaintData计算显示不出来Item，所以不能用Min(vPaperDrawBottom, APaintInfo.WindowHeight),
@@ -2125,20 +2180,32 @@ var
     else
       vScreenBottom := APaintInfo.WindowHeight;
 
+    if Assigned(FOnPaintFooterBefor) then
+    begin
+      vDCState := SaveCanvas(ACanvas);
+      try
+        FOnPaintFooterBefor(Self, APageIndex, Rect(vPageDrawLeft, vPageDrawBottom,
+          vPageDrawRight, vPaperDrawBottom), ACanvas, APaintInfo);
+      finally
+        vDCState.ToCanvas(ACanvas);
+        FreeAndNil(vDCState);
+      end;
+    end;
+
     FFooter.PaintData(vPageDrawLeft, vPageDrawBottom, vPageDrawRight, vPaperDrawBottom,
       Max(vPageDrawBottom, 0),
       vPageDrawBottom + vScreenBottom,
       0, ACanvas, APaintInfo);
 
-    if Assigned(FOnPaintFooter) then
+    if Assigned(FOnPaintFooterAfter) then
     begin
-      vDCState := Windows.SaveDC(ACanvas.Handle);
+      vDCState := SaveCanvas(ACanvas);
       try
-        FOnPaintFooter(Self, APageIndex, Rect(vPageDrawLeft, vPageDrawBottom,
+        FOnPaintFooterAfter(Self, APageIndex, Rect(vPageDrawLeft, vPageDrawBottom,
           vPageDrawRight, vPaperDrawBottom), ACanvas, APaintInfo);
       finally
-        Windows.RestoreDC(ACanvas.Handle, vDCState);
-        ACanvas.Refresh;
+        vDCState.ToCanvas(ACanvas);
+        FreeAndNil(vDCState);
       end;
     end;
   end;
@@ -2147,7 +2214,7 @@ var
   {$REGION ' 绘制页面数据 '}
   procedure PaintPage;
   var
-    vDCState: Integer;
+    vDCState: THCCanvas;
   begin
     if (FPages[APageIndex].StartDrawItemNo < 0) or (FPages[APageIndex].EndDrawItemNo < 0) then
       Exit;
@@ -2157,6 +2224,17 @@ var
 //      FPages[APageIndex].StartDrawItemNo, FPages[APageIndex].EndDrawItemNo,
 //      APaintInfo.PageDataFmtTop,
 //      APaintInfo.PageDataFmtTop + HeightPix - vHeaderAreaHeight - PageMarginBottomPix);
+    if Assigned(FOnPaintPageBefor) then
+    begin
+      vDCState := SaveCanvas(ACanvas);
+      try
+        FOnPaintPageBefor(Self, APageIndex, Rect(vPageDrawLeft, vPageDrawTop,
+          vPageDrawRight, vPageDrawBottom), ACanvas, APaintInfo);
+      finally
+        vDCState.ToCanvas(ACanvas);
+        FreeAndNil(vDCState);
+      end;
+    end;
 
     { 绘制数据，把Data中指定位置的数据，绘制到指定的页区域中，并按照可显示出来的区域约束 }
     FPage.PaintData(vPageDrawLeft,  // 当前页数据要绘制到的Left
@@ -2171,22 +2249,22 @@ var
       ACanvas,
       APaintInfo);
 
-    if Assigned(FOnPaintPage) then
+    if Assigned(FOnPaintPageAfter) then
     begin
-      vDCState := Windows.SaveDC(ACanvas.Handle);
+      vDCState := SaveCanvas(ACanvas);
       try
-        FOnPaintPage(Self, APageIndex, Rect(vPageDrawLeft, vPageDrawTop,
+        FOnPaintPageAfter(Self, APageIndex, Rect(vPageDrawLeft, vPageDrawTop,
           vPageDrawRight, vPageDrawBottom), ACanvas, APaintInfo);
       finally
-        Windows.RestoreDC(ACanvas.Handle, vDCState);
-        ACanvas.Refresh;
+        vDCState.ToCanvas(ACanvas);
+        FreeAndNil(vDCState);
       end;
     end;
   end;
   {$ENDREGION}
 
 var
-  vDCState: Integer;
+  vDCState: THCCanvas;
   vPaintRegion: HRGN;
   vClipBoxRect: TRect;
 begin
@@ -2350,14 +2428,14 @@ begin
 
   if Assigned(FOnPaintPaperBefor) then  // 公开页面绘制前事件
   begin
-    vDCState := Windows.SaveDC(ACanvas.Handle);
+    vDCState := SaveCanvas(ACanvas);
     try
       FOnPaintPaperBefor(Self, APageIndex,
         Rect(vPaperDrawLeft, vPaperDrawTop, vPaperDrawRight, vPaperDrawBottom),
         ACanvas, APaintInfo);
     finally
-      Windows.RestoreDC(ACanvas.Handle, vDCState);
-      ACanvas.Refresh;
+      vDCState.ToCanvas(ACanvas);
+      FreeAndNil(vDCState);
     end;
   end;
 
@@ -2366,7 +2444,7 @@ begin
     {$REGION ' 绘制页眉 '}
     if vPageDrawTop > 0 then  // 页眉可显示
     begin
-      vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPageDrawLeft),
+      vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPaperDrawLeft),
         Max(APaintInfo.GetScaleY(vPaperDrawTop + FHeaderOffset), 0),
         APaintInfo.GetScaleX(vPaperDrawRight),  // 表格有时候会拖宽到页面外面vPageDrawRight
         Min(APaintInfo.GetScaleY(vPageDrawTop), APaintInfo.WindowHeight));
@@ -2392,7 +2470,7 @@ begin
     {$REGION ' 绘制页脚 '}
     if APaintInfo.GetScaleY(vPageDrawBottom) < APaintInfo.WindowHeight then  // 页脚可显示
     begin
-      vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPageDrawLeft),
+      vPaintRegion := CreateRectRgn(APaintInfo.GetScaleX(vPaperDrawLeft),
         Max(APaintInfo.GetScaleY(vPageDrawBottom), 0),
         APaintInfo.GetScaleX(vPaperDrawRight),  // 表格有时候会拖宽到页面外面vPageDrawRight
         Min(APaintInfo.GetScaleY(vPaperDrawBottom), APaintInfo.WindowHeight));
@@ -2481,14 +2559,14 @@ begin
 
   if Assigned(FOnPaintPaperAfter) then  // 公开页面绘制后事件
   begin
-    vDCState := Windows.SaveDC(ACanvas.Handle);
+    vDCState := SaveCanvas(ACanvas);
     try
       FOnPaintPaperAfter(Self, APageIndex,
         Rect(vPaperDrawLeft, vPaperDrawTop, vPaperDrawRight, vPaperDrawBottom),
         ACanvas, APaintInfo);
     finally
-      Windows.RestoreDC(ACanvas.Handle, vDCState);
-      ACanvas.Refresh;
+      vDCState.ToCanvas(ACanvas);
+      FreeAndNil(vDCState);
     end;
   end;
 end;
@@ -3059,7 +3137,7 @@ end;
 
 function THCSection.ToHtml(const APath: string): string;
 begin
-  Result := FPage.ToHtml(APath);
+  Result := FHeader.ToHtml(APath) + sLineBreak + FPage.ToHtml(APath) + sLineBreak + FFooter.ToXml(APath);
 end;
 
 procedure THCSection.ToXml(const ANode: IHCXMLNode);

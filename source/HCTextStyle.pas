@@ -194,6 +194,7 @@ end;
 procedure THCTextStyle.AssignEx(const ASource: THCTextStyle);
 begin
   Self.FSize := ASource.Size;
+  Self.FFontHeight := ASource.FontHeight;
   Self.FFontStyles := ASource.FontStyles;
   Self.FFamily := ASource.Family;
   Self.FColor := ASource.Color;
@@ -331,6 +332,7 @@ procedure THCTextStyle.SetSize(const Value: Single);
 begin
   if FSize <> Value then
     FSize := Value;
+  // 是否需要在Style里的FTextStyles里绑定这里设置完Size后马上获取测量信息？
 end;
 
 function THCTextStyle.ToCSS: string;

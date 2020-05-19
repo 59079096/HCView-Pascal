@@ -36,7 +36,6 @@ type
     procedure ScrollAdjust(const AOffset: Integer);
     function GetCharDrawLeft(const AOffset: Integer): Integer;
     function OffsetInSelect(const AOffset: Integer): Boolean;
-    function SelectTextExists: Boolean;
     procedure DeleteSelectText;
     procedure DisSelectText;
   protected
@@ -62,6 +61,14 @@ type
     procedure SetText(const Value: string); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
+    function SelectTextExists: Boolean;
+    /// <summary> 获取坐标X、Y是否在选中区域中 </summary>
+    function CoordInSelect(const X, Y: Integer): Boolean; override;
+    function SelectExists: Boolean; override;
+    function IsSelectComplateTheory: Boolean; override;
+    function DeleteSelected: Boolean; override;
+    procedure DisSelect; override;
+    function SaveSelectToText: string; override;
     procedure Assign(Source: THCCustomItem); override;
     procedure Clear; override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
@@ -110,6 +117,11 @@ begin
   Self.Text := '';
 end;
 
+function THCEditItem.CoordInSelect(const X, Y: Integer): Boolean;
+begin
+  Result := SelectExists and PtInRect(Bounds(0, 0, Width, Height), Point(X, Y));
+end;
+
 constructor THCEditItem.Create(const AOwnerData: THCCustomData; const AText: string);
 begin
   inherited Create(AOwnerData);
@@ -130,12 +142,28 @@ begin
   FBorderSides := [cbsLeft, cbsTop, cbsRight, cbsBottom];
 end;
 
+function THCEditItem.DeleteSelected: Boolean;
+begin
+  Result := inherited DeleteSelected;
+  if SelectTextExists then
+  begin
+    DeleteSelectText;
+    Result := True;
+  end;
+end;
+
 procedure THCEditItem.DeleteSelectText;
 begin
   System.Delete(FText, FCaretOffset + 1, FSelEnd - FCaretOffset);
   FSelEnd := -1;
   FSelMove := FCaretOffset;
   CalcTextSize;
+end;
+
+procedure THCEditItem.DisSelect;
+begin
+  DisSelectText;
+  inherited DisSelect;
 end;
 
 procedure THCEditItem.DisSelectText;
@@ -324,6 +352,11 @@ begin
   Self.SizeChanged := True;
 end;
 
+function THCEditItem.IsSelectComplateTheory: Boolean;
+begin
+  Result := IsSelectComplate;
+end;
+
 procedure THCEditItem.KeyDown(var Key: Word; Shift: TShiftState);
 
   procedure BackspaceKeyDown;
@@ -496,6 +529,9 @@ begin
     FSelEnd := vSel;
   end;
 
+  if OwnerData.Style.UpdateInfo.Draging then
+    Self.DisSelect;
+
   Result := inherited MouseUp(Button, Shift, X, Y);
 end;
 
@@ -539,6 +575,14 @@ begin
     AStream.ReadBuffer(FBorderSides, SizeOf(FBorderSides));
     AStream.ReadBuffer(FBorderWidth, SizeOf(FBorderWidth));
   end;
+end;
+
+function THCEditItem.SaveSelectToText: string;
+begin
+  if SelectTextExists then
+    Result := Copy(FText, FCaretOffset + 1, FSelEnd - FCaretOffset)
+  else
+    Result := inherited SaveSelectToText;
 end;
 
 procedure THCEditItem.SaveToStream(const AStream: TStream; const AStart,
@@ -592,6 +636,11 @@ begin
   else
   if vRight < 0 then
     FLeftOffset := FLeftOffset + vRight;
+end;
+
+function THCEditItem.SelectExists: Boolean;
+begin
+  Result := inherited SelectExists or SelectTextExists;
 end;
 
 function THCEditItem.SelectTextExists: Boolean;

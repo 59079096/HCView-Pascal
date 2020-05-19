@@ -38,6 +38,7 @@ type
     /// <summary> 格式化区域 </summary>
     Rect: TRect;
     //
+    function CharOffsetStart: Integer;
     function CharOffsetEnd: Integer;
     function Width: Integer;
     function Height: Integer;
@@ -73,6 +74,11 @@ type
 implementation
 
 { THCCustomDrawItem }
+
+function THCCustomDrawItem.CharOffsetStart: Integer;
+begin
+  Result := CharOffs - 1;
+end;
 
 function THCCustomDrawItem.GetLineFirst: Boolean;
 begin

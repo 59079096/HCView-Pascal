@@ -126,11 +126,14 @@ type
     FOnSectionCanEdit: TOnCanEditEvent;
     FOnSectionInsertTextBefor: TTextEvent;
     FOnSectionInsertItem, FOnSectionRemoveItem: TSectionDataItemEvent;
+    FOnSectionDrawItemMouseMove: TSectionDataDrawItemMouseEvent;
     FOnSectionSaveItem: TSectionDataItemNoFunEvent;
     FOnSectionAcceptAction: TSectionDataActionEvent;
     FOnSectionDrawItemPaintAfter, FOnSectionDrawItemPaintBefor: TSectionDrawItemPaintEvent;
 
-    FOnSectionPaintHeader, FOnSectionPaintFooter, FOnSectionPaintPage,
+    FOnSectionPaintHeaderBefor, FOnSectionPaintHeaderAfter,
+      FOnSectionPaintFooterBefor, FOnSectionPaintFooterAfter,
+      FOnSectionPaintPageBefor, FOnSectionPaintPageAfter,
       FOnSectionPaintPaperBefor, FOnSectionPaintPaperAfter: TSectionPaintEvent;
     FOnPaintViewBefor, FOnPaintViewAfter: TPaintEvent;
 
@@ -170,11 +173,17 @@ type
     procedure DoSectionReadOnlySwitch(Sender: TObject);
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
     procedure DoSectionItemResize(const AData: THCCustomData; const AItemNo: Integer);
-    procedure DoSectionPaintHeader(const Sender: TObject; const APageIndex: Integer;
+    procedure DoSectionPaintHeaderBefor(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintFooter(const Sender: TObject; const APageIndex: Integer;
+    procedure DoSectionPaintHeaderAfter(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintPage(const Sender: TObject; const APageIndex: Integer;
+    procedure DoSectionPaintFooterBefor(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintFooterAfter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintPageBefor(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintPageAfter(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionPaintPaperBefor(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
@@ -244,6 +253,7 @@ type
     function DoSectionAcceptAction(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; virtual;
     function DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
+    function DoSectionPaintDomainRegion(const Sender: TObject; const AData: THCCustomData; const AItemNo: Integer): Boolean; virtual;
     procedure DoSectionCaretItemChanged(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionInsertItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); virtual;
@@ -252,6 +262,8 @@ type
       const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
     procedure DoSectionItemMouseUp(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
+    procedure DoSectionDrawItemMouseMove(const Sender: TObject; const AData: THCCustomData;
+      const AItemNo, AOffset, ADrawItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
     function DoSectionCanEdit(const Sender: TObject): Boolean; virtual;
     function DoSectionInsertTextBefor(const AData: THCCustomData; const AItemNo, AOffset: Integer;
       const AText: string): Boolean; virtual;
@@ -370,6 +382,8 @@ type
 
     /// <summary> 插入流 </summary>
     function InsertStream(const AStream: TStream): Boolean;
+
+    function AppendStream(const AStream: TStream): Boolean;
 
     /// <summary> 插入文本(可包括#13#10) </summary>
     function InsertText(const AText: string): Boolean;
@@ -590,7 +604,7 @@ type
     /// <summary> 文档保存为PDF格式 </summary>
     procedure SaveToPDF(const AFileName: string);
 
-    procedure SaveToPDFStream(const AStream: TStream);
+    procedure SaveToPDFStream(const AStream: TStream; const APageImage: Boolean = False);
 
     /// <summary> 以字符串形式获取文档各节正文内容 </summary>
     function SaveToText: string;
@@ -794,6 +808,9 @@ type
     /// <summary> 节有新的Item删除时触发 </summary>
     property OnSectionRemoveItem: TSectionDataItemEvent read FOnSectionRemoveItem write FOnSectionRemoveItem;
 
+    /// <summary> 节中Data的DrawItem MouseMove事件 </summary>
+    property OnSectionDrawItemMouseMove: TSectionDataDrawItemMouseEvent read FOnSectionDrawItemMouseMove write FOnSectionDrawItemMouseMove;
+
     /// <summary> 节保存Item前触发，控制是否允许保存该Item </summary>
     property OnSectionSaveItem: TSectionDataItemNoFunEvent read FOnSectionSaveItem write FOnSectionSaveItem;
 
@@ -807,13 +824,16 @@ type
     property OnSectionDrawItemPaintAfter: TSectionDrawItemPaintEvent read FOnSectionDrawItemPaintAfter write FOnSectionDrawItemPaintAfter;
 
     /// <summary> 节页眉绘制时触发 </summary>
-    property OnSectionPaintHeader: TSectionPaintEvent read FOnSectionPaintHeader write FOnSectionPaintHeader;
+    property OnSectionPaintHeaderBefor: TSectionPaintEvent read FOnSectionPaintHeaderBefor write FOnSectionPaintHeaderBefor;
+    property OnSectionPaintHeaderAfter: TSectionPaintEvent read FOnSectionPaintHeaderAfter write FOnSectionPaintHeaderAfter;
 
     /// <summary> 节页脚绘制时触发 </summary>
-    property OnSectionPaintFooter: TSectionPaintEvent read FOnSectionPaintFooter write FOnSectionPaintFooter;
+    property OnSectionPaintFooterBefor: TSectionPaintEvent read FOnSectionPaintFooterBefor write FOnSectionPaintFooterBefor;
+    property OnSectionPaintFooterAfter: TSectionPaintEvent read FOnSectionPaintFooterAfter write FOnSectionPaintFooterAfter;
 
     /// <summary> 节页面绘制时触发 </summary>
-    property OnSectionPaintPage: TSectionPaintEvent read FOnSectionPaintPage write FOnSectionPaintPage;
+    property OnSectionPaintPageBefor: TSectionPaintEvent read FOnSectionPaintPageBefor write FOnSectionPaintPageBefor;
+    property OnSectionPaintPageAfter: TSectionPaintEvent read FOnSectionPaintPageAfter write FOnSectionPaintPageAfter;
 
     /// <summary> 节整页绘制前触发 </summary>
     property OnSectionPaintPaperBefor: TSectionPaintEvent read FOnSectionPaintPaperBefor write FOnSectionPaintPaperBefor;
@@ -895,7 +915,7 @@ implementation
 
 uses
   HCPrinters, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml, HCDocumentRW,
-  HCRtfRW, HCUnitConversion;
+  HCRtfRW, HCUnitConversion, HCEditItem;
 
 const
   IMN_UPDATECURSTRING = $F000;  // 和输入法交互，当前光标处的字符串
@@ -1038,9 +1058,7 @@ begin
     FUndoList.SaveState;
     try
       FUndoList.Enable := False;
-
-        FSections[0].Clear;
-
+      FSections[0].Clear;
       FUndoList.Clear;
     finally
       FUndoList.RestoreState;
@@ -1355,15 +1373,29 @@ begin
   Result := True;
 end;
 
-procedure THCView.DoSectionPaintPage(const Sender: TObject;
+procedure THCView.DoSectionPaintPageAfter(const Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 begin
-  if Assigned(FOnSectionPaintPage) then
-    FOnSectionPaintPage(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+  if Assigned(FOnSectionPaintPageAfter) then
+    FOnSectionPaintPageAfter(Sender, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoSectionPaintFooter(const Sender: TObject;
+procedure THCView.DoSectionPaintPageBefor(const Sender: TObject;
+  const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
+  const APaintInfo: TSectionPaintInfo);
+begin
+  if Assigned(FOnSectionPaintPageBefor) then
+    FOnSectionPaintPageBefor(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+end;
+
+function THCView.DoSectionPaintDomainRegion(const Sender: TObject;
+  const AData: THCCustomData; const AItemNo: Integer): Boolean;
+begin
+  Result := True;
+end;
+
+procedure THCView.DoSectionPaintFooterAfter(const Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 var
@@ -1393,16 +1425,32 @@ begin
       ARect.Top + vSection.Footer.Height, vS);
   end;
 
-  if Assigned(FOnSectionPaintFooter) then
-    FOnSectionPaintFooter(vSection, APageIndex, ARect, ACanvas, APaintInfo);
+  if Assigned(FOnSectionPaintFooterAfter) then
+    FOnSectionPaintFooterAfter(vSection, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
-procedure THCView.DoSectionPaintHeader(const Sender: TObject;
+procedure THCView.DoSectionPaintFooterBefor(const Sender: TObject;
   const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
   const APaintInfo: TSectionPaintInfo);
 begin
-  if Assigned(FOnSectionPaintHeader) then
-    FOnSectionPaintHeader(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+  if Assigned(FOnSectionPaintFooterBefor) then
+    FOnSectionPaintFooterBefor(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+end;
+
+procedure THCView.DoSectionPaintHeaderAfter(const Sender: TObject;
+  const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
+  const APaintInfo: TSectionPaintInfo);
+begin
+  if Assigned(FOnSectionPaintHeaderAfter) then
+    FOnSectionPaintHeaderAfter(Sender, APageIndex, ARect, ACanvas, APaintInfo);
+end;
+
+procedure THCView.DoSectionPaintHeaderBefor(const Sender: TObject;
+  const APageIndex: Integer; const ARect: TRect; const ACanvas: TCanvas;
+  const APaintInfo: TSectionPaintInfo);
+begin
+  if Assigned(FOnSectionPaintHeaderBefor) then
+    FOnSectionPaintHeaderBefor(Sender, APageIndex, ARect, ACanvas, APaintInfo);
 end;
 
 procedure THCView.DoSectionPaintPaperAfter(const Sender: TObject; const APageIndex: Integer;
@@ -1512,7 +1560,16 @@ begin
 end;
 
 function THCView.DoPasteRequest(const AFormat: Word): Boolean;
+var
+  vTopItem: THCCustomItem;
 begin
+  vTopItem := ActiveSection.GetTopLevelItem;
+  if vTopItem is THCEditItem then
+  begin
+    Result := (AFormat = CF_TEXT) or (AFormat = CF_UNICODETEXT);
+    Exit;
+  end;
+
   Result := True;
 end;
 
@@ -1646,7 +1703,19 @@ begin
 end;
 
 function THCView.DoCopyRequest(const AFormat: Word): Boolean;
+var
+  vTopItem: THCCustomItem;
 begin
+  vTopItem := ActiveSection.GetTopLevelItem;
+  if vTopItem is THCEditItem then
+  begin
+    if (vTopItem as THCEditItem).SelectTextExists then
+    begin
+      Result := (AFormat = CF_TEXT) or (AFormat = CF_UNICODETEXT);
+      Exit;
+    end;
+  end;
+
   Result := True;
 end;
 
@@ -1735,7 +1804,6 @@ procedure THCView.DoSectionItemMouseDown(const Sender: TObject;
   const AData: THCCustomData; const AItemNo, AOffset: Integer;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-
 end;
 
 procedure THCView.DoSectionItemMouseUp(const Sender: TObject;
@@ -1763,6 +1831,14 @@ begin
   vDrawAnnotate.DrawRect := ADrawRect;
   vDrawAnnotate.DataAnnotate := ADataAnnotate;
   FAnnotatePre.AddDrawAnnotate(vDrawAnnotate);
+end;
+
+procedure THCView.DoSectionDrawItemMouseMove(const Sender: TObject;
+  const AData: THCCustomData; const AItemNo, AOffset, ADrawItemNo: Integer;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+begin
+  if Assigned(FOnSectionDrawItemMouseMove) then
+    FOnSectionDrawItemMouseMove(Sender as THCSection, AData, AItemNo, AOffset, ADrawItemNo, Button, Shift, X, Y);
 end;
 
 procedure THCView.DoSectionDrawItemPaintAfter(const Sender: TObject;
@@ -2002,7 +2078,8 @@ begin
   if (ASectionIndex < 0) and (vY + FPagePadding >= Y) then  // 最后一页后面的Padding
     ASectionIndex := FSections.Count - 1;
 
-  Assert(ASectionIndex >= 0, '没有获取到正确的节序号！');
+  if ASectionIndex < 0 then
+    ASectionIndex := 0;
 end;
 
 function THCView.GetSectionDrawLeft(const ASectionIndex: Integer): Integer;
@@ -2757,6 +2834,7 @@ begin
   Result.OnCreateItem := DoSectionCreateItem;
   Result.OnDataAcceptAction := DoSectionAcceptAction;
   Result.OnCreateItemByStyle := DoSectionCreateStyleItem;
+  Result.OnPaintDomainRegion := DoSectionPaintDomainRegion;
   Result.OnCanEdit := DoSectionCanEdit;
   Result.OnInsertTextBefor := DoSectionInsertTextBefor;
   Result.OnInsertItem := DoSectionInsertItem;
@@ -2764,15 +2842,19 @@ begin
   Result.OnSaveItem := DoSectionSaveItem;
   Result.OnItemMouseDown := DoSectionItemMouseDown;
   Result.OnItemMouseUp := DoSectionItemMouseUp;
+  Result.OnDrawItemMouseMove := DoSectionDrawItemMouseMove;
   Result.OnItemResize := DoSectionItemResize;
   Result.OnReadOnlySwitch := DoSectionReadOnlySwitch;
   Result.OnGetScreenCoord := DoSectionGetScreenCoord;
   Result.OnDrawItemPaintAfter := DoSectionDrawItemPaintAfter;
   Result.OnDrawItemPaintBefor := DoSectionDrawItemPaintBefor;
   Result.OnDrawItemPaintContent := DoSectionDrawItemPaintContent;
-  Result.OnPaintHeader := DoSectionPaintHeader;
-  Result.OnPaintFooter := DoSectionPaintFooter;
-  Result.OnPaintPage := DoSectionPaintPage;
+  Result.OnPaintHeaderBefor := DoSectionPaintHeaderBefor;
+  Result.OnPaintHeaderAfter := DoSectionPaintHeaderAfter;
+  Result.OnPaintFooterBefor := DoSectionPaintFooterBefor;
+  Result.OnPaintFooterAfter := DoSectionPaintFooterAfter;
+  Result.OnPaintPageBefor := DoSectionPaintPageBefor;
+  Result.OnPaintPageAfter := DoSectionPaintPageAfter;
   Result.OnPaintPaperBefor := DoSectionPaintPaperBefor;
   Result.OnPaintPaperAfter := DoSectionPaintPaperAfter;
   Result.OnInsertAnnotate := DoSectionInsertAnnotate;
@@ -3954,7 +4036,7 @@ begin
   vXml.SaveToStream(AStream);
 end;
 
-procedure THCView.SaveToPDFStream(const AStream: TStream);
+procedure THCView.SaveToPDFStream(const AStream: TStream; const APageImage: Boolean = False);
   {$IFDEF SYNPDF}
   function GetPDFPaperSize(const APaperSize: Integer): TPDFPaperSize;
   begin
@@ -3973,6 +4055,12 @@ var
   vPDF: TPdfDocumentGDI;
   vPage: TPdfPage;
   vPaintInfo: TSectionPaintInfo;
+
+  vScaleInfo: TScaleInfo;
+  vBmp: TBitmap;
+  //vMetaFile: TMetafile;
+  //vMetaCanvas: TCanvas;
+  //vDC: HDC;
 begin
   vPDF := TPdfDocumentGDI.Create;
   try
@@ -3995,12 +4083,18 @@ begin
     vPDF.Info.Subject := '';  // HIT 电子病历
     vPDF.Info.Title := '';  // 张三第1次
 
-    //vPDF.UseUniscribe := True;
+    vPDF.UseUniscribe := True;
 
     vDPI := PixelsPerInchX;
     vPDF.ScreenLogPixels := vDPI;
     //vPDF.VCLCanvas.Font.Charset = ANSI_CHARSET
     //https://synopse.info/forum/viewtopic.php?id=2494
+    if not APageImage then
+    begin
+      vPDF.EmbeddedTTF := True;
+      //vPDF.EmbeddedWholeTTF := True;
+      vPDF.EmbeddedTTFIgnore.Text := MSWINDOWS_DEFAULT_FONTS + #13#10'宋体';
+    end;
 
     vPaintInfo := TSectionPaintInfo.Create;
     try
@@ -4017,9 +4111,13 @@ begin
         begin
           vPage := vPDF.AddPage;
 
-          vPage.PageLandscape := False;
-          vPDF.DefaultPaperSize := GetPDFPaperSize(FSections[i].PaperSize);
-          if vPDF.DefaultPaperSize = TPDFPaperSize.psUserDefined then
+          if FSections[i].PaperOrientation = TPaperOrientation.cpoLandscape then
+            vPage.PageLandscape := True
+          else
+            vPage.PageLandscape := False;
+
+          //vPDF.DefaultPaperSize := GetPDFPaperSize(FSections[i].PaperSize);
+          //if vPDF.DefaultPaperSize = TPDFPaperSize.psUserDefined then
           begin  // 英寸单位下总共多少像素
             vPage.PageWidth := Round(FSections[i].PaperWidth / 25.4 * 72);
             vPage.PageHeight := Round(FSections[i].PaperHeight / 25.4 * 72);
@@ -4029,7 +4127,40 @@ begin
           vPaintInfo.WindowWidth := FSections[i].PaperWidthPix;
           vPaintInfo.WindowHeight := FSections[i].PaperHeightPix;
 
-          FSections[i].PaintPaper(j, 0, 0, vPDF.VCLCanvas, vPaintInfo);
+          if not APageImage then
+            FSections[i].PaintPaper(j, 0, 0, vPDF.VCLCanvas, vPaintInfo)
+          else
+          begin
+            {vMetaFile := TMetafile.Create;
+            vMetaFile.Width  := FSections[i].PaperWidthPix;
+            vMetaFile.Height := FSections[i].PaperHeightPix;
+            vDC := CreateCompatibleDC(0);
+            vMetaCanvas := TMetaFileCanvas.Create(vMetaFile, vDC);
+            FSections[i].PaintPaper(j, 0, 0, vMetaCanvas, vPaintInfo);
+
+            vMetaCanvas.Free;
+            DeleteDC(vDC);
+            //vMetaFile.SaveToFile('c:\aa.emf');
+            vPDF.VCLCanvas.Draw(0, 0, vMetaFile);
+            vMetaFile.Free;}
+
+            vBmp := TBitmap.Create;
+            try
+              vBmp.SetSize(FSections[i].PaperWidthPix, FSections[i].PaperHeightPix);
+              vBmp.Canvas.Brush.Color := clWhite;
+              vBmp.Canvas.FillRect(Rect(0, 0, vBmp.Width, vBmp.Height));
+              //vScaleInfo := vPaintInfo.ScaleCanvas(vBmp.Canvas);
+              //try
+                FSections[i].PaintPaper(j, 0, 0, vBmp.Canvas, vPaintInfo);
+              //finally
+              //  vPaintInfo.RestoreCanvasScale(vBmp.Canvas, vScaleInfo);
+              //end;
+
+              vPDF.VCLCanvas.Draw(0, 0, vBmp);
+            finally
+              vBmp.Free;
+            end;
+          end;
         end;
       end;
     finally
@@ -4337,6 +4468,15 @@ end;
 function THCView.TableApplyContentAlign(const AAlign: THCContentAlign): Boolean;
 begin
   Result := ActiveSection.TableApplyContentAlign(AAlign);
+end;
+
+function THCView.AppendStream(const AStream: TStream): Boolean;
+begin
+  Result := False;
+  ActiveSection.ActiveData.SelectLastItemAfterWithCaret;
+  InsertBreak;
+  ApplyParaAlignHorz(TParaAlignHorz.pahLeft);
+  Result := InsertStream(AStream);
 end;
 
 procedure THCView.ApplyParaAlignHorz(const AAlign: TParaAlignHorz);

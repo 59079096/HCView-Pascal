@@ -91,6 +91,7 @@ const
 procedure THCComboboxItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
+  FSaveItem := (Source as THCComboboxItem).SaveItem;
   FItems.Assign((Source as THCComboboxItem).Items);
   FItemValues.Assign((Source as THCComboboxItem).ItemValues);
 end;

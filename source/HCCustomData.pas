@@ -77,6 +77,7 @@ type
 
   THCCustomData = class(TObject)
   private
+    FParentData: THCCustomData;  // 便于判断父Data是否只读以便约束
     FStyle: THCStyle;
     FCurStyleNo, FCurParaNo: Integer;
     FItems: THCItems;
@@ -444,6 +445,7 @@ type
     procedure ToXml(const ANode: IHCXMLNode); virtual;
     procedure ParseXml(const ANode: IHCXMLNode); virtual;
     //
+    property ParentData: THCCustomData read FParentData write FParentData;
     property Style: THCStyle read FStyle;
     property CurStyleNo: Integer read FCurStyleNo write SetCurStyleNo;
     property CurParaNo: Integer read FCurParaNo write SetCurParaNo;
@@ -741,6 +743,7 @@ end;
 
 constructor THCCustomData.Create(const AStyle: THCStyle);
 begin
+  FParentData := nil;
   FStyle := AStyle;
   FDrawItems := THCDrawItems.Create;
   FItems := THCItems.Create;
@@ -762,7 +765,7 @@ end;
 
 function THCCustomData.CreateDefaultTextItem: THCCustomItem;
 begin
-  Result := HCDefaultTextItemClass.CreateByText('');  // 必需有参数否则不能调用属性创建;
+  Result := HCDefaultTextItemClass.CreateByText('');  // 必需有参数否则不能调用属性创建
   if FCurStyleNo < THCStyle.Null then
     Result.StyleNo := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True)
   else
@@ -906,15 +909,15 @@ procedure THCCustomData.DrawItemPaintAfter(const AData: THCCustomData;
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
-  vDCState: Integer;
+  vDCState: THCCanvas;
 begin
-  vDCState := SaveDC(ACanvas.Handle);
+  vDCState := SaveCanvas(ACanvas);
   try
     DoDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
-    RestoreDC(ACanvas.Handle, vDCState);
-    ACanvas.Refresh;
+    vDCState.ToCanvas(ACanvas);
+    FreeAndNil(vDCState);
   end;
 end;
 
@@ -923,15 +926,15 @@ procedure THCCustomData.DrawItemPaintBefor(const AData: THCCustomData;
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
-  vDCState: Integer;
+  vDCState: THCCanvas;
 begin
-  vDCState := SaveDC(ACanvas.Handle);
+  vDCState := SaveCanvas(ACanvas);
   try
     DoDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
-    RestoreDC(ACanvas.Handle, vDCState);
-    ACanvas.Refresh;
+    vDCState.ToCanvas(ACanvas);
+    FreeAndNil(vDCState);
   end;
 end;
 
@@ -940,15 +943,15 @@ procedure THCCustomData.DrawItemPaintContent(const AData: THCCustomData;
   const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
   ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
-  vDCState: Integer;
+  vDCState: THCCanvas;
 begin
-  vDCState := SaveDC(ACanvas.Handle);
+  vDCState := SaveCanvas(ACanvas);
   try
     DoDrawItemPaintContent(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADrawText,
       ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
-    RestoreDC(ACanvas.Handle, vDCState);
-    ACanvas.Refresh;
+    vDCState.ToCanvas(ACanvas);
+    FreeAndNil(vDCState);
   end;
 end;
 
@@ -1706,8 +1709,7 @@ begin
   if FSelectInfo.EndItemNo < 0 then
     Result := -1
   else
-    Result := GetDrawItemNoByOffset(FSelectInfo.EndItemNo,
-      FSelectInfo.EndItemOffset);
+    Result := GetDrawItemNoByOffset(FSelectInfo.EndItemNo, FSelectInfo.EndItemOffset);
 end;
 
 function THCCustomData.GetSelectStartDrawItemNo: Integer;
@@ -1716,13 +1718,18 @@ begin
     Result := -1
   else
   begin
-    Result := GetDrawItemNoByOffset(FSelectInfo.StartItemNo,
-      FSelectInfo.StartItemOffset);
-
-    if (FSelectInfo.EndItemNo >= 0) and (Result < FItems.Count - 1)
-      and (FDrawItems[Result].CharOffsetEnd = FSelectInfo.StartItemOffset)
-    then  // 有选中时，SelectInfo.StartItemOffset在本行最后时，要转为下一行行首
-      Inc(Result);
+    Result := GetDrawItemNoByOffset(FSelectInfo.StartItemNo, FSelectInfo.StartItemOffset);
+    if (FSelectInfo.EndItemNo >= 0) and (Result < FDrawItems.Count - 1) then  // 有选中结束
+    begin
+      if FItems[FSelectInfo.StartItemNo].StyleNo < THCStyle.Null then
+      begin
+        if FSelectInfo.StartItemOffset = OffsetAfter then
+          Inc(Result);
+      end
+      else
+      if (FDrawItems[Result].CharOffsetEnd = FSelectInfo.StartItemOffset) then  // 有选中时，SelectInfo.StartItemOffset在本行最后时，要转为下一行行首
+        Inc(Result);
+    end;
   end;
 end;
 
@@ -2035,7 +2042,7 @@ var
         (
           (vSelStartDItemNo = AFristDItemNo)
           and
-          (SelectInfo.StartItemOffset = FDrawItems[vSelStartDItemNo].CharOffs)
+          (SelectInfo.StartItemOffset = FDrawItems[vSelStartDItemNo].CharOffsetStart)
         )
       )
       and
@@ -2045,7 +2052,7 @@ var
         (
           (vSelEndDItemNo = ALastDItemNo)
           and
-          (SelectInfo.EndItemOffset = FDrawItems[vSelEndDItemNo].CharOffs + FDrawItems[vSelEndDItemNo].CharLen)
+          (SelectInfo.EndItemOffset = FDrawItems[vSelEndDItemNo].CharOffsetEnd)
         )
       );
   end;
@@ -2166,7 +2173,7 @@ var
   vLen: Integer;
 
   vDrawsSelectAll: Boolean;
-  vDCState: Integer;
+  vDCState: THCCanvas;
 begin
   if (AFristDItemNo < 0) or (ALastDItemNo < 0) then Exit;
 
@@ -2191,7 +2198,7 @@ begin
   vPrioParaNo := THCStyle.Null;
   vVOffset := ADataDrawTop - AVOffset;  // 将数据起始位置映射到绘制位置
 
-  vDCState := SaveDC(ACanvas.Handle);
+  vDCState := SaveCanvas(ACanvas);
   try
     if not FDrawItems[AFristDItemNo].LineFirst then
       vLineSpace := GetLineBlankSpace(AFristDItemNo);
@@ -2388,8 +2395,8 @@ begin
         ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);  // 绘制内容后
     end;
   finally
-    RestoreDC(ACanvas.Handle, vDCState);
-    ACanvas.Refresh;
+    vDCState.ToCanvas(ACanvas);
+    FreeAndNil(vDCState);
   end;
 end;
 
@@ -2674,15 +2681,30 @@ begin
       for i := AStartItemNo + 1 to AEndItemNo - 1 do  // 中间
       begin
         if DoSaveItem(i) then
-          Result := Result + FItems[i].Text;
+        begin
+          if FItems[i].ParaFirst then
+            Result := Result + sLineBreak + FItems[i].Text
+          else
+            Result := Result + FItems[i].Text;
+        end;
       end;
 
       if DoSaveItem(AEndItemNo) then  // 结尾
       begin
         if FItems[AEndItemNo].StyleNo > THCStyle.Null then
-          Result := Result + (FItems[AEndItemNo] as THCTextItem).SubString(1, AEndOffset)
+        begin
+          if FItems[i].ParaFirst then
+            Result := Result + sLineBreak;
+
+          Result := Result + (FItems[AEndItemNo] as THCTextItem).SubString(1, AEndOffset);
+        end
         else
-          Result := (FItems[AEndItemNo] as THCCustomRectItem).SaveSelectToText;
+        begin
+          if FItems[i].ParaFirst then
+            Result := Result + sLineBreak;
+
+          Result := Result + (FItems[AEndItemNo] as THCCustomRectItem).SaveSelectToText;
+        end;
       end;
     end
     else  // 选中在同一Item
@@ -2839,10 +2861,7 @@ begin
       if FItems[FDrawItems[FCaretDrawItemNo].ItemNo].StyleNo < THCStyle.Null then
       begin
         if FSelectInfo.StartItemOffset = OffsetInner then
-        begin
           FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;
-          DoCaretItemChanged;
-        end;
       end
       else
       begin
@@ -2850,8 +2869,9 @@ begin
       //  and (FSelectInfo.StartItemOffset < FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Length)
       //then
         FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;  // 激活新的
-        DoCaretItemChanged;
       end;
+
+      DoCaretItemChanged;
     end;
   end;
 end;

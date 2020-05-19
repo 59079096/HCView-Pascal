@@ -465,8 +465,7 @@ end;
 
 procedure THCSectionData.DoInsertFloatItem(const AItem: THCCustomItem);
 begin
-  if Assigned(OnInsertItem) then
-    OnInsertItem(Self, AItem);
+  DoInsertItem(AItem);
 end;
 
 procedure THCSectionData.DoLoadFromStream(const AStream: TStream;
@@ -541,12 +540,7 @@ begin
 
   if Shift = [ssLeft] then  // °´ÏÂÍÏ×§
   begin
-    if Self.ReadOnly then
-    begin
-      //GCursor := crDefault;
-      Result := True;
-      Exit;
-    end;
+    if Self.ReadOnly then Exit;
 
     if FMouseDownIndex >= 0 then
     begin

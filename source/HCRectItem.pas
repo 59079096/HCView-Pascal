@@ -187,6 +187,7 @@ type
   THCDomainItem = class(THCCustomRectItem)  // 域
   private
     FLevel: Byte;  // 域嵌套层级关系，最外为0，其内为1
+    FDrawRect: TRect;
     FMarkType: TMarkType;
   protected
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -200,6 +201,7 @@ type
     function JustifySplit: Boolean; override;
     // 当前RectItem格式化时所属的Data(为松耦合请传入TCustomRichData类型)
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
+    procedure PaintTop(const ACanvas: TCanvas); override;
     function SaveToBitmap(var ABitmap: TBitmap): Boolean; override;
     procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -1104,7 +1106,7 @@ end;
 
 procedure THCResizeRectItem.PaintTop(const ACanvas: TCanvas);
 begin
-  inherited;
+  inherited PaintTop(ACanvas);
   if FResizing then
   begin
     //ACanvas.DrawFocusRect(ADrawRect);  // 焦点框，为啥画不出来呢
@@ -1318,25 +1320,8 @@ begin
 
   if not APaintInfo.Print then  // 绘制[和]
   begin
-    ACanvas.Pen.Width := 1;
-    if FMarkType = cmtBeg then
-    begin
-      ACanvas.Pen.Style := psSolid;
-      ACanvas.Pen.Color := clBlue;
-      ACanvas.MoveTo(ADrawRect.Left + 2, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADrawRect.Left, ADrawRect.Bottom + 1);
-      ACanvas.LineTo(ADrawRect.Left + 2, ADrawRect.Bottom + 1);
-    end
-    else
-    begin
-      ACanvas.Pen.Style := psSolid;
-      ACanvas.Pen.Color := clBlue;
-      ACanvas.MoveTo(ADrawRect.Right - 2, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom + 1);
-      ACanvas.LineTo(ADrawRect.Right - 2, ADrawRect.Bottom + 1);
-    end;
+    FDrawRect := ADrawRect;
+    APaintInfo.TopItems.Add(Self);
   end;
 end;
 
@@ -1415,6 +1400,33 @@ procedure THCDomainItem.LoadFromStream(const AStream: TStream;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   AStream.ReadBuffer(FMarkType, SizeOf(FMarkType));
+  if AFileVersion > 38 then
+    AStream.ReadBuffer(FLevel, SizeOf(FLevel));
+end;
+
+procedure THCDomainItem.PaintTop(const ACanvas: TCanvas);
+begin
+  inherited PaintTop(ACanvas);
+
+  ACanvas.Pen.Width := 1;
+  if FMarkType = cmtBeg then
+  begin
+    ACanvas.Pen.Style := psSolid;
+    ACanvas.Pen.Color := clBlue;
+    ACanvas.MoveTo(FDrawRect.Left + 2, FDrawRect.Top - 1);
+    ACanvas.LineTo(FDrawRect.Left, FDrawRect.Top - 1);
+    ACanvas.LineTo(FDrawRect.Left, FDrawRect.Bottom + 1);
+    ACanvas.LineTo(FDrawRect.Left + 2, FDrawRect.Bottom + 1);
+  end
+  else
+  begin
+    ACanvas.Pen.Style := psSolid;
+    ACanvas.Pen.Color := clBlue;
+    ACanvas.MoveTo(FDrawRect.Right - 2, FDrawRect.Top - 1);
+    ACanvas.LineTo(FDrawRect.Right, FDrawRect.Top - 1);
+    ACanvas.LineTo(FDrawRect.Right, FDrawRect.Bottom + 1);
+    ACanvas.LineTo(FDrawRect.Right - 2, FDrawRect.Bottom + 1);
+  end;
 end;
 
 procedure THCDomainItem.ParseXml(const ANode: IHCXMLNode);
@@ -1433,12 +1445,14 @@ procedure THCDomainItem.SaveToStream(const AStream: TStream; const AStart,
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   AStream.WriteBuffer(FMarkType, SizeOf(FMarkType));
+  AStream.WriteBuffer(FLevel, SizeOf(FLevel));
 end;
 
 procedure THCDomainItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
   ANode.Attributes['mark'] := Ord(FMarkType);
+  ANode.Attributes['level'] := FLevel;
 end;
 
 end.

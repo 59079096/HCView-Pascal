@@ -68,6 +68,7 @@ type
     FParaStyles: TObjectList<THCParaStyle>;
     FUpdateInfo: TUpdateInfo;
     FShowParaLastMark: Boolean;  // 是否显示换行符
+    FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FHtmlFileTempName: Integer;
     FStates: THCStates;  // 全局操作状态
     FFormatVersion: Byte;  // 排版算法版本
@@ -144,6 +145,8 @@ type
     /// <summary> 临时Canvas，请使用ApplyTempStyle修改其属性避免根据FTempStyleNo判断不需要重新设置时其属性和FTempStyleNo并不对应 </summary>
     property TempCanvas: TCanvas read FTempCanvas;
     property UpdateInfo: TUpdateInfo read FUpdateInfo;
+    property DrawActiveDomainRegion: Boolean read FDrawActiveDomainRegion write FDrawActiveDomainRegion;
+    property DrawHotDomainRegion: Boolean read FDrawHotDomainRegion write FDrawHotDomainRegion;
     property ShowParaLastMark: Boolean read FShowParaLastMark write SetShowParaLastMark;
     property States: THCStates read FStates;
     property FormatVersion: Byte read FFormatVersion;
@@ -189,13 +192,16 @@ begin
   FBackgroundColor := $00FFFFFF;
   FSelColor := clSkyBlue;
   FLineSpaceMin := 8;
-  FShowParaLastMark := True;
   FFormatVersion := 2;
+  FShowParaLastMark := True;
+  FDrawHotDomainRegion := True;
+  FDrawActiveDomainRegion := True;
   FStates := THCStates.Create;
   FUpdateInfo := TUpdateInfo.Create;
   FTextStyles := TObjectList<THCTextStyle>.Create;
   FParaStyles := TObjectList<THCParaStyle>.Create;
   FDefaultTextStyle := THCTextStyle.Create;
+  FDefaultTextStyle.ApplyStyle(FTempCanvas);  // 生成测量信息
 end;
 
 constructor THCStyle.CreateEx(const ADefTextStyle, ADefParaStyle: Boolean);
@@ -342,6 +348,7 @@ var
 begin
   vTextStyle := THCTextStyle.Create;
   Result := FTextStyles.Add(vTextStyle);
+  vTextStyle.ApplyStyle(FTempCanvas);  // 生成测量信息
 end;
 
 procedure THCStyle.ParseXml(const ANode: IHCXMLNode);

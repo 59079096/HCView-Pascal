@@ -33,11 +33,11 @@ type
       : THCDomainInfo;
 
     FHotDomainRGN, FActiveDomainRGN: HRGN;
-    FDrawActiveDomainRegion, FDrawHotDomainRegion: Boolean;  // 是否绘制域边框
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
     FOnInsertTextBefor: TTextEvent;
     FOnCaretItemChanged: TDataItemEvent;
+    FOnPaintDomainRegion: TDataItemNoFunEvent;
   protected
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; override;
     /// <summary> 是否允许保存该Item </summary>
@@ -53,6 +53,7 @@ type
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
+    function DoPaintDomainRegion(const AItemNo: Integer): Boolean;
   public
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
@@ -126,6 +127,7 @@ type
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnInsertTextBefor: TTextEvent read FOnInsertTextBefor write FOnInsertTextBefor;
+    property OnPaintDomainRegion: TDataItemNoFunEvent read FOnPaintDomainRegion write FOnPaintDomainRegion;
   end;
 
 implementation
@@ -184,9 +186,38 @@ end;
 function THCViewData.CheckInsertItemCount(const AStartNo,
   AEndNo: Integer): Integer;
 var
-  i, vDelCount: Integer;
+  i, vDelCount, vLevel: Integer;
+  vDomainInfo: THCDomainInfo;
 begin
   Result := inherited CheckInsertItemCount(AStartNo, AEndNo);
+
+  if Self.Loading then Exit;
+
+  vLevel := -1;
+  vDomainInfo := THCDomainInfo.Create;
+  try
+    GetDomainFrom(AStartNo, 0, vDomainInfo);
+    if vDomainInfo.BeginNo >= 0 then
+      vLevel := (Items[vDomainInfo.BeginNo] as THCDomainItem).Level;
+  finally
+    vDomainInfo.Free;
+  end;
+
+  for i := AStartNo to AEndNo do
+  begin
+    if Items[i] is THCDomainItem then  // 域标识
+    begin
+      if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始
+        Inc(vLevel);
+
+      (Items[i] as THCDomainItem).Level := vLevel;
+
+      if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结束
+        Dec(vLevel);
+    end;
+  end;
+
+
   Exit;  // 目前的稳定性应该不会出现不匹配的问题了
   // 检查加载或粘贴等从流插入Items不匹配的域起始结束标识并删除
   vDelCount := 0;
@@ -392,6 +423,17 @@ begin
   inherited Destroy;
 end;
 
+function THCViewData.DoPaintDomainRegion(const AItemNo: Integer): Boolean;
+begin
+  if AItemNo < 0 then
+    Result := False
+  else
+  if Assigned(FOnPaintDomainRegion) then
+    Result := FOnPaintDomainRegion(Self, AItemNo)
+  else
+    Result := True;
+end;
+
 procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
   const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -478,10 +520,10 @@ begin
     vDrawHotDomainBorde := False;
     vDrawActiveDomainBorde := False;
 
-    if FHotDomain.BeginNo >= 0 then  // 有Hot域
+    if Self.Style.DrawHotDomainRegion and (FHotDomain.BeginNo >= 0) then  // 有Hot域
       vDrawHotDomainBorde := FHotDomain.Contain(AItemNo);
 
-    if FActiveDomain.BeginNo >= 0 then  // 有激活域
+    if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then  // 有激活域
       vDrawActiveDomainBorde := FActiveDomain.Contain(AItemNo);
 
     if vDrawHotDomainBorde or vDrawActiveDomainBorde then  // 在Hot域或激活域中
@@ -492,10 +534,10 @@ begin
         vDliRGN := CreateRectRgn(ADrawRect.Left, ADrawRect.Top, ADrawRect.Right, ADrawRect.Bottom);
 
       try
-        if (FHotDomain.BeginNo >= 0) and vDrawHotDomainBorde then
+        if vDrawHotDomainBorde then
           CombineRgn(FHotDomainRGN, FHotDomainRGN, vDliRGN, RGN_OR);
 
-        if (FActiveDomain.BeginNo >= 0) and vDrawActiveDomainBorde then
+        if vDrawActiveDomainBorde then
           CombineRgn(FActiveDomainRGN, FActiveDomainRGN, vDliRGN, RGN_OR);
       finally
         DeleteObject(vDliRGN);
@@ -762,31 +804,35 @@ procedure THCViewData.GetCaretInfo(const AItemNo, AOffset: Integer;
   var ACaretInfo: THCCaretInfo);
 var
   vTopData: THCCustomData;
+  vRePaint: Boolean;
 begin
   inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
-  {$IFNDEF SPEEDMODE}
+
+  vRePaint := False;
   // 赋值激活Group信息，清除在 MouseDown
   if Self.SelectInfo.StartItemNo >= 0 then
   begin
     vTopData := GetTopLevelData;
     if vTopData = Self then
     begin
-      if FActiveDomain.BeginNo >= 0 then  // 原来有信息(处理未通过鼠标点击移动光标时没有清除)
-      begin
-        FActiveDomain.Clear;
-        FDrawActiveDomainRegion := False;
-        Style.UpdateInfoRePaint;
-      end;
+      if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then  // 原来有信息(处理未通过鼠标点击移动光标时没有清除)
+        vRePaint := True;
 
       GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, FActiveDomain);  // 获取当前光标处ActiveDeGroup信息
 
-      if FActiveDomain.BeginNo >= 0 then
-      begin
-        FDrawActiveDomainRegion := True;
-        Style.UpdateInfoRePaint;
-      end;
+      if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then
+        vRePaint := True;
     end;
+  end
+  else
+  if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then
+  begin
+    FActiveDomain.Clear;
+    vRePaint := True;
   end;
+
+  if vRePaint then
+    Style.UpdateInfoRePaint;
 
   if FCaretItemChanged then
   begin
@@ -794,7 +840,6 @@ begin
     if Assigned(FOnCaretItemChanged) then
       FOnCaretItemChanged(Self, Items[SelectInfo.StartItemNo]);
   end;
-  {$ENDIF}
 end;
 
 procedure THCViewData.GetCaretInfoCur(var ACaretInfo: THCCaretInfo);
@@ -877,47 +922,41 @@ begin
   end;
 end;
 
-procedure THCViewData.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer);
+procedure THCViewData.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   // 清除激活的Group信息，赋值在 GetCaretInfo
-  if FActiveDomain.BeginNo >= 0 then
-    Style.UpdateInfoRePaint;
-  FActiveDomain.Clear;
-  FDrawActiveDomainRegion := False;
+  //if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then
+  //  Style.UpdateInfoRePaint;
+
+  //FActiveDomain.Clear;
 
   inherited MouseDown(Button, Shift, X, Y);
 
-  if Button = TMouseButton.mbRight then  // 右键菜单时，重新取光标处FActiveDomain
-    Style.UpdateInfoReCaret;
+//  if Button = TMouseButton.mbRight then  // 右键菜单时，重新取光标处FActiveDomain
+//    Style.UpdateInfoReCaret;
 end;
 
 procedure THCViewData.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   vTopData: THCViewData;
+  vRePaint: Boolean;
 begin
-  // 清除 FHotDeGroup 信息
-  if FHotDomain.BeginNo >= 0 then
-    Style.UpdateInfoRePaint;
-
+  vRePaint := Self.Style.DrawHotDomainRegion and (FHotDomain.BeginNo >= 0);
   FHotDomain.Clear;
-  FDrawHotDomainRegion := False;
-
   inherited MouseMove(Shift, X, Y);
-
   if not Self.MouseMoveRestrain then  // 在Item上
   begin
     Self.GetDomainFrom(Self.MouseMoveItemNo, Self.MouseMoveItemOffset, FHotDomain);  // 取HotDeGroup
     vTopData := Self.GetTopLevelDataAt(X, Y) as THCViewData;
-    if (vTopData = Self) or (not vTopData.FDrawHotDomainRegion) then  // 顶层是我 或 顶层不是我且顶层没有HotDeGroup  201711281352
+    if (vTopData = Self) or (vTopData.HotDomain.BeginNo < 0) then  // 顶层是我 或 顶层不是我且顶层没有HotDeGroup  201711281352
     begin
-      if FHotDomain.BeginNo >= 0 then  // 有FHotDeGroup
-      begin
-        FDrawHotDomainRegion := True;
-        Style.UpdateInfoRePaint;
-      end;
+      if Self.Style.DrawHotDomainRegion and (FHotDomain.BeginNo >= 0) then  // 有FHotDeGroup
+        vRePaint := True;
     end;
   end;
+
+  if vRePaint then
+    Style.UpdateInfoRePaint;
 end;
 
 procedure THCViewData.PaintData(const ADataDrawLeft, ADataDrawTop, ADataDrawRight,
@@ -928,10 +967,10 @@ var
 begin
   if not APaintInfo.Print then  // 非打印绘制激活数据组
   begin
-    if FDrawHotDomainRegion then
+    if Self.Style.DrawHotDomainRegion then
       FHotDomainRGN := CreateRectRgn(0, 0, 0, 0);
 
-    if FDrawActiveDomainRegion then
+    if Self.Style.DrawActiveDomainRegion then
       FActiveDomainRGN := CreateRectRgn(0, 0, 0, 0);
   end;
 
@@ -943,17 +982,25 @@ begin
   begin
     vOldColor := ACanvas.Brush.Color;  // 因为使用Brush绘制边框所以需要缓存原颜色
     try
-      if FDrawHotDomainRegion then
+      if Self.Style.DrawHotDomainRegion then
       begin
-        ACanvas.Brush.Color := clActiveBorder;
-        FrameRgn(ACanvas.Handle, FHotDomainRGN, ACanvas.Brush.Handle, 1, 1);
+        if DoPaintDomainRegion(FHotDomain.BeginNo) then
+        begin
+          ACanvas.Brush.Color := clActiveBorder;
+          FrameRgn(ACanvas.Handle, FHotDomainRGN, ACanvas.Brush.Handle, 1, 1);
+        end;
+
         DeleteObject(FHotDomainRGN);
       end;
 
-      if FDrawActiveDomainRegion then
+      if Self.Style.DrawActiveDomainRegion then
       begin
-        ACanvas.Brush.Color := clBlue;
-        FrameRgn(ACanvas.Handle, FActiveDomainRGN, ACanvas.Brush.Handle, 1, 1);
+        if DoPaintDomainRegion(FActiveDomain.BeginNo) then
+        begin
+          ACanvas.Brush.Color := clBlue;
+          FrameRgn(ACanvas.Handle, FActiveDomainRGN, ACanvas.Brush.Handle, 1, 1);
+        end;
+
         DeleteObject(FActiveDomainRGN);
       end;
     finally

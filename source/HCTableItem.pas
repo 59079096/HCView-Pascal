@@ -94,6 +94,7 @@ type
     procedure InitializeMouseInfo;
     procedure InitializeCellData(const ACellData: THCTableCellData);
     function DoCellDataGetRootData: THCCustomData;
+    procedure DoCellDataItemRequestFormat(const AData: THCCustomData; const AItem: THCCustomItem);
 
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
@@ -582,6 +583,7 @@ begin
 
   if not ColCanDelete(ACol) then Exit;
 
+  Undo_Mirror;
   for vRow := 0 to RowCount - 1 do
   begin
     if FRows[vRow][ACol].ColSpan < 0 then  // 合并源
@@ -647,7 +649,7 @@ begin
   Result := False;
 
   if not RowCanDelete(ARow) then Exit;
-
+  Undo_Mirror;
   for vCol := 0 to FColWidths.Count - 1 do
   begin
     if FRows[ARow][vCol].RowSpan < 0 then  // 合并源
@@ -800,6 +802,11 @@ end;
 function THCTableItem.DoCellDataGetRootData: THCCustomData;
 begin
   Result := OwnerData.GetRootData;
+end;
+
+procedure THCTableItem.DoCellDataItemRequestFormat(const AData: THCCustomData; const AItem: THCCustomItem);
+begin
+  (OwnerData as THCRichData).ItemRequestFormat(Self);
 end;
 
 function THCTableItem.DoSelfUndoNew: THCUndo;
@@ -3317,13 +3324,15 @@ end;
 
 procedure THCTableItem.InitializeCellData(const ACellData: THCTableCellData);
 begin
+  ACellData.ParentData := OwnerData;
   ACellData.OnInsertItem := OwnerData.OnInsertItem;
   ACellData.OnRemoveItem := OwnerData.OnRemoveItem;
   ACellData.OnSaveItem := OwnerData.OnSaveItem;
   ACellData.OnAcceptAction := (OwnerData as THCRichData).OnAcceptAction;
   ACellData.OnItemMouseDown := (OwnerData as THCViewData).OnItemMouseDown;
   ACellData.OnItemMouseUp := (OwnerData as THCViewData).OnItemMouseUp;
-  ACellData.OnItemRequestFormat := (OwnerData as THCViewData).OnItemRequestFormat;
+  ACellData.OnDrawItemMouseMove := (OwnerData as THCRichData).OnDrawItemMouseMove;
+  ACellData.OnItemRequestFormat := DoCellDataItemRequestFormat;
 
   ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
@@ -3337,6 +3346,7 @@ begin
 
   ACellData.OnCanEdit := (OwnerData as THCViewData).OnCanEdit;
   ACellData.OnInsertTextBefor := (OwnerData as THCViewData).OnInsertTextBefor;
+  ACellData.OnPaintDomainRegion := (OwnerData as THCViewData).OnPaintDomainRegion;
   ACellData.OnItemResized := (OwnerData as THCRichData).OnItemResized;
   ACellData.OnCurParaNoChange := (OwnerData as THCRichData).OnCurParaNoChange;
 
@@ -3362,6 +3372,7 @@ var
   vCell: THCTableCell;
 begin
   Result := False;
+  Undo_Mirror;
   { TODO : 根据各行当前列平均减少一定的宽度给要插入的列 }
   vWidth := MinColWidth - FBorderWidthPix;
   for i := 0 to ACount - 1 do
@@ -3455,6 +3466,8 @@ var
   vTableRow: THCTableRow;
 begin
   Result := False;
+  Undo_Mirror;
+
   for i := 0 to ACount - 1 do
   begin
     vTableRow := THCTableRow.Create(OwnerData.Style, FColWidths.Count);
@@ -4642,6 +4655,7 @@ begin
   vCurRow := FSelectCellRang.StartRow;
   vCurCol := FSelectCellRang.StartCol;
 
+  Undo_Mirror;
   // 拆分时，光标所单元格RowSpan>=0，ColSpan>=0
   if FRows[vCurRow][vCurCol].ColSpan > 0 then  // 拆分时光标所在的单元格是列合并目标，将合并拆开
   begin
@@ -4764,6 +4778,7 @@ begin
   vCurRow := FSelectCellRang.StartRow;
   vCurCol := FSelectCellRang.StartCol;
 
+  Undo_Mirror;
   // 拆分时，光标所单元格RowSpan>=0，ColSpan>=0
   if FRows[vCurRow][vCurCol].RowSpan > 0 then  // 拆分时光标所在的单元格是行合并目标，将合并拆开
   begin

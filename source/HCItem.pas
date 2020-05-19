@@ -86,7 +86,7 @@ type
 
     property Zoom: Single read FZoom write FZoom;
 
-    property DPI: Integer read FDPI write FDPi;
+    property DPI: Integer read FDPI write FDPI;
   end;
 
   THCCustomItem = class(TObject)
@@ -365,17 +365,17 @@ procedure THCCustomItem.PaintTo(const AStyle: THCStyle; const ADrawRect: TRect;
   const APageDataDrawTop, APageDataDrawBottom, APageDataScreenTop, APageDataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
-  vDCState: Integer;
+  vDCState: THCCanvas;
 begin
   if APaintInfo.Print and FPrintInvisible then Exit;
 
-  vDCState := Windows.SaveDC(ACanvas.Handle);
+  vDCState := SaveCanvas(ACanvas);
   try
     DoPaint(AStyle, ADrawRect, APageDataDrawTop, APageDataDrawBottom,
       APageDataScreenTop, APageDataScreenBottom, ACanvas, APaintInfo);
   finally
-    Windows.RestoreDC(ACanvas.Handle, vDCState);
-    ACanvas.Refresh;  // 处理下一个使用Pen时修改Pen的属性值和当前属性值一样时，不会触发Canvas重新SelectPen导致Pen的绘制失效的问题
+    vDCState.ToCanvas(ACanvas);
+    FreeAndNil(vDCState);
   end;
 end;
 

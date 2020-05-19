@@ -30,6 +30,8 @@ type
   TRectItemActionEvent = reference to function(const ARectItem: THCCustomRectItem): Boolean;
   TItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo, AOffset: Integer;
     Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
+  TDrawItemMouseEvent = procedure(const AData: THCCustomData; const AItemNo, AOffset,
+    ADrawItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
 
   THCRichData = class(THCUndoData)  // 富文本数据类，可做为其他显示富文本类的基类
   strict private
@@ -58,6 +60,7 @@ type
 
     FOnItemResized: TDataItemNoEvent;
     FOnItemMouseDown, FOnItemMouseUp: TItemMouseEvent;
+    FOnDrawItemMouseMove: TDrawItemMouseEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
     FOnAcceptAction: TDataActionEvent;
 
@@ -92,6 +95,8 @@ type
 
     /// <summary> 是否接受指定的事件 </summary>
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; virtual;
+    procedure DoDrawItemMouseMove(const AData: THCCustomData; const AItemNo, AOffset,
+      ADrawItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer); virtual;
 
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; virtual;
@@ -172,8 +177,7 @@ type
     //
     procedure DblClick(X, Y: Integer);
     procedure DeleteItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
-    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
-      const AKeepPara: Boolean);
+    procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
     /// <summary> 添加Data到当前 </summary>
     /// <param name="ASrcData">源Data</param>
     procedure AddData(const ASrcData: THCCustomData);
@@ -217,6 +221,7 @@ type
     property MouseMoveItemNo: Integer read FMouseMoveItemNo;
     property MouseMoveItemOffset: Integer read FMouseMoveItemOffset;
     property MouseMoveRestrain: Boolean read FMouseMoveRestrain;
+    property HotDrawItemNo: Integer read FMouseMoveDrawItemNo;
 
     property Height: Cardinal read GetHeight;  // 实际内容的高
     property ReadOnly: Boolean read FReadOnly write SetReadOnly;
@@ -224,6 +229,7 @@ type
     property OnItemResized: TDataItemNoEvent read FOnItemResized write FOnItemResized;
     property OnItemMouseDown: TItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
+    property OnDrawItemMouseMove: TDrawItemMouseEvent read FOnDrawItemMouseMove write FOnDrawItemMouseMove;
     property OnCreateItem: TNotifyEvent read FOnCreateItem write FOnCreateItem;
     property OnAcceptAction: TDataActionEvent read FOnAcceptAction write FOnAcceptAction;
   end;
@@ -404,7 +410,10 @@ begin
   GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
   if (Items[AStartNo].ParaFirst) and (vFormatFirstDrawItemNo > 0) then  // 段首删除时要从上一段最后
+  begin
     Dec(vFormatFirstDrawItemNo);
+    vFormatFirstDrawItemNo := GetFormatFirstDrawItem(vFormatFirstDrawItemNo);  // 从行首开始
+  end;
 
   FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
@@ -743,7 +752,10 @@ begin
           end;
 
           if SelectInfo.StartItemNo > vFormatFirstItemNo then
+          begin
             SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
+            SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
+          end;
         end
         else
         if SelectInfo.StartItemOffset = OffsetInner then  // 在其上
@@ -1184,6 +1196,9 @@ begin
     begin
       if SelectInfo.EndItemNo >= 0 then  // 同一Item中划选回到起始位置
         Items[SelectInfo.EndItemNo].DisSelect;
+
+      if (AStartItemOffset = 0) or (AStartItemOffset = GetItemOffsetAfter(SelectInfo.StartItemNo)) then  // 回到两头
+        Items[SelectInfo.StartItemNo].DisSelect;
 
       SelectInfo.StartItemNo := AStartItemNo;
       SelectInfo.StartItemOffset := AStartItemOffset;
@@ -1769,11 +1784,21 @@ begin
     Result := FOnAcceptAction(Self, AItemNo, AOffset, AAction);
 end;
 
+procedure THCRichData.DoDrawItemMouseMove(const AData: THCCustomData;
+  const AItemNo, AOffset, ADrawItemNo: Integer; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Assigned(FOnDrawItemMouseMove) then
+    FOnDrawItemMouseMove(AData, AItemNo, AOffset, ADrawItemNo, Button, Shift, X, Y);
+end;
+
 function THCRichData.CanEdit: Boolean;
 begin
   Result := not FReadOnly;
-  if not Result then
-    Beep; //MessageBeep(MB_OK);
+  if Result and Assigned(Self.ParentData) then
+    Result := (Self.ParentData as THCRichData).CanEdit;
+//  if not Result then
+//    Beep; //MessageBeep(MB_OK);
 end;
 
 function THCRichData.CheckInsertItemCount(const AStartNo,
@@ -1795,6 +1820,7 @@ begin
   FMouseDownItemOffset := -1;
   FMouseMoveItemNo := -1;
   FMouseMoveItemOffset := -1;
+  FMouseMoveDrawItemNo := -1;
   FMouseMoveRestrain := False;
   FSelecting := False;
   FDraging := False;
@@ -5329,6 +5355,7 @@ begin
     DoItemMouseLeave(FMouseMoveItemNo);
     FMouseMoveItemNo := -1;
     FMouseMoveItemOffset := -1;
+    FMouseMoveDrawItemNo := -1;
     Style.UpdateInfoRePaint;
   end;
 end;
@@ -5336,13 +5363,16 @@ end;
 procedure THCRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
 
   {$REGION 'DoItemMouseMove'}
-  procedure DoItemMouseMove(const AItemNo, AOffset: Integer);
+  procedure DoItemMouseMove(const AItemNo, AOffset: Integer; const ADrawItemMouseMove: Boolean = False);
   var
     vX, vY: Integer;
   begin
     if AItemNo < 0 then Exit;
     CoordToItemOffset(X, Y, AItemNo, AOffset, vX, vY);
     Items[AItemNo].MouseMove(Shift, vX, vY);
+
+    if ADrawItemMouseMove then
+      DoDrawItemMouseMove(Self, AItemNo, AOffset, FMouseMoveDrawItemNo, TMouseButton.mbLeft, Shift, vX, vY);
   end;
   {$ENDREGION}
 
@@ -5409,6 +5439,7 @@ begin
 
     AdjustSelectRange(FMouseDownItemNo, FMouseDownItemOffset,
       FMouseMoveItemNo, FMouseMoveItemOffset);  // 确定SelectRang
+
     FSelectSeekNo := FMouseMoveItemNo;
     FSelectSeekOffset := FMouseMoveItemOffset;
 
@@ -5417,7 +5448,9 @@ begin
     else
       CaretDrawItemNo := FMouseMoveDrawItemNo;  // 按下上一个DrawItem最后，划选到下一个开始时，没有选中内容，要更换CaretDrawIemNo
 
-    if Items[FMouseMoveItemNo].StyleNo < THCStyle.Null then  // RectItem
+    if (Items[FMouseMoveItemNo].StyleNo < THCStyle.Null)
+      and (FMouseDownItemOffset = OffsetInner)
+    then  // 划选 RectItem
       DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
 
     Style.UpdateInfoRePaint;
@@ -5467,7 +5500,7 @@ begin
 
     if not vRestrain then
     begin
-      DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
+      DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset, True);
       if (ssCtrl in Shift) and (Items[FMouseMoveItemNo].HyperLink <> '') then
         GCursor := crHandPoint;
     end;
@@ -5510,7 +5543,6 @@ var
       SelectInfo.StartRestrain := vRestrain;
       CaretDrawItemNo := FMouseMoveDrawItemNo;
     end;
-
 
     Style.UpdateInfoRePaint;
 
@@ -5555,7 +5587,7 @@ begin
     FSelecting := False;
 
     // 选中范围内的RectItem取消划选状态(此时表格的FSelecting为True)
-    //if SelectInfo.StartItemNo >= 0 then
+    if SelectInfo.StartItemNo >= 0 then  // 表格取消选中后单元格Data的StartItemNo被置为-1，下次表格外选到表格里时，UpdateInfo.Selecting为True导致StartItemNo和EndItemNo都是-1出错
     begin
       for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
       begin
@@ -5898,6 +5930,8 @@ begin
 
       Exit;
     end;
+
+    if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actSetItemText) then Exit;  // 不允许设置
 
     Undo_New;
     UndoAction_SetItemText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, AText);

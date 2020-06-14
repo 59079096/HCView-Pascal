@@ -1216,6 +1216,7 @@ begin
           begin
             ACanvas.Pen.Color := clActiveBorder;
             ACanvas.Pen.Style := psDot;
+            ACanvas.Pen.Width := 1;  // 配合CreateExtPen显示虚线
           end;
 
           vBorderLeft := vCellDrawLeft - FBorderWidthPix;

@@ -49,8 +49,9 @@ type
     FBeginNo, FEndNo: Integer;
   public
     Data: THCCustomData;
-    constructor Create;
-    procedure Clear;
+    constructor Create; virtual;
+    procedure Clear; virtual;
+    procedure Assign(const ASource: THCDomainInfo); virtual;
     /// <summary> 域中是否包含此Item(头、尾也算) </summary>
     function Contain(const AItemNo: Integer): Boolean;
     property BeginNo: Integer read FBeginNo write FBeginNo;
@@ -1435,7 +1436,7 @@ begin
     ADrawItemNo := vStartDItemNo;
     AItemNo := FDrawItems[vStartDItemNo].ItemNo;
     if FItems[AItemNo].StyleNo < THCStyle.Null then
-      AOffset := OffsetBefor  // GetDrawItemOffsetAt(vStartDItemNo, X)
+      AOffset := GetDrawItemOffsetAt(vStartDItemNo, X)  // OffsetBefor
     else
       AOffset := FDrawItems[vStartDItemNo].CharOffs - 1;  // DrawItem起始
   end
@@ -1445,7 +1446,7 @@ begin
     ADrawItemNo := vEndDItemNo;
     AItemNo := FDrawItems[vEndDItemNo].ItemNo;
     if FItems[AItemNo].StyleNo < THCStyle.Null then
-      AOffset := OffsetAfter  // GetDrawItemOffsetAt(vEndDItemNo, X)
+      AOffset := GetDrawItemOffsetAt(vEndDItemNo, X)  // OffsetAfter
     else
       AOffset := FDrawItems[vEndDItemNo].CharOffs + FDrawItems[vEndDItemNo].CharLen - 1;  // DrawItem最后
   end
@@ -1456,20 +1457,20 @@ begin
       vDrawRect := FDrawItems[i].Rect;
       if (X >= vDrawRect.Left) and (X < vDrawRect.Right) then  // 2个中间算后面的
       begin
-        ARestrain := (Y < vDrawRect.Top) or (Y > vDrawRect.Bottom);
+        ARestrain := (Y < vDrawRect.Top) or (Y > vDrawRect.Bottom);  // 垂直方向上是否约束
 
         ADrawItemNo := i;
         AItemNo := FDrawItems[i].ItemNo;
         if FItems[AItemNo].StyleNo < THCStyle.Null then  // RectItem
         begin
-          if ARestrain then  // 垂直方向上约束
+          {if ARestrain then  // 垂直方向上约束
           begin
             if X < vDrawRect.Left + vDrawRect.Width div 2 then
               AOffset := OffsetBefor
             else
               AOffset := OffsetAfter;
           end
-          else
+          else}
             AOffset := GetDrawItemOffsetAt(i, X);
         end
         else  // TextItem
@@ -2548,7 +2549,10 @@ end;
 
 function THCCustomData.CanEdit: Boolean;
 begin
-  Result := True;
+  if Assigned(Self.ParentData) then
+    Result := Self.ParentData.CanEdit
+  else
+    Result := True;
 end;
 
 procedure THCCustomData.SaveToStream(const AStream: TStream);
@@ -3159,6 +3163,13 @@ begin
 end;
 
 { THCDomainInfo }
+
+procedure THCDomainInfo.Assign(const ASource: THCDomainInfo);
+begin
+  Data := ASource.Data;
+  FBeginNo := ASource.BeginNo;
+  FEndNo := ASource.EndNo;
+end;
 
 procedure THCDomainInfo.Clear;
 begin

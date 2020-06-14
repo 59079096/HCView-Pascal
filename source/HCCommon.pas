@@ -81,16 +81,16 @@ const
   HCTransparentColor = clNone;  // 透明色
   {$IFDEF UNPLACEHOLDERCHAR}
   /// <summary> 不占位字符或紧缩字符 </summary>
-  UnPlaceholderChar =
-    #3962{e} + #3956{u} + #3954{i} + #3964{o}  // 藏文元音字母
-    // 藏文其他紧缩字符
-    + #4024 + #3966 + #3971 + #3895 + #3893 + #3967 + #4023 + #4026 + #3989
+  TibetanVowel = #3962{e} + #3956{u} + #3954{i} + #3964{o};  // 藏文元音字母
+  TibetanOther =  // 藏文其他紧缩字符
+      #4024 + #3966 + #3971 + #3895 + #3893 + #3967 + #4023 + #4026 + #3989
     + #3990 + #3963 + #4018 + #3999 + #4017 + #4013 + #3968 + #3965 + #4005
     + #4009 + #4010 + #4011 + #4016 + #4022 + #4001 + #4006 + #3988 + #4008
     + #3972 + #3986 + #3986 + #4014 + #4015 + #4020 + #3984 + #3985 + #4004
     + #4003 + #4000 + #3991 + #3993 + #4028 + #4027 + #3865 + #3953 + #3902
     + #3903 + #3975 + #3974 + #3958 + #3959 + #3960 + #3961 + #3955 + #3994
     + #3957 + #3955 + #3996 + #4038 + #4021 + #4025 + #3970 + #3998 + #3995;
+  UnPlaceholderChar = TibetanVowel + TibetanOther;
   {$ENDIF}
   /// <summary> 不能在行首的字符 </summary>
   DontLineFirstChar = '`-=[]\;,./~!@#$%^&*()_+{}|:"<>?·－＝【】＼；’，。、～！＠＃￥％……＆×（）——＋｛｝｜：”《》？°'
@@ -108,6 +108,7 @@ const
 type
   THCProcedure = reference to procedure();
   THCFunction = reference to function(): Boolean;
+  TLoadSectionProc = reference to procedure(const AFileVersion: Word);
 
   TPaperOrientation = (cpoPortrait, cpoLandscape);  // 纸张方向：纵像、横向
 
@@ -154,7 +155,8 @@ type
     actItemProperty,  // Item属性变化
     actItemSelf,  // Item自己管理
     actItemMirror,  // Item镜像
-    actConcatText  // 粘接文本(两头)
+    actConcatText,  // 粘接文本(两头)
+    actDeleteSelected  // 删除选中内容
     );
 
 //  TPaperSize = (psCustom, ps4A0, ps2A0, psA0, psA1, psA2,
@@ -221,7 +223,7 @@ type
     Visible: Boolean;
   end;
 
-  {$IFNDEF DELPHIXE}
+  {$IFNDEF DELPHIXE2}
   THCPoint = record helper for TPoint
   public
     procedure Offset(const DX, DY : Integer); overload;
@@ -438,7 +440,7 @@ begin
   vPenParams.lbStyle := PenStyles[APen.Style];
   vPenParams.lbColor := APen.Color;
   vPenParams.lbHatch := 0;
-  Result := ExtCreatePen({PenTypes[APen.Width <> 1]}PS_GEOMETRIC or PS_ENDCAP_SQUARE,
+  Result := ExtCreatePen(PenTypes[APen.Width <> 1] or PS_ENDCAP_SQUARE or vPenParams.lbStyle,
     APen.Width, vPenParams, 0, nil);
 end;
 

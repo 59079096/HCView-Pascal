@@ -678,6 +678,7 @@ begin
               Dec(vCount)
             else
             begin
+              ADomainInfo.Data := Self;
               ADomainInfo.BeginNo := i;
               vLevel := (Items[i] as THCDomainItem).Level;
               Break;
@@ -741,6 +742,7 @@ begin
             begin
               if (Items[i] as THCDomainItem).Level = vLevel then
               begin
+                ADomainInfo.Data := Self;
                 ADomainInfo.BeginNo := i;
                 Break;
               end;
@@ -809,6 +811,7 @@ begin
   inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
 
   vRePaint := False;
+
   // 赋值激活Group信息，清除在 MouseDown
   if Self.SelectInfo.StartItemNo >= 0 then
   begin
@@ -944,7 +947,7 @@ begin
   vRePaint := Self.Style.DrawHotDomainRegion and (FHotDomain.BeginNo >= 0);
   FHotDomain.Clear;
   inherited MouseMove(Shift, X, Y);
-  if not Self.MouseMoveRestrain then  // 在Item上
+  //if not Self.MouseMoveRestrain then  // 实时判断鼠标处的域
   begin
     Self.GetDomainFrom(Self.MouseMoveItemNo, Self.MouseMoveItemOffset, FHotDomain);  // 取HotDeGroup
     vTopData := Self.GetTopLevelDataAt(X, Y) as THCViewData;
@@ -1344,7 +1347,7 @@ begin
   end;
 
   Self.AdjustSelectRange(vStartNo, vStartOffset, vEndNo, vEndOffset);
-  Self.MatchItemSelectState();
+  Self.MatchItemSelectState;
 
   //FSelectSeekNo  如果需要确定 FSelectSeekNo，此方法得移动到CustomRichData
   if not ASilence then

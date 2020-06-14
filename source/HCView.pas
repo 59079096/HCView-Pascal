@@ -13,7 +13,7 @@ unit HCView;
 
 interface
 
-{-$DEFINE SYNPDF}
+{$I HCView.inc}
 
 uses
   Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, {$IFDEF SYNPDF}SynPdf,{$ENDIF}
@@ -23,8 +23,6 @@ uses
   HCAnnotateData, HCSectionData;
 
 type
-  TLoadSectionProc = reference to procedure(const AFileVersion: Word);
-
   THCDrawAnnotate = class(THCDrawItemAnnotate)  // Data批注信息
   public
     Data: THCCustomData;
@@ -173,22 +171,6 @@ type
     procedure DoSectionReadOnlySwitch(Sender: TObject);
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
     procedure DoSectionItemResize(const AData: THCCustomData; const AItemNo: Integer);
-    procedure DoSectionPaintHeaderBefor(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintHeaderAfter(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintFooterBefor(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintFooterAfter(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintPageBefor(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintPageAfter(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintPaperBefor(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
-    procedure DoSectionPaintPaperAfter(const Sender: TObject; const APageIndex: Integer;
-      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionDrawItemAnnotate(const Sender: TObject; const AData: THCCustomData;
       const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
     function DoSectionGetUndoList: THCUndoList;
@@ -267,6 +249,22 @@ type
     function DoSectionCanEdit(const Sender: TObject): Boolean; virtual;
     function DoSectionInsertTextBefor(const AData: THCCustomData; const AItemNo, AOffset: Integer;
       const AText: string): Boolean; virtual;
+    procedure DoSectionPaintHeaderBefor(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintHeaderAfter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintFooterBefor(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintFooterAfter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintPageBefor(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo); virtual;
+    procedure DoSectionPaintPageAfter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintPaperBefor(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
+    procedure DoSectionPaintPaperAfter(const Sender: TObject; const APageIndex: Integer;
+      const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
       const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -359,7 +357,9 @@ type
     procedure ActiveItemReAdaptEnvironment;
 
     /// <summary> 全部清空(清除各节页眉、页脚、页面的Item及DrawItem) </summary>
-    procedure Clear;
+    procedure Clear; virtual;
+
+    procedure ClearUndo;
 
     /// <summary> 取消选中 </summary>
     procedure DisSelect;
@@ -1075,6 +1075,11 @@ begin
   end;
 end;
 
+procedure THCView.ClearUndo;
+begin
+  FUndoList.Clear;
+end;
+
 procedure THCView.Copy;
 var
   vStream: TMemoryStream;
@@ -1134,7 +1139,7 @@ constructor THCView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   //
-  Self.Color := RGB(82, 89, 107);
+  Self.Color := RGB(82, 89, 107);  // 控制paper之外区域的颜色
 
   FUndoList := THCUndoList.Create;
   FUndoList.OnUndo := DoUndo;
@@ -1619,7 +1624,7 @@ end;
 
 function THCView.DoSectionCanEdit(const Sender: TObject): Boolean;
 begin
-  if Assigned(FOnSectionCanEdit) then
+  if (not Style.States.Contain(hosLoading)) and Assigned(FOnSectionCanEdit) then
     Result := FOnSectionCanEdit(Sender)
   else
     Result := True;
@@ -3931,8 +3936,8 @@ function THCView.SaveToText: string;
 var
   i: Integer;
 begin
-  Result := '';
-  for i := 0 to FSections.Count - 1 do  // 各节数据
+  Result := FSections[0].SaveToText;
+  for i := 1 to FSections.Count - 1 do  // 各节数据
     Result := Result + sLineBreak + FSections[i].SaveToText;
 end;
 

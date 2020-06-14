@@ -9,7 +9,7 @@
 {$DEFINE CHECKNULLITEM}  // 检查非空行的空Item并抛出异常
 
 {$DEFINE UNPLACEHOLDERCHAR}  // 支持紧缩文本，如藏文HIMALAYA等
-
+{-$DEFINE SYNPDF}  // 支持PDF生成(需要使用SynPdf控件)
 {-$DEFINE SPEEDMODE}  // 极速模式，忽略一些供外部处理的事件，适用对性能有极端要求的场景
 
 {$DEFINE RESETTABLEUSEFIRSTROWHEIGHT}  // 重设表格行列数时使用第一行的高度

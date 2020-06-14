@@ -2318,16 +2318,29 @@ begin
   APaintInfo.PageDataFmtTop := GetPageDataFmtTop(APageIndex);
   GetClipBox(ACanvas.Handle, vClipBoxRect);  // 保存当前的绘图区域
 
-  if not APaintInfo.Print then  // 非打印时绘制的内容
+  if not APaintInfo.Print then  // 非打印时绘制背景色
   begin
-
-    {$REGION ' 非打印时填充纸张背景 '}
     ACanvas.Brush.Color := FStyle.BackgroundColor;
     ACanvas.FillRect(Rect(vPaperDrawLeft, vPaperDrawTop,
       Min(vPaperDrawRight, vScaleWidth),  // 约束边界
       Min(vPaperDrawBottom, vScaleHeight)));
-    {$ENDREGION}
+  end;
 
+  if Assigned(FOnPaintPaperBefor) then  // 公开页面绘制前事件
+  begin
+    vDCState := SaveCanvas(ACanvas);
+    try
+      FOnPaintPaperBefor(Self, APageIndex,
+        Rect(vPaperDrawLeft, vPaperDrawTop, vPaperDrawRight, vPaperDrawBottom),
+        ACanvas, APaintInfo);
+    finally
+      vDCState.ToCanvas(ACanvas);
+      FreeAndNil(vDCState);
+    end;
+  end;
+
+  if not APaintInfo.Print then  // 非打印时绘制页眉页脚指示符
+  begin
     if APaintInfo.ViewModel = hvmFilm then
     begin
       {$REGION ' 页眉边距指示符 '}
@@ -2423,19 +2436,6 @@ begin
         ACanvas.MoveTo(vPaperDrawLeft, vPageDrawBottom);
         ACanvas.LineTo(vPaperDrawRight, vPageDrawBottom);
       end;
-    end;
-  end;
-
-  if Assigned(FOnPaintPaperBefor) then  // 公开页面绘制前事件
-  begin
-    vDCState := SaveCanvas(ACanvas);
-    try
-      FOnPaintPaperBefor(Self, APageIndex,
-        Rect(vPaperDrawLeft, vPaperDrawTop, vPaperDrawRight, vPaperDrawBottom),
-        ACanvas, APaintInfo);
-    finally
-      vDCState.ToCanvas(ACanvas);
-      FreeAndNil(vDCState);
     end;
   end;
 
@@ -3137,7 +3137,7 @@ end;
 
 function THCSection.ToHtml(const APath: string): string;
 begin
-  Result := FHeader.ToHtml(APath) + sLineBreak + FPage.ToHtml(APath) + sLineBreak + FFooter.ToXml(APath);
+  Result := FHeader.ToHtml(APath) + sLineBreak + FPage.ToHtml(APath) + sLineBreak + FFooter.ToHtml(APath);
 end;
 
 procedure THCSection.ToXml(const ANode: IHCXMLNode);

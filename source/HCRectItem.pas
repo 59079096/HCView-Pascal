@@ -144,6 +144,7 @@ type
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; virtual;
     procedure Clear; virtual;
+    procedure SilenceChange; virtual;
 
     /// <summary> 返回指定位置处的顶层Data(为松耦合请返回TCustomData类型) </summary>
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
@@ -311,6 +312,8 @@ type
 
   THCDataItem = class(THCResizeRectItem)  // 内部有管理Data的Item，也便于统一判断是否进入RectItem内部判断或寻找
   { to do: 将不是所有RectItem用到的方法移植到这里来}
+  public
+    procedure SilenceChange; override;
   end;
 
 var
@@ -744,6 +747,10 @@ end;
 procedure THCCustomRectItem.SetWidth(const Value: Integer);
 begin
   FWidth := Value;
+end;
+
+procedure THCCustomRectItem.SilenceChange;
+begin
 end;
 
 function THCCustomRectItem.ToHtml(const APath: string): string;
@@ -1453,6 +1460,14 @@ begin
   inherited ToXml(ANode);
   ANode.Attributes['mark'] := Ord(FMarkType);
   ANode.Attributes['level'] := FLevel;
+end;
+
+{ THCDataItem }
+
+procedure THCDataItem.SilenceChange;
+begin
+  Self.FormatDirty;
+  OwnerData.SilenceChange;
 end;
 
 end.

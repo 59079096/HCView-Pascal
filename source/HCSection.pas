@@ -343,6 +343,8 @@ type
     /// <returns></returns>
     function GetPageDataFmtTop(const APageIndex: Integer): Integer;
 
+    function GetPageDataHeight(const APageIndex: Integer): Integer;
+
     /// <summary> 页眉内容在页中绘制时的起始位置 </summary>
     /// <returns></returns>
     function GetHeaderPageDrawTop: Integer;
@@ -1457,6 +1459,12 @@ begin
   end;
 end;
 
+function THCCustomSection.GetPageDataHeight(const APageIndex: Integer): Integer;
+begin
+  Result := Self.Page.DrawItems[FPages[APageIndex].EndDrawItemNo].Rect.Bottom
+    - Self.Page.DrawItems[FPages[APageIndex].StartDrawItemNo].Rect.Top;
+end;
+
 function THCCustomSection.GetPaperHeightPix: Integer;
 begin
   Result := FPaper.HeightPix;
@@ -1957,10 +1965,16 @@ begin
   vMoveData := GetSectionDataAt(vX, vY);
   if vMoveData <> FMoveData then
   begin
-    if FMoveData <> nil then
-      FMoveData.MouseLeave;
-
-    FMoveData := vMoveData;
+    if Assigned(FMoveData) then
+    begin
+      if not FMoveData.SelectedResizing then
+      begin
+        FMoveData.MouseLeave;
+        FMoveData := vMoveData;
+      end;
+    end
+    else
+      FMoveData := vMoveData;
   end;
 
   PaperCoordToData(FMousePageIndex, FActiveData, vX, vY, Shift <> []);  // 普通移出正文不Hot任何Item

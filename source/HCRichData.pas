@@ -102,7 +102,9 @@ type
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; virtual;
     procedure DoItemMouseLeave(const AItemNo: Integer); virtual;
     procedure DoItemMouseEnter(const AItemNo: Integer); virtual;
-    procedure DoItemResized(const AItemNo: Integer);
+
+    /// <summary> ResizeItem缩放完成事件缩放完成事件(可控制缩放不要超过页面) </summary>
+    procedure DoItemResized(const AItemNo: Integer); virtual;
     function GetHeight: Cardinal; virtual;
     procedure SetReadOnly(const Value: Boolean); virtual;
 
@@ -2850,8 +2852,18 @@ var
         if (not vNewItem.ParaFirst) and vTextItem.ParaFirst then  // 在段首插入非段首Item
         begin
           vNewItem.ParaFirst := True;
-          UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
-          vTextItem.ParaFirst := False;
+
+          if vTextItem.Length = 0 then  // 空段
+          begin
+            UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
+            Items.Delete(SelectInfo.StartItemNo);
+            Dec(vAddCount);
+          end
+          else
+          begin
+            UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
+            vTextItem.ParaFirst := False;
+          end;
         end;
 
         Items.Insert(SelectInfo.StartItemNo, vNewItem);
@@ -3014,7 +3026,7 @@ begin
     begin
       vNewPara := False;
       vAddCount := 0;
-      CurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;  // 防止静默移动选中位置没有更新当前样式
+      CurStyleNo := Self.Style.GetStyleNo(Self.Style.DefaultTextStyle, True);  // Items[SelectInfo.StartItemNo].StyleNo;  // 防止静默移动选中位置没有更新当前样式
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
@@ -5552,6 +5564,7 @@ begin
   begin
     FMouseMoveItemNo := FMouseDownItemNo;
     FMouseMoveItemOffset := FMouseDownItemOffset;
+    FMouseMoveDrawItemNo := GetDrawItemNoByOffset(FMouseMoveItemNo, FMouseMoveItemOffset);
     FMouseMoveRestrain := False;
     DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
     Style.UpdateInfoRePaint;

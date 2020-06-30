@@ -29,15 +29,18 @@ type
     FCellSelectedAll
       : Boolean;
     FCellHeight: Integer;  // 所属单元格高度(因合并或手动拖高，单元格高度会大于等于其内数据高度)
+    FOnSilenceChange: TNotifyEvent;
     FOnGetRootData: TGetRootDataEvent;
     function PointInCellRect(const APt: TPoint): Boolean;
   protected
     function GetHeight: Cardinal; override;
 
+    /// <summary> ResizeItem缩放完成事件(可控制缩放不要超过页面) </summary>
+    procedure DoItemResized(const AItemNo: Integer); override;
+
     /// <summary> 取消选中 </summary>
     /// <returns>取消时当前是否有选中，True：有选中；False：无选中</returns>
     function DisSelect: Boolean; override;
-
     /// <summary> 删除选中 </summary>
     function DeleteSelected: Boolean; override;
 
@@ -54,6 +57,7 @@ type
 
     /// <summary> 全选 </summary>
     procedure SelectAll; override;
+    procedure SilenceChange; override;
 
     /// <summary> 坐标是否在AItem的选中区域中 </summary>
     function CoordInSelect(const X, Y, AItemNo, AOffset: Integer;
@@ -88,6 +92,8 @@ type
     property Active: Boolean read FActive write SetActive;
 
     property OnGetRootData: TGetRootDataEvent read FOnGetRootData write FOnGetRootData;
+
+    property OnSilenceChange: TNotifyEvent read FOnSilenceChange write FOnSilenceChange;
   end;
 
 implementation
@@ -185,6 +191,12 @@ begin
     Result := inherited GetRootData;
 end;
 
+procedure THCTableCellData.DoItemResized(const AItemNo: Integer);
+begin
+  Self.SilenceChange;
+  inherited DoItemResized(AItemNo);
+end;
+
 procedure THCTableCellData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
@@ -257,6 +269,12 @@ begin
     Self.InitializeField;
     Style.UpdateInfoRePaint;
   end;
+end;
+
+procedure THCTableCellData.SilenceChange;
+begin
+  if Assigned(FOnSilenceChange) then
+    FOnSilenceChange(Self);
 end;
 
 end.

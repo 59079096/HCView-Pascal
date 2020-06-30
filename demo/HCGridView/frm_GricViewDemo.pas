@@ -196,7 +196,7 @@ uses
   HCSupSubScriptItem, HCCheckBoxItem, HCEditItem, HCComboboxItem, HCDateTimePicker,
   HCRadioGroup, HCBarCodeItem, HCQRCodeItem, HCTextItem, frm_Annotate, frm_TableProperty,
   frm_TableBorderBackColor, frm_PrintView, frm_Paragraph, frm_ControlItemProperty,
-  frm_InsertTable, frm_PageSet, CFBalloonHint, HCImageItem, HCRichData;
+  frm_InsertTable, frm_PageSet, HCImageItem, HCRichData;
 
 {$R *.dfm}
 
@@ -587,7 +587,7 @@ end;
 procedure TfrmGridViewDemo.mniSaveClick(Sender: TObject);
 begin
   if SaveFile then
-    BalloonMessage('保存成功！');
+    ShowMessage('保存成功！');
 end;
 
 procedure TfrmGridViewDemo.mniTablePropertyClick(Sender: TObject);

@@ -324,7 +324,7 @@ type
   // 根据汉字大小获取字体数字大小
   function GetFontSize(const AFontSize: string): Single;
   function GetFontSizeStr(AFontSize: Single): string;
-  function GetPaperSizeStr(APaperSize: Integer): string;
+  function GetPaperSizeName(APaperSize: Integer): string;
 
   function GetVersionAsInteger(const AVersion: string): Integer;
   function GetBorderSidePro(const ABorderSides: TBorderSides): string;
@@ -672,7 +672,7 @@ begin
     Result := FormatFloat('0.#', AFontSize);
 end;
 
-function GetPaperSizeStr(APaperSize: Integer): string;
+function GetPaperSizeName(APaperSize: Integer): string;
 begin
   case APaperSize of
     DMPAPER_A3: Result := 'A3';

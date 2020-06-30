@@ -190,6 +190,7 @@ type
     function SelectedAll: Boolean; virtual;
     procedure Clear; virtual;
     procedure InitializeField; virtual;
+    procedure SilenceChange; virtual;
 
     /// <summary> 嵌套时获取根级Data </summary>
     function GetRootData: THCCustomData; virtual;
@@ -2894,6 +2895,10 @@ procedure THCCustomData.SetCurStyleNo(const Value: Integer);
 begin
   if FCurStyleNo <> Value then
     FCurStyleNo := Value;
+end;
+
+procedure THCCustomData.SilenceChange;
+begin
 end;
 
 function THCCustomData.ToHtml(const APath: string): string;

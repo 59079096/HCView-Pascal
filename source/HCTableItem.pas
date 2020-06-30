@@ -94,6 +94,7 @@ type
     procedure InitializeMouseInfo;
     procedure InitializeCellData(const ACellData: THCTableCellData);
     function DoCellDataGetRootData: THCCustomData;
+    procedure DoCellDataSilenceChange(Sender: TObject);
     procedure DoCellDataItemRequestFormat(const AData: THCCustomData; const AItem: THCCustomItem);
 
     /// <summary> 表格行有添加时 </summary>
@@ -807,6 +808,11 @@ end;
 procedure THCTableItem.DoCellDataItemRequestFormat(const AData: THCCustomData; const AItem: THCCustomItem);
 begin
   (OwnerData as THCRichData).ItemRequestFormat(Self);
+end;
+
+procedure THCTableItem.DoCellDataSilenceChange(Sender: TObject);
+begin
+  Self.SilenceChange;
 end;
 
 function THCTableItem.DoSelfUndoNew: THCUndo;
@@ -2087,7 +2093,7 @@ var
   var
     vR, vC: Integer;
   begin
-    if not FSelectCellRang.EditCell then
+    if not FSelectCellRang.EditCell then  // 不在同一单元格中
     begin
       for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
       begin
@@ -2098,7 +2104,9 @@ var
             FRows[vR][vC].CellData.SelectAll;
         end;
       end;
-    end;
+    end
+    else  // 在同一单元格中
+      FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.CellSelectedAll := False;
   end;
   {$ENDREGION}
 
@@ -3354,6 +3362,7 @@ begin
   ACellData.OnCreateItem := (OwnerData as THCRichData).OnCreateItem;
   ACellData.OnGetUndoList := Self.GetSelfUndoList;
   ACellData.OnGetRootData := DoCellDataGetRootData;
+  ACellData.OnSilenceChange := DoCellDataSilenceChange;
 end;
 
 procedure THCTableItem.InitializeMouseInfo;

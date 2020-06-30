@@ -182,7 +182,13 @@ var
 begin
   //FormatReady(AStartDrawItemNo, vPrioDrawItemNo, vPos);  // 格式化起始DrawItem序号和位置
 
-  FFormatStartDrawItemNo := AStartDrawItemNo;
+  if FFormatChange then
+  begin
+    if FFormatStartDrawItemNo < AStartDrawItemNo then
+      FFormatStartDrawItemNo := AStartDrawItemNo;
+  end
+  else
+    FFormatStartDrawItemNo := AStartDrawItemNo;
 
   // 获取起始DrawItem的上一个序号及格式化开始位置
   if AStartDrawItemNo > 0 then  // 不是第一个
@@ -276,11 +282,15 @@ end;
 
 procedure THCFormatData.FormatInit;
 begin
-  FFormatHeightChange := False;
+  if not FFormatChange then
+  begin
+    FFormatHeightChange := False;
+    FFormatStartDrawItemNo := -1;
+  end;
+
   FFormatDrawItemCountChange := False;
   FFormatStartTop := 0;
   FFormatEndBottom := 0;
-  FFormatStartDrawItemNo := -1;
   FLastFormatParaNo := THCStyle.Null;
 end;
 
@@ -1133,6 +1143,7 @@ procedure THCFormatData.ReFormatData(const AFirstDrawItemNo: Integer;
 var
   i, vLastItemNo, vLastDrawItemNo, vDrawItemCount,
   vFmtTopOffset, vClearFmtHeight: Integer;
+  vFmtHeightChange: Boolean;
 begin
   if FFormatCount <> 0 then Exit;
 
@@ -1148,16 +1159,16 @@ begin
   // 计算格式化后段的底部位置变化
   vLastDrawItemNo := GetItemLastDrawItemNo(vLastItemNo);
   if (Items[vLastItemNo] is THCCustomRectItem) and (Items[vLastItemNo] as THCCustomRectItem).SizeChanged then
-    FFormatHeightChange := True
+    vFmtHeightChange := True
   else
-    FFormatHeightChange := AForceClearExtra
+    vFmtHeightChange := AForceClearExtra
                         or (DrawItems[AFirstDrawItemNo].Rect.Top <> FFormatStartTop)  // 段格式化后，高度的增量
                         or (DrawItems[vLastDrawItemNo].Rect.Bottom <> FFormatEndBottom);
 
   //FFormatChange := False;  // 如果操作引起多次格式化，如选中内容后输入，先删除选中造成FFormatChange为真
   // 如果输入的内容这里置否后没有引起变化，则本次变动的格式化并没有影响到重新计算当前页的起始结束DrawItem
   // 造成绘制时访问DrawItem越界，所以这里不能先置否
-  if FFormatHeightChange or (AExtraItemCount <> 0) or FFormatDrawItemCountChange then
+  if vFmtHeightChange or (AExtraItemCount <> 0) or FFormatDrawItemCountChange then
   begin                            {FFormatDrawItemCountChange能被前两者代表吗？}
     FFormatChange := True;
     vLastItemNo := -1;
@@ -1176,7 +1187,7 @@ begin
         end;
       end;
 
-      if FFormatHeightChange then  // 这里能确认为0时不需要重新处理偏移吗？
+      if vFmtHeightChange then  // 这里能确认为0时不需要重新处理偏移吗？
       begin
         // 将原格式化因分页等原因引起的整体下移或增加的高度恢复回来
         // 如果不考虑上面处理ItemNo的偏移，可将TTableCellData.ClearFormatExtraHeight方法写到基类，这里直接调用
@@ -1193,6 +1204,14 @@ begin
       end;
     end;
   end;
+
+  if FFormatChange then
+  begin
+    if not FFormatHeightChange then
+      FFormatHeightChange := vFmtHeightChange;
+  end
+  else
+    FFormatHeightChange := vFmtHeightChange;
 end;
 
 procedure THCFormatData.ReSetSelectAndCaret(const AItemNo: Integer);

@@ -130,6 +130,10 @@ type
     property ActiveSection: THCSection read GetActiveSection;
     /// <summary> 总页数 </summary>
     property PageCount: Integer read GetPageCount;
+    /// <summary> 当前文档所有节 </summary>
+    property Sections: TObjectList<THCSection> read FSections;
+    /// <summary> 当前文档样式表 </summary>
+    property Style: THCStyle read FStyle;
   end;
 
 implementation

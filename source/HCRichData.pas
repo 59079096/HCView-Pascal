@@ -5746,6 +5746,7 @@ begin
 
   if (Button = mbLeft) and (ssShift in Shift) then Exit;  // shift键重新确定选中范围
 
+  vRestrain := False;
   if SelectedResizing then  // RectItem缩放ing，停止缩放
   begin
     Undo_New;

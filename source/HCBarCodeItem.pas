@@ -107,7 +107,7 @@ end;
 
 procedure THCBarCodeItem.RestrainSize(const AWidth, AHeight: Integer);
 begin
-  if Height <> AHeight then
+  if Height > AHeight then
     Height := AHeight;
 end;
 

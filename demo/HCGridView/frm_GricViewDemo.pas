@@ -379,7 +379,7 @@ begin
         begin
           vTopData := FGridView.TopLevelData as THCRichData;
           vImageItem := THCImageItem.Create(vTopData);
-          vImageItem.LoadFromBmpFile(vOpenDlg.FileName);
+          vImageItem.LoadGraphicFile(vOpenDlg.FileName);
           vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
           Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
           FGridView.InsertItem(vImageItem);

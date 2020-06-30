@@ -1078,7 +1078,7 @@ begin
       begin
         vTopData := FHCView.ActiveSectionTopLevelData as THCRichData;
         vImageItem := THCImageItem.Create(vTopData);
-        vImageItem.LoadFromBmpFile(vOpenDlg.FileName);
+        vImageItem.LoadGraphicFile(vOpenDlg.FileName);
         vImageItem.RestrainSize(vTopData.Width, vImageItem.Height);
         Application.ProcessMessages;  // 解决双击打开文件后，触发下层控件的Mousemove，Mouseup事件
         FHCView.InsertItem(vImageItem);
@@ -1305,10 +1305,20 @@ begin
   end;
   actCut.Enabled := (not FHCView.ActiveSection.ReadOnly) and vTopData.SelectExists;
   actCopy.Enabled := actCut.Enabled;
-  actPaste.Enabled := (not FHCView.ActiveSection.ReadOnly)  // 非只读
-    and (Clipboard.HasFormat(HC_FILEFORMAT)
-         or Clipboard.HasFormat(CF_TEXT)
-         or Clipboard.HasFormat(CF_BITMAP));
+  actPaste.Enabled := (not FHCView.ActiveSection.ReadOnly);  // 非只读
+  if actPaste.Enabled then
+  begin
+    if (vTopItem is THCEditItem) and not (vTopItem as THCEditItem).IsSelectComplate then
+      actPaste.Enabled := Clipboard.HasFormat(CF_TEXT) or Clipboard.HasFormat(CF_UNICODETEXT)
+    else
+    begin
+      actPaste.Enabled := (Clipboard.HasFormat(HC_FILEFORMAT)
+           or Clipboard.HasFormat(CF_TEXT)
+           or Clipboard.HasFormat(CF_UNICODETEXT)
+           or Clipboard.HasFormat(CF_BITMAP));
+    end;
+  end;
+
   mniControlItem.Visible := (not FHCView.ActiveSection.ReadOnly) and (not vTopData.SelectExists)
     and (vTopItem is THCControlItem) and vTopItem.Active;
   if mniControlItem.Visible then

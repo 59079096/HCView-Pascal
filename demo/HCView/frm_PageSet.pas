@@ -134,7 +134,7 @@ procedure TfrmPageSet.SetGridView(const AHCGridView: THCGridView);
 var
   vIndex: Integer;
 begin
-  cbbPaper.ItemIndex := cbbPaper.Items.IndexOf(GetPaperSizeStr(AHCGridView.PaperSize));
+  cbbPaper.ItemIndex := cbbPaper.Items.IndexOf(GetPaperSizeName(AHCGridView.PaperSize));
   if cbbPaper.ItemIndex < 0 then  // 自定义
     cbbPaper.ItemIndex := 0;
 
@@ -206,7 +206,7 @@ procedure TfrmPageSet.SetView(const AHCView: THCView);
 var
   vIndex: Integer;
 begin
-  cbbPaper.ItemIndex := cbbPaper.Items.IndexOf(GetPaperSizeStr(AHCView.ActiveSection.PaperSize));
+  cbbPaper.ItemIndex := cbbPaper.Items.IndexOf(GetPaperSizeName(AHCView.ActiveSection.PaperSize));
   if cbbPaper.ItemIndex < 0 then  // 自定义
     cbbPaper.ItemIndex := 0;
 

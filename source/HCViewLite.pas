@@ -156,6 +156,7 @@ begin
   FStyle := THCStyle.CreateEx(True, True);
   FSections := TObjectList<THCSection>.Create;
   FSections.Add(NewDefaultSection);
+  FActiveSectionIndex := 0;
 end;
 
 class procedure THCViewLite.DeleteUnUsedStyle(const AStyle: THCStyle;
@@ -268,6 +269,7 @@ end;
 
 function THCViewLite.DoSectionCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
 begin
+  Result := nil;
 end;
 
 procedure THCViewLite.DoSectionPaintFooterAfter(const Sender: TObject;

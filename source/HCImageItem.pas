@@ -246,6 +246,7 @@ begin
       FImage.Canvas.CopyRect(FImage.Canvas.ClipRect, FImage.Canvas, Rect(0, FImage.Height, FImage.Width, 0));}
   end;
   {$ENDIF}
+  FEmpty := FImage.Empty;
 end;
 
 procedure THCImageItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -320,7 +321,7 @@ end;
 
 procedure THCImageItem.LoadGraphicFile(const AFileName: string; const AResize: Boolean = True);
 begin
-  FImage.LoadFromFile(AFileName);  // 会触发OnChange
+  FImage.LoadFromFile(AFileName);  // BMPIMAGEITEM会触发OnChange WICImage不会触发
   if AResize then
   begin
     Self.Width := FImage.Width;
@@ -332,7 +333,7 @@ end;
 
 procedure THCImageItem.LoadGraphicStream(const AStream: TStream; const AResize: Boolean = True);
 begin
-  FImage.LoadFromStream(AStream);  // 会触发OnChange
+  FImage.LoadFromStream(AStream);  // BMPIMAGEITEM会触发OnChange WICImage不会触发
   if AResize then
   begin
     Self.Width := FImage.Width;

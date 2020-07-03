@@ -4945,7 +4945,7 @@ var
   procedure BackspaceKeyDown;
   var
     vText: string;
-    i, vCurItemNo, vLen, vDelCount, vParaNo: Integer;
+    i, vCurItemNo, vLen, vParaNo: Integer;
     vParaFirst, vPageBreak: Boolean;
     vParaStyle: THCParaStyle;
     vItem: THCCustomItem;

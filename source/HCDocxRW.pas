@@ -300,6 +300,7 @@ type
     function WriteHeader1_: THCZLibPackageFile;
     function WriteFooter1_: THCZLibPackageFile;
     function WriteDocument_: THCZLibPackageFile;
+    function WriteDocumentItem_(const AItem: THCCustomItem): THCZLibPackageFile;
     function WriteRootRelations_: THCZLibPackageFile;
     function WriteContentTypes_(const APackageFile: TObjectList<THCZLibPackageFile>): THCZLibPackageFile;
   public
@@ -307,6 +308,8 @@ type
     destructor Destroy; override;
     procedure InsertFromStream(const AHCView: THCView; const AStream: TStream); override;
     procedure SaveToStream(const AHCView: THCView; const AStream: TStream); override;
+    procedure SaveItemToStream(const AHCView: THCView; const AStream: TStream;
+      const AItem: THCCustomItem; const AHeader, AFooter: Boolean);
   end;
 
 implementation
@@ -2124,6 +2127,84 @@ begin
   if vXml.DocumentElement.NamespaceURI <> HCDOCX_Main then Exit;
 end;
 
+procedure THCDocxReader.SaveItemToStream(const AHCView: THCView;
+  const AStream: TStream; const AItem: THCCustomItem; const AHeader, AFooter: Boolean);
+var
+  vZLib: THCZLib;
+  //vWordPackFile, vDocPropsPackFile: TObjectList<THCZLibPackageFile>;
+  vPackageFile, vDocumentPackageFile: THCZLibPackageFile;
+  i: Integer;
+begin
+  FHCView := AHCView;
+  FResFileId := 0;
+  FHeaderID := '';
+  FFooterID := '';
+  FPackageFile.Clear;
+
+  vZLib := THCZLib.Create;
+  try
+    vZLib.SetFileStream(AStream);
+    FPackageFile.Add(WriteSettings_);  // settings.xml
+    FPackageFile.Add(WriteStyles_);  // styles.xml
+
+    if AHeader then
+    begin
+      vPackageFile := WriteHeader1_;  // header1.xml
+      if Assigned(vPackageFile) then
+      begin
+        FPackageFile.Add(vPackageFile);
+        FHeaderID := 'rId' + IntToStr(FPackageFile.Count);
+      end;
+    end;
+
+    if AFooter then
+    begin
+      vPackageFile := WriteFooter1_;  // footer1.xml
+      if Assigned(vPackageFile) then
+      begin
+        FPackageFile.Add(vPackageFile);
+        FFooterID := 'rId' + IntToStr(FPackageFile.Count);
+      end;
+    end;
+
+    if not Assigned(AItem) then
+      vDocumentPackageFile := WriteDocument_
+    else
+      vDocumentPackageFile := WriteDocumentItem_(AItem);  // 写文件内容
+
+    vPackageFile := WriteDocumentXmlRels_(FPackageFile, 'word\_rels\document.xml.rels');
+    try
+      vZLib.AppendFile(vPackageFile.FileName, vPackageFile.Stream);
+    finally
+      FreeAndNil(vPackageFile);
+    end;
+
+    for i := 0 to FResFiles.Count - 1 do  // 写资源文件
+      vZLib.AppendFile(FResFiles[i].Target, FResFiles[i].Stream);
+
+    FPackageFile.Add(vDocumentPackageFile);  // document.xml
+    FPackageFile.Add(WriteContentTypes_(FPackageFile));  // [Content_Types].xml
+    for i := 0 to FPackageFile.Count - 1 do
+    begin
+      vPackageFile := FPackageFile[i];
+      vZLib.AppendFile(vPackageFile.FileName, vPackageFile.Stream);
+    end;
+
+    vPackageFile := WriteRootRelations_;  // _rels/.rels
+    try
+      vZLib.AppendFile(vPackageFile.FileName, vPackageFile.Stream);
+    finally
+      FreeAndNil(vPackageFile);
+    end;
+
+    vZLib.FinishFile;
+  finally
+    FreeAndNil(vZLib);
+  end;
+
+  FPackageFile.Clear;
+end;
+
 procedure THCDocxReader.SaveToStream(const AHCView: THCView; const AStream: TStream);
 var
   vZLib: THCZLib;
@@ -2165,7 +2246,7 @@ begin
       FFooterID := 'rId' + IntToStr(FPackageFile.Count);
     end;
 
-    vDocumentPackageFile := WriteDocument_;
+    vDocumentPackageFile := WriteDocument_;  // 写文件内容
 
     vPackageFile := WriteDocumentXmlRels_(FPackageFile, 'word\_rels\document.xml.rels');
     try
@@ -2294,6 +2375,7 @@ begin
     vItem := AData.Items[i];
     if vItem.ParaFirst and (vItem.StyleNo <> THCStyle.Table) then  // docx里表格是段首
       vParaNode := ANode.AddChild('w:p');
+
     if (vItem.StyleNo > THCStyle.Null) and (vItem.Text <> '') then
     begin
       vWRNode := vParaNode.AddChild('w:r');
@@ -2315,6 +2397,92 @@ begin
     if vItem.StyleNo = THCStyle.Table then
       WriteTable_(ANode, vItem as THCTableItem);
   end;
+end;
+
+function THCDocxReader.WriteDocumentItem_(
+  const AItem: THCCustomItem): THCZLibPackageFile;
+var
+  vXml: IHCXMLDocument;
+  vXmlNode, vXmlNode2, vXmlNode3, vParaNode, vWRNode, vNode: IHCXMLNode;
+  vStream: TMemoryStream;
+begin
+  Result := nil;
+  vXml := THCXMLDocument.Create(nil);
+  vXml.Active := True;
+  vXml.Version := '1.0';
+  vXml.DocumentElement := vXml.CreateNode('w:document');
+  vXml.DocumentElement.Attributes['xmlns:w'] := HCDOCX_Main;
+  //vXml.DocumentElement.Attributes['xmlns:wpg'] := 'http://schemas.microsoft.com/office/word/2010/wordprocessingGroup';
+  //vXml.DocumentElement.Attributes['xmlns:wpi'] := 'http://schemas.microsoft.com/office/word/2010/wordprocessingInk';
+  vXml.DocumentElement.Attributes['xmlns:wps'] := HCDOCX_NSwps;
+  //vXml.DocumentElement.Attributes['xmlns:w10'] := 'urn:schemas-microsoft-com:office:word';
+  vXml.DocumentElement.Attributes['xmlns:wp14'] := HCDOCX_NSwp14;
+  //vXml.DocumentElement.Attributes['xmlns:v'] := 'urn:schemas-microsoft-com:vml';
+  vXml.DocumentElement.Attributes['xmlns:mc'] := HCDOCX_NSmc;
+  vXml.DocumentElement.Attributes['mc:Ignorable'] := 'wp14';
+
+  vXmlNode := vXml.DocumentElement.AddChild('w:body');
+
+  // 写正文数据
+  if AItem.ParaFirst and (AItem.StyleNo <> THCStyle.Table) then  // docx里表格是段首
+    vParaNode := vXmlNode.AddChild('w:p');
+
+  if (AItem.StyleNo > THCStyle.Null) and (AItem.Text <> '') then
+  begin
+    vWRNode := vParaNode.AddChild('w:r');
+    if AItem.StyleNo > 0 then
+    begin
+      vNode := vWRNode.AddChild('w:rPr');
+      vNode.AddChild('w:rStyle').Attributes['w:val'] := 'C' + IntToStr(AItem.StyleNo);
+    end;
+    vNode := vWRNode.AddChild('w:t');
+    vNode.Text := AItem.Text;
+  end
+  else
+  if AItem.StyleNo = THCStyle.Image then
+    WriteDrawingImage_(vParaNode, AItem as THCImageItem)
+  else
+  if AItem.StyleNo = THCStyle.Gif then
+    WriteDrawingGif_(vParaNode, AItem as THCGifItem)
+  else
+  if AItem.StyleNo = THCStyle.Table then
+    WriteTable_(vXmlNode, AItem as THCTableItem);
+
+  // w:sectPr
+  vXmlNode2 := vXmlNode.AddChild('w:sectPr');
+  if FHeaderID <> '' then
+  begin
+    vXmlNode3 := vXmlNode2.AddChild('w:headerReference');
+    vXmlNode3.Attributes['xmlns:r'] := HCDOCX_DocumentRelationships;
+    vXmlNode3.Attributes['w:type'] := 'default';
+    vXmlNode3.Attributes['r:id'] := FHeaderID;
+  end;
+
+  if FFooterID <> '' then
+  begin
+    vXmlNode3 := vXmlNode2.AddChild('w:footerReference');
+    vXmlNode3.Attributes['xmlns:r'] := HCDOCX_DocumentRelationships;
+    vXmlNode3.Attributes['w:type'] := 'default';
+    vXmlNode3.Attributes['r:id'] := FFooterID;
+  end;
+
+  vXmlNode3 := vXmlNode2.AddChild('w:pgSz');
+  vXmlNode3.Attributes['w:w'] := '11906';
+  vXmlNode3.Attributes['w:h'] := '16838';
+  vXmlNode3 := vXmlNode2.AddChild('w:pgMar');
+  vXmlNode3.Attributes['w:left'] := '1800';
+  vXmlNode3.Attributes['w:top'] := '1440';
+  vXmlNode3.Attributes['w:right'] := '1800';
+  vXmlNode3.Attributes['w:bottom'] := '1440';
+  vXmlNode3.Attributes['w:header'] := '851';
+  vXmlNode3.Attributes['w:footer'] := '992';
+  //
+  vStream := TMemoryStream.Create;
+  vXml.SaveToStream(vStream);
+  vStream.Position := 0;
+  Result := THCZLibPackageFile.Create('word\document.xml', vStream, vStream.Size);
+  Result.&Type := HCDOCX_OfficeDocument;
+  Result.ContentType := 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
 end;
 
 function THCDocxReader.WriteDocumentXmlRels_(const APackageFile: TObjectList<THCZLibPackageFile>;
@@ -2402,6 +2570,7 @@ begin
 
   vXmlNode := vXml.DocumentElement.AddChild('w:body');
 
+  // 写正文数据
   vData := FHCView.Sections[0].Page;
   if not vData.IsEmptyData then
     WriteData_(vData, vXmlNode);

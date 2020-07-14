@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, Classes, Graphics, HCStyle, HCItem, HCRectItem, HCCustomData, HCXml,
-  HCRichData;
+  HCRichData, HCCommon;
 
 type
   THCLineItem = class(THCCustomRectItem)
@@ -66,22 +66,50 @@ end;
 procedure THCLineItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+
+  procedure PaintLine;
+  var
+    vTop: Integer;
+  begin
+    vTop := (ADrawRect.Top + ADrawRect.Bottom) div 2;
+    ACanvas.MoveTo(ADrawRect.Left, vTop);
+    ACanvas.LineTo(ADrawRect.Right, vTop);
+  end;
+
 var
-  vTop: Integer;
+  vExtPen: HPEN;
+  vOldPen: HGDIOBJ;
+  vPenParams: TLogBrush;
 begin
-  ACanvas.Pen.Width := FLineHeight;
-  ACanvas.Pen.Style := FLineStyle;
-  ACanvas.Pen.Color := clBlack;
-  vTop := (ADrawRect.Top + ADrawRect.Bottom) div 2;
-  ACanvas.MoveTo(ADrawRect.Left, vTop);
-  ACanvas.LineTo(ADrawRect.Right, vTop);
+  if Self.Height > 1 then
+  begin
+    vPenParams.lbStyle := PenStyles[FLineStyle];
+    vPenParams.lbColor := clBlack;
+    vPenParams.lbHatch := 0;
+    vExtPen := ExtCreatePen(PS_GEOMETRIC or PS_ENDCAP_FLAT or vPenParams.lbStyle, FLineHeight, vPenParams, 0, nil);
+    vOldPen := SelectObject(ACanvas.Handle, vExtPen);
+    try
+      PaintLine;
+    finally
+      SelectObject(ACanvas.Handle, vOldPen);
+      DeleteObject(vExtPen);
+    end;
+  end
+  else
+  begin
+    ACanvas.Pen.Width := FLineHeight;
+    ACanvas.Pen.Style := FLineStyle;
+    ACanvas.Pen.Color := clBlack;
+    PaintLine;
+  end;
 end;
 
 procedure THCLineItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
 begin
-  Width := THCRichData(ARichData).Width;
-  Height := FLineHeight;
+  // ÀÊ…Ë÷√¡À
+  //Width := THCRichData(ARichData).Width;
+  //Height := FLineHeight;
 end;
 
 function THCLineItem.GetOffsetAt(const X: Integer): Integer;

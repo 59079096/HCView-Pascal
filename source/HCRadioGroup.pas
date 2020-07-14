@@ -27,7 +27,7 @@ type
     procedure SetChecked(const Value: Boolean);
   public
     Text, TextValue: string;
-    Position: TPoint;
+    Rect: TRect;
     property Checked: Boolean read FChecked write SetChecked;
     property OnSetChecked: TNotifyEvent read FOnSetChecked write FOnSetChecked;
   end;
@@ -38,10 +38,18 @@ type
     FItems: TObjectList<THCRadioButton>;
     FRadioStyle: THCRadioStyle;
     FItemHit: Boolean;
+    FColumns,  // 大于0的整数时列属性有效，0用于兼容旧版本的不分列
+      FBatchCount: Byte;
+
+    FColumnAlign: Boolean;  // 列对齐
+    procedure ReLayout;
     function GetItemAt(const X, Y: Integer): Integer;
+    procedure SetColumns(const Value: Byte);
+    procedure SetColumnAlign(const Value: Boolean);
   protected
     procedure DoItemNotify(Sender: TObject; const Item: THCRadioButton; Action: TCollectionNotification);
     procedure DoItemSetChecked(Sender: TObject);
+    procedure DoPaintItems(const ACanvas: TCanvas; const ADrawRect: TRect; const APaintInfo: TPaintInfo);
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -57,6 +65,8 @@ type
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
+    procedure BeginAdd;
+    procedure EndAdd;
     procedure AddItem(const AText: string; const ATextValue: string = '';
       const AChecked: Boolean = False);
 
@@ -68,6 +78,9 @@ type
 
     property MultSelect: Boolean read FMultSelect write FMultSelect;
     property RadioStyle: THCRadioStyle read FRadioStyle write FRadioStyle;
+    property ItemHit: Boolean read FItemHit write FItemHit;
+    property Columns: Byte read FColumns write SetColumns;
+    property ColumnAlign: Boolean read FColumnAlign write SetColumnAlign;
     property Items: TObjectList<THCRadioButton> read FItems;
   end;
 
@@ -103,11 +116,19 @@ begin
     AddItem(vSource.Items[i].Text, vSource.Items[i].TextValue, vSource.Items[i].Checked);
 end;
 
+procedure THCRadioGroup.BeginAdd;
+begin
+  Inc(FBatchCount);
+end;
+
 constructor THCRadioGroup.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
   Self.StyleNo := THCStyle.RadioGroup;
   Width := 100;
+  FBatchCount := 0;
+  FColumns := 0;  // 0兼容旧版本
+  FColumnAlign := True;
   FItemHit := False;
   FItems := TObjectList<THCRadioButton>.Create;
   FItems.OnNotify := DoItemNotify;
@@ -125,6 +146,9 @@ procedure THCRadioGroup.DoItemNotify(Sender: TObject;
 begin
   if Action = TCollectionNotification.cnAdded then
     Item.OnSetChecked := DoItemSetChecked;
+
+  if Action <> TCollectionNotification.cnExtracted then
+    ReLayout;
 end;
 
 procedure THCRadioGroup.DoItemSetChecked(Sender: TObject);
@@ -147,12 +171,17 @@ procedure THCRadioGroup.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 var
-  i: Integer;
-  vPoint: TPoint;
+  vPaintRegion: HRGN;
 begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
+  if Self.IsSelectComplate then
+  begin
+    ACanvas.Brush.Color := AStyle.SelColor;
+    ACanvas.FillRect(ADrawRect);
+  end
+  else
   if FMouseIn then
   begin
     ACanvas.Brush.Color := clBtnFace;
@@ -160,37 +189,89 @@ begin
   end;
 
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
+  if not AutoSize then
+  begin
+    vPaintRegion := CreateRectRgn(ADrawRect.Left, ADrawRect.Top, ADrawRect.Right, ADrawRect.Bottom);
+    try
+      SelectClipRgn(ACanvas.Handle, vPaintRegion);
+      DoPaintItems(ACanvas, ADrawRect, APaintInfo);
+    finally
+      DeleteObject(vPaintRegion);
+    end;
+  end
+  else
+    DoPaintItems(ACanvas, ADrawRect, APaintInfo);
+end;
 
+procedure THCRadioGroup.DoPaintItems(const ACanvas: TCanvas; const ADrawRect: TRect; const APaintInfo: TPaintInfo);
+var
+  i: Integer;
+  vPoint: TPoint;
+begin
   for i := 0 to FItems.Count - 1 do
   begin
-    vPoint.X := FItems[i].Position.X;
-    vPoint.Y := FItems[i].Position.Y;
+    vPoint.X := FItems[i].Rect.Left;
+    vPoint.Y := FItems[i].Rect.Top;
     vPoint.Offset(ADrawRect.Left, ADrawRect.Top);
 
-    if FItems[i].Checked then
+    if APaintInfo.Print then
     begin
-      if FRadioStyle = THCRadioStyle.Radio then
+      if FItems[i].Checked then
       begin
-        DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-          DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONRADIO);
+        if FRadioStyle = THCRadioStyle.Radio then
+        begin
+          HCDrawFrameControl(ACanvas, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+            THCControlState.hcsChecked, THCControlStyle.hcyRadio);
+        end
+        else
+        begin
+          HCDrawFrameControl(ACanvas, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+            THCControlState.hcsChecked, THCControlStyle.hcyCheck);
+        end;
       end
       else
       begin
-        DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-          DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONCHECK);
+        if FRadioStyle = THCRadioStyle.Radio then
+        begin
+          HCDrawFrameControl(ACanvas, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+            THCControlState.hcsCustom, THCControlStyle.hcyRadio);
+        end
+        else
+        begin
+          HCDrawFrameControl(ACanvas, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+            THCControlState.hcsCustom, THCControlStyle.hcyCheck);
+        end;
       end;
+
+      ACanvas.Brush.Style := bsClear;
     end
     else
     begin
-      if FRadioStyle = THCRadioStyle.Radio then
+      if FItems[i].Checked then
       begin
-        DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-          DFC_BUTTON, DFCS_BUTTONRADIO);
+        if FRadioStyle = THCRadioStyle.Radio then
+        begin
+          DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+            DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONRADIO);
+        end
+        else
+        begin
+          DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+            DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONCHECK);
+        end;
       end
       else
       begin
-        DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-          DFC_BUTTON, DFCS_BUTTONCHECK);
+        if FRadioStyle = THCRadioStyle.Radio then
+        begin
+          DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+            DFC_BUTTON, DFCS_BUTTONRADIO);
+        end
+        else
+        begin
+          DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
+            DFC_BUTTON, DFCS_BUTTONCHECK);
+        end;
       end;
     end;
 
@@ -198,42 +279,18 @@ begin
   end;
 end;
 
+procedure THCRadioGroup.EndAdd;
+begin
+  if FBatchCount > 0 then
+    Dec(FBatchCount);
+
+  if FBatchCount = 0 then
+    ReLayout;
+end;
+
 procedure THCRadioGroup.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
-var
-  vSize: TSize;
-  i, vLeft, vTop: Integer;
 begin
-  Height := FMinHeight;
-
-  ARichData.Style.ApplyTempStyle(TextStyleNo);
-
-  vLeft := FPaddingLeft;
-  vTop := FPaddingTop;
-  for i := 0 to FItems.Count - 1 do
-  begin
-    if FItems[i].Text <> '' then
-      vSize := ARichData.Style.TempCanvas.TextExtent(FItems[i].Text)
-    else
-      vSize := ARichData.Style.TempCanvas.TextExtent('H');
-
-    if Self.AutoSize and (vLeft + vSize.cx + RadioButtonWidth > Width) then
-    begin
-      vLeft := FPaddingLeft;
-      vTop := vTop + vSize.cy + FPaddingBottom;
-    end;
-
-    FItems[i].Position.X := vLeft;
-    FItems[i].Position.Y := vTop;
-
-    vLeft := vLeft + RadioButtonWidth + vSize.cx + FPaddingRight;
-  end;
-
-  if Self.AutoSize then
-    Width := vLeft;
-
-  Height := vTop + vSize.cy + FPaddingBottom;
-
   if Width < FMinWidth then
     Width := FMinWidth;
   if Height < FMinHeight then
@@ -249,21 +306,14 @@ end;
 function THCRadioGroup.GetItemAt(const X, Y: Integer): Integer;
 var
   i: Integer;
-  vSize: TSize;
 begin
   Result := -1;
-
-  if FItemHit then
-    Self.OwnerData.Style.ApplyTempStyle(TextStyleNo);
 
   for i := 0 to FItems.Count - 1 do
   begin
     if FItemHit then  // 文本就命中
     begin
-      vSize := Self.OwnerData.Style.TempCanvas.TextExtent(FItems[i].Text);
-      if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
-        RadioButtonWidth + vSize.cx, vSize.cy), Point(X, Y))
-      then
+      if PtInRect(FItems[i].Rect, Point(X, Y)) then
       begin
         Result := i;
         Break;
@@ -271,7 +321,7 @@ begin
     end
     else  // 只在box命中
     begin
-      if PtInRect(Bounds(FItems[i].Position.X, FItems[i].Position.Y,
+      if PtInRect(Bounds(FItems[i].Rect.Left, FItems[i].Rect.Top,
         RadioButtonWidth, RadioButtonWidth), Point(x, y))
       then
       begin
@@ -300,65 +350,80 @@ var
   vS, vText: string;
   vP, vPStart: PChar;
   vBool: Boolean;
+  vByte: Byte;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  FItems.Clear;
-  // 读Items
-  HCLoadTextFromStream(AStream, vS, AFileVersion);
-  if vS <> '' then
-  begin
-    vP := PChar(vS);
-
-    while vP^ <> #0 do
+  BeginAdd;
+  try
+    if AFileVersion > 39 then
     begin
-      vPStart := vP;
-      while not (vP^ in [#0, #10, #13]) do
-        Inc(vP);
-
-      SetString(vText, vPStart, vP - vPStart);
-      AddItem(vText);
-
-      if vP^ = #13 then
-        Inc(vP);
-      if vP^ = #10 then
-        Inc(vP);
+      AStream.ReadBuffer(FColumns, SizeOf(FColumns));
+      AStream.ReadBuffer(vByte, SizeOf(vByte));
+      FMultSelect := Odd(vByte shr 7);
+      FItemHit := Odd(vByte shr 6);
+      FColumnAlign := Odd(vByte shr 5);
     end;
 
-    if AFileVersion > 35 then
+    // 读Items
+    FItems.Clear;
+    HCLoadTextFromStream(AStream, vS, AFileVersion);
+    if vS <> '' then
     begin
-      i := 0;
-      HCLoadTextFromStream(AStream, vS, AFileVersion);
-      if vS <> '' then
+      vP := PChar(vS);
+
+      while vP^ <> #0 do
       begin
-        vP := PChar(vS);
+        vPStart := vP;
+        while not (vP^ in [#0, #10, #13]) do
+          Inc(vP);
 
-        while vP^ <> #0 do
+        SetString(vText, vPStart, vP - vPStart);
+        AddItem(vText);
+
+        if vP^ = #13 then
+          Inc(vP);
+        if vP^ = #10 then
+          Inc(vP);
+      end;
+
+      if AFileVersion > 35 then
+      begin
+        i := 0;
+        HCLoadTextFromStream(AStream, vS, AFileVersion);
+        if vS <> '' then
         begin
-          vPStart := vP;
-          while not (vP^ in [#0, #10, #13]) do
-            Inc(vP);
+          vP := PChar(vS);
 
-          SetString(vText, vPStart, vP - vPStart);
-          Fitems[i].TextValue := vText;
-          Inc(i);
+          while vP^ <> #0 do
+          begin
+            vPStart := vP;
+            while not (vP^ in [#0, #10, #13]) do
+              Inc(vP);
 
-          if vP^ = #13 then
-            Inc(vP);
-          if vP^ = #10 then
-            Inc(vP);
+            SetString(vText, vPStart, vP - vPStart);
+            Fitems[i].TextValue := vText;
+            Inc(i);
+
+            if vP^ = #13 then
+              Inc(vP);
+            if vP^ = #10 then
+              Inc(vP);
+          end;
         end;
+      end;
+
+      for i := 0 to FItems.Count - 1 do
+      begin
+        AStream.ReadBuffer(vBool, SizeOf(vBool));
+        Fitems[i].Checked := vBool;
       end;
     end;
 
-    for i := 0 to FItems.Count - 1 do
-    begin
-      AStream.ReadBuffer(vBool, SizeOf(vBool));
-      Fitems[i].Checked := vBool;
-    end;
+    if AFileVersion > 33 then
+      AStream.ReadBuffer(FRadioStyle, SizeOf(FRadioStyle));
+  finally
+    EndAdd;
   end;
-
-  if AFileVersion > 33 then
-    AStream.ReadBuffer(FRadioStyle, SizeOf(FRadioStyle));
 end;
 
 function THCRadioGroup.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -399,39 +464,190 @@ var
   i: Integer;
 begin
   inherited ParseXml(ANode);
-  FItems.Clear;
-  vList := TStringList.Create;
-  try
-    // Items文本内容
-    vList.DelimitedText := ANode.Attributes['item'];
-    for i := 0 to vList.Count - 1 do
-      AddItem(vList[i]);
 
-    if ANode.HasAttribute('itemvalue') then
-    begin
-      vList.DelimitedText := ANode.Attributes['itemvalue'];
-      for i := 0 to FItems.Count - 1 do
-        FItems[i].TextValue := vList[i];
+  BeginAdd;
+  try
+    if ANode.HasAttribute('col') then
+      FColumns := ANode.Attributes['col'];
+
+    if ANode.HasAttribute('multsel') then
+      FMultSelect := ANode.Attributes['multsel'];
+
+    if ANode.HasAttribute('itemhit') then
+      FItemHit := ANode.Attributes['itemhit'];
+
+    if ANode.HasAttribute('colalign') then
+      FColumnAlign := ANode.Attributes['colalign'];
+
+    FItems.Clear;
+    vList := TStringList.Create;
+    try
+      // Items文本内容
+      vList.DelimitedText := ANode.Attributes['item'];
+      for i := 0 to vList.Count - 1 do
+        AddItem(vList[i]);
+
+      if ANode.HasAttribute('itemvalue') then
+      begin
+        vList.DelimitedText := ANode.Attributes['itemvalue'];
+        for i := 0 to FItems.Count - 1 do
+          FItems[i].TextValue := vList[i];
+      end;
+
+      // Items选中状态
+      vList.DelimitedText := ANode.Attributes['check'];
+      for i := 0 to vList.Count - 1 do
+        Fitems[i].Checked := StrToBool(vList[i]);
+    finally
+      FreeAndNil(vList);
     end;
 
-    // Items选中状态
-    vList.DelimitedText := ANode.Attributes['check'];
-    for i := 0 to vList.Count - 1 do
-      Fitems[i].Checked := StrToBool(vList[i]);
+    FRadioStyle := THCRadioStyle(ANode.Attributes['radiostyle']);
   finally
-    FreeAndNil(vList);
+    EndAdd;
   end;
-
-  FRadioStyle := THCRadioStyle(ANode.Attributes['radiostyle']);
 end;
 
-procedure THCRadioGroup.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCRadioGroup.ReLayout;
+var
+  vSize: TSize;
+  i, vLeft, vTop, vCol, vWMax, vColumnAct: Integer;
+begin
+  if FBatchCount > 0 then Exit;
+  if not Assigned(FItems) then Exit;
+
+  OwnerData.Style.ApplyTempStyle(TextStyleNo);
+
+  vLeft := FPaddingLeft;
+  vTop := FPaddingTop;
+  if FColumns = 0 then  // 旧版本不分列
+  begin
+    for i := 0 to FItems.Count - 1 do
+    begin
+      if FItems[i].Text <> '' then
+        vSize := OwnerData.Style.TempCanvas.TextExtent(FItems[i].Text)
+      else
+        vSize := OwnerData.Style.TempCanvas.TextExtent('H');
+
+      if Self.AutoSize and (vLeft + vSize.cx + RadioButtonWidth > Width) then
+      begin
+        vLeft := FPaddingLeft;
+        vTop := vTop + vSize.cy + FPaddingBottom;
+      end;
+
+      FItems[i].Rect := Bounds(vLeft, vTop, RadioButtonWidth + vSize.cx, vSize.cy);
+      vLeft := vLeft + RadioButtonWidth + vSize.cx + FPaddingRight;
+    end;
+
+    if Self.AutoSize then
+      Width := vLeft;
+
+    Height := vTop + vSize.cy + FPaddingBottom;
+  end
+  else  // 分列
+  begin
+    vWMax := 0;
+    vSize.cy := 0;  // 防止一项也没有
+    vCol := 1;
+    if FColumns > FItems.Count then
+      vColumnAct := FItems.Count
+    else
+      vColumnAct := FColumns;
+
+    for i := 0 to FItems.Count - 1 do  // 按列排列
+    begin
+      if FItems[i].Text <> '' then
+        vSize := OwnerData.Style.TempCanvas.TextExtent(FItems[i].Text)
+      else
+        vSize := OwnerData.Style.TempCanvas.TextExtent('H');
+
+      FItems[i].Rect := Bounds(vLeft, vTop, RadioButtonWidth + vSize.cx, vSize.cy);
+      vLeft := vLeft + RadioButtonWidth + vSize.cx + FPaddingRight;
+
+      if vCol = vColumnAct then
+      begin
+        if vLeft > vWMax then
+          vWMax := vLeft;
+
+        if i < FItems.Count - 1 then
+        begin
+          vCol := 1;
+          vLeft := FPaddingLeft;
+          vTop := vTop + vSize.cy + FPaddingBottom;
+        end;
+      end
+      else
+        Inc(vCol);
+    end;
+
+    Height := vTop + vSize.cy + FPaddingBottom;
+
+    if FColumnAlign then  // 列对齐
+    begin
+      for i := 0 to vColumnAct - 2 do  // 每一列最宽的决定下一列的起始
+      begin
+        // 取第i列最宽的
+        vCol := i;  // 第1行第x个Item
+        vWMax := FItems[vCol].Rect.Right;
+        while vCol + vColumnAct < FItems.Count do
+        begin
+          vCol := vCol + vColumnAct;
+          if vWMax < FItems[vCol].Rect.Right then
+            vWMax := FItems[vCol].Rect.Right;
+        end;
+
+        vWMax := vWMax + FPaddingRight;
+        // 计算第i+1列的起始位置
+        vCol := i + 1;
+        OffsetRect(FItems[vCol].Rect, vWMax - FItems[vCol].Rect.Left, 0);
+        while vCol + vColumnAct < FItems.Count do
+        begin
+          vCol := vCol + vColumnAct;
+          OffsetRect(FItems[vCol].Rect, vWMax - FItems[vCol].Rect.Left, 0);
+        end;
+      end;
+
+      if AutoSize then  // 最后一列最右侧
+      begin
+        vCol := vColumnAct - 1;
+        vWMax := FItems[vCol].Rect.Right;
+        while vCol + vColumnAct < FItems.Count do
+        begin
+          vCol := vCol + vColumnAct;
+          if vWMax < FItems[vCol].Rect.Right then
+            vWMax := FItems[vCol].Rect.Right;
+        end;
+
+        Width := vWMax + FPaddingRight;
+      end;
+    end
+    else  // 列不对齐
+    if AutoSize then
+      Width := vWMax;
+  end;
+end;
+
+procedure THCRadioGroup.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 var
   i: Integer;
+  vByte: Byte;
   vTexts, vTextValues: string;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
+
+  AStream.WriteBuffer(FColumns, SizeOf(FColumns));
+  vByte := 0;
+  if FMultSelect then
+    vByte := vByte or (1 shl 7);
+
+  if FItemHit then
+    vByte := vByte or (1 shl 6);
+
+  if FColumnAlign then
+    vByte := vByte or (1 shl 5);
+
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
+
   // 存Items
   if FItems.Count > 0 then
   begin
@@ -458,12 +674,40 @@ begin
   AStream.WriteBuffer(FRadiostyle, SizeOf(FRadioStyle));
 end;
 
+procedure THCRadioGroup.SetColumnAlign(const Value: Boolean);
+begin
+  if FColumnAlign <> Value then
+  begin
+    FColumnAlign := Value;
+    ReLayout;
+  end;
+end;
+
+procedure THCRadioGroup.SetColumns(const Value: Byte);
+begin
+  if FColumns <> Value then
+  begin
+    FColumns := Value;
+    ReLayout;
+  end;
+end;
+
 procedure THCRadioGroup.ToXml(const ANode: IHCXMLNode);
 var
   vText, vTextValue: string;
   i: Integer;
 begin
   inherited ToXml(ANode);
+
+  ANode.Attributes['col'] := FColumns;
+  if FMultSelect then
+    ANode.Attributes['multsel'] := '1';
+
+  if FItemHit then
+    ANode.Attributes['itemhit'] := '1';
+
+  if FColumnAlign then
+    ANode.Attributes['colalign'] := '1';
 
   // 存Items文本内容
   if FItems.Count > 0 then

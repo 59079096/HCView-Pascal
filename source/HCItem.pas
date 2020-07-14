@@ -367,7 +367,7 @@ procedure THCCustomItem.PaintTo(const AStyle: THCStyle; const ADrawRect: TRect;
 var
   vDCState: THCCanvas;
 begin
-  if APaintInfo.Print and FPrintInvisible then Exit;
+  if APaintInfo.Print and FPrintInvisible then Exit;  // 打印但不打印
 
   vDCState := SaveCanvas(ACanvas);
   try

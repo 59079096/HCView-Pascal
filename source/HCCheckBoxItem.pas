@@ -97,51 +97,40 @@ begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
-  if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
-  begin
-    ACanvas.Brush.Color := clBtnFace;
-    ACanvas.FillRect(ADrawRect);
-  end;
-
   vBoxRect := GetBoxRect;
   OffsetRect(vBoxRect, ADrawRect.Left, ADrawRect.Top);
 
-  if Self.IsSelectComplate and (not APaintInfo.Print) then
+  if APaintInfo.Print then
   begin
-    ACanvas.Brush.Color := AStyle.SelColor;
-    ACanvas.FillRect(ADrawRect);
+    if FChecked then
+      HCDrawFrameControl(ACanvas, vBoxRect, THCControlState.hcsChecked, THCControlStyle.hcyCheck)
+    else
+      HCDrawFrameControl(ACanvas, vBoxRect, THCControlState.hcsCustom, THCControlStyle.hcyCheck);
+  end
+  else
+  begin
+    if Self.IsSelectComplate then
+    begin
+      ACanvas.Brush.Color := AStyle.SelColor;
+      ACanvas.FillRect(ADrawRect);
+    end
+    else
+    if FMouseIn then  // 鼠标在其中
+    begin
+      ACanvas.Brush.Color := clBtnFace;
+      ACanvas.FillRect(ADrawRect);
+    end;
+
+    if FChecked then
+      DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_MENU, DFCS_CHECKED or DFCS_MENUCHECK);
+
+    HCDrawFrameControl(ACanvas, vBoxRect, THCControlState.hcsCustom, THCControlStyle.hcyCheck);
   end;
 
   ACanvas.Brush.Style := bsClear;
-
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
   ACanvas.TextOut(ADrawRect.Left + FPaddingLeft + CheckBoxSize + FPaddingLeft,
     ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2, FText);
-
-  if FChecked then  // 勾选
-  begin
-    //ACanvas.Font.Size := 10;
-    //ACanvas.TextOut(vBoxRect.Left, vBoxRect.Top, '√');
-    DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_MENU, DFCS_CHECKED or DFCS_MENUCHECK)
-    //DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONCHECK);
-  end;
-  //else
-  //  DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_HOT or DFCS_BUTTONCHECK);
-
-  ACanvas.Pen.Style := psSolid;
-  if FMouseIn and (not APaintInfo.Print) then  // 鼠标在其中，且非打印
-  begin
-    ACanvas.Pen.Color := clBlue;
-    ACanvas.Rectangle(vBoxRect.Left, vBoxRect.Top, vBoxRect.Right, vBoxRect.Bottom);
-    InflateRect(vBoxRect, 1, 1);
-    ACanvas.Pen.Color := clBtnFace;
-    ACanvas.Rectangle(vBoxRect.Left, vBoxRect.Top, vBoxRect.Right, vBoxRect.Bottom);
-  end
-  else  // 鼠标不在其中或打印
-  begin
-    ACanvas.Pen.Color := clBlack;
-    ACanvas.Rectangle(vBoxRect.Left, vBoxRect.Top, vBoxRect.Right, vBoxRect.Bottom);
-  end;
 end;
 
 procedure THCCheckBoxItem.FormatToDrawItem(const ARichData: THCCustomData;

@@ -151,7 +151,9 @@ end;
 procedure THCTextItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
-  FHyperLink := ANode.Attributes['link'];
+  if ANode.HasAttribute('link') then
+    FHyperLink := ANode.Attributes['link'];
+
   FText := ANode.Text;
 end;
 
@@ -195,7 +197,9 @@ end;
 procedure THCTextItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
-  ANode.Attributes['link'] := FHyperLink;
+  if FHyperLink <> '' then
+    ANode.Attributes['link'] := FHyperLink;
+
   ANode.Text := Text;
 end;
 

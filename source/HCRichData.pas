@@ -2993,9 +2993,9 @@ begin
   Result := False;
 
   if not CanEdit then Exit;
+  if not DeleteSelected then Exit;  // 先删除选中，否则数据组替换时调用DoInsertTextBefor只判断选中起始返回false
   if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actInsertText) then Exit;  // TextItem此偏移位置不可接受输入
   if not DoInsertTextBefor(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, AText) then Exit;
-  if not DeleteSelected then Exit;
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
@@ -3026,7 +3026,7 @@ begin
     begin
       vNewPara := False;
       vAddCount := 0;
-      CurStyleNo := Self.Style.GetStyleNo(Self.Style.DefaultTextStyle, True);  // Items[SelectInfo.StartItemNo].StyleNo;  // 防止静默移动选中位置没有更新当前样式
+      CurStyleNo := MatchTextStyleNoAt(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);  // 防止静默移动选中位置没有更新当前样式
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 

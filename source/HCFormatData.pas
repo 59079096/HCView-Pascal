@@ -1227,7 +1227,12 @@ begin
   SelectInfo.StartItemNo := AItemNo;
   SelectInfo.StartItemOffset := AOffset;
 
-  if FFormatCount <> 0 then Exit;
+  if FFormatCount > 0 then
+  begin
+    FCurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;
+    FCurParaNo := Items[SelectInfo.StartItemNo].ParaNo;
+    Exit;
+  end;
 
   if Items[AItemNo].StyleNo > THCStyle.Null then
   begin

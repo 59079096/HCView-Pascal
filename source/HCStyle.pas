@@ -355,6 +355,9 @@ procedure THCStyle.ParseXml(const ANode: IHCXMLNode);
 var
   i, j: Integer;
 begin
+  if ANode.HasAttribute('fmtver') then
+    FFormatVersion := ANode.Attributes['fmtver'];
+
   for i := 0 to ANode.ChildNodes.Count - 1 do
   begin
     if ANode.ChildNodes[i].NodeName = 'textstyles' then
@@ -449,6 +452,7 @@ var
 begin
   ANode.Attributes['fscount'] := FTextStyles.Count;
   ANode.Attributes['pscount'] := FParaStyles.Count;
+  ANode.Attributes['fmtver'] := FFormatVersion;
 
   vNode := ANode.AddChild('textstyles');
   for i := 0 to FTextStyles.Count - 1 do

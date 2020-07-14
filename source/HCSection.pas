@@ -478,6 +478,7 @@ type
 
   THCSection = class(THCCustomSection)
   public
+    procedure AssignPaper(const ASource: THCCustomSection);
     /// <summary> 当前位置开始查找指定的内容 </summary>
     /// <param name="AKeyword">要查找的关键字</param>
     /// <param name="AForward">True：向前，False：向后</param>
@@ -3042,6 +3043,19 @@ begin
 end;
 
 { THCSection }
+
+procedure THCSection.AssignPaper(const ASource: THCCustomSection);
+begin
+  Self.PaperSize := ASource.PaperSize;
+  Self.PaperWidth := ASource.PaperWidth;
+  Self.PaperHeight := ASource.PaperHeight;
+  Self.PaperMarginTop := ASource.PaperMarginTop;
+  Self.PaperMarginLeft := ASource.PaperMarginLeft;
+  Self.PaperMarginRight := ASource.PaperMarginRight;
+  Self.PaperMarginBottom := ASource.PaperMarginBottom;
+  Self.PaperOrientation := ASource.PaperOrientation;
+  Self.HeaderOffset := ASource.HeaderOffset;
+end;
 
 function THCSection.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 begin

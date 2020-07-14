@@ -36,7 +36,7 @@ const
   HC_EXT_DOCX = '.docx';
 
   HC_EXT = '.hcf';
-  HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:VC++, 4:HTML5
+  HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:C++, 4:HTML5
 
   {1.3 支持浮动对象保存和读取(未处理向下兼容)
    1.4 支持表格单元格边框显示属性的保存和读取
@@ -62,14 +62,15 @@ const
    3.3 兼容32版本图片保存时没有按DeImageItem保存，读取时不正确的问题
    3.4 RadioGroun控件保存选项样式、保存文件所用的排版算法版本、增加Item打印不可见属性，EditItem增加仅打印文本属性
    3.5 数据元增加DeleteProtect控制是否能删除掉整个数据元，表格存储CellPadding，FloatBarCode存储单线条宽度
-   3.6 Combobox和RadioGrou的选项改为键值对的形式
+   3.6 Combobox和RadioGroup的选项改为键值对的形式
    3.7 兼容Combobox无下拉选项时保存选项后打不开的问题
    3.8 浮动Item增加Lock属性用于锁定Item不可移动和修改
    3.9 域Item保存时存Level
+   4.0 RadioGroup存储更多的属性，HCView存页码格式
   }
 
-  HC_FileVersion = '3.9';
-  HC_FileVersionInt = 39;
+  HC_FileVersion = '4.0';
+  HC_FileVersionInt = 40;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -104,6 +105,10 @@ const
   LineSqueezeChar = '，。；、？“”';
 
   HCBoolText: array [Boolean] of Char = ('0', '1');
+
+  PenTypes: array[Boolean] of Integer = (PS_COSMETIC, PS_GEOMETRIC);
+  PenStyles: array[psSolid..psInsideFrame] of Word =
+    (PS_SOLID, PS_DASH, PS_DOT, PS_DASHDOT, PS_DASHDOTDOT, PS_NULL, PS_SOLID);
 
 type
   THCProcedure = reference to procedure();
@@ -158,6 +163,9 @@ type
     actConcatText,  // 粘接文本(两头)
     actDeleteSelected  // 删除选中内容
     );
+
+    THCControlState = (hcsCustom, hcsChecked);
+    THCControlStyle = (hcyRadio, hcyCheck);
 
 //  TPaperSize = (psCustom, ps4A0, ps2A0, psA0, psA1, psA2,
 //    psA3, psA4, psA5, psA6, psA7, psA8,
@@ -353,6 +361,8 @@ type
   {$ENDIF}
 
   procedure HCDrawArrow(const ACanvas: TCanvas; const AColor: TColor; const ALeft, ATop: Integer; const AType: Byte);
+  procedure HCDrawFrameControl(const ACanvas: TCanvas; const ARect: TRect;
+    const AState: THCControlState; AStyle: THCControlStyle);
 
   function SaveCanvas(const ACanvas: TCanvas): THCCanvas;
 
@@ -429,13 +439,45 @@ begin
   end;
 end;
 
+procedure HCDrawFrameControl(const ACanvas: TCanvas; const ARect: TRect;
+  const AState: THCControlState; AStyle: THCControlStyle);
+var
+  vRect: TRect;
+begin
+  vRect := Bounds(ARect.Left + (ARect.Width - 16) div 2, ARect.Top + (ARect.Height - 16) div 2 + 1, 16 - 2, 16 - 2);
+
+  ACanvas.Pen.Color := $00848484;
+  ACanvas.Pen.Width := 1;
+  ACanvas.Pen.Style := psSolid;
+  ACanvas.Brush.Style := bsClear;
+  if AStyle = THCControlStyle.hcyRadio then
+  begin
+    ACanvas.Ellipse(vRect);
+    if AState = THCControlState.hcsChecked then
+    begin
+      ACanvas.Pen.Style := psClear;
+      ACanvas.Brush.Color := clBlack;
+      InflateRect(vRect, -2, -2);
+      ACanvas.Ellipse(vRect);
+    end;
+  end
+  else  // DFCS_BUTTONCHECK
+  begin
+    ACanvas.Rectangle(vRect);
+    if AState = THCControlState.hcsChecked then
+    begin
+      ACanvas.Pen.Color := clBlack;
+      ACanvas.Pen.Width := 2;
+      ACanvas.MoveTo(vRect.Left + 3, vRect.Top + 16 div 2);
+      ACanvas.LineTo(vRect.Left - 2 + 16 div 2, vRect.Bottom - 3);
+      ACanvas.LineTo(vRect.Right - 3, vRect.Top + 3);
+    end;
+  end;
+end;
+
 function CreateExtPen(const APen: TPen): HPEN;
 var
   vPenParams: TLogBrush;
-const
-  PenTypes: array[Boolean] of Integer = (PS_COSMETIC, PS_GEOMETRIC);
-  PenStyles: array[psSolid..psInsideFrame] of Word =
-    (PS_SOLID, PS_DASH, PS_DOT, PS_DASHDOT, PS_DASHDOTDOT, PS_NULL, PS_SOLID);
 begin
   vPenParams.lbStyle := PenStyles[APen.Style];
   vPenParams.lbColor := APen.Color;

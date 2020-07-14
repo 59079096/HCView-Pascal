@@ -137,7 +137,7 @@ begin
   FSelEnd := -1;
   FSelMove := -1;
   Width := 50;
-  FPrintOnlyText := False;
+  FPrintOnlyText := True;
   FBorderWidth := 1;
   FBorderSides := [cbsLeft, cbsTop, cbsRight, cbsBottom];
 end;

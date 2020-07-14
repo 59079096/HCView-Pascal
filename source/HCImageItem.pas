@@ -262,24 +262,27 @@ begin
 
     vBitmap := TBitmap.Create;
     try
+      {$IFDEF BMPIMAGEITEM}
       vStream := TMemoryStream.Create;
       try
-        {$IFDEF BMPIMAGEITEM}
         FImage.SaveToStream(vStream);
         vStream.Position := 0;
         vBitmap.LoadFromStream(vStream);
-        {$ELSE}
-        WICBitmap2Bitmap(FImage.Handle, vBitmap);
-        vBitmap.AlphaFormat := TAlphaFormat.afIgnored;
-        {$ENDIF}
-
-        if (vBitmap.Width <> Width) or (vBitmap.Height <> Height) then
-          ACanvas.StretchDraw(ADrawRect, vBitmap)
-        else
-          ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, vBitmap);
       finally
         FreeAndNil(vStream);
       end;
+      {$ELSE}
+      WICBitmap2Bitmap(FImage.Handle, vBitmap);
+      vBitmap.AlphaFormat := TAlphaFormat.afIgnored;
+      // 页眉最开始顶部是图片时，打印多页出现第一页丢失图片的问题，暂时没找到具体原因
+      ACanvas.Pen.Color := clWhite;
+      ACanvas.Pen.Width := 1;
+      ACanvas.Rectangle(ADrawRect);
+      {$ENDIF}
+      if (vBitmap.Width <> Width) or (vBitmap.Height <> Height) then
+        ACanvas.StretchDraw(ADrawRect, vBitmap)
+      else
+        ACanvas.Draw(ADrawRect.Left, ADrawRect.Top, vBitmap);
     finally
       FreeAndNil(vBitmap);
     end;
@@ -435,17 +438,31 @@ var
   vNode: IHCXMLNode;
 begin
   inherited ParseXml(ANode);
-
+  FEmpty := True;
   vNode := ANode.ChildNodes.FindNode('img');
   if Assigned(vNode) then  // 兼容27之前的文件
   begin
-    Base64ToGraphic(vNode.Text, FImage);
+    if vNode.Text <> '' then
+    begin
+      Base64ToGraphic(vNode.Text, FImage);
+      {$IFNDEF BMPIMAGEITEM}
+      DoImageChange(Self);
+      {$ENDIF}
+    end;
 
     vNode := ANode.ChildNodes.FindNode('shapes');
     FShapeManager.ParseXml(vNode);
   end
   else
-    Base64ToGraphic(ANode.Text, FImage);
+  begin
+    if vNode.Text <> '' then
+    begin
+      Base64ToGraphic(ANode.Text, FImage);
+      {$IFNDEF BMPIMAGEITEM}
+      DoImageChange(Self);
+      {$ENDIF}
+    end;
+  end;
 end;
 
 procedure THCImageItem.RecoverOrigianlSize;
@@ -521,7 +538,8 @@ begin
   inherited ToXml(ANode);
 
   vNode := ANode.AddChild('img');
-  vNode.Text := GraphicToBase64(FImage);
+  if not FEmpty then
+    vNode.Text := GraphicToBase64(FImage);
 
   vNode := ANode.AddChild('shapes');
   FShapeManager.ToXml(vNode);

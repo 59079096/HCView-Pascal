@@ -1352,8 +1352,13 @@ begin
   //FSelectSeekNo  如果需要确定 FSelectSeekNo，此方法得移动到CustomRichData
   if not ASilence then
   begin
-    ReSetSelectAndCaret(vStartNo, AStartOffset, True);
+    ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, True);
     Self.Style.UpdateInfoRePaint;
+  end
+  else  // 取最新样式，防止InsertText操作
+  begin
+    FCurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;
+    FCurParaNo := Items[SelectInfo.StartItemNo].ParaNo;
   end;
 end;
 

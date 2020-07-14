@@ -80,7 +80,6 @@ type
   private
     FParentData: THCCustomData;  // 便于判断父Data是否只读以便约束
     FStyle: THCStyle;
-    FCurStyleNo, FCurParaNo: Integer;
     FItems: THCItems;
     FDrawItems: THCDrawItems;
     FSelectInfo: TSelectInfo;
@@ -108,6 +107,7 @@ type
     procedure SetCurStyleNo(const Value: Integer);
     procedure SetCurParaNo(const Value: Integer);
   protected
+    FCurStyleNo, FCurParaNo: Integer;  // 便于子类批量处理时静默设置
     /// <summary> 合并2个文本Item </summary>
     /// <param name="ADestItem">合并后的Item</param>
     /// <param name="ASrcItem">源Item</param>
@@ -307,6 +307,9 @@ type
     function GetTopLevelRectDrawItem: THCCustomDrawItem;
     function GetTopLevelRectDrawItemCoord: TPoint;
 
+    /// <summary> 返回在指定位置插入文本时用哪个文本样式最合适 </summary>
+    function MatchTextStyleNoAt(const AItemNo, AOffset: Integer): Integer;
+
     /// <summary> 返回Item的文本样式 </summary>
     function GetItemStyle(const AItemNo: Integer): Integer;
 
@@ -471,6 +474,7 @@ type
 
   THCItemTraverse = class(TObject)
   public
+    SectionIndex: Integer;
     Areas: TSectionAreas;
     Tag: Integer;
     Stop: Boolean;
@@ -1970,6 +1974,47 @@ begin
     for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do  // 起始结束之间的按全选中处理
       CheckItemSelectedState(i);
   end;
+end;
+
+function THCCustomData.MatchTextStyleNoAt(const AItemNo, AOffset: Integer): Integer;
+begin
+  if FItems[AItemNo].StyleNo < THCStyle.Null then  // 在RectItem前后或其上
+  begin
+    if AOffset = OffsetBefor then  // RectItem在前
+    begin
+      if not FItems[AItemNo].ParaFirst then  // RectItem不是段首
+      begin
+        if FItems[AItemNo - 1].StyleNo < THCStyle.Null then  // 在2个RectItem中间
+          Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True)
+        else
+          Result := FItems[AItemNo - 1].StyleNo;
+      end
+      else  // RectItem是段首，AOffset在段最前
+        Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True);  // 默认文本样式
+    end
+    else
+    if AOffset = OffsetAfter then  // RectItem后面
+    begin
+      if AItemNo < FItems.Count - 1 then  // 不是最后一个
+      begin
+        if not FItems[AItemNo + 1].ParaFirst then  // RectItem同段后面还有内容
+        begin
+          if FItems[AItemNo + 1].StyleNo < THCStyle.Null then  // 在2个RectItem中间
+            Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True)
+          else
+            Result := FItems[AItemNo + 1].StyleNo;
+        end
+        else  // 当前段最后一个RectItem后面
+          Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True);
+      end
+      else  // 在最后一个RectItem后面
+        Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True);
+    end
+    else  // 在RectItem上
+      Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True);  // 默认文本样式
+  end
+  else  // 当前位置是TextItem
+    Result := FItems[AItemNo].StyleNo;  // 防止静默移动选中位置没有更新当前样式
 end;
 
 function THCCustomData.MergeItemText(const ADestItem,

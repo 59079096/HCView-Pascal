@@ -789,6 +789,7 @@ begin
     DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
 
   FStyle.SaveToStream(AStream);
+
   // 节数量
   vByte := FSections.Count;
   AStream.WriteBuffer(vByte, 1);

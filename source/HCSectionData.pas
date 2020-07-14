@@ -109,6 +109,9 @@ type
     procedure PaintFloatItems(const APageIndex, ADataDrawLeft, ADataDrawTop,
       AVOffset: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
+
     /// <summary> 从当前位置后分页 </summary>
     function InsertPageBreak: Boolean;
     //
@@ -139,6 +142,14 @@ procedure THCPageData.SaveToStream(const AStream: TStream);
 begin
   AStream.WriteBuffer(FShowUnderLine, SizeOf(FShowUnderLine));
   inherited SaveToStream(AStream);
+end;
+
+procedure THCPageData.ToXml(const ANode: IHCXMLNode);
+begin
+  if FShowUnderLine then
+    ANode.Attributes['SUL'] := FShowUnderLine;
+
+  inherited ToXml(ANode);
 end;
 
 procedure THCPageData.DoDrawItemPaintAfter(const AData: THCCustomData;
@@ -314,6 +325,14 @@ begin
         0, 0, ACanvas, APaintInfo);
     end;
   end;
+end;
+
+procedure THCPageData.ParseXml(const ANode: IHCXMLNode);
+begin
+  if ANode.HasAttribute('SUL') then
+    FShowUnderLine := ANode.Attributes['SUL'];
+
+  inherited ParseXml(ANode);
 end;
 
 { THCSectionData }

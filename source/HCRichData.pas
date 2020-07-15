@@ -1105,7 +1105,9 @@ begin
   begin
     vLeftToRight := True;
 
-    if AStartItemOffset = GetItemOffsetAfter(AStartItemNo) then  // 起始在Item最后面，改为下一个Item开始
+    if (Items[AStartItemNo].Length > 0)
+      and (AStartItemOffset = GetItemOffsetAfter(AStartItemNo))
+    then  // 起始在Item最后面，改为下一个Item开始
     begin
       if AStartItemNo < Items.Count - 1 then  // 起始改为下一个Item开始
       begin
@@ -1115,7 +1117,7 @@ begin
     end;
 
     if (AStartItemNo <> AEndItemNo) and (AEndItemNo >= 0)
-      and (AEndItemNoOffset = 0)
+      and (Items[AEndItemNo].Length > 0) and (AEndItemNoOffset = 0)
     then  // 结束在Item最前面，改为上一个Item结束
     begin
       Items[AEndItemNo].DisSelect;  // 从前往后选，鼠标移动到前一次前面，原鼠标处被移出选中范围
@@ -1347,6 +1349,11 @@ begin
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
     end;
   end;
+
+  if FSelectSeekNo >= 0 then
+    FCurParaNo := Items[FSelectSeekNo].ParaNo
+  else
+    FCurParaNo := Items[SelectInfo.StartItemNo].ParaNo;
 
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
@@ -1773,6 +1780,11 @@ begin
   end;
 
   MatchItemSelectState;
+
+  {if FSelectSeekNo >= 0 then  // 需要吗？
+    FCurStyleNo := Items[FSelectSeekNo].StyleNo
+  else
+    FCurStyleNo := Items[SelectInfo.StartItemNo].StyleNo;}
 
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
@@ -3183,9 +3195,9 @@ var
           AOffset := AOffset - 1;
       end
       else
-      if AItemNo > 0 then  // 在最开头，往前一个最后
+      if AItemNo > 0 then  // 选在最开头，往前一个最后
       begin
-        Items[AItemNo].DisSelect;
+        //Items[AItemNo].DisSelect;  // 在Item最前面再次往前时，Item不取消选中
         AItemNo := AItemNo - 1;
         if Items[AItemNo].StyleNo < THCStyle.Null then
         begin
@@ -3195,11 +3207,19 @@ var
             AOffset := OffsetBefor;
         end
         else
-          AOffset := Items[AItemNo].Length - 1;  // 倒数第1个前面
+        begin
+          if Items[AItemNo].Length > 0 then
+            AOffset := Items[AItemNo].Length - 1  // 倒数第1个前面
+          else
+            AOffset := 0;
+        end;
       end;
 
       {$IFDEF UNPLACEHOLDERCHAR}
-      if (Items[AItemNo].StyleNo > THCStyle.Null) and IsUnPlaceHolderChar(Items[AItemNo].Text[AOffset + 1]) then
+      if (Items[AItemNo].StyleNo > THCStyle.Null)
+        and (Items[AItemNo].Length > 0)
+        and IsUnPlaceHolderChar(Items[AItemNo].Text[AOffset + 1])
+      then
         AOffset := GetItemActualOffset(AItemNo, AOffset) - 1;
       {$ENDIF}
     end;
@@ -3360,7 +3380,10 @@ var
               AOffset := OffsetAfter
           end
           else
-            AOffset := 1;
+          if Items[AItemNo].Length > 0 then
+            AOffset := 1
+          else
+            AOffset := 0;
         end;
       end
       else  // 不在最后

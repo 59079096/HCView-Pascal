@@ -6,7 +6,7 @@ uses
   Windows, SysUtils, Classes, Graphics, Controls, Messages, Forms, Dialogs, StdCtrls,
   ComCtrls, Menus, ImgList, ToolWin, XPMan, HCCommon, HCRichData, HCItem,
   HCCustomData, HCViewTool, HCParaStyle, HCTextStyle, ExtCtrls, ActnList,
-  HCPrinters, Clipbrd, HCRuler;
+  Printers, Clipbrd, HCRuler;
 
 type
   TfrmHCViewDemo = class(TForm)
@@ -509,7 +509,7 @@ begin
   try
     vPrintDlg.MaxPage := FHCView.PageCount;
     if vPrintDlg.Execute then
-      FHCView.Print(HCPrinter.Printers[HCPrinter.PrinterIndex]);
+      FHCView.Print(Printer.Printers[Printer.PrinterIndex]);
   finally
     FreeAndNil(vPrintDlg);
   end;

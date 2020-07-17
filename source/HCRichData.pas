@@ -93,6 +93,9 @@ type
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
+    procedure ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
+      const ANextWhenMid: Boolean = False); override;
+
     /// <summary> 是否接受指定的事件 </summary>
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; virtual;
     procedure DoDrawItemMouseMove(const AData: THCCustomData; const AItemNo, AOffset,
@@ -1849,6 +1852,8 @@ begin
   FMouseMoveItemOffset := -1;
   FMouseMoveDrawItemNo := -1;
   FMouseMoveRestrain := False;
+  FSelectSeekNo := -1;
+  FSelectSeekOffset := -1;
   FSelecting := False;
   FDraging := False;
 end;
@@ -2220,6 +2225,14 @@ begin
   end;
 end;
 
+procedure THCRichData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
+  const ANextWhenMid: Boolean = False);
+begin
+  inherited ReSetSelectAndCaret(AItemNo, AOffset, ANextWhenMid);
+  FSelectSeekNo := SelectInfo.StartItemNo;
+  FSelectSeekOffset := SelectInfo.StartItemOffset;
+end;
+
 function THCRichData.TableInsertRowAfter(const ARowCount: Byte): Boolean;
 begin
   if not CanEdit then Exit(False);
@@ -2388,7 +2401,7 @@ begin
 
         if Style.States.Contain(hosPasting) then  // 粘贴时使用光标位置样式
           vItem.ParaNo := vCaretParaNo
-        else
+        else  // 普通加载文件
           vItem.ParaNo := Style.GetParaNo(AStyle.ParaStyles[vItem.ParaNo], True);
       end
       else  // 无样式表

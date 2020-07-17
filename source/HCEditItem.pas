@@ -184,12 +184,18 @@ begin
 
   if not APaintInfo.Print then
   begin
+    if FReadOnly then
+    begin
+      ACanvas.Brush.Color := clBtnFace;
+      ACanvas.FillRect(ADrawRect);
+    end
+    else
     if Self.IsSelectComplate then
     begin
       ACanvas.Brush.Color := AStyle.SelColor;
       ACanvas.FillRect(ADrawRect);
-    end
-    else
+    end;
+
     if SelectTextExists then
     begin
       ACanvas.Brush.Color := AStyle.SelColor;

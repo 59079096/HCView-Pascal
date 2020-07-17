@@ -67,10 +67,11 @@ const
    3.8 浮动Item增加Lock属性用于锁定Item不可移动和修改
    3.9 域Item保存时存Level
    4.0 RadioGroup存储更多的属性，HCView存页码格式
+   4.1 Combobox增加Static属性控制只选不可编辑
   }
 
-  HC_FileVersion = '4.0';
-  HC_FileVersionInt = 40;
+  HC_FileVersion = '4.1';
+  HC_FileVersionInt = 41;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -132,6 +133,7 @@ type
   THCState = (hosLoading,  // 文档加载
               hosCopying,  // 复制
               hosPasting,  // 粘贴
+              hosDomainWholeReplace,  // 域整体替换
               hosUndoing,
               hosRedoing,
               hosBatchInsert,  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确

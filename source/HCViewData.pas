@@ -217,6 +217,18 @@ begin
     end;
   end;
 
+  // 域内容整体替换，如果域是单独的段，样式随插入内容
+  if Style.States.Contain(hosDomainWholeReplace) then
+  begin
+    // [ 是段首，紧接其后面插入非段首
+    if (not Items[AStartNo].ParaFirst) and (AStartNo > 0)  // 不是段首，不是Data第一个
+      and (Items[AStartNo - 1] is THCDomainItem) and (Items[AStartNo - 1].ParaFirst)
+    then
+      Items[AStartNo - 1].ParaNo := Items[AStartNo].ParaNo;
+
+    if IsParaLastItem(AEndNo + 1) and (Items[AEndNo + 1] is THCDomainItem) then
+      Items[AEndNo + 1].ParaNo := Items[AEndNo].ParaNo;
+  end;
 
   Exit;  // 目前的稳定性应该不会出现不匹配的问题了
   // 检查加载或粘贴等从流插入Items不匹配的域起始结束标识并删除

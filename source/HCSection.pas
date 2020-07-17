@@ -216,11 +216,6 @@ type
     function GetSectionDataAt(const X, Y: Integer): THCSectionData;
     function GetActiveArea: TSectionArea;
     procedure SetActiveData(const Value: THCSectionData);
-
-    /// <summary> 返回数据格式化AVertical位置在胶卷中的位置 </summary>
-    /// <param name="AVertical"></param>
-    /// <returns></returns>
-    function GetDataFmtTopFilm(const AVertical: Integer): Integer;
     function DoSectionDataAction(const AData: THCSectionData; const AAction: THCFunction): Boolean;
 
     property Style: THCStyle read FStyle;
@@ -242,6 +237,10 @@ type
     function GetTopLevelDrawItemCoord: TPoint;
 
     function GetTopLevelRectDrawItemCoord: TPoint;
+    /// <summary> 返回数据格式化AVertical位置在胶卷中的位置 </summary>
+    /// <param name="AVertical"></param>
+    /// <returns></returns>
+    function PageDataFormtToFilmCoord(const AVertical: Integer): Integer;
 
     /// <summary> 返回光标或选中结束位置所在页序号 </summary>
     function GetPageIndexByCurrent: Integer;
@@ -1280,7 +1279,7 @@ begin
   Result := FPage;
 end;
 
-function THCCustomSection.GetDataFmtTopFilm(const AVertical: Integer): Integer;
+function THCCustomSection.PageDataFormtToFilmCoord(const AVertical: Integer): Integer;
 var
   i, vTop, vPageHeight: Integer;
 begin

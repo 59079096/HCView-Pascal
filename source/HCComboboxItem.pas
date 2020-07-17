@@ -22,7 +22,7 @@ type
 
   THCComboboxItem = class(THCEditItem)
   private
-    FSaveItem: Boolean;
+    FSaveItem, FStatic: Boolean;
     FItems, FItemValues: TStrings;
     FItemIndex, FMoveItemIndex: Integer;
     FButtonRect, FButtonDrawRect: TRect;
@@ -52,6 +52,8 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
+    procedure KeyDown(var Key: Word; Shift: TShiftState); override;
+    procedure KeyPress(var Key: Char); override;
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure MouseLeave; override;
@@ -73,6 +75,7 @@ type
     property ItemIndex: Integer read FItemIndex write SetItemIndex;
     /// <summary> 是否保存选项 </summary>
     property SaveItem: Boolean read FSaveItem write FSaveItem;
+    property &Static: Boolean read FStatic write FStatic;
     property OnPopupItem: TNotifyEvent read FOnPopupItem write FOnPopupItem;
   end;
 
@@ -103,6 +106,7 @@ begin
   Width := 80;
   FPaddingRight := BTNWIDTH;
   FSaveItem := True;
+  FStatic := False;
   FItems := TStringList.Create;
   TStringList(FItems).OnChange := DoItemsChange;
 
@@ -373,10 +377,24 @@ begin
     Result := Rect(0, 0, FPopupForm.Width, FPopupForm.Height);
 end;
 
+procedure THCComboboxItem.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  if not FStatic then
+    inherited KeyDown(Key, Shift);
+end;
+
+procedure THCComboboxItem.KeyPress(var Key: Char);
+begin
+  if not FStatic then
+    inherited KeyPress(Key);
+end;
+
 function THCComboboxItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
-  if OwnerData.CanEdit and (Button = mbLeft) and PtInRect(FButtonRect, Point(X, Y)) then
+  if (not Self.ReadOnly) and OwnerData.CanEdit
+    and (Button = mbLeft) and PtInRect(FButtonRect, Point(X, Y))
+  then
   begin
     Result := True;
     DoPopup;
@@ -426,17 +444,29 @@ begin
     FItemValues.Clear;
 
   FSaveItem := ANode.Attributes['saveitem'] or (FItems.Count > 0);
+
+  if ANode.HasAttribute('static') then
+    FStatic := ANode.Attributes['static'];
 end;
 
 procedure THCComboboxItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
   vText: string;
+  vByte: Byte;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   if AFileVersion > 36 then
   begin
-    AStream.ReadBuffer(FSaveItem, SizeOf(FSaveItem));
+    if AFileVersion > 40 then
+    begin
+      AStream.ReadBuffer(vByte, SizeOf(vByte));
+      FStatic := Odd(vByte shr 7);
+      FSaveItem := Odd(vByte shr 6);
+    end
+    else
+      AStream.ReadBuffer(FSaveItem, SizeOf(FSaveItem));
+
     if FSaveItem then
     begin
       HCLoadTextFromStream(AStream, vText, AFileVersion); // 读Items
@@ -463,10 +493,20 @@ end;
 
 procedure THCComboboxItem.SaveToStream(const AStream: TStream; const AStart,
   AEnd: Integer);
+var
+  vByte: Byte;
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
 
-  AStream.WriteBuffer(FSaveItem, SizeOf(FSaveItem));
+  vByte := 0;
+  if FStatic then
+    vByte := vByte or (1 shl 7);
+
+  if FSaveItem then
+    vByte := vByte or (1 shl 6);
+
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
+
   if FSaveItem then  // 存Items
   begin
     HCSaveTextToStream(AStream, FItems.Text);
@@ -499,6 +539,9 @@ end;
 procedure THCComboboxItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
+
+  if FStatic then
+    ANode.Attributes['static'] := FStatic;
 
   ANode.Attributes['saveitem'] := FSaveItem;
   if FSaveItem then  // 存Items

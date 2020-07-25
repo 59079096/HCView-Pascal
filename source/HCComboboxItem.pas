@@ -154,19 +154,23 @@ begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
-  if APaintInfo.Print and Self.PrintOnlyText then Exit;
+  if not APaintInfo.Print then  // 非打印
+  begin
+    if IsSelectComplate then
+      ACanvas.Brush.Color := AStyle.SelColor
+    else
+    if FMouseInButton then
+      ACanvas.Brush.Color := clMenu
+    else
+      ACanvas.Brush.Color := clWindow;
 
-  if IsSelectComplate then
-    ACanvas.Brush.Color := AStyle.SelColor
-  else
-  if FMouseInButton then
-    ACanvas.Brush.Color := clMenu
-  else
-    ACanvas.Brush.Color := clWindow;
-
-  FButtonDrawRect := FButtonRect;
-  FButtonDrawRect.Offset(ADrawRect.Location);
-  ACanvas.FillRect(FButtonDrawRect);
+    FButtonDrawRect := FButtonRect;
+    FButtonDrawRect.Offset(ADrawRect.Location);
+    ACanvas.FillRect(FButtonDrawRect);
+  end
+  else  // 打印
+  if Self.PrintOnlyText then  // 只打印文本，不打按钮
+    Exit;
 
   ACanvas.Pen.Color := clBlack;
   vLeft := FButtonDrawRect.Left + (BTNWIDTH - 7) div 2;

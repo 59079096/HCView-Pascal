@@ -165,6 +165,9 @@ var
 begin
   inherited SaveToStream(AStream, AStart, AEnd);
   vS := SubString(AStart + 1, AEnd - AStart);
+  //if (vS = '') and (not Self.ParaFirst) then
+  //  raise Exception.Create(HCS_EXCEPTION_SAVENULLTEXT);
+
   //  DWORD大小不能用HCSaveTextToStream(AStream, vS);
   vBuffer := TEncoding.Unicode.GetBytes(vS);
   if System.Length(vBuffer) > HC_TEXTMAXSIZE then

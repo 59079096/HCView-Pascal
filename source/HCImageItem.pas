@@ -272,9 +272,11 @@ begin
         FreeAndNil(vStream);
       end;
       {$ELSE}
-      WICBitmap2Bitmap(FImage.Handle, vBitmap);
-      vBitmap.AlphaFormat := TAlphaFormat.afIgnored;
-      // 页眉最开始顶部是图片时，打印多页出现第一页丢失图片的问题，暂时没找到具体原因
+      vBitmap.SetSize(FImage.Width, FImage.Height);
+      //WICBitmap2Bitmap(FImage.Handle, vBitmap);  // 这样png的打印出来透明的变成黑色了
+      //vBitmap.AlphaFormat := TAlphaFormat.afIgnored;
+      vBitmap.Canvas.Draw(0, 0, FImage);
+      // 页眉最开始顶部是图片时，打印多页出现第一页丢失图片的问题，增加下面3行可以解决，暂时没找到具体原因
       ACanvas.Pen.Color := clWhite;
       ACanvas.Pen.Width := 1;
       ACanvas.Rectangle(ADrawRect);
@@ -400,7 +402,9 @@ begin
     {$IFNDEF BMPIMAGEITEM}
     vBmp := TBitmap.Create;
     try
-      WICBitmap2Bitmap(FImage.Handle, vBmp);
+      //WICBitmap2Bitmap(FImage.Handle, vBmp);  // 透明的显示背景黑色了
+      vBmp.SetSize(FImage.Width, FImage.Height);
+      vBmp.Canvas.Draw(0, 0, FImage);
     {$ENDIF}
 
       vBlendFunction.BlendOp := AC_SRC_OVER;

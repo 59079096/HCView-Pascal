@@ -442,8 +442,7 @@ begin
   SaveToStream(AStream, 0, Self.Length);
 end;
 
-procedure THCCustomItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCCustomItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vByte: Byte;
 begin

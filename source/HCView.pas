@@ -91,6 +91,7 @@ type
 
   TPaintEvent = procedure(const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   THCCopyPasteEvent = function(const AFormat: Word): Boolean of object;
+  THCLoadProc = reference to procedure(const AFileVersion: Word; const AStyle: THCStyle);
 
   THCView = class(TCustomControl)
   private
@@ -188,7 +189,7 @@ type
 
     function GetViewRect: TRect;
 
-    function GetPageIndexTop(const APageIndex: Integer): Integer;
+    function GetPageIndexFilmTop(const APageIndex: Integer): Integer;
     procedure DoPageUp(Sender: TObject);
     procedure DoPageDown(Sender: TObject);
 
@@ -333,6 +334,9 @@ type
 
     procedure WndProc(var Message: TMessage); override;
     //
+    procedure DataSaveLiteStream(const AStream: TStream; const AProc: THCProcedure);
+    procedure DataLoadLiteStream(const AStream: TStream; const AProc: THCLoadProc);
+
     procedure CalcScrollRang;
 
     /// <summary> 是否由滚动条位置变化引起的更新 </summary>
@@ -382,7 +386,7 @@ type
 
     /// <summary> 插入流 </summary>
     function InsertStream(const AStream: TStream): Boolean;
-
+    function InsertLiteStream(const AStream: TStream): Boolean;
     function AppendStream(const AStream: TStream): Boolean;
 
     /// <summary> 插入文本(可包括#13#10) </summary>
@@ -1093,20 +1097,22 @@ begin
       //if DoCopyAllow(HC_FILEFORMAT) then  为避免下面重复调用，牺牲掉此处判断
       vStream := TMemoryStream.Create;
       try
-        _SaveFileFormatAndVersion(vStream);  // 保存文件格式和版本
-        DoCopyAsStream(vStream);  // 通知保存事件
-        //DeleteUnUsedStyle(FStyle, FSections);  // 删除不使用的样式 大文档有点耗时
-        FStyle.SaveToStream(vStream);
-        Self.ActiveSectionTopLevelData.SaveSelectToStream(vStream);
-        vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
-        try
-          if vMem = 0 then
-            raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
-          vPtr := GlobalLock(vMem);
-          Move(vStream.Memory^, vPtr^, vStream.Size);
-        finally
-          GlobalUnlock(vMem);
-        end;
+        DoCopyAsStream(vStream);  // 通知保存事件，便于加特征
+
+        DataSaveLiteStream(vStream, procedure()
+        begin
+          Self.ActiveSectionTopLevelData.SaveSelectToStream(vStream);
+          vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
+          try
+            if vMem = 0 then
+              raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
+
+            vPtr := GlobalLock(vMem);
+            Move(vStream.Memory^, vPtr^, vStream.Size);
+          finally
+            GlobalUnlock(vMem);
+          end;
+        end);
       finally
         vStream.Free;
       end;
@@ -1202,6 +1208,31 @@ procedure THCView.Cut;
 begin
   Copy;
   ActiveSection.DeleteSelected;
+end;
+
+procedure THCView.DataLoadLiteStream(const AStream: TStream; const AProc: THCLoadProc);
+var
+  vFileFormat: string;
+  vFileVersion: Word;
+  vLang: Byte;
+  vStyle: THCStyle;
+begin
+  _LoadFileFormatAndVersion(AStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
+  vStyle := THCStyle.Create;
+  try
+    vStyle.LoadFromStream(AStream, vFileVersion);
+    AProc(vFileVersion, vStyle);
+  finally
+    FreeAndNil(vStyle);
+  end;
+end;
+
+procedure THCView.DataSaveLiteStream(const AStream: TStream; const AProc: THCProcedure);
+begin
+  _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
+  //_DeleteUnUsedStyle;  // 删除不使用的样式
+  FStyle.SaveToStream(AStream);
+  AProc;
 end;
 
 procedure THCView.DeleteActiveDataItems(const AStartNo: Integer;
@@ -1540,7 +1571,7 @@ var
 begin
   vPageIndex := GetPagePreviewFirst;
   if vPageIndex < GetPageCount - 1 then
-    FVScrollBar.Position := GetPageIndexTop(vPageIndex + 1);
+    FVScrollBar.Position := GetPageIndexFilmTop(vPageIndex + 1);
 end;
 
 procedure THCView.DoPageUp(Sender: TObject);
@@ -1549,7 +1580,7 @@ var
 begin
   vPageIndex := GetPagePreviewFirst;
   if vPageIndex > 0 then
-    FVScrollBar.Position := GetPageIndexTop(vPageIndex - 1);
+    FVScrollBar.Position := GetPageIndexFilmTop(vPageIndex - 1);
 end;
 
 procedure THCView.DoPaintViewAfter(const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -2222,6 +2253,23 @@ end;
 function THCView.InsertLine(const ALineHeight: Integer): Boolean;
 begin
   Result := ActiveSection.InsertLine(ALineHeight);
+end;
+
+function THCView.InsertLiteStream(const AStream: TStream): Boolean;
+var
+  vResult: Boolean;
+begin
+  Result := False;
+  DataLoadLiteStream(AStream, procedure(const AFileVersion: Word; const AStyle: THCStyle)
+  begin
+    Self.BeginUpdate;
+    try
+      vResult := ActiveSection.InsertStream(AStream, AStyle, AFileVersion);
+    finally
+      Self.EndUpdate;
+    end;
+  end);
+  Result := vResult;
 end;
 
 function THCView.InsertPageBreak: Boolean;
@@ -2906,7 +2954,7 @@ begin
     Result := Result + FSections[i].PageCount;
 end;
 
-function THCView.GetPageIndexTop(const APageIndex: Integer): Integer;
+function THCView.GetPageIndexFilmTop(const APageIndex: Integer): Integer;
 var
   vSectionIndex, vPageIndex: Integer;
 begin
@@ -3083,10 +3131,6 @@ var
   vMem: Cardinal;
   vPtr: Pointer;
   vSize: Integer;
-  vFileFormat: string;
-  vFileVersion: Word;
-  vLang: Byte;
-  vStyle: THCStyle;
 begin
   FStyle.States.Include(hosPasting);
   try
@@ -3107,21 +3151,8 @@ begin
         end;
         //
         vStream.Position := 0;
-        _LoadFileFormatAndVersion(vStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
         if not DoPasteFromStream(vStream) then Exit;
-
-        vStyle := THCStyle.Create;
-        try
-          vStyle.LoadFromStream(vStream, vFileVersion);
-          Self.BeginUpdate;
-          try
-            ActiveSection.InsertStream(vStream, vStyle, vFileVersion);
-          finally
-            Self.EndUpdate;
-          end;
-        finally
-          FreeAndNil(vStyle);
-        end;
+        InsertLiteStream(vStream);
       finally
         vStream.Free;
       end;

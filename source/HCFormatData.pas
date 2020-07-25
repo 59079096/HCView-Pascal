@@ -310,10 +310,11 @@ var
   vParaStyle: THCParaStyle;
 
   {$REGION 'FinishLine'}
-  /// <summary> 重整行 </summary>
-  /// <param name="AEndDItemNo">行最后一个DItem</param>
+  /// <summary> 重整行，处理水平对齐 </summary>
+  /// <param name="ALineEndDItemNo">行最后一个DItem</param>
   /// <param name="ARemWidth">行剩余宽度</param>
-  procedure FinishLine(const ALineEndDItemNo, ARemWidth: Integer);
+  /// <returns>True表示行中有可显示的DrawItem，False表示行中全部隐藏了(现在还没有使用)</returns>
+  function FinishLine(const ALineEndDItemNo, ARemWidth: Integer): Boolean;
   var
     i, vLineBegDItemNo,  // 行第一个DItem
     vMaxBottom,
@@ -337,6 +338,23 @@ var
       end;
     end;
     Assert((vLineBegDItemNo >= 0), '断言失败：行起始DrawItemNo小于0！');
+
+    { 找行中第一个不隐藏的 }
+    vMaxBottom := -1;  // 借用变量
+    for i := vLineBegDItemNo to ALineEndDItemNo do
+    begin
+      if Items[DrawItems[i].ItemNo].Visible then
+      begin
+        vMaxBottom := i;
+        Break;
+      end;
+    end;
+
+    Result := vMaxBottom >= 0;  // 行中没有全部隐藏了
+    if not Result then Exit;  // 行中全隐藏了
+
+    vLineBegDItemNo := vMaxBottom;
+
     // 找行DrawItem中最高的
     vMaxBottom := DrawItems[ALineEndDItemNo].Rect.Bottom;  // 先默认行最后一个DItem的Rect底位置最大
     for i := ALineEndDItemNo - 1 downto vLineBegDItemNo do
@@ -394,6 +412,9 @@ var
           SetLength(vDrawItemSplitCounts, ALineEndDItemNo - vLineBegDItemNo + 1);
           for i := vLineBegDItemNo to ALineEndDItemNo do  // 计算空余分给几个DrawItem
           begin
+            if not Items[DrawItems[i].ItemNo].Visible then
+              Continue;
+
             if GetDrawItemStyle(i) < THCStyle.Null then  // RectItem  相互关联 201903261121
             begin
               if (Items[DrawItems[i].ItemNo] as THCCustomRectItem).JustifySplit
@@ -449,6 +470,13 @@ var
 
           for i := vLineBegDItemNo + 1 to ALineEndDItemNo do  // 以第一个为基准，其余各DrawItem增加的空间
           begin
+            if not Items[DrawItems[i].ItemNo].Visible then
+            begin
+              DrawItems[i].Rect.Left := DrawItems[i - 1].Rect.Right;
+              DrawItems[i].Rect.Right := DrawItems[i].Rect.Left;
+              Continue;
+            end;
+
             vW := DrawItems[i].Width;  // DrawItem原来Width
             if vDrawItemSplitCounts[i - vLineBegDItemNo] > 0 then  // 有分到间距
             begin
@@ -880,7 +908,7 @@ var
   i, vIndex, viBase, viLen: Integer;
   vCharWArr: array of Integer;  // 每个字符绘制结束位置
 begin
-  if not Items[AItemNo].Visible then Exit;
+  //if not Items[AItemNo].Visible then Exit; 什么时候需要呢？
 
   vRemainderWidth := 0;
   vItem := Items[AItemNo];

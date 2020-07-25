@@ -31,7 +31,7 @@ type
     FHotDomain,  // 当前高亮域
     FActiveDomain  // 当前激活域
       : THCDomainInfo;
-
+    FDomainCount: Integer;
     FHotDomainRGN, FActiveDomainRGN: HRGN;
     FOnCreateItemByStyle: TStyleItemEvent;
     FOnCanEdit: TOnCanEditEvent;
@@ -46,7 +46,8 @@ type
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; override;
     procedure DoCaretItemChanged; override;
-
+    procedure DoInsertItem(const AItem: THCCustomItem); override;
+    procedure DoRemoveItem(const AItem: THCCustomItem); override;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
@@ -124,6 +125,7 @@ type
 
     property HotDomain: THCDomainInfo read FHotDomain;
     property ActiveDomain: THCDomainInfo read FActiveDomain;
+    property DomainCount: Integer read FDomainCount;
     property OnCreateItemByStyle: TStyleItemEvent read FOnCreateItemByStyle write FOnCreateItemByStyle;
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnInsertTextBefor: TTextEvent read FOnInsertTextBefor write FOnInsertTextBefor;
@@ -300,6 +302,7 @@ end;
 
 constructor THCViewData.Create(const AStyle: THCStyle);
 begin
+  FDomainCount := 0;
   FCaretItemChanged := False;
   FDomainStartDeletes := THCIntegerList.Create;
   FHotDomain := THCDomainInfo.Create;
@@ -446,6 +449,15 @@ begin
     Result := True;
 end;
 
+procedure THCViewData.DoRemoveItem(const AItem: THCCustomItem);
+begin
+  if THCDomainItem.IsBeginMark(AItem) then
+    Dec(FDomainCount);
+
+  FHotDomain.Clear;
+  inherited DoRemoveItem(AItem);
+end;
+
 procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
   const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -556,6 +568,15 @@ begin
       end;
     end;
   end;
+end;
+
+procedure THCViewData.DoInsertItem(const AItem: THCCustomItem);
+begin
+  if THCDomainItem.IsBeginMark(AItem) then
+    Inc(FDomainCount);
+
+  FHotDomain.Clear;
+  inherited DoInsertItem(AItem);
 end;
 
 function THCViewData.DoInsertTextBefor(const AItemNo, AOffset: Integer; const AText: string): Boolean;
@@ -833,7 +854,10 @@ begin
       if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then  // 原来有信息(处理未通过鼠标点击移动光标时没有清除)
         vRePaint := True;
 
-      GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, FActiveDomain);  // 获取当前光标处ActiveDeGroup信息
+      if FDomainCount > 0 then
+        GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, FActiveDomain)  // 获取当前光标处ActiveDeGroup信息
+      else
+        FActiveDomain.Clear;
 
       if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then
         vRePaint := True;
@@ -961,7 +985,11 @@ begin
   inherited MouseMove(Shift, X, Y);
   //if not Self.MouseMoveRestrain then  // 实时判断鼠标处的域
   begin
-    Self.GetDomainFrom(Self.MouseMoveItemNo, Self.MouseMoveItemOffset, FHotDomain);  // 取HotDeGroup
+    if FDomainCount > 0 then
+      Self.GetDomainFrom(Self.MouseMoveItemNo, Self.MouseMoveItemOffset, FHotDomain)  // 取HotDeGroup
+    else
+      FHotDomain.Clear;
+
     vTopData := Self.GetTopLevelDataAt(X, Y) as THCViewData;
     if (vTopData = Self) or (vTopData.HotDomain.BeginNo < 0) then  // 顶层是我 或 顶层不是我且顶层没有HotDeGroup  201711281352
     begin
@@ -1239,10 +1267,20 @@ begin
     vOffset := 0;
   end
   else
-  if Self.SelectInfo.EndItemNo >= 0 then
+  if Self.SelectInfo.EndItemNo >= 0 then  // 有选中根据查找方向决定从哪里开始
   begin
-    vItemNo := Self.SelectInfo.EndItemNo;
-    vOffset := Self.SelectInfo.EndItemOffset;
+    if AForward then
+    begin
+      vItemNo := Self.SelectInfo.StartItemNo;
+      vOffset := Self.SelectInfo.StartItemOffset;
+    end
+    else
+    begin
+      vItemNo := Self.SelectInfo.EndItemNo;
+      vOffset := Self.SelectInfo.EndItemOffset;
+    end;
+
+    DisSelect;  // 清除原来的选中状态
   end
   else
   begin
@@ -1284,14 +1322,22 @@ begin
     begin
       if not AForward then  // 向后找
       begin
-        Self.SelectInfo.StartItemNo := Self.SelectInfo.EndItemNo;
-        Self.SelectInfo.StartItemOffset := Self.SelectInfo.EndItemOffset;
+        vItemNo := Self.SelectInfo.EndItemNo;
+        vOffset := Self.SelectInfo.EndItemOffset;
+      end
+      else
+      begin
+        vItemNo := Self.SelectInfo.StartItemNo;
+        vOffset := Self.SelectInfo.StartItemOffset;
       end;
 
-      Self.SelectInfo.EndItemNo := -1;
-      Self.SelectInfo.EndItemOffset := -1;
+      DisSelect;  // 清除最后找到选中状态
+      Self.SelectInfo.StartItemNo := vItemNo;
+      Self.SelectInfo.StartItemOffset := vOffset;
     end;
-  end;
+  end
+  else
+    MatchItemSelectState;
 
   Self.Style.UpdateInfoRePaint;
   Self.Style.UpdateInfoReCaret;

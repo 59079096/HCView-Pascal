@@ -371,7 +371,7 @@ var
 begin
   if (AStartNo < 0) or (AStartNo > Items.Count - 1) then Exit;
 
-  vActiveItem := Items[AStartNo];
+  vActiveItem := Self.GetActiveItem;
 
   if (vActiveItem.StyleNo < THCStyle.Null)  // 当前位置是 RectItem
     and (SelectInfo.StartItemOffset = OffsetInner)  // 在其上输入内容
@@ -2291,6 +2291,8 @@ var
   vDataSize: Int64;
 begin
   Result := False;
+  AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));  // 先试探有没有数据
+  if vDataSize = 0 then Exit;
 
   if not CanEdit then Exit;
   if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actInsertItem) then Exit;  // TextItem此偏移位置不可接受输入
@@ -2323,6 +2325,7 @@ begin
           else
             UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
+          AStream.Position := AStream.Position - SizeOf(vDataSize);  // 纠正上面试探增加的偏移
           Result := (Items[vInsPos] as THCCustomRectItem).InsertStream(AStream, AStyle, AFileVersion);
           ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
@@ -2356,9 +2359,6 @@ begin
         end;
       end;
     end;
-
-    AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
-    if vDataSize = 0 then Exit;
 
     AStream.ReadBuffer(vItemCount, SizeOf(vItemCount));
     if vItemCount = 0 then Exit;

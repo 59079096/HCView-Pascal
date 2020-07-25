@@ -507,7 +507,7 @@ var
 begin
   vPrintDlg := TPrintDialog.Create(nil);
   try
-    vPrintDlg.MaxPage := FHCView.PageCount;
+    //vPrintDlg.MaxPage := FHCView.PageCount;  // pdf虚拟打印机不支持这个属性
     if vPrintDlg.Execute then
       FHCView.Print(Printer.Printers[Printer.PrinterIndex]);
   finally

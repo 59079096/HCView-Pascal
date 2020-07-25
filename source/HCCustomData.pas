@@ -92,7 +92,7 @@ type
     FOnCurParaNoChange: TNotifyEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
-
+    procedure DoRemoveItem_(const AItem: THCCustomItem);
     procedure DrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -752,7 +752,7 @@ begin
   FDrawItems := THCDrawItems.Create;
   FItems := THCItems.Create;
   FItems.OnInsertItem := DoInsertItem;
-  FItems.OnRemoveItem := DoRemoveItem;
+  FItems.OnRemoveItem := DoRemoveItem_;
 
   FLoading := False;
   FCurStyleNo := 0;
@@ -896,8 +896,14 @@ end;
 
 procedure THCCustomData.DoRemoveItem(const AItem: THCCustomItem);
 begin
-  if Assigned(FOnRemoveItem) and (not FStyle.States.Contain(THCState.hosDestroying)) then
+  if Assigned(FOnRemoveItem) then
     FOnRemoveItem(Self, AItem);
+end;
+
+procedure THCCustomData.DoRemoveItem_(const AItem: THCCustomItem);
+begin
+  if not FStyle.States.Contain(THCState.hosDestroying) then
+    DoRemoveItem(AItem);
 end;
 
 function THCCustomData.DoSaveItem(const AItemNo: Integer): Boolean;
@@ -2252,6 +2258,9 @@ begin
     begin
       vDrawItem := FDrawItems[i];
       vItem := FItems[vDrawItem.ItemNo];
+      if not vItem.Visible then
+        Continue;
+
       vDrawRect := vDrawItem.Rect;
       OffsetRect(vDrawRect, ADataDrawLeft, vVOffset);  // 偏移到指定的画布绘制位置(SectionData时为页数据在格式化中可显示起始位置)
 
@@ -2298,7 +2307,7 @@ begin
         DrawItemPaintContent(Self, vDrawItem.ItemNo, i, vDrawRect, vClearRect, '', ADataDrawLeft,
           ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
-        if vRectItem.IsSelectComplate then  // 选中背景区域
+        if not APaintInfo.Print and vRectItem.IsSelectComplate then  // 选中背景区域
         begin
           ACanvas.Brush.Color := FStyle.SelColor;
           ACanvas.FillRect(vDrawRect);
@@ -2662,6 +2671,8 @@ begin
 end;
 
 procedure THCCustomData.SaveSelectToStream(const AStream: TStream);
+var
+  vBegPos: Int64;
 begin
   if SelectExists then
   begin
@@ -2682,6 +2693,11 @@ begin
       Self.SaveToStream(AStream, FSelectInfo.StartItemNo, FSelectInfo.StartItemOffset,
         FSelectInfo.EndItemNo, FSelectInfo.EndItemOffset);
     end;
+  end
+  else
+  begin
+    vBegPos := 0;
+    AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));
   end;
 end;
 

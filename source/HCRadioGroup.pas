@@ -176,6 +176,9 @@ begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
+  if APaintInfo.Print then
+
+  else
   if Self.IsSelectComplate then
   begin
     ACanvas.Brush.Color := AStyle.SelColor;

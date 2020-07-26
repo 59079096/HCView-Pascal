@@ -580,7 +580,9 @@ var
   {$ENDREGION}
 
 var
-  i, vFormatFirstDrawItemNo: Integer;
+  i, vFormatFirstDrawItemNo,
+  vUnDeleteItemNo  // 最前一个不能删除的删除选中完成后在"哪里"
+    : Integer;
   vText: string;
   vSelectSeekStart,   // 选中范围游标在选中起始
   vSelStartComplate,  // 选中范围内的起始Item全选中了
@@ -713,7 +715,9 @@ begin
             Items.Delete(SelectInfo.EndItemNo);
             vEndDel := True;
             Inc(vDelCount);
-          end;
+          end
+          else
+            vUnDeleteItemNo := SelectInfo.EndItemNo;
         end
         else
         if SelectInfo.EndItemOffset = OffsetInner then  // 在其上
@@ -729,7 +733,9 @@ begin
             Items.Delete(SelectInfo.EndItemNo);
             vEndDel := True;
             Inc(vDelCount);
-          end;
+          end
+          else
+            vUnDeleteItemNo := SelectInfo.EndItemNo;
         end
         else  // 文本且不在选中结束Item最后
         if DoAcceptAction(SelectInfo.EndItemNo, SelectInfo.EndItemOffset, THCAction.actBackDeleteText) then
@@ -739,7 +745,9 @@ begin
           vText := (vEndItem as THCTextItem).SubString(SelectInfo.EndItemOffset + 1,
             vEndItem.Length - SelectInfo.EndItemOffset);
           vEndItem.Text := vText;
-        end;
+        end
+        else
+          vUnDeleteItemNo := SelectInfo.EndItemNo;
       end;
 
       // 删除选中起始Item下一个到结束Item上一个
@@ -751,7 +759,10 @@ begin
           Items.Delete(i);
 
           Inc(vDelCount);
-        end;
+          Dec(vUnDeleteItemNo);
+        end
+        else
+          vUnDeleteItemNo := i;
       end;
 
       vStartItem := Items[SelectInfo.StartItemNo];  // 选中起始Item
@@ -765,13 +776,16 @@ begin
             Items.Delete(SelectInfo.StartItemNo);
             vStartDel := True;
             Inc(vDelCount);
-          end;
-
+            Dec(vUnDeleteItemNo);
+          end
+          else
+            vUnDeleteItemNo := SelectInfo.StartItemNo;
+          {  影响后面 2020072601 专门对起始删除后位置的处理
           if SelectInfo.StartItemNo > vFormatFirstItemNo then
           begin
             SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
             SelectInfo.StartItemOffset := GetItemOffsetAfter(SelectInfo.StartItemNo);
-          end;
+          end;}
         end
         else
         if SelectInfo.StartItemOffset = OffsetInner then  // 在其上
@@ -787,7 +801,10 @@ begin
             Items.Delete(SelectInfo.StartItemNo);
             vStartDel := True;
             Inc(vDelCount);
-          end;
+            Dec(vUnDeleteItemNo);
+          end
+          else
+            vUnDeleteItemNo := SelectInfo.StartItemNo;
         end
         else
         //if SelectInfo.StartItemOffset < vStartItem.Length then  // 在中间(不用判断了吧？)
@@ -797,9 +814,12 @@ begin
             Copy(vStartItem.Text, SelectInfo.StartItemOffset + 1, vStartItem.Length - SelectInfo.StartItemOffset));
           vText := (vStartItem as THCTextItem).SubString(1, SelectInfo.StartItemOffset);
           vStartItem.Text := vText;  // 起始留下的内容
-        end;
+        end
+        else
+          vUnDeleteItemNo := SelectInfo.StartItemNo;
       end;
 
+      // 处理起始删除后当前位置 2020072601
       //if vSelStartComplate and vSelEndComplate then
       if SelectInfo.EndItemNo - SelectInfo.StartItemNo + 1 = vDelCount then  // 选中的Item都删除完
       begin
@@ -854,10 +874,10 @@ begin
       begin
         if vStartDel then  // 起始删除完了
         begin
-          if Items[SelectInfo.EndItemNo - vDelCount].ParaFirst <> vSelStartParaFirst then
+          if Items[vUnDeleteItemNo].ParaFirst <> vSelStartParaFirst then
           begin
-            UndoAction_ItemParaFirst(SelectInfo.EndItemNo - vDelCount, 0, vSelStartParaFirst);
-            Items[SelectInfo.EndItemNo - vDelCount].ParaFirst := vSelStartParaFirst;
+            UndoAction_ItemParaFirst(vUnDeleteItemNo, 0, vSelStartParaFirst);
+            Items[vUnDeleteItemNo].ParaFirst := vSelStartParaFirst;
           end;
         end
         else

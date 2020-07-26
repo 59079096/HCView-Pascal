@@ -68,10 +68,11 @@ const
    3.9 域Item保存时存Level
    4.0 RadioGroup存储更多的属性，HCView存页码格式
    4.1 Combobox增加Static属性控制只选不可编辑
+   4.2 Section存属性信息
   }
 
-  HC_FileVersion = '4.1';
-  HC_FileVersionInt = 41;
+  HC_FileVersion = '4.2';
+  HC_FileVersionInt = 42;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;

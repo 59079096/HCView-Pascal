@@ -218,6 +218,9 @@ type
     procedure SetActiveData(const Value: THCSectionData);
     function DoSectionDataAction(const AData: THCSectionData; const AAction: THCFunction): Boolean;
 
+    procedure DoSaveToStream(const AStream: TStream); virtual;
+    procedure DoLoadFromStream(const AStream: TStream; const AFileVersion: Word); virtual;
+
     property Style: THCStyle read FStyle;
   public
     constructor Create(const AStyle: THCStyle);
@@ -381,10 +384,10 @@ type
     procedure MarkStyleUsed(const AMark: Boolean;
       const AParts: TSectionAreas = [saHeader, saPage, saFooter]);
     procedure SaveToStream(const AStream: TStream;
-      const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]);
+      const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]); virtual;
     function SaveToText: string;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word);
+      const AFileVersion: Word); virtual;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean;
     procedure FormatData;
@@ -476,7 +479,14 @@ type
   end;
 
   THCSection = class(THCCustomSection)
+  private
+    FPropertys: TStringList;
+  protected
+    procedure DoSaveToStream(const AStream: TStream); override;
+    procedure DoLoadFromStream(const AStream: TStream; const AFileVersion: Word); override;
   public
+    constructor Create(const AStyle: THCStyle);
+    destructor Destroy; override;
     procedure AssignPaper(const ASource: THCCustomSection);
     /// <summary> 当前位置开始查找指定的内容 </summary>
     /// <param name="AKeyword">要查找的关键字</param>
@@ -491,6 +501,8 @@ type
     function ToHtml(const APath: string): string;
     procedure ToXml(const ANode: IHCXMLNode);
     procedure ParseXml(const ANode: IHCXMLNode);
+
+    property Propertys: TStringList read FPropertys;
   end;
 
 implementation
@@ -1077,6 +1089,10 @@ begin
     Result := FOnGetScreenCoord(X, Y);
 end;
 
+procedure THCCustomSection.DoLoadFromStream(const AStream: TStream; const AFileVersion: Word);
+begin
+end;
+
 function THCCustomSection.DoDataGetUndoList: THCUndoList;
 begin
   if Assigned(FOnGetUndoList) then
@@ -1653,6 +1669,10 @@ begin
     end);
 end;
 
+procedure THCCustomSection.DoSaveToStream(const AStream: TStream);
+begin
+end;
+
 function THCCustomSection.DoSectionDataAction(const AData: THCSectionData; const AAction: THCFunction): Boolean;
 begin
   if not AData.CanEdit then Exit(False);
@@ -1777,6 +1797,8 @@ var
   vLoadParts: TSectionAreas;
 begin
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
+  if AFileVersion > 41 then
+    DoLoadFromStream(AStream, AFileVersion);
 
   AStream.ReadBuffer(FSymmetryMargin, SizeOf(FSymmetryMargin));  // 是否对称页边距
 
@@ -2890,6 +2912,7 @@ begin
   vBegPos := AStream.Position;
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位，便于越过
   //
+  DoSaveToStream(AStream);
   if ASaveParts <> [] then
   begin
     AStream.WriteBuffer(FSymmetryMargin, SizeOf(FSymmetryMargin));  // 是否对称页边距
@@ -3056,6 +3079,33 @@ begin
   Self.HeaderOffset := ASource.HeaderOffset;
 end;
 
+constructor THCSection.Create(const AStyle: THCStyle);
+begin
+  inherited Create(AStyle);
+  FPropertys := TStringList.Create;
+end;
+
+destructor THCSection.Destroy;
+begin
+  FreeAndNil(FPropertys);
+  inherited Destroy;
+end;
+
+procedure THCSection.DoLoadFromStream(const AStream: TStream; const AFileVersion: Word);
+var
+  vS: string;
+begin
+  inherited DoLoadFromStream(AStream, AFileVersion);
+  HCLoadTextFromStream(AStream, vS, AFileVersion);
+  FPropertys.Text := vS;
+end;
+
+procedure THCSection.DoSaveToStream(const AStream: TStream);
+begin
+  inherited DoSaveToStream(AStream);
+  HCSaveTextToStream(AStream, FPropertys.Text);
+end;
+
 function THCSection.InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 begin
   if not FActiveData.CanEdit then Exit(False);
@@ -3124,6 +3174,9 @@ begin
   GetXmlPaper_;
   GetXmlPaperMargin_;
 
+  if ANode.HasAttribute('property') then
+    FPropertys.Text := GetXmlRN(ANode.Attributes['property']);
+
   FPage.Width := GetPageWidth;
 
   for i := 0 to ANode.ChildNodes.Count - 1 do
@@ -3185,6 +3238,9 @@ begin
     + FormatFloat('0.#', FPaper.MarginTop) + ','
     + FormatFloat('0.#', FPaper.MarginRight) + ','
     + FormatFloat('0.#', FPaper.MarginBottom);
+
+  if FPropertys.Text <> '' then
+    ANode.Attributes['property'] := FPropertys.Text;
 
   // 存页眉
   vNode := ANode.AddChild('header');

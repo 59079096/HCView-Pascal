@@ -55,6 +55,7 @@ type
     /// <summary> »Ö¸´µ½Ô­Ê¼³ß´ç </summary>
     procedure RecoverOrigianlSize;
     property Image: {$IFDEF BMPIMAGEITEM} TBitmap {$ELSE} TWICImage {$ENDIF} read FImage;
+    property Empty: Boolean read FEmpty;
     property ShapeManager: THCShapeManager read FShapeManager;
   end;
 

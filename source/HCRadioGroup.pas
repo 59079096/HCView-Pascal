@@ -59,7 +59,6 @@ type
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure MouseEnter; override;
     procedure MouseLeave; override;
-    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     function GetOffsetAt(const X: Integer): Integer; override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
@@ -298,12 +297,6 @@ begin
     Width := FMinWidth;
   if Height < FMinHeight then
     Height := FMinHeight;
-end;
-
-procedure THCRadioGroup.GetCaretInfo(var ACaretInfo: THCCaretInfo);
-begin
-  if Self.Active then
-    ACaretInfo.Visible := False;
 end;
 
 function THCRadioGroup.GetItemAt(const X, Y: Integer): Integer;

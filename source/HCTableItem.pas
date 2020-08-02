@@ -2139,7 +2139,7 @@ begin
   begin
     if FMouseLBDowning or (Shift = [ssLeft]) then  // 左键按下移动，按下时在表格上 or 没有在表格上按下(划选进入)
     begin
-      if FDraging or OwnerData.Style.UpdateInfo.Draging then
+      if FDraging or OwnerData.Style.UpdateInfo.DragingSelected then
       begin
         FMouseMoveRow := vMoveRow;
         FMouseMoveCol := vMoveCol;
@@ -2210,7 +2210,7 @@ begin
       GCursor := crVSplit;
   end;
 
-  if OwnerData.Style.UpdateInfo.Draging then
+  if OwnerData.Style.UpdateInfo.DragingSelected then
     FSelectCellRang.SetStart(FMouseMoveRow, FMouseMoveCol);
 end;
 
@@ -2335,7 +2335,7 @@ begin
     end;
   end
   else
-  if FDraging or OwnerData.Style.UpdateInfo.Draging then  // 拖拽弹起
+  if FDraging or OwnerData.Style.UpdateInfo.DragingSelected then  // 拖拽弹起
   begin
     FDraging := False;
 
@@ -5383,7 +5383,7 @@ var
   vPos: TPoint;
   vCaretCell: THCTableCell;
 begin
-  if OwnerData.Style.UpdateInfo.Draging then  // 拖拽
+  if OwnerData.Style.UpdateInfo.DragingSelected then  // 拖拽
   begin
     vRow := FMouseMoveRow;
     vCol := FMouseMoveCol;
@@ -5438,7 +5438,7 @@ begin
   else
     vCaretCell := FRows[vRow][vCol];
 
-  if OwnerData.Style.UpdateInfo.Draging then  // 拖拽
+  if OwnerData.Style.UpdateInfo.DragingSelected then  // 拖拽
   begin
     if (vCaretCell.CellData.MouseMoveItemNo < 0)
       or (vCaretCell.CellData.MouseMoveItemOffset < 0)

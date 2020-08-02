@@ -528,9 +528,17 @@ var
 begin
   inherited GetCaretInfo(AItemNo, AOffset, ACaretInfo);
 
+  if (not Style.UpdateInfo.DragingSelected) and SelectExists then  // 非拖拽，有选中
+  begin
+    if SelectInSameItem and (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null) then  // RectItem由自己处理了光标显示与否
+
+    else
+      ACaretInfo.Visible := False;
+  end;
+
   if CaretDrawItemNo < 0 then
   begin
-    if Style.UpdateInfo.Draging then
+    if Style.UpdateInfo.DragingSelected then
       vCaretDrawItemNo := GetDrawItemNoByOffset(Self.MouseMoveItemNo, Self.MouseMoveItemOffset)
     else
       vCaretDrawItemNo := GetDrawItemNoByOffset(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
@@ -538,7 +546,7 @@ begin
   else
     vCaretDrawItemNo := CaretDrawItemNo;
 
-  if Style.UpdateInfo.Draging then
+  if Style.UpdateInfo.DragingSelected then
   begin
     vDataAnnotate := GetDrawItemFirstDataAnnotateAt(vCaretDrawItemNo,
       GetDrawItemOffsetWidth(vCaretDrawItemNo,

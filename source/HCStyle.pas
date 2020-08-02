@@ -28,7 +28,7 @@ type
     ReStyle,  // 重新计算光标时获取光标处样式
     ReScroll,  // 滚动到光标位置
     Selecting,  // 全局划选标识
-    Draging  // 全局拖拽标识
+    DragingSelected  // 全局拖拽选中内容标识
       : Boolean;
     constructor Create;
   end;
@@ -499,7 +499,7 @@ begin
   RePaint := False;
   ReCaret := False;
   ReStyle := False;
-  Draging := False;
+  DragingSelected := False;
 end;
 
 { THCStates }

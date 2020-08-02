@@ -67,7 +67,7 @@ type
   TDataActionEvent = function(const AData: THCCustomData; const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean of object;
 
   TDrawItemPaintEvent = procedure(const AData: THCCustomData;
-    const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+    const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
     ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
     const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
 
@@ -94,10 +94,10 @@ type
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     procedure DoRemoveItem_(const AItem: THCCustomItem);
     procedure DrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure DrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure DrawItemPaintContent(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string; const ADataDrawLeft,
@@ -161,14 +161,14 @@ type
     procedure DoRemoveItem(const AItem: THCCustomItem); virtual;
     procedure DoItemAction(const AItemNo, AOffset: Integer; const AAction: THCAction); virtual;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoDrawItemPaintContent(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
       const ADrawRect, AClearRect: TRect; const ADrawText: string; const ADataDrawLeft, ADataDrawRight,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer; const ACanvas: TCanvas;
       const APaintInfo: TPaintInfo); virtual;
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
@@ -339,6 +339,10 @@ type
     /// <summary> 获取选中内容是否在同一个DrawItem中 </summary>
     /// <returns></returns>
     function SelectInSameDrawItem: Boolean;
+
+    /// <summary> 获取选中内容是否在同一个Item中 </summary>
+    /// <returns></returns>
+    function SelectInSameItem: Boolean;
 
     /// <summary> 取消选中 </summary>
     /// <returns>取消时当前是否有选中，True：有选中；False：无选中</returns>
@@ -838,25 +842,25 @@ begin
 end;
 
 procedure THCCustomData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintAfter) then
   begin
-    FOnDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCCustomData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintBefor) then
   begin
-    FOnDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
@@ -915,7 +919,7 @@ begin
 end;
 
 procedure THCCustomData.DrawItemPaintAfter(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -923,7 +927,7 @@ var
 begin
   vDCState := SaveCanvas(ACanvas);
   try
-    DoDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    DoDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
     vDCState.ToCanvas(ACanvas);
@@ -932,7 +936,7 @@ begin
 end;
 
 procedure THCCustomData.DrawItemPaintBefor(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
@@ -940,7 +944,7 @@ var
 begin
   vDCState := SaveCanvas(ACanvas);
   try
-    DoDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    DoDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   finally
     vDCState.ToCanvas(ACanvas);
@@ -1731,6 +1735,9 @@ begin
     Result := GetDrawItemNoByOffset(FSelectInfo.StartItemNo, FSelectInfo.StartItemOffset);
     if (FSelectInfo.EndItemNo >= 0) and (Result < FDrawItems.Count - 1) then  // 有选中结束
     begin
+      if FDrawItems[Result + 1].ParaFirst then
+
+      else
       if FItems[FSelectInfo.StartItemNo].StyleNo < THCStyle.Null then
       begin
         if FSelectInfo.StartItemOffset = OffsetAfter then
@@ -1944,9 +1951,10 @@ procedure THCCustomData.MatchItemSelectState;
       end
       else  // 选中在不同的Item，当前是起始
       begin
-        if SelectInfo.StartItemOffset = 0 then
+        if SelectInfo.StartItemOffset = 0 then  // 在起始最前
           Items[AItemNo].SelectComplate
         else
+        if SelectInfo.StartItemOffset < GetItemOffsetAfter(AItemNo) then  // 不在最后
           Items[AItemNo].SelectPart;
       end;
     end
@@ -1957,6 +1965,7 @@ procedure THCCustomData.MatchItemSelectState;
         if SelectInfo.EndItemOffset = OffsetAfter then
           Items[AItemNo].SelectComplate
         else
+        if SelectInfo.EndItemOffset > OffsetBefor then  // 不在最前
           Items[AItemNo].SelectPart;
       end
       else  // TextItem
@@ -2267,8 +2276,11 @@ begin
       if FDrawItems[i].LineFirst then
         vLineSpace := GetLineBlankSpace(i);
 
+      vClearRect := vDrawRect;
+      InflateRect(vClearRect, 0, -vLineSpace div 2);  // 除去行间距净Rect，即内容的显示区域
+
       { 绘制内容前 }
-      DrawItemPaintBefor(Self, vDrawItem.ItemNo, i, vDrawRect, ADataDrawLeft,
+      DrawItemPaintBefor(Self, vDrawItem.ItemNo, i, vDrawRect, vClearRect, ADataDrawLeft,
         ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
       if vPrioParaNo <> vItem.ParaNo then  // 水平对齐方式
@@ -2276,9 +2288,6 @@ begin
         vPrioParaNo := vItem.ParaNo;
         vAlignHorz := FStyle.ParaStyles[vItem.ParaNo].AlignHorz;  // 段内容水平对齐方式
       end;
-
-      vClearRect := vDrawRect;
-      InflateRect(vClearRect, 0, -vLineSpace div 2);  // 除去行间距净Rect，即内容的显示区域
       if vItem.StyleNo < THCStyle.Null then  // RectItem自行处理绘制
       begin
         vRectItem := vItem as THCCustomRectItem;
@@ -2445,7 +2454,7 @@ begin
         end;
       end;
 
-      DrawItemPaintAfter(Self, vDrawItem.ItemNo, i, vClearRect, ADataDrawLeft,
+      DrawItemPaintAfter(Self, vDrawItem.ItemNo, i, vDrawRect, vClearRect, ADataDrawLeft,
         ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);  // 绘制内容后
     end;
   finally
@@ -2897,11 +2906,16 @@ begin
   end;
 end;
 
+function THCCustomData.SelectInSameItem: Boolean;
+begin
+  Result := FSelectInfo.StartItemNo = FSelectInfo.EndItemNo;
+end;
+
 procedure THCCustomData.SetCaretDrawItemNo(const Value: Integer);
 var
   vItemNo: Integer;
 begin
-  if FCaretDrawItemNo <> Value then
+  //if FCaretDrawItemNo <> Value then  // 在段首，删除了段起始Item，同段其后的补充上来，CaretDrawItemNo不会变，但实际的Item已经不同了 20200730001
   begin
     if (FCaretDrawItemNo >= 0) and (FCaretDrawItemNo < FDrawItems.Count) then  // 有旧的
     begin
@@ -2920,7 +2934,8 @@ begin
     SetCurStyleNo(FItems[FDrawItems[FCaretDrawItemNo].ItemNo].StyleNo);
     SetCurParaNo(FItems[FDrawItems[FCaretDrawItemNo].ItemNo].ParaNo);
 
-    if (FCaretDrawItemNo >= 0) and (FDrawItems[FCaretDrawItemNo].ItemNo <> vItemNo) then  // 有新的
+    //if (FCaretDrawItemNo >= 0) and (FDrawItems[FCaretDrawItemNo].ItemNo <> vItemNo) then  // 有新的 同上面的20200730001
+    if FCaretDrawItemNo >= 0 then
     begin
       if FItems[FDrawItems[FCaretDrawItemNo].ItemNo].StyleNo < THCStyle.Null then
       begin
@@ -2935,8 +2950,10 @@ begin
         FItems[FDrawItems[FCaretDrawItemNo].ItemNo].Active := True;  // 激活新的
       end;
 
-      DoCaretItemChanged;
+      //DoCaretItemChanged; 同上面的20200730001
     end;
+
+    DoCaretItemChanged;
   end;
 end;
 

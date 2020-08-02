@@ -581,7 +581,7 @@ var
 
 var
   i, vFormatFirstDrawItemNo,
-  vUnDeleteItemNo  // 最前一个不能删除的删除选中完成后在"哪里"
+  vUnDeleteSeekItemNo  // 最前一个不能删除的删除选中完成后在"哪里"
     : Integer;
   vText: string;
   vSelectSeekStart,   // 选中范围游标在选中起始
@@ -648,6 +648,7 @@ begin
   else  // 选中不是发生在RectItem内部
   begin
     vEndItem := Items[SelectInfo.EndItemNo];  // 选中结束Item
+
     if SelectInfo.EndItemNo = SelectInfo.StartItemNo then  // 选择发生在同一个Item
     begin
       Undo_New;
@@ -690,6 +691,8 @@ begin
     end
     else  // 选中发生在不同Item，起始(可能是段首)全选中结尾没全选，起始没全选结尾全选，起始结尾都没全选
     begin
+      vUnDeleteSeekItemNo := SelectInfo.EndItemNo;
+
       vFormatFirstItemNo := GetParaFirstItemNo(SelectInfo.StartItemNo);  // 取段第一个为起始
       vFormatFirstDrawItemNo := Items[vFormatFirstItemNo].FirstDItemNo;
       vFormatLastItemNo := GetParaLastItemNo(SelectInfo.EndItemNo);  // 取段最后一个为结束，如果变更注意下面
@@ -715,13 +718,20 @@ begin
             Items.Delete(SelectInfo.EndItemNo);
             vEndDel := True;
             Inc(vDelCount);
+            Dec(vUnDeleteSeekItemNo);
           end
-          else
-            vUnDeleteItemNo := SelectInfo.EndItemNo;
+          else  // 不允许删除
+            vUnDeleteSeekItemNo := SelectInfo.EndItemNo;
         end
         else
         if SelectInfo.EndItemOffset = OffsetInner then  // 在其上
-          (vEndItem as THCCustomRectItem).DeleteSelected;
+          (vEndItem as THCCustomRectItem).DeleteSelected
+        else  // 在其前
+        if Items[SelectInfo.EndItemNo].ParaFirst then  // 跨段删除，但选择在最后段前，删除回车
+        begin
+          UndoAction_ItemParaFirst(SelectInfo.EndItemNo, 0, False);
+          Items[SelectInfo.EndItemNo].ParaFirst := False;
+        end;
       end
       else  // TextItem
       begin
@@ -733,21 +743,30 @@ begin
             Items.Delete(SelectInfo.EndItemNo);
             vEndDel := True;
             Inc(vDelCount);
+            Dec(vUnDeleteSeekItemNo);
           end
           else
-            vUnDeleteItemNo := SelectInfo.EndItemNo;
+            vUnDeleteSeekItemNo := SelectInfo.EndItemNo;
         end
         else  // 文本且不在选中结束Item最后
         if DoAcceptAction(SelectInfo.EndItemNo, SelectInfo.EndItemOffset, THCAction.actBackDeleteText) then
         begin
-          UndoAction_DeleteBackText(SelectInfo.EndItemNo, 1, Copy(vEndItem.Text, 1, SelectInfo.EndItemOffset));
-          // 结束Item留下的内容
-          vText := (vEndItem as THCTextItem).SubString(SelectInfo.EndItemOffset + 1,
-            vEndItem.Length - SelectInfo.EndItemOffset);
-          vEndItem.Text := vText;
+          if (SelectInfo.EndItemOffset = 0) and Items[SelectInfo.EndItemNo].ParaFirst then  // 选中结束在段首
+          begin
+            UndoAction_ItemParaFirst(SelectInfo.EndItemNo, 0, False);
+            Items[SelectInfo.EndItemNo].ParaFirst := False;
+          end
+          else
+          begin
+            UndoAction_DeleteBackText(SelectInfo.EndItemNo, 1, Copy(vEndItem.Text, 1, SelectInfo.EndItemOffset));
+            // 结束Item留下的内容
+            vText := (vEndItem as THCTextItem).SubString(SelectInfo.EndItemOffset + 1,
+              vEndItem.Length - SelectInfo.EndItemOffset);
+            vEndItem.Text := vText;
+          end;
         end
         else
-          vUnDeleteItemNo := SelectInfo.EndItemNo;
+          vUnDeleteSeekItemNo := SelectInfo.EndItemNo;
       end;
 
       // 删除选中起始Item下一个到结束Item上一个
@@ -759,10 +778,10 @@ begin
           Items.Delete(i);
 
           Inc(vDelCount);
-          Dec(vUnDeleteItemNo);
+          Dec(vUnDeleteSeekItemNo);
         end
         else
-          vUnDeleteItemNo := i;
+          vUnDeleteSeekItemNo := i;
       end;
 
       vStartItem := Items[SelectInfo.StartItemNo];  // 选中起始Item
@@ -776,11 +795,12 @@ begin
             Items.Delete(SelectInfo.StartItemNo);
             vStartDel := True;
             Inc(vDelCount);
-            Dec(vUnDeleteItemNo);
+            Dec(vUnDeleteSeekItemNo);
           end
           else
-            vUnDeleteItemNo := SelectInfo.StartItemNo;
-          {  影响后面 2020072601 专门对起始删除后位置的处理
+            vUnDeleteSeekItemNo := SelectInfo.StartItemNo;
+
+          {影响后面 2020072601 专门对起始删除后位置的处理
           if SelectInfo.StartItemNo > vFormatFirstItemNo then
           begin
             SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
@@ -801,22 +821,24 @@ begin
             Items.Delete(SelectInfo.StartItemNo);
             vStartDel := True;
             Inc(vDelCount);
-            Dec(vUnDeleteItemNo);
+            Dec(vUnDeleteSeekItemNo);
           end
           else
-            vUnDeleteItemNo := SelectInfo.StartItemNo;
+            vUnDeleteSeekItemNo := SelectInfo.StartItemNo;
         end
         else
-        //if SelectInfo.StartItemOffset < vStartItem.Length then  // 在中间(不用判断了吧？)
-        if DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, THCAction.actBackDeleteText) then
+        if SelectInfo.StartItemOffset < vStartItem.Length then  // 在中间(不用判断了吧？因为选中起始上一段尾最后，结束在下一段中，删除选中时要删除换行，所以需要判断)
         begin
-          UndoAction_DeleteBackText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1,
-            Copy(vStartItem.Text, SelectInfo.StartItemOffset + 1, vStartItem.Length - SelectInfo.StartItemOffset));
-          vText := (vStartItem as THCTextItem).SubString(1, SelectInfo.StartItemOffset);
-          vStartItem.Text := vText;  // 起始留下的内容
-        end
-        else
-          vUnDeleteItemNo := SelectInfo.StartItemNo;
+          if DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, THCAction.actBackDeleteText) then
+          begin
+            UndoAction_DeleteBackText(SelectInfo.StartItemNo, SelectInfo.StartItemOffset + 1,
+              Copy(vStartItem.Text, SelectInfo.StartItemOffset + 1, vStartItem.Length - SelectInfo.StartItemOffset));
+            vText := (vStartItem as THCTextItem).SubString(1, SelectInfo.StartItemOffset);
+            vStartItem.Text := vText;  // 起始留下的内容
+          end
+          else
+            vUnDeleteSeekItemNo := SelectInfo.StartItemNo;
+        end;
       end;
 
       // 处理起始删除后当前位置 2020072601
@@ -874,10 +896,10 @@ begin
       begin
         if vStartDel then  // 起始删除完了
         begin
-          if Items[vUnDeleteItemNo].ParaFirst <> vSelStartParaFirst then
+          if Items[vUnDeleteSeekItemNo].ParaFirst <> vSelStartParaFirst then
           begin
-            UndoAction_ItemParaFirst(vUnDeleteItemNo, 0, vSelStartParaFirst);
-            Items[vUnDeleteItemNo].ParaFirst := vSelStartParaFirst;
+            UndoAction_ItemParaFirst(vUnDeleteSeekItemNo, 0, vSelStartParaFirst);
+            Items[vUnDeleteSeekItemNo].ParaFirst := vSelStartParaFirst;
           end;
         end
         else
@@ -1132,7 +1154,7 @@ begin
       and (AStartItemOffset = GetItemOffsetAfter(AStartItemNo))
     then  // 起始在Item最后面，改为下一个Item开始
     begin
-      if AStartItemNo < Items.Count - 1 then  // 起始改为下一个Item开始
+      if (AStartItemNo < Items.Count - 1) and (not Items[AStartItemNo + 1].ParaFirst) then  // 下一个非段首，起始改为下一个Item开始
       begin
         AStartItemNo := AStartItemNo + 1;
         AStartItemOffset := 0;
@@ -1141,6 +1163,7 @@ begin
 
     if (AStartItemNo <> AEndItemNo) and (AEndItemNo >= 0)
       and (Items[AEndItemNo].Length > 0) and (AEndItemNoOffset = 0)
+      and (not Items[AEndItemNo].ParaFirst)
     then  // 结束在Item最前面，改为上一个Item结束
     begin
       Items[AEndItemNo].DisSelect;  // 从前往后选，鼠标移动到前一次前面，原鼠标处被移出选中范围
@@ -1154,7 +1177,9 @@ begin
   begin
     vLeftToRight := False;
 
-    if (AStartItemNo > 0) and (AStartItemOffset = 0) then  // 起始在Item最前面，改为上一个Item结束
+    if (AStartItemNo > 0) and (AStartItemOffset = 0)  // 起始在Item最前面，改为上一个Item结束
+      and (not Items[AStartItemNo].ParaFirst)
+    then
     begin
       AStartItemNo := AStartItemNo - 1;
       AStartItemOffset := GetItemOffsetAfter(AStartItemNo);
@@ -1166,7 +1191,7 @@ begin
     begin
       Items[AEndItemNo].DisSelect;  // 从后往前选，鼠标移动到前一个后面，原鼠标处被移出选中范围
 
-      if AEndItemNo < Items.Count - 1 then  // 改为下一个Item开始
+      if (AEndItemNo < Items.Count - 1) and (not Items[AEndItemNo + 1].ParaFirst) then  // 改为下一个Item开始
       begin
         AEndItemNo := AEndItemNo + 1;
         AEndItemNoOffset := 0;
@@ -2449,7 +2474,7 @@ begin
       end
       else  // 插入非第一个Item
       if (not vItem.ParaFirst) and MergeItemText(Items[vInsPos + i - 1 - vIgnoreCount], vItem) then  // 和插入位置前一个能合并，有些不允许复制的粘贴时会造成前后可合并
-      begin
+      begin                                                                                          // 加载时对文本Item进行处理后，可也会变成能和前面合并，比如引用病历去掉痕迹
         Inc(vIgnoreCount);
         FreeAndNil(vItem);
         Continue;
@@ -2712,19 +2737,29 @@ var
     vTextItem := Items[SelectInfo.StartItemNo] as THCTextItem;
     if vTextItem.StyleNo = CurStyleNo then  // 当前样式和插入位置TextItem样式相同
     begin
-      if SelectInfo.StartItemOffset = 0 then  // 在TextItem最前面插入
+      if (SelectInfo.StartItemOffset = 0) and (vTextItem.Length > 0) then  // 在TextItem最前面插入
       begin
         vOffset := Length(AText);
 
-        if ANewPara then  // 另起一段
+        if ANewPara or (AText = '') then  // 另起一段
         begin
-          vNewItem := CreateDefaultTextItem;
-          vNewItem.ParaFirst := True;
-          vNewItem.Text := AText;
+          if (not ANewPara)  // AText = '' 是空字符按回车处理
+            and (not Items[SelectInfo.StartItemNo].ParaFirst)
+          then
+          begin
+            UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
+            vTextItem.ParaFirst := True;
+          end
+          else
+          begin
+            vNewItem := CreateDefaultTextItem;
+            vNewItem.Text := AText;
+            vNewItem.ParaFirst := True;
 
-          Items.Insert(SelectInfo.StartItemNo, vNewItem);
-          UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
-          Inc(vAddCount);
+            Items.Insert(SelectInfo.StartItemNo, vNewItem);
+            UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+            Inc(vAddCount);
+          end;
         end
         else  // 同段
         if vTextItem.AcceptAction(0, SelectInfo.StartRestrain, actConcatText) then  // TextItem最前面可接受连接字符
@@ -2783,18 +2818,32 @@ var
       else
       if SelectInfo.StartItemOffset = vTextItem.Length then  // 在TextItem最后插入
       begin
-        if ANewPara then  // 另起一段
+        if ANewPara or (AText = '') then  // 另起一段
         begin
-          vNewItem := CreateDefaultTextItem;
-          vNewItem.ParaFirst := True;
-          vNewItem.Text := AText;
+          if (not ANewPara)  // AText = '' 是空字符按回车处理
+            and (SelectInfo.StartItemNo < Items.Count - 1)
+            and (not Items[SelectInfo.StartItemNo + 1].ParaFirst)
+          then
+          begin
+            UndoAction_ItemParaFirst(SelectInfo.StartItemNo + 1, 0, True);
+            Items[SelectInfo.StartItemNo + 1].ParaFirst := True;
 
-          Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
-          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-          Inc(vAddCount);
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+            vOffset := 0;
+          end
+          else
+          begin
+            vNewItem := CreateDefaultTextItem;
+            vNewItem.Text := AText;
+            vNewItem.ParaFirst := True;
 
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-          vOffset := vNewItem.Length;
+            Items.Insert(SelectInfo.StartItemNo + 1, vNewItem);
+            UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+            Inc(vAddCount);
+
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+            vOffset := vNewItem.Length;
+          end;
         end
         else  // 最后面插入文本不另起一段
         if vTextItem.AcceptAction(SelectInfo.StartItemOffset, SelectInfo.StartRestrain, actConcatText) then  // 最后面能接收文本
@@ -2855,7 +2904,7 @@ var
       end
       else  // 在Item中间
       begin
-        if ANewPara then  // 在TextItem中间按新段插入Text
+        if ANewPara or (AText = '') then  // 在TextItem中间按新段插入Text
         begin
           // 原TextItem打断
           vS := vTextItem.SubString(SelectInfo.StartItemOffset + 1, vTextItem.Length - SelectInfo.StartItemOffset);
@@ -2889,8 +2938,8 @@ var
     else  // 插入位置TextItem样式和当前样式不同，在TextItem头、中、尾没选中，但应用了新样式，以新样式处理
     begin
       vNewItem := CreateDefaultTextItem;
-      vNewItem.ParaFirst := ANewPara;
       vNewItem.Text := AText;
+      vNewItem.ParaFirst := ANewPara or (AText = '');
 
       if SelectInfo.StartItemOffset = 0 then  // 在TextItem最前面插入
       begin
@@ -2959,7 +3008,7 @@ var
   begin
     vItem := Items[SelectInfo.StartItemNo];
 
-    if vItem.StyleNo < THCStyle.Null then  // 当前位置是 RectItem  并且通过过滤已经不会是其上的情况了
+    if vItem.StyleNo < THCStyle.Null then  // 当前位置是 RectItem  并且通过过滤已经不会是在其上的情况了
     begin
       if SelectInfo.StartItemOffset = OffsetAfter then  // 在其后输入内容
       begin
@@ -2975,24 +3024,38 @@ var
         end
         else  // 最后或下一个还是RectItem或当前是段尾
         begin
-          vItem := CreateDefaultTextItem;
-          vItem.Text := AText;
-          vItem.ParaFirst := ANewPara;
+          if (AText = '')  // AText = '' 是空字符按回车处理
+            and (SelectInfo.StartItemNo < Items.Count - 1)  // 不是最后的RectItem
+            and (not Items[SelectInfo.StartItemNo + 1].ParaFirst)
+          then
+          begin
+            UndoAction_ItemParaFirst(SelectInfo.StartItemNo + 1, 0, True);
+            Items[SelectInfo.StartItemNo + 1].ParaFirst := True;
 
-          Items.Insert(SelectInfo.StartItemNo + 1, vItem);  // 在两个RectItem中间插入
-          UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
-          Inc(vAddCount);
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+            SelectInfo.StartItemOffset := 0;
+          end
+          else
+          begin
+            vItem := CreateDefaultTextItem;
+            vItem.Text := AText;
+            vItem.ParaFirst := ANewPara or (AText = '');
 
-          SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
-          SelectInfo.StartItemOffset := vItem.Length;
-          CurStyleNo := vItem.StyleNo;
+            Items.Insert(SelectInfo.StartItemNo + 1, vItem);  // 在两个RectItem中间插入
+            UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
+            Inc(vAddCount);
+
+            SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
+            SelectInfo.StartItemOffset := vItem.Length;
+            CurStyleNo := vItem.StyleNo;
+          end;
         end;
       end
       else  // 在RectItem前输入内容
       begin
         if (SelectInfo.StartItemNo > 0)
           and (Items[SelectInfo.StartItemNo - 1].StyleNo > THCStyle.Null)
-          and (not Items[SelectInfo.StartItemNo].ParaFirst)
+          and (not vItem.ParaFirst)
         then  // 前一个是TextItem，当前不是段首，合并到前一个尾
         begin
           SelectInfo.StartItemNo := SelectInfo.StartItemNo - 1;
@@ -3002,24 +3065,33 @@ var
         end
         else  // 在段最前或前一个还是RectItem
         begin
-          vItem := CreateDefaultTextItem;
-          vItem.Text := AText;
-          if ANewPara then  // 新段
-            vItem.ParaFirst := True
-          else  // 未指定段首，适应当前环境
-          if Items[SelectInfo.StartItemNo].ParaFirst then  // 原位置是段首
+          if (AText = '') and (not vItem.ParaFirst) then  // 不在段最前，前一个还是RectItem
           begin
-            UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
-            Items[SelectInfo.StartItemNo].ParaFirst := False;
+            UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, True);
             vItem.ParaFirst := True;
+          end
+          else
+          begin
+            vItem := CreateDefaultTextItem;
+            vItem.Text := AText;
+            if ANewPara or (AText = '') then  // 新段
+              vItem.ParaFirst := True;
+
+            //  插入位置是段首，适应当前环境
+            if Items[SelectInfo.StartItemNo].ParaFirst then  // 原位置是段首，段首次插入新段首如  #13#10'文本'
+            begin
+              UndoAction_ItemParaFirst(SelectInfo.StartItemNo, 0, False);
+              Items[SelectInfo.StartItemNo].ParaFirst := False;
+              vItem.ParaFirst := True;  // 原位置是段首，在其前插入都成为段首
+            end;
+
+            Items.Insert(SelectInfo.StartItemNo, vItem);  // 在两个RectItem中间插入
+            UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
+            Inc(vAddCount);
+
+            SelectInfo.StartItemOffset := vItem.Length;
+            CurStyleNo := vItem.StyleNo;
           end;
-
-          Items.Insert(SelectInfo.StartItemNo, vItem);  // 在两个RectItem中间插入
-          UndoAction_InsertItem(SelectInfo.StartItemNo, 0);
-          Inc(vAddCount);
-
-          SelectInfo.StartItemOffset := vItem.Length;
-          CurStyleNo := vItem.StyleNo;
         end;
       end;
     end
@@ -3104,8 +3176,11 @@ begin
         Inc(vPtr);
       end;
 
-      System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-      DoInsertTextEx(vS, vNewPara);
+      //if vPtr > vPCharStart then  // 如果插入的字符最后是#13#10，不要再增加空字符(为什么)
+      begin
+        System.SetString(vS, vPCharStart, vPtr - vPCharStart);
+        DoInsertTextEx(vS, vNewPara);
+      end;
 
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + vAddCount, vAddCount);
       Result := True;
@@ -5541,7 +5616,7 @@ begin
     if FMouseLBDowning then  // 是左键，开始拖拽
     begin
       FDraging := True;
-      Style.UpdateInfo.Draging := True;
+      Style.UpdateInfo.DragingSelected := True;
     end;
 
     if Items[vMouseDownItemNo].StyleNo < THCStyle.Null then  // 在RectItem上拖拽
@@ -5630,7 +5705,7 @@ begin
 
   GetItemAt(X, Y, vMouseMoveItemNo, vMouseMoveItemOffset, FMouseMoveDrawItemNo, vRestrain);
 
-  if FDraging or Style.UpdateInfo.Draging then  // 拖拽
+  if FDraging or Style.UpdateInfo.DragingSelected then  // 拖拽
   begin
     GCursor := crDrag;
 
@@ -5846,7 +5921,7 @@ begin
       DoItemMouseUp(vUpItemNo, vUpItemOffset);
   end
   else
-  if FDraging or Style.UpdateInfo.Draging then  // 拖拽弹起
+  if FDraging or Style.UpdateInfo.DragingSelected then  // 拖拽弹起
   begin
     FDraging := False;
     //vMouseUpInSelect := CoordInSelect(X, Y, vUpItemNo, vUpItemOffset, vRestrain);
@@ -5884,6 +5959,7 @@ begin
     // 为拖拽光标准备
     FMouseMoveItemNo := vUpItemNo;
     FMouseMoveItemOffset := vUpItemOffset;
+    FMouseMoveDrawItemNo := vDrawItemNo;  // 否则表格里第一个是图片，点击选中后，再点击认为是拖动，会取消单元格的选择造成FMouseMoveDrawItemNo为-1
     // 为下一次点击时清除上一次点击选中做准备
     FMouseDownItemNo := vUpItemNo;
     FMouseDownItemOffset := vUpItemOffset;
@@ -6107,7 +6183,7 @@ begin
   begin
     for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
     begin
-      if (Self.Items[i].StyleNo < THCStyle.Null) and (not Self.Items[i].IsSelectComplate) then
+      if (Self.Items[i].StyleNo < THCStyle.Null) and (Self.Items[i].IsSelectPart) then
         Exit;
     end;
   end;

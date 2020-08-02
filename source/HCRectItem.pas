@@ -291,9 +291,6 @@ type
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function CanDrag: Boolean; override;
-
-    /// <summary> 更新光标位置 </summary>
-    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     function SelectExists: Boolean; override;
 
     /// <summary> 约束到指定大小范围内 </summary>
@@ -490,6 +487,8 @@ end;
 
 procedure THCCustomRectItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
 begin
+  //if Self.Active then
+  ACaretInfo.Visible := False;
 end;
 
 procedure THCCustomRectItem.Clear;
@@ -921,12 +920,6 @@ begin
   end;
 
   inherited DoSelfUndoDestroy(AUndo);
-end;
-
-procedure THCResizeRectItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
-begin
-  if Self.Active then
-    ACaretInfo.Visible := False;
 end;
 
 function THCResizeRectItem.GetGripType(const X, Y: Integer): TGripType;

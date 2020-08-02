@@ -855,7 +855,7 @@ var
       FindLineBreak(vText, ACharOffset, viPlaceOffset);  // 判断从viPlaceOffset后打断是否合适
 
       if (viPlaceOffset = 0)  // 没找到合适的截断位置
-        //and (not vLineFirst)  // 不是行第一个DrawItem，才考虑往下换行（用下面的判断代替了）
+        and (not vLineFirst)  // 不是行第一个DrawItem，才考虑往下换行（用下面的判断代替了？哪里代替了，第一行最前按Tab就不行）
         and (APos.X > AFmtLeft)  // 如果此DrawItem不是行首但排版位置是从最左边开始(行首是0宽RectItem)，
       then                       // 整体下移后的排版计算仍会是最左边，所以只对不在最左边开始排版的才下移
       begin                      // 避免当前行排版不放东西又往下一行，死循环

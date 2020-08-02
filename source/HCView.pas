@@ -267,7 +267,7 @@ type
     procedure DoSectionPaintPaperAfter(const Sender: TObject; const APageIndex: Integer;
       const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
     procedure DoSectionDrawItemPaintBefor(const Sender: TObject; const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoSectionDrawItemPaintContent(const AData: THCCustomData;
@@ -275,7 +275,7 @@ type
       const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
@@ -525,6 +525,8 @@ type
     /// <summary> 缩小视图 </summary>
     function ZoomOut(const Value: Integer): Integer;
 
+    procedure MapChange;
+
     /// <summary> 重绘客户区域 </summary>
     procedure UpdateView; overload;
 
@@ -735,6 +737,9 @@ type
     /// <param name="AText">要替换为的内容</param>
     /// <returns>是否替换成功</returns>
     function Replace(const AText: string): Boolean;
+
+    /// <summary> 字数 </summary>
+    function NumberOfWords: Cardinal;
 
     // 属性部分
     /// <summary> 当前文档名称 </summary>
@@ -1878,7 +1883,7 @@ begin
 end;
 
 procedure THCView.DoSectionDrawItemPaintAfter(const Sender: TObject;
-  const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect;
+  const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
   const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
@@ -1892,17 +1897,17 @@ begin
   end;
 
   if Assigned(FOnSectionDrawItemPaintAfter) then
-    FOnSectionDrawItemPaintAfter(Sender, AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnSectionDrawItemPaintAfter(Sender, AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
 procedure THCView.DoSectionDrawItemPaintBefor(const Sender: TObject;
-  const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect;
+  const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
   const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnSectionDrawItemPaintBefor) then
-    FOnSectionDrawItemPaintBefor(Sender, AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnSectionDrawItemPaintBefor(Sender, AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
@@ -2757,6 +2762,11 @@ begin
   end;
 end;
 
+procedure THCView.MapChange;
+begin
+  DoMapChanged;
+end;
+
 function THCView.MergeTableSelectCells: Boolean;
 begin
   Result := ActiveSection.MergeTableSelectCells;
@@ -2851,7 +2861,7 @@ begin
 
   CheckUpdateInfo;  // 可能需要高亮鼠标处Item
 
-  if FStyle.UpdateInfo.Draging then
+  if FStyle.UpdateInfo.DragingSelected then
     Screen.Cursor := GCursor  // 放到OnDrag里是不是就不用设置Screen了或者设置Self.DragKind？
   else
     Cursor := GCursor;
@@ -2872,7 +2882,7 @@ begin
       ZoomOut(FHScrollBar.Position + X) - GetSectionDrawLeft(FActiveSectionIndex),
       ZoomOut(FVScrollBar.Position + Y) - GetSectionTopFilm(FActiveSectionIndex));
 
-  if FStyle.UpdateInfo.Draging then
+  if FStyle.UpdateInfo.DragingSelected then
     Screen.Cursor := crDefault;
 
   Cursor := GCursor;
@@ -2880,7 +2890,7 @@ begin
   CheckUpdateInfo;  // 在选中区域中按下不移动弹起鼠标时需要更新
 
   FStyle.UpdateInfo.Selecting := False;
-  FStyle.UpdateInfo.Draging := False;
+  FStyle.UpdateInfo.DragingSelected := False;
 
   if Assigned(FOnMouseUp) then
     FOnMouseUp(Self, Button, Shift, X, Y);
@@ -2926,6 +2936,14 @@ begin
   Result.OnCurParaNoChange := DoSectionCurParaNoChange;
   Result.OnCaretItemChanged := DoSectionCaretItemChanged;
   Result.OnActivePageChange := DoSectionActivePageChange;
+end;
+
+function THCView.NumberOfWords: Cardinal;
+var
+  vText: string;
+begin
+  vText := SaveToText;
+  Result := Length(vText);
 end;
 
 procedure THCView.DoVerScroll(Sender: TObject; ScrollCode: TScrollCode;
@@ -3635,11 +3653,12 @@ var
 begin
   if not Assigned(FCaret) then Exit;
 
-  if (not Self.Focused) or ((not FStyle.UpdateInfo.Draging) and ActiveSection.SelectExists) then
+  {if ((not FStyle.UpdateInfo.Draging) and ActiveSection.SelectExists) then  单击选中图片
+  if not FStyle.UpdateInfo.Draging then
   begin
     FCaret.Hide;
     Exit;
-  end;
+  end;}
 
   { 初始化光标信息，为处理表格内往外迭代，只能放在这里 }
   vCaretInfo.X := 0;
@@ -3647,9 +3666,9 @@ begin
   vCaretInfo.Height := 0;
   vCaretInfo.Visible := True;
 
-  ActiveSection.GetPageCaretInfo(vCaretInfo);
+  ActiveSection.GetPageCaretInfo(vCaretInfo);  // 有些外部对内容的操作对话框或菜单抢走焦点，操作后光标处的信息需要及时的更新，比如域的起始结束位置变化
 
-  if not vCaretInfo.Visible then
+  if (not Self.Focused) or (not vCaretInfo.Visible) then
   begin
     FCaret.Hide;
     Exit;

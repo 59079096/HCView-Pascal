@@ -353,6 +353,8 @@ type
   procedure BitmapSaveAsJPGE(const ABitmap: TBitmap; const AFile: string);
   procedure BitmapSaveAsPNG(const ABitmap: TBitmap; const AFile: string);
 
+  procedure RemoveProperty(const APropertys: TStrings; const APropName: string);
+
   /// <summary> 保存文件格式、版本 </summary>
   procedure _SaveFileFormatAndVersion(const AStream: TStream);
   /// <summary> 读取文件格式、版本 </summary>
@@ -541,6 +543,15 @@ begin
   end
   else
     S := '';
+end;
+
+procedure RemoveProperty(const APropertys: TStrings; const APropName: string);
+var
+  vIndex: Integer;
+begin
+  vIndex := APropertys.IndexOfName(APropName);
+  if vIndex >= 0 then
+    APropertys.Delete(vIndex);
 end;
 
 function HCDeleteBreak(const S: string): string;

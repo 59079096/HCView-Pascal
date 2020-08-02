@@ -5,9 +5,11 @@ interface
 uses
   Windows, Classes, Graphics, SysUtils, Controls, ImgList, Generics.Collections,
   Menus, HCView, HCStyle, HCCustomData, HCItem, HCTableItem, HCImageItem, HCToolBar,
-  HCShape;
+  HCShape, HCCommon;
 
 type
+  THCToolState = (hcsNone, hcsRemoveItem);
+
   THCViewTool = class(THCView)
   strict private
     FIconList: TObjectList<TBitmap>;
@@ -22,6 +24,7 @@ type
     FImageToolBar: THCImageToolBar;
     FMouseViewPt: TPoint;
     FUseTableTool, FUseImageTool: Boolean;
+    FState: THCToolState;
 
     FOnTableToolPropertyClick: TNotifyEvent;
     procedure LoadImageList;
@@ -63,7 +66,7 @@ type
     procedure DoCaretChange; override;
     procedure DoSectionRemoveItem(const Sender: TObject; const AData: THCCustomData; const AItem: THCCustomItem); override;
     procedure DoSectionDrawItemPaintAfter(const Sender: TObject; const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
@@ -162,6 +165,9 @@ var
 begin
   if Self.HandleAllocated and Assigned(FTableToolBar) then
   begin
+    if FState = THCToolState.hcsRemoveItem then
+      Exit;
+
     vRect := ARect;
     OffsetRect(vRect, FTableToolBar.Left, FTableToolBar.Top);
     UpdateView(vRect);
@@ -360,6 +366,9 @@ var
 begin
   if Self.HandleAllocated and Assigned(FImageToolBar) then
   begin
+    if FState = THCToolState.hcsRemoveItem then
+      Exit;
+
     vRect := ARect;
     OffsetRect(vRect, FImageToolBar.Left, FImageToolBar.Top);
     UpdateView(vRect);
@@ -434,12 +443,12 @@ end;
 
 procedure THCViewTool.DoSectionDrawItemPaintAfter(const Sender: TObject;
   const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
-  const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom,
+  const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom,
   ADataScreenTop, ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 begin
   inherited DoSectionDrawItemPaintAfter(Sender, AData, AItemNo, ADrawItemNo,
-    ADrawRect, ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+    ADrawRect, AClearRect, ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
   if (AData = FTopData) and (AData.Items[AItemNo] = FActiveItem) then
@@ -451,7 +460,14 @@ procedure THCViewTool.DoSectionRemoveItem(const Sender: TObject;
 begin
   inherited DoSectionRemoveItem(Sender, AData, AItem);
   if AItem = FActiveItem then
-    CancelActiveToolItem;
+  begin
+    FState := THCToolState.hcsRemoveItem;
+    try
+      CancelActiveToolItem;
+    finally
+      FState := THCToolState.hcsNone;
+    end;
+  end;
 end;
 
 procedure THCViewTool.KeyDown(var Key: Word; Shift: TShiftState);

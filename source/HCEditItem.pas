@@ -535,7 +535,7 @@ begin
     FSelEnd := vSel;
   end;
 
-  if OwnerData.Style.UpdateInfo.Draging then
+  if OwnerData.Style.UpdateInfo.DragingSelected then
     Self.DisSelect;
 
   Result := inherited MouseUp(Button, Shift, X, Y);

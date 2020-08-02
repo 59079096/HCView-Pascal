@@ -81,7 +81,7 @@ type
     procedure KeyUp(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
@@ -522,7 +522,7 @@ begin
 end;
 
 procedure THCEdit.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
@@ -775,7 +775,7 @@ begin
   if ShowHint then
     ProcessHint;
 
-  if FStyle.UpdateInfo.Draging then
+  if FStyle.UpdateInfo.DragingSelected then
     Screen.Cursor := crDrag
   else
     Cursor := GCursor;
@@ -791,7 +791,7 @@ begin
   FData.MouseUp(Button, Shift, X - Self.Padding.Left + FHScrollBar.Position,
     Y - Self.Padding.Top + FVScrollBar.Position);
 
-  if FStyle.UpdateInfo.Draging then
+  if FStyle.UpdateInfo.DragingSelected then
     Screen.Cursor := crDefault;
 
   Cursor := GCursor;
@@ -799,7 +799,7 @@ begin
   CheckUpdateInfo;  // 在选中区域中按下不移动弹起鼠标时需要更新
 
   FStyle.UpdateInfo.Selecting := False;
-  FStyle.UpdateInfo.Draging := False;
+  FStyle.UpdateInfo.DragingSelected := False;
 end;
 
 procedure THCEdit.Paint;
@@ -868,7 +868,7 @@ var
 begin
   if FCaret = nil then Exit;
 
-  if (not Self.Focused) or ((not FStyle.UpdateInfo.Draging) and FData.SelectExists) then
+  if (not Self.Focused) or ((not FStyle.UpdateInfo.DragingSelected) and FData.SelectExists) then
   begin
     FCaret.Hide;
     Exit;

@@ -47,7 +47,6 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
-    procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const ADateTime: TDateTime); virtual;
     //destructor Destroy; override;
@@ -702,11 +701,6 @@ begin
   finally
     THCStyle.DestroyStyleCanvas(vCanvas);
   end;
-end;
-
-procedure THCDateTimePicker.GetCaretInfo(var ACaretInfo: THCCaretInfo);
-begin
-  ACaretInfo.Visible := False;
 end;
 
 function THCDateTimePicker.InsertText(const AText: string): Boolean;

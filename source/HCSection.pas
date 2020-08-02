@@ -35,7 +35,7 @@ type
   TSectionPaintEvent = procedure(const Sender: TObject; const APageIndex: Integer;
     const ARect: TRect; const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo) of object;
   TSectionDrawItemPaintEvent = procedure(const Sender: TObject; const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect;
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
       const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   TSectionDataItemEvent = procedure(const Sender: TObject; const AData: THCCustomData;
@@ -119,7 +119,7 @@ type
     procedure DoDataReadOnlySwitch(Sender: TObject);
     function DoGetScreenCoordEvent(const X, Y: Integer): TPoint;
     procedure DoDataDrawItemPaintBefor(const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure DoDataDrawItemPaintContent(const AData: THCCustomData;
@@ -127,7 +127,7 @@ type
       const ADrawText: string; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
     procedure DoDataDrawItemPaintAfter(const AData: THCCustomData;
-      const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+      const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
@@ -962,25 +962,25 @@ begin
 end;
 
 procedure THCCustomSection.DoDataDrawItemPaintAfter(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintAfter) then
   begin
-    FOnDrawItemPaintAfter(Self, AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintAfter(Self, AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
 
 procedure THCCustomSection.DoDataDrawItemPaintBefor(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
   if Assigned(FOnDrawItemPaintBefor) then
   begin
-    FOnDrawItemPaintBefor(Self, AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+    FOnDrawItemPaintBefor(Self, AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
   end;
 end;
@@ -1403,7 +1403,7 @@ procedure THCCustomSection.GetPageCaretInfo(var ACaretInfo: THCCaretInfo);
 var
   vMarginLeft, vPageIndex: Integer;
 begin
-  if FStyle.UpdateInfo.Draging then
+  if FStyle.UpdateInfo.DragingSelected then
     vPageIndex := FMousePageIndex
   else
     vPageIndex := FActivePageIndex;

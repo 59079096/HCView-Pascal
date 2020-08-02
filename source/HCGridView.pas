@@ -1356,7 +1356,7 @@ begin
   if FStyle.UpdateInfo.Selecting then
     FStyle.UpdateInfoReCaret;
 
-  if FStyle.UpdateInfo.Draging then
+  if FStyle.UpdateInfo.DragingSelected then
     Cursor := GCursor  // 放到OnDrag里是不是就不用设置Screen了或者设置Self.DragKind？
   else
     Cursor := GCursor;
@@ -1372,7 +1372,7 @@ begin
   CheckUpdateInfo;
 
   FStyle.UpdateInfo.Selecting := False;
-  FStyle.UpdateInfo.Draging := False;
+  FStyle.UpdateInfo.DragingSelected := False;
 end;
 
 procedure THCCustomGridView.Paint;
@@ -1537,7 +1537,7 @@ begin
     Exit;
   end;
 
-  if (not FStyle.UpdateInfo.Draging) and FPage.SelectExists then
+  if (not FStyle.UpdateInfo.DragingSelected) and FPage.SelectExists then
   begin
     FCaret.Hide;
     Exit;

@@ -49,10 +49,10 @@ type
     procedure DoInsertItem(const AItem: THCCustomItem); override;
     procedure DoRemoveItem(const AItem: THCCustomItem); override;
     procedure DoDrawItemPaintBefor(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure DoDrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     function DoPaintDomainRegion(const AItemNo: Integer): Boolean;
   public
@@ -160,7 +160,11 @@ begin
       if (Items[AItemNo] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 域结束标识
       begin
         vItemNo := GetDomainAnother(AItemNo);  // 找起始
-        Result := (vItemNo >= SelectInfo.StartItemNo) and (vItemNo <= SelectInfo.EndItemNo);
+        if vItemNo = SelectInfo.StartItemNo then  // 域起始在选中起始
+          Result := SelectInfo.StartItemOffset = OffsetBefor  // 也在全先范围内
+        else
+          Result := (vItemNo >= SelectInfo.StartItemNo) and (vItemNo <= SelectInfo.EndItemNo);
+
         if Result then  // 起始也在选中删除范围内
           FDomainStartDeletes.Add(vItemNo);  // 记录下来
       end
@@ -459,9 +463,25 @@ begin
 end;
 
 procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+
+  function SelectOffsetAfter_: Boolean;
+  begin
+    Result := Items[AItemNo].IsSelectComplate;
+    if (not Result) and (SelectInfo.EndItemNo >= 0) then  // 看看是不是选中的边界
+    begin
+      if AItemNo = SelectInfo.EndItemNo then
+      begin
+        if SelectInfo.EndItemOffset = DrawItems[ADrawItemNo].CharOffsetEnd then
+          Result := True;
+      end
+      else
+      if AItemNo = SelectInfo.StartItemNo then
+        Result := True;
+    end;
+  end;
 
   {$REGION ' DrawLineLastMrak 段尾的换行符 '}
   procedure DrawLineLastMrak(const ADrawRect: TRect);
@@ -476,18 +496,25 @@ procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
     begin
       SetViewportExtEx(ACanvas.Handle, APaintInfo.WindowWidth, APaintInfo.WindowHeight, @vPt);
       try
-        ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 4, APaintInfo.GetScaleY(ADrawRect.Bottom) - 8);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 8);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
+        if SelectOffsetAfter_ then
+        begin
+          ACanvas.Brush.Color := Style.SelColor;
+          ACanvas.FillRect(Rect(APaintInfo.GetScaleX(ADrawRect.Right), APaintInfo.GetScaleY(ADrawRect.Top),
+            APaintInfo.GetScaleX(ADrawRect.Right + 10), APaintInfo.GetScaleY(ADrawRect.Bottom)));
+        end;
 
-        ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right),     APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 6, APaintInfo.GetScaleY(ADrawRect.Bottom) - 3);
+        ACanvas.MoveTo(APaintInfo.GetScaleX(AClearRect.Right) + 4, APaintInfo.GetScaleY(AClearRect.Bottom) - 8);
+        ACanvas.LineTo(APaintInfo.GetScaleX(AClearRect.Right) + 6, APaintInfo.GetScaleY(AClearRect.Bottom) - 8);
+        ACanvas.LineTo(APaintInfo.GetScaleX(AClearRect.Right) + 6, APaintInfo.GetScaleY(AClearRect.Bottom) - 3);
 
-        ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 1, APaintInfo.GetScaleY(ADrawRect.Bottom) - 4);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 1, APaintInfo.GetScaleY(ADrawRect.Bottom) - 1);
+        ACanvas.MoveTo(APaintInfo.GetScaleX(AClearRect.Right),     APaintInfo.GetScaleY(AClearRect.Bottom) - 3);
+        ACanvas.LineTo(APaintInfo.GetScaleX(AClearRect.Right) + 6, APaintInfo.GetScaleY(AClearRect.Bottom) - 3);
 
-        ACanvas.MoveTo(APaintInfo.GetScaleX(ADrawRect.Right) + 2, APaintInfo.GetScaleY(ADrawRect.Bottom) - 5);
-        ACanvas.LineTo(APaintInfo.GetScaleX(ADrawRect.Right) + 2, APaintInfo.GetScaleY(ADrawRect.Bottom));
+        ACanvas.MoveTo(APaintInfo.GetScaleX(AClearRect.Right) + 1, APaintInfo.GetScaleY(AClearRect.Bottom) - 4);
+        ACanvas.LineTo(APaintInfo.GetScaleX(AClearRect.Right) + 1, APaintInfo.GetScaleY(AClearRect.Bottom) - 1);
+
+        ACanvas.MoveTo(APaintInfo.GetScaleX(AClearRect.Right) + 2, APaintInfo.GetScaleY(AClearRect.Bottom) - 5);
+        ACanvas.LineTo(APaintInfo.GetScaleX(AClearRect.Right) + 2, APaintInfo.GetScaleY(AClearRect.Bottom));
       finally
         SetViewportExtEx(ACanvas.Handle, APaintInfo.GetScaleX(APaintInfo.WindowWidth),
           APaintInfo.GetScaleY(APaintInfo.WindowHeight), @vPt);
@@ -495,24 +522,30 @@ procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
     end
     else
     begin
-      ACanvas.MoveTo(ADrawRect.Right + 4, ADrawRect.Bottom - 8);
-      ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 8);
-      ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 3);
+      if SelectOffsetAfter_ then
+      begin
+        ACanvas.Brush.Color := Style.SelColor;
+        ACanvas.FillRect(Rect(ADrawRect.Right, ADrawRect.Top, ADrawRect.Right + 10, ADrawRect.Bottom));
+      end;
 
-      ACanvas.MoveTo(ADrawRect.Right,     ADrawRect.Bottom - 3);
-      ACanvas.LineTo(ADrawRect.Right + 6, ADrawRect.Bottom - 3);
+      ACanvas.MoveTo(AClearRect.Right + 4, AClearRect.Bottom - 8);
+      ACanvas.LineTo(AClearRect.Right + 6, AClearRect.Bottom - 8);
+      ACanvas.LineTo(AClearRect.Right + 6, AClearRect.Bottom - 3);
 
-      ACanvas.MoveTo(ADrawRect.Right + 1, ADrawRect.Bottom - 4);
-      ACanvas.LineTo(ADrawRect.Right + 1, ADrawRect.Bottom - 1);
+      ACanvas.MoveTo(AClearRect.Right,     AClearRect.Bottom - 3);
+      ACanvas.LineTo(AClearRect.Right + 6, AClearRect.Bottom - 3);
 
-      ACanvas.MoveTo(ADrawRect.Right + 2, ADrawRect.Bottom - 5);
-      ACanvas.LineTo(ADrawRect.Right + 2, ADrawRect.Bottom);
+      ACanvas.MoveTo(AClearRect.Right + 1, AClearRect.Bottom - 4);
+      ACanvas.LineTo(AClearRect.Right + 1, AClearRect.Bottom - 1);
+
+      ACanvas.MoveTo(AClearRect.Right + 2, AClearRect.Bottom - 5);
+      ACanvas.LineTo(AClearRect.Right + 2, AClearRect.Bottom);
     end;
   end;
   {$ENDREGION}
 
 begin
-  inherited DoDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+  inherited DoDrawItemPaintAfter(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
     ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
   if not APaintInfo.Print then
@@ -529,14 +562,14 @@ begin
 end;
 
 procedure THCViewData.DoDrawItemPaintBefor(const AData: THCCustomData;
-  const AItemNo, ADrawItemNo: Integer; const ADrawRect: TRect; const ADataDrawLeft,
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect; const ADataDrawLeft,
   ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vDrawHotDomainBorde, vDrawActiveDomainBorde: Boolean;
   vDliRGN: HRGN;
 begin
-  inherited DoDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, ADataDrawLeft,
+  inherited DoDrawItemPaintBefor(AData, AItemNo, ADrawItemNo, ADrawRect, AClearRect, ADataDrawLeft,
     ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 
   if not APaintInfo.Print then  // 拼接域范围
@@ -883,7 +916,7 @@ end;
 
 procedure THCViewData.GetCaretInfoCur(var ACaretInfo: THCCaretInfo);
 begin
-  if Style.UpdateInfo.Draging then
+  if Style.UpdateInfo.DragingSelected then
     Self.GetCaretInfo(Self.MouseMoveItemNo, Self.MouseMoveItemOffset, ACaretInfo)
   else
     Self.GetCaretInfo(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, ACaretInfo);

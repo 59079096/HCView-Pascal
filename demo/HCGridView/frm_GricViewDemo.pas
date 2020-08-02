@@ -192,7 +192,7 @@ var
 implementation
 
 uses
-  HCPrinters, HCTextStyle, HCParaStyle, HCViewData, HCFractionItem, HCExpressItem,
+  Printers, HCTextStyle, HCParaStyle, HCViewData, HCFractionItem, HCExpressItem,
   HCSupSubScriptItem, HCCheckBoxItem, HCEditItem, HCComboboxItem, HCDateTimePicker,
   HCRadioGroup, HCBarCodeItem, HCQRCodeItem, HCTextItem, frm_Annotate, frm_TableProperty,
   frm_TableBorderBackColor, frm_PrintView, frm_Paragraph, frm_ControlItemProperty,
@@ -232,7 +232,7 @@ begin
   vPrintDlg := TPrintDialog.Create(nil);
   try
     if vPrintDlg.Execute then
-      FGridView.Print(HCPrinter.Printers[HCPrinter.PrinterIndex]);
+      FGridView.Print(Printer.Printers[Printer.PrinterIndex]);
   finally
     FreeAndNil(vPrintDlg);
   end;

@@ -38,7 +38,7 @@ type
     procedure Assign(Source: THCCustomItem); override;
 
     procedure LoadFromFile(const AFileName: string);
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     function ToHtml(const APath: string): string; override;
@@ -155,13 +155,12 @@ begin
   FGifImage.Animate := True;
 end;
 
-procedure THCGifItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCGifItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vStream: TMemoryStream;
   vSize: Cardinal;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   //FGifImage.SaveToStream(AStream);
 
   vStream := TMemoryStream.Create;  // ºÊ»›∆‰À˚”Ô—‘

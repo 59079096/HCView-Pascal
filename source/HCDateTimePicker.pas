@@ -52,7 +52,7 @@ type
     //destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -962,10 +962,9 @@ begin
   FDateTime := StrToDateTime(ANode.Attributes['datetime']);
 end;
 
-procedure THCDateTimePicker.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCDateTimePicker.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FFormat);  // ¥ÊFormat
   AStream.WriteBuffer(FDateTime, SizeOf(FDateTime));
 end;

@@ -35,7 +35,7 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -191,10 +191,9 @@ begin
   Result := FShapeLine.PointInClient(X, Y);
 end;
 
-procedure THCFloatLineItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCFloatLineItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   FShapeLine.SaveToStream(AStream);
 end;
 

@@ -187,7 +187,8 @@ procedure THCTableRow.Delete(Index: Integer);
 begin
   if (Index < 0) or (Index >= FColCount) then
     raise Exception.CreateFmt('[Delete]·Ç·¨µÄ Index:%d', [Index]);
-  THCTableCell(FList^[Index]).Free;
+
+  FreeAndNil(THCTableCell(FList^[Index]));
   if Index < FColCount then
     System.Move(FList^[Index + 1], FList^[Index], (FColCount - Index) * SizeOf(Pointer));
   Dec(FColCount);

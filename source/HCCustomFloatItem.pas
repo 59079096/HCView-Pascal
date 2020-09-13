@@ -36,7 +36,7 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -182,8 +182,7 @@ begin
   Result := PtInRect(Bounds(0, 0, Width, Height), Point(X, Y));
 end;
 
-procedure THCCustomFloatItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCCustomFloatItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vValue: Integer;
 begin

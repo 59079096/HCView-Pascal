@@ -34,7 +34,7 @@ type
     constructor Create(const AOwnerData: THCCustomData; const AText: string);
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -111,10 +111,9 @@ begin
     Height := AHeight;
 end;
 
-procedure THCBarCodeItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCBarCodeItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FCode128.Text);
 end;
 

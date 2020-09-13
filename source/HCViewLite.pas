@@ -12,7 +12,6 @@ type
   THCViewLite = class(TObject)
   private
     { Private declarations }
-    FPageNoFormat: string;
     FStyle: THCStyle;
     FSections: TObjectList<THCSection>;
     FActiveSectionIndex: Integer;
@@ -42,6 +41,8 @@ type
 
     /// <summary> 读取文档后触发事件，便于确认订制特征数据 </summary>
     procedure DoLoadStreamAfter(const AStream: TStream; const AFileVersion: Word); virtual;
+
+    procedure DataLoadLiteStream(const AStream: TStream; const AProc: THCLoadProc);
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -103,6 +104,9 @@ type
     /// <summary> 读取文件流 </summary>
     function LoadFromStream(const AStream: TStream): Boolean; virtual;
 
+    /// <summary> 插入Lite流 </summary>
+    function InsertLiteStream(const AStream: TStream): Boolean;
+
     /// <summary> 文档保存为xml格式 </summary>
     procedure SaveToXml(const AFileName: string; const AEncoding: TEncoding);
 
@@ -157,6 +161,23 @@ begin
   FSections := TObjectList<THCSection>.Create;
   FSections.Add(NewDefaultSection);
   FActiveSectionIndex := 0;
+end;
+
+procedure THCViewLite.DataLoadLiteStream(const AStream: TStream; const AProc: THCLoadProc);
+var
+  vFileFormat: string;
+  vFileVersion: Word;
+  vLang: Byte;
+  vStyle: THCStyle;
+begin
+  _LoadFileFormatAndVersion(AStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
+  vStyle := THCStyle.Create;
+  try
+    vStyle.LoadFromStream(AStream, vFileVersion);
+    AProc(vFileVersion, vStyle);
+  finally
+    FreeAndNil(vStyle);
+  end;
 end;
 
 class procedure THCViewLite.DeleteUnUsedStyle(const AStyle: THCStyle;
@@ -294,7 +315,7 @@ begin
 
       vAllPageCount := vAllPageCount + FSections[i].PageCount;
     end;
-    vS := Format(FPageNoFormat, [vSectionStartPageIndex + vSection.PageNoFrom + APageIndex, vAllPageCount]);
+    vS := Format(vSection.PageNoFormat, [vSectionStartPageIndex + vSection.PageNoFrom + APageIndex, vAllPageCount]);
     ACanvas.Brush.Style := bsClear;
     ACanvas.Font.Size := 10;
     ACanvas.Font.Name := '宋体';
@@ -336,6 +357,18 @@ begin
     else
       vPageCount := vPageCount + FSections[i].PageCount;
   end;
+end;
+
+function THCViewLite.InsertLiteStream(const AStream: TStream): Boolean;
+var
+  vResult: Boolean;
+begin
+  Result := False;
+  DataLoadLiteStream(AStream, procedure(const AFileVersion: Word; const AStyle: THCStyle)
+  begin
+    vResult := ActiveSection.InsertStream(AStream, AStyle, AFileVersion);
+  end);
+  Result := vResult;
 end;
 
 procedure THCViewLite.LoadFromDocumentFile(const AFileName, AExt: string);

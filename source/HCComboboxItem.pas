@@ -64,7 +64,7 @@ type
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -495,12 +495,11 @@ begin
   end;
 end;
 
-procedure THCComboboxItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCComboboxItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vByte: Byte;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
 
   vByte := 0;
   if FStatic then

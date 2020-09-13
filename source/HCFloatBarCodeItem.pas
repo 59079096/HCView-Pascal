@@ -39,7 +39,7 @@ type
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -144,13 +144,13 @@ begin
     FCode128.Zoom := 1;
 end;
 
-procedure THCFloatBarCodeItem.SaveToStream(const AStream: TStream; const AStart,
+procedure THCFloatBarCodeItem.SaveToStreamRange(const AStream: TStream; const AStart,
   AEnd: Integer);
 var
   vShowText: Boolean;
   vPenWidth: Byte;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FCode128.Text);
   AStream.WriteBuffer(FAutoSize, SizeOf(FAutoSize));
   vShowText := FCode128.TextVisible;

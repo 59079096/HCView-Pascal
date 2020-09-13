@@ -159,7 +159,7 @@ type
     /// <returns>后半部分对应的Item</returns>
     function BreakByOffset(const AOffset: Integer): THCCustomItem; virtual;
     procedure SaveToStream(const AStream: TStream); overload;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); overload; virtual;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); overload; virtual;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); virtual;
     function ToHtml(const APath: string): string; virtual;
@@ -439,10 +439,10 @@ end;
 
 procedure THCCustomItem.SaveToStream(const AStream: TStream);
 begin
-  SaveToStream(AStream, 0, Self.Length);
+  SaveToStreamRange(AStream, 0, Self.Length);
 end;
 
-procedure THCCustomItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCCustomItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vByte: Byte;
 begin

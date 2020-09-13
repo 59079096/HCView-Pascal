@@ -96,7 +96,7 @@ type
     /// AForceClearExtra 是否强制清除本次格式化范围下面的DrawItem额外空间
     /// <summary> 格式化指定范围内的DrawItem </summary>
     procedure ReFormatData(const AFirstDrawItemNo: Integer; const ALastItemNo: Integer = -1;
-      const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False);
+      const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False); virtual;
   public
     constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
@@ -759,9 +759,9 @@ var
         vSqueeze := False;
         for i := ACharOffset - 1 to vItemLen - 1 do
         begin
-          if vCharWidths[i] - ABasePos > APlaceWidth then
+          if vCharWidths[i] - ABasePos > APlaceWidth then  // 放不下了
           begin
-            if PosCharHC(vText[i + 1], LineSqueezeChar) > 0 then
+            if (not vSqueeze) and (PosCharHC(vText[i + 1], LineSqueezeChar) > 0) then  // 没挤压过且下一个是可挤压字符
             begin
               if vCharWidths[i] - ABasePos - APlaceWidth > 3 then  // (vCharWidths[i] - vCharWidths[i - 1]) div 2 then
               begin
@@ -1118,7 +1118,11 @@ begin
     FFormatHeightChange := True;
   end;
 
-  if (SelectInfo.StartItemNo >= 0) and (SelectInfo.StartItemNo < Items.Count) then
+  if (SelectInfo.StartItemNo >= 0)
+    and (SelectInfo.StartItemNo < Items.Count)
+    and (SelectInfo.StartItemOffset >= 0)
+    and (SelectInfo.StartItemOffset <= GetItemOffsetAfter(SelectInfo.StartItemNo))
+  then
     ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset)  // 防止清空后格式化完成后没有选中起始访问出错
   else
     ReSetSelectAndCaret(0, 0);

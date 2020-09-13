@@ -32,7 +32,7 @@ type
     constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); override;
     procedure Assign(Source: THCCustomItem); override;
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -131,13 +131,13 @@ end;
 procedure THCLineItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
-  FLineHeight := ANode.Attributes['height'];
-  FLineStyle := TPenStyle(ANode.Attributes['style']);
+  FLineHeight := ANode.Attributes['lineheight'];
+  FLineStyle := TPenStyle(ANode.Attributes['linestyle']);
 end;
 
-procedure THCLineItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCLineItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   AStream.WriteBuffer(FLineHeight, SizeOf(FLineHeight));
   AStream.WriteBuffer(FLineStyle, SizeOf(FLineStyle));
 end;
@@ -145,8 +145,8 @@ end;
 procedure THCLineItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
-  ANode.Attributes['height'] := FLineHeight;
-  ANode.Attributes['style'] := Ord(FLineStyle);
+  ANode.Attributes['lineheight'] := FLineHeight;
+  ANode.Attributes['linestyle'] := Ord(FLineStyle);
 end;
 
 end.

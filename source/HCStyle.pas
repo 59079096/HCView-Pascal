@@ -97,6 +97,7 @@ type
     DateTimePicker = -18;
     RadioGroup = -19;
     SupSubScript = -20;
+    Button = -21;
     FloatLine = -101;
     FloatBarCode = -102;
     Custom = -1000;  // 自定义类型分界线

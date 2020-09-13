@@ -69,10 +69,15 @@ const
    4.0 RadioGroup存储更多的属性，HCView存页码格式
    4.1 Combobox增加Static属性控制只选不可编辑
    4.2 Section存属性信息
+   4.3 Data存Script属性，SectionData存数据大小占位
+   4.4 供EmrView存自己的信息
+   4.5 ResizeItem存CanResize属性
+   4.6 节存储页码格式
+   4.7 数据元痕迹样式改为集合，存痕迹级别
   }
 
-  HC_FileVersion = '4.2';
-  HC_FileVersionInt = 42;
+  HC_FileVersion = '4.7';
+  HC_FileVersionInt = 47;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -131,15 +136,17 @@ type
   THCContentAlign = (tcaTopLeft, tcaTopCenter, tcaTopRight, tcaCenterLeft,
     tcaCenterCenter, tcaCenterRight, tcaBottomLeft, tcaBottomCenter, tcaBottomRight);
 
-  THCState = (hosLoading,  // 文档加载
-              hosCopying,  // 复制
-              hosPasting,  // 粘贴
-              hosDomainWholeReplace,  // 域整体替换
-              hosUndoing,
-              hosRedoing,
-              hosBatchInsert,  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确
-              hosDestroying  // 编辑器在销毁中
-              );
+  THCState = (
+    hosLoading,  // 文档加载
+    hosCopying,  // 复制
+    hosPasting,  // 粘贴
+    hosDomainWholeReplace,  // 域整体替换
+    hosUndoing,
+    hosRedoing,
+    hosInsertBreakItem,
+    hosBatchInsert,  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确
+    hosDestroying  // 编辑器在销毁中
+  );
 
   TCharType = (
     jctBreak,  //  截断点
@@ -150,7 +157,7 @@ type
     //jctCNSZ,  // 全角数字
     jctFH  // 半角符号
     //jctCNFH   // 全角符号
-    );
+  );
 
   THCAction = (
     actBackDeleteText,  // 向前删除文本
@@ -165,7 +172,7 @@ type
     actItemMirror,  // Item镜像
     actConcatText,  // 粘接文本(两头)
     actDeleteSelected  // 删除选中内容
-    );
+  );
 
     THCControlState = (hcsCustom, hcsChecked);
     THCControlStyle = (hcyRadio, hcyCheck);
@@ -353,7 +360,8 @@ type
   procedure BitmapSaveAsJPGE(const ABitmap: TBitmap; const AFile: string);
   procedure BitmapSaveAsPNG(const ABitmap: TBitmap; const AFile: string);
 
-  procedure RemoveProperty(const APropertys: TStrings; const APropName: string);
+  procedure HCSetProperty(const APropertys: TStrings; const APropName, APropValue: string);
+  procedure HCRemoveProperty(const APropertys: TStrings; const APropName: string);
 
   /// <summary> 保存文件格式、版本 </summary>
   procedure _SaveFileFormatAndVersion(const AStream: TStream);
@@ -405,6 +413,8 @@ begin
     0: // 上
       begin
         ACanvas.Pen.Color := AColor;
+        ACanvas.Pen.Width := 1;
+        ACanvas.Pen.Style := psSolid;
         ACanvas.MoveTo(ALeft, ATop);
         ACanvas.LineTo(ALeft - 1, ATop);
         ACanvas.MoveTo(ALeft - 1, ATop + 1);
@@ -420,6 +430,8 @@ begin
     1: // 下
       begin
         ACanvas.Pen.Color := AColor;
+        ACanvas.Pen.Width := 1;
+        ACanvas.Pen.Style := psSolid;
         ACanvas.MoveTo(ALeft, ATop);
         ACanvas.LineTo(ALeft - 1, ATop);
         ACanvas.MoveTo(ALeft - 1, ATop - 1);
@@ -545,7 +557,18 @@ begin
     S := '';
 end;
 
-procedure RemoveProperty(const APropertys: TStrings; const APropName: string);
+procedure HCSetProperty(const APropertys: TStrings; const APropName, APropValue: string);
+begin
+  if Pos('=', APropValue) > 0 then
+    raise Exception.Create('HCSetProperty属性值中不允许有"="号');
+
+  if APropValue <> '' then
+    APropertys.Values[APropName] := APropValue
+  else
+    HCRemoveProperty(APropertys, APropName);
+end;
+
+procedure HCRemoveProperty(const APropertys: TStrings; const APropName: string);
 var
   vIndex: Integer;
 begin
@@ -584,6 +607,9 @@ begin
     $2F800..$2FA1D  // 兼容扩展 542
       : Result := jctHZ;  // 汉字
 
+    $0600..$06FF:
+      Result := jctHZ;  // 阿拉伯文，维吾尔语
+
     $0F00..$0FFF:  // 藏文
       Result := jctHZ;
 
@@ -611,6 +637,7 @@ begin
   {$IFDEF UNPLACEHOLDERCHAR}
   case AKey of
     #32..#126,  // <#32是ASCII控制字 #127是ASCII DEL
+    #1536..#1791,  // 阿拉伯文，维吾尔语
     #3840..#4095,  // 藏文
     #6144..#6319:  // 蒙古文
       Result := True;

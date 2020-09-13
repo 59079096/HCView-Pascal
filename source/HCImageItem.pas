@@ -45,7 +45,7 @@ type
     procedure LoadGraphicFile(const AFileName: string; const AResize: Boolean = True);
     procedure LoadGraphicStream(const AStream: TStream; const AResize: Boolean = True);
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     function ToHtml(const APath: string): string; override;
@@ -495,13 +495,12 @@ begin
   end;
 end;
 
-procedure THCImageItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCImageItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vStream: TMemoryStream;
   vSize: Cardinal;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
 
   vStream := TMemoryStream.Create;  // ºÊ»›∆‰À˚”Ô—‘
   try

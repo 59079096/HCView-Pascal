@@ -74,7 +74,7 @@ type
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
     function InsertText(const AText: string): Boolean; override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -591,12 +591,11 @@ begin
     Result := inherited SaveSelectToText;
 end;
 
-procedure THCEditItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCEditItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vByte: Byte;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FText); // ¥ÊText
 
   vByte := 0;

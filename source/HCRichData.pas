@@ -245,7 +245,7 @@ uses
   Math, HCTableItem, HCImageItem, HCCheckBoxItem, HCTabItem, HCLineItem, HCExpressItem,
   HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFloatLineItem,
   HCFractionItem, HCDateTimePicker, HCRadioGroup, HCSupSubScriptItem, HCUnitConversion,
-  HCFloatBarCodeItem;
+  HCFloatBarCodeItem, HCButtonItem;
 
 { THCRichData }
 
@@ -275,6 +275,7 @@ begin
       THCStyle.Gif: Result := THCGifItem.Create(Self, 1, 1);
       THCStyle.Edit: Result := THCEditItem.Create(Self, '');
       THCStyle.Combobox: Result := THCComboboxItem.Create(Self, '');
+      THCStyle.Button: Result := THCButtonItem.Create(Self, '');
       THCStyle.QRCode: Result := THCQRCodeItem.Create(Self, '');
       THCStyle.BarCode: Result := THCBarCodeItem.Create(Self, '');
       THCStyle.Fraction: Result := THCFractionItem.Create(Self, '', '');
@@ -431,6 +432,7 @@ begin
   Undo_New;
   for i := AEndNo downto AStartNo do
   begin
+    // if DoAcceptAction(i, 0, THCAction.actDeleteItem) then  // DeleteItems目前适用于后台删除，所以没有受Action的控制
     UndoAction_DeleteItem(i, 0);
     Items.Delete(i);
   end;
@@ -1262,8 +1264,11 @@ begin
       if SelectInfo.EndItemNo >= 0 then  // 同一Item中划选回到起始位置
         Items[SelectInfo.EndItemNo].DisSelect;
 
-      if (AStartItemOffset = 0) or (AStartItemOffset = GetItemOffsetAfter(SelectInfo.StartItemNo)) then  // 回到两头
-        Items[SelectInfo.StartItemNo].DisSelect;
+      if SelectInfo.StartItemNo >= 0 then  // 防止通过代码(非界面操作)直接操作表格单元格
+      begin
+        if (AStartItemOffset = 0) or (AStartItemOffset = GetItemOffsetAfter(SelectInfo.StartItemNo)) then  // 回到两头
+          Items[SelectInfo.StartItemNo].DisSelect;
+      end;
 
       SelectInfo.StartItemNo := AStartItemNo;
       SelectInfo.StartItemOffset := AStartItemOffset;
@@ -1317,20 +1322,79 @@ begin
 end;
 
 procedure THCRichData.ApplySelectParaStyle(const AMatchStyle: THCParaMatch);
+var
+  vIndentInc: Single;
 
   {$REGION 'DoApplyParagraphStyle'}
   procedure DoApplyParagraphStyle(const AItemNo: Integer);
   var
     i, vParaNo, vFirstNo, vLastNo: Integer;
+    vParaStyle: THCParaStyle;
+    vOldIndent, vRemIndent: Single;
   begin
-    GetParaItemRang(AItemNo, vFirstNo, vLastNo);
-    vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
-    if GetItemParaStyle(vFirstNo) <> vParaNo then
+    if AMatchStyle is TParaFirstIndentMatch then
     begin
+      vOldIndent := (AMatchStyle as TParaFirstIndentMatch).Indent;
+      vParaStyle := Self.Style.ParaStyles[GetItemParaStyle(AItemNo)];
+      vRemIndent := PixXToMillimeter(Width) - vParaStyle.LeftIndent - vParaStyle.RightIndent - PixXToMillimeter(TabCharWidth);
+      {if (vParaStyle.FirstIndent > 0) and (vParaStyle.FirstIndent + vIndentInc < 0) then  // 使用缩进按钮时，停靠0位置，好像不会有触发的时机
+        (AMatchStyle as TParaFirstIndentMatch).Indent := 0
+      else
+      if (vParaStyle.FirstIndent < 0) and (vParaStyle.FirstIndent + vIndentInc > 0) then
+        (AMatchStyle as TParaFirstIndentMatch).Indent := 0
+      else}
+      if vParaStyle.FirstIndent + vIndentInc > vRemIndent then  // 当前加上增量越界了
+        (AMatchStyle as TParaFirstIndentMatch).Indent := vRemIndent
+      else
+        (AMatchStyle as TParaFirstIndentMatch).Indent := vParaStyle.FirstIndent + vIndentInc;
+    end
+    else
+    if AMatchStyle is TParaLeftIndentMatch then
+    begin
+      vOldIndent := (AMatchStyle as TParaLeftIndentMatch).Indent;
+      vParaStyle := Self.Style.ParaStyles[GetItemParaStyle(AItemNo)];
+      vRemIndent := PixXToMillimeter(Width) - vParaStyle.FirstIndent - vParaStyle.RightIndent - PixXToMillimeter(TabCharWidth);
+      if (vParaStyle.LeftIndent > 0) and (vParaStyle.LeftIndent + vIndentInc < 0) then  // 使用缩进按钮时，停靠0位置
+        (AMatchStyle as TParaLeftIndentMatch).Indent := 0
+      else
+      if (vParaStyle.LeftIndent < 0) and (vParaStyle.LeftIndent + vIndentInc > 0) then
+        (AMatchStyle as TParaLeftIndentMatch).Indent := 0
+      else
+      if vParaStyle.LeftIndent + vIndentInc > vRemIndent then  // 当前加上增量越界了
+        (AMatchStyle as TParaLeftIndentMatch).Indent := vRemIndent
+      else
+        (AMatchStyle as TParaLeftIndentMatch).Indent := vParaStyle.LeftIndent + vIndentInc;
+    end
+    else
+    if AMatchStyle is TParaRightIndentMatch then
+    begin
+      vOldIndent := (AMatchStyle as TParaRightIndentMatch).Indent;
+      vParaStyle := Self.Style.ParaStyles[GetItemParaStyle(AItemNo)];
+      vRemIndent := PixXToMillimeter(Width) - vParaStyle.FirstIndent - vParaStyle.LeftIndent - PixXToMillimeter(TabCharWidth);
+
+      if vParaStyle.RightIndent + vIndentInc > vRemIndent then  // 当前加上增量越界了
+        (AMatchStyle as TParaRightIndentMatch).Indent := vRemIndent
+      else
+        (AMatchStyle as TParaRightIndentMatch).Indent := vParaStyle.RightIndent + vIndentInc;
+    end;
+
+    vParaNo := AMatchStyle.GetMatchParaNo(Self.Style, GetItemParaStyle(AItemNo));
+    if Items[AItemNo].ParaNo <> vParaNo then
+    begin
+      GetParaItemRang(AItemNo, vFirstNo, vLastNo);
       UndoAction_ItemParaNo(vFirstNo, 0, vParaNo);
       for i := vFirstNo to vLastNo do
         Items[i].ParaNo := vParaNo;
     end;
+
+    if AMatchStyle is TParaFirstIndentMatch then
+      (AMatchStyle as TParaFirstIndentMatch).Indent := vOldIndent
+    else
+    if AMatchStyle is TParaLeftIndentMatch then
+      (AMatchStyle as TParaLeftIndentMatch).Indent := vOldIndent
+    else
+    if AMatchStyle is TParaRightIndentMatch then
+      (AMatchStyle as TParaRightIndentMatch).Indent := vOldIndent;
   end;
   {$ENDREGION}
 
@@ -1357,6 +1421,26 @@ var
   vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
   if SelectInfo.StartItemNo < 0 then Exit;
+
+  if AMatchStyle is TParaFirstIndentMatch then
+  begin
+    vIndentInc := (AMatchStyle as TParaFirstIndentMatch).Indent  // 以增量方式处理所有选中的段
+      - Self.Style.ParaStyles[GetItemParaStyle(SelectInfo.StartItemNo)].FirstIndent;
+  end
+  else
+  if AMatchStyle is TParaLeftIndentMatch then
+  begin
+    vIndentInc := (AMatchStyle as TParaLeftIndentMatch).Indent  // 以增量方式处理所有选中的段
+      - Self.Style.ParaStyles[GetItemParaStyle(SelectInfo.StartItemNo)].LeftIndent;
+  end
+  else
+  if AMatchStyle is TParaRightIndentMatch then
+  begin
+    vIndentInc := (AMatchStyle as TParaRightIndentMatch).Indent  // 以增量方式处理所有选中的段
+      - Self.Style.ParaStyles[GetItemParaStyle(SelectInfo.StartItemNo)].RightIndent;
+  end
+  else
+    vIndentInc := 0;
 
   //vFormatFirstDrawItemNo := GetFormatFirst(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
 
@@ -1473,8 +1557,13 @@ var
         if vAfterItem <> nil then  // 选择结束位置不在Item最后，则创建后面的独立Item
         begin
           UndoAction_DeleteText(AItemNo, SelectInfo.EndItemOffset + 1, vAfterItem.Text);
+          Style.States.Include(hosInsertBreakItem);  // 最后一个是原文在插入前就存在的内容，为插入事件提供更精细化的处理
+          try
+            Items.Insert(AItemNo + 1, vAfterItem);
+          finally
+            Style.States.Exclude(hosInsertBreakItem);
+          end;
 
-          Items.Insert(AItemNo + 1, vAfterItem);
           UndoAction_InsertItem(AItemNo + 1, 0);
           Inc(vExtraCount);
         end;
@@ -1581,9 +1670,14 @@ var
           vAfterItem := Items[AItemNo].BreakByOffset(SelectInfo.StartItemOffset);  // 后半部分对应的Item
           UndoAction_DeleteText(AItemNo, SelectInfo.StartItemOffset + 1, vAfterItem.Text);
           // 为方便UndoAction_ItemStyle所以先插入，再修改样式
-          Items.Insert(AItemNo + 1, vAfterItem);
-          UndoAction_InsertItem(AItemNo + 1, 0);
+          Style.States.Include(hosInsertBreakItem);
+          try
+            Items.Insert(AItemNo + 1, vAfterItem);
+          finally
+            Style.States.Exclude(hosInsertBreakItem);
+          end;
 
+          UndoAction_InsertItem(AItemNo + 1, 0);
           UndoAction_ItemStyle(AItemNo + 1, 0, vStyleNo);
           vAfterItem.StyleNo := vStyleNo;
 
@@ -2459,7 +2553,7 @@ begin
 
       if i = 0 then  // 插入的第一个Item
       begin
-        if vInsertBefor then  // 第一个在某Item最前面插入(粘贴)
+        if vInsertBefor then  // 第一个在某Item最前面插入(粘贴或替换整个域)
         begin
           vItem.ParaFirst := Items[vInsPos].ParaFirst;
 
@@ -2473,7 +2567,7 @@ begin
           vItem.ParaFirst := False;
       end
       else  // 插入非第一个Item
-      if (not vItem.ParaFirst) and MergeItemText(Items[vInsPos + i - 1 - vIgnoreCount], vItem) then  // 和插入位置前一个能合并，有些不允许复制的粘贴时会造成前后可合并
+      if (not Loading) and (not vItem.ParaFirst) and MergeItemText(Items[vInsPos + i - 1 - vIgnoreCount], vItem) then  // 和插入位置前一个能合并，有些不允许复制的粘贴时会造成前后可合并
       begin                                                                                          // 加载时对文本Item进行处理后，可也会变成能和前面合并，比如引用病历去掉痕迹
         Inc(vIgnoreCount);
         FreeAndNil(vItem);
@@ -2499,9 +2593,14 @@ begin
       end
       else  // 插入最后一个和后半部分不能合并
       begin
-        Items.Insert(vInsetLastNo + 1, vAfterItem);
-        UndoAction_InsertItem(vInsetLastNo + 1, 0);
+        Style.States.Include(hosInsertBreakItem);  // 最后一个是原文在插入前就存在的内容，为插入事件提供更精细化的处理
+        try
+          Items.Insert(vInsetLastNo + 1, vAfterItem);
+        finally
+          Style.States.Exclude(hosInsertBreakItem);
+        end;
 
+        UndoAction_InsertItem(vInsetLastNo + 1, 0);
         Inc(vItemCount);
       end;
     end;
@@ -2539,6 +2638,15 @@ begin
 
           if vItemCount = 1 then
             vCaretOffse := vOffsetStart + vCaretOffse;
+
+          Dec(vItemCount);
+          Dec(vInsetLastNo);
+        end
+        else  // 不是第0个位置，比如替换域内容时，如果域内容第一个是空行
+        if (Items[vInsPos].StyleNo > THCStyle.Null) and (Items[vInsPos].Length = 0) then
+        begin
+          UndoAction_DeleteItem(vInsPos, 0);
+          Items.Delete(vInsPos);
 
           Dec(vItemCount);
           Dec(vInsetLastNo);
@@ -2690,7 +2798,13 @@ begin
 
         // 插入后半部分对应的Item
         vCurItemNo := vCurItemNo + 1;
-        Items.Insert(vCurItemNo, vAfterItem);
+        Style.States.Include(hosInsertBreakItem);
+        try
+          Items.Insert(vCurItemNo, vAfterItem);
+        finally
+          Style.States.Exclude(hosInsertBreakItem);
+        end;
+
         UndoAction_InsertItem(vCurItemNo, 0);
         // 插入新Item
         Items.Insert(vCurItemNo, AItem);
@@ -2914,7 +3028,13 @@ var
           vAfterItem.Text := AText + vAfterItem.Text;
           vAfterItem.ParaFirst := True;
           // 插入原TextItem后半部分增加Text后的
-          Items.Insert(SelectInfo.StartItemNo + 1, vAfterItem);
+          Style.States.Include(hosInsertBreakItem);  // 最后一个是原文在插入前就存在的内容，为插入事件提供更精细化的处理
+          try
+            Items.Insert(SelectInfo.StartItemNo + 1, vAfterItem);
+          finally
+            Style.States.Exclude(hosInsertBreakItem);
+          end;
+
           UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
           Inc(vAddCount);
 
@@ -2991,7 +3111,13 @@ var
         SelectInfo.StartItemNo := SelectInfo.StartItemNo + 1;
         SelectInfo.StartItemOffset := vNewItem.Length;
         // 再插入原TextItem后半部分
-        Items.Insert(SelectInfo.StartItemNo + 1, vAfterItem);
+        Style.States.Include(hosInsertBreakItem);  // 最后一个是原文在插入前就存在的内容，为插入事件提供更精细化的处理
+        try
+          Items.Insert(SelectInfo.StartItemNo + 1, vAfterItem);
+        finally
+          Style.States.Exclude(hosInsertBreakItem);
+        end;
+
         UndoAction_InsertItem(SelectInfo.StartItemNo + 1, 0);
         Inc(vAddCount);
       end;
@@ -3433,6 +3559,7 @@ var
 
             if not DrawItems[Items[SelectInfo.StartItemNo + 1].FirstDItemNo].LineFirst then  // 移动前Item不是行起始
             begin
+              Style.UpdateInfoRePaint;  // 切换Item取消高亮
               KeyDown(Key, Shift);
               Exit;
             end;
@@ -3616,6 +3743,7 @@ var
             SelectInfo.StartItemOffset := 0;  // 下一个最前面
             if not DrawItems[Items[SelectInfo.StartItemNo].FirstDItemNo].LineFirst then  // 下一个Item不是行起始
             begin
+              Style.UpdateInfoRePaint;  // 切换Item取消高亮
               KeyDown(Key, Shift);
               Exit;
             end;
@@ -4295,7 +4423,7 @@ var
                 SelectInfo.StartItemOffset := OffsetInner
               else
               if vRectItem is THCDomainItem then
-                SelectInfo.StartItemOffset := vRectItem.GetOffsetAt(0)
+                SelectInfo.StartItemOffset := vRectItem.GetOffsetAt(vRectItem.Width + 1)
               else
                 SelectInfo.StartItemOffset := OffsetAfter;
 
@@ -4601,7 +4729,7 @@ var
                 SelectInfo.StartItemOffset := OffsetInner
               else
               if vRectItem is THCDomainItem then
-                SelectInfo.StartItemOffset := vRectItem.GetOffsetAt(0)
+                SelectInfo.StartItemOffset := vRectItem.GetOffsetAt(-1)
               else
                 SelectInfo.StartItemOffset := OffsetBefor;
 
@@ -5711,6 +5839,7 @@ begin
 
     FMouseMoveItemNo := vMouseMoveItemNo;
     FMouseMoveItemOffset := vMouseMoveItemOffset;
+    // 鼠标从表格外拖动移到单元格里，没有经过MouseDown所以选中起始信息是空的，造成光标信息出错
     SelectInfo.StartItemNo := vMouseMoveItemNo;
     SelectInfo.StartItemOffset := vMouseMoveItemOffset;
     FMouseMoveRestrain := vRestrain;
@@ -5939,7 +6068,9 @@ begin
       // 与201805172309相似
       if SelectInfo.StartItemNo >= 0 then  // 弹起时的单元格并不是按下时的，会出现SelectInfo.StartItemNo < 0的情况
       begin
-        if SelectInfo.StartItemNo <> vUpItemNo then
+        for i := SelectInfo.StartItemNo to SelectInfo.EndItemNo do
+          Items[i].DisSelect;
+        {if SelectInfo.StartItemNo <> vUpItemNo then
         begin
           Items[SelectInfo.StartItemNo].DisSelect;
           //Items[SelectInfo.StartItemNo].Active := False;
@@ -5952,7 +6083,7 @@ begin
             Items[i].DisSelect;
             //Items[i].Active := False;
           end;
-        end;
+        end;}
       end;
     end;
 

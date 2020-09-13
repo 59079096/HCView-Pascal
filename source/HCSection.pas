@@ -69,6 +69,7 @@ type
     /// <summary> 是否对称边距 </summary>
     FSymmetryMargin: Boolean;
     FPageNoVisible: Boolean;  // 是否显示页码
+    FPageNoFormat: string;
     FPagePadding: Byte;
     FPageNoFrom,  // 页码从几开始
     FActivePageIndex,  // 当前激活的页
@@ -108,6 +109,8 @@ type
     FOnCanEdit: TOnCanEditEvent;
     FOnInsertTextBefor: TTextEvent;
     FOnGetUndoList: TGetUndoListEvent;
+
+    procedure SetPageNoFormat(const Value: string);
 
     /// <summary> 返回当前节指定的垂直偏移处对应的页 </summary>
     /// <param name="AVOffset">垂直偏移</param>
@@ -235,6 +238,7 @@ type
     procedure SelectAll;
     function GetHint: string;
     function GetActiveItem: THCCustomItem;
+    function GetActiveRectItem: THCCustomRectItem;
     function GetTopLevelItem: THCCustomItem;
     function GetTopLevelDrawItem: THCCustomDrawItem;
     function GetTopLevelDrawItemCoord: TPoint;
@@ -387,7 +391,7 @@ type
       const ASaveParts: TSectionAreas = [saHeader, saPage, saFooter]); virtual;
     function SaveToText: string;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word); virtual;
+      const AFileVersion: Word);
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean;
     procedure FormatData;
@@ -436,6 +440,7 @@ type
     property PageCount: Integer read GetPageCount;
     property PageNoVisible: Boolean read FPageNoVisible write FPageNoVisible;
     property PageNoFrom: Integer read FPageNoFrom write FPageNoFrom;
+    property PageNoFormat: string read FPageNoFormat write SetPageNoFormat;
     property PagePadding: Byte read FPagePadding write FPagePadding;
 
     /// <summary> 文档所有部分是否只读 </summary>
@@ -497,7 +502,8 @@ type
     function Replace(const AText: string): Boolean;
     function ParseHtml(const AHtmlText: string): Boolean;
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
-
+    procedure SeekStreamToArea(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word; const APart: TSectionArea; const AUsePaper: Boolean);
     function ToHtml(const APath: string): string;
     procedure ToXml(const ANode: IHCXMLNode);
     procedure ParseXml(const ANode: IHCXMLNode);
@@ -647,19 +653,8 @@ end;
 procedure THCCustomSection.ApplyParaLeftIndent(const AIndent: Single);
 begin
   DoSectionDataAction(FActiveData, function(): Boolean
-    var
-      vContentWidth: Single;
     begin
-      if AIndent < 0 then
-        FActiveData.ApplyParaLeftIndent(0)
-      else
-      begin
-        vContentWidth := FPaper.Width - FPaper.MarginLeft - FPaper.MarginRight;
-        if AIndent > vContentWidth - 5 then
-          FActiveData.ApplyParaLeftIndent(vContentWidth - 5)
-        else
-          FActiveData.ApplyParaLeftIndent(AIndent);
-      end;
+      FActiveData.ApplyParaLeftIndent(AIndent);
     end);
 end;
 
@@ -778,6 +773,7 @@ begin
   FMoveData := nil;
   FPageNoVisible := True;
   FPageNoFrom := 1;
+  FPageNoFormat := '%d/%d';
   FHeaderOffset := 20;
   FViewModel := hvmFilm;
   FPagePadding := 20;
@@ -1091,6 +1087,7 @@ end;
 
 procedure THCCustomSection.DoLoadFromStream(const AStream: TStream; const AFileVersion: Word);
 begin
+  //---- 注意和 SeekStreamTo 方法一致
 end;
 
 function THCCustomSection.DoDataGetUndoList: THCUndoList;
@@ -1136,7 +1133,7 @@ end;
 
 procedure THCCustomSection.FormatData;
 begin
-  FActiveData.DisSelect;  // 先清选中，防止格式化后选中位置不存在
+  //FActiveData.DisSelect;  // 先清选中，防止格式化后选中位置不存在：光标位置归0影响体验，各Data内部ReFormat时自己判断选中位置是否越界
   FHeader.ReFormat;
   FFooter.ReFormat;
   FPage.ReFormat;
@@ -1212,6 +1209,11 @@ end;
 function THCCustomSection.GetActiveItem: THCCustomItem;
 begin
   Result := FActiveData.GetActiveItem;
+end;
+
+function THCCustomSection.GetActiveRectItem: THCCustomRectItem;
+begin
+  Result := FActiveData.GetActiveRectItem as THCCustomRectItem;
 end;
 
 function THCCustomSection.GetTopLevelItem: THCCustomItem;
@@ -1690,7 +1692,7 @@ begin
       BuildSectionPages(0);
   end;
 
-  DoDataChanged(Self);
+  DoDataChanged(Self);  // 插入等修改操作从这里触发编辑器层面的改变
 end;
 
 function THCCustomSection.InsertStream(const AStream: TStream; const AStyle: THCStyle;
@@ -1796,6 +1798,7 @@ var
   vArea: Boolean;
   vLoadParts: TSectionAreas;
 begin
+  //---- 注意和 SeekStreamTo 方法一致
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
   if AFileVersion > 41 then
     DoLoadFromStream(AStream, AFileVersion);
@@ -1806,6 +1809,15 @@ begin
   begin
     AStream.ReadBuffer(FPaperOrientation, SizeOf(FPaperOrientation));  // 纸张方向
     AStream.ReadBuffer(FPageNoVisible, SizeOf(FPageNoVisible));  // 是否显示页码
+  end;
+
+  if AFileVersion > 45 then
+  begin
+    AStream.ReadBuffer(FPageNoFrom, SizeOf(FPageNoFrom));
+    HCLoadTextFromStream(AStream, FPageNoFormat, AFileVersion);
+    // 兼容JavaScript和C#
+    FPageNoFormat := StringReplace(FPageNoFormat, '{0}', '%d', [rfReplaceAll, rfIgnoreCase]);
+    FPageNoFormat := StringReplace(FPageNoFormat, '{1}', '%d', [rfReplaceAll, rfIgnoreCase]);
   end;
 
   FPaper.LoadToStream(AStream, AFileVersion);  // 页面参数
@@ -2673,7 +2685,11 @@ var
         vDrawRect := FPage.DrawItems[ADrawItemNo].Rect;
 
         //if vSuplus = 0 then  // 第一次计算分页
-        InflateRect(vDrawRect, 0, -FPage.GetLineBlankSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去掉行间距能放下不换页的效果
+        // 不减行间距判断了，因为可能行中文本内容比RectItem还高，
+        // 如果行中RectItem最高，RectItem格式化时行高是Style.LineSpaceMin，也不影响
+        // 另外如果Rect是行第一个，减了能放下留在本页，同行后面是文本却放不到本页下移，造成错乱
+        //if vRectItem is THCDataItem then
+        //InflateRect(vDrawRect, 0, -FPage.GetLineBlankSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去掉行间距能放下不换页的效果
 
         vRectItem.CheckFormatPageBreak(  // 去除行间距后，判断表格跨页位置
           FPages.Count - 1,
@@ -2889,12 +2905,10 @@ end;
 procedure THCCustomSection.ResetMargin;
 begin
   FPage.Width := GetPageWidth;
-
   FHeader.Width := FPage.Width;
   FFooter.Width := FPage.Width;
 
   FormatData;
-
   BuildSectionPages(0);
 
   FStyle.UpdateInfoRePaint;
@@ -2919,6 +2933,8 @@ begin
 
     AStream.WriteBuffer(FPaperOrientation, SizeOf(FPaperOrientation));  // 纸张方向
     AStream.WriteBuffer(FPageNoVisible, SizeOf(FPageNoVisible));  // 是否显示页码
+    AStream.WriteBuffer(FPageNoFrom, SizeOf(FPageNoFrom));
+    HCSaveTextToStream(AStream, FPageNoFormat);
 
     FPaper.SaveToStream(AStream);  // 页面参数
 
@@ -2990,6 +3006,15 @@ begin
     FHeaderOffset := Value;
     BuildSectionPages(0);
     DoDataChanged(Self);
+  end;
+end;
+
+procedure THCCustomSection.SetPageNoFormat(const Value: string);
+begin
+  if FPageNoFormat <> Value then
+  begin
+    FPageNoFormat := Value;
+    DoActiveDataCheckUpdateInfo;
   end;
 end;
 
@@ -3077,6 +3102,7 @@ begin
   Self.PaperMarginBottom := ASource.PaperMarginBottom;
   Self.PaperOrientation := ASource.PaperOrientation;
   Self.HeaderOffset := ASource.HeaderOffset;
+  Self.ResetMargin;
 end;
 
 constructor THCSection.Create(const AStyle: THCStyle);
@@ -3095,6 +3121,7 @@ procedure THCSection.DoLoadFromStream(const AStream: TStream; const AFileVersion
 var
   vS: string;
 begin
+  //---- 注意和 SeekStreamTo 方法一致
   inherited DoLoadFromStream(AStream, AFileVersion);
   HCLoadTextFromStream(AStream, vS, AFileVersion);
   FPropertys.Text := vS;
@@ -3171,6 +3198,12 @@ begin
   FPaperOrientation := TPaperOrientation(ANode.Attributes['ori']);  // 纸张方向
 
   FPageNoVisible := ANode.Attributes['pagenovisible'];  // 是否对称页边距
+  if ANode.HasAttribute('pagenofrom') then
+    FPageNoFrom := ANode.Attributes['pagenofrom'];
+
+  if ANode.HasAttribute('pagenoformat') then
+    FPageNoFormat := ANode.Attributes['pagenoformat'];
+
   GetXmlPaper_;
   GetXmlPaperMargin_;
 
@@ -3215,6 +3248,86 @@ begin
   DoActiveDataCheckUpdateInfo;
 end;
 
+procedure THCSection.SeekStreamToArea(const AStream: TStream; const AStyle: THCStyle;
+  const AFileVersion: Word; const APart: TSectionArea; const AUsePaper: Boolean);
+var
+  vDataSize: Int64;
+  vS: string;
+  vPaper: THCPaper;
+  vLoadParts: TSectionAreas;
+  vArea: Boolean;
+begin
+  //---- 注意和 LoadFromStream 方法一致
+  AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
+  if AFileVersion > 41 then  //--- 注意和 DoLoadFromStream 方法一致
+    HCLoadTextFromStream(AStream, vS, AFileVersion);
+
+  AStream.Position := AStream.Position + SizeOf(FSymmetryMargin);  // 是否对称页边距
+
+  if AFileVersion > 11 then
+  begin
+    AStream.Position := AStream.Position + SizeOf(FPaperOrientation);  // 纸张方向
+    AStream.Position := AStream.Position + SizeOf(FPageNoVisible);  // 是否显示页码
+  end;
+
+  if AFileVersion > 45 then
+  begin
+    AStream.Position := AStream.Position + SizeOf(FPageNoFrom);  // FPageNoFrom
+    HCLoadTextFromStream(AStream, vS, AFileVersion);  // FPageNoFormat
+  end;
+
+  if AUsePaper then
+  begin
+    FPaper.LoadToStream(AStream, AFileVersion);  // 页面参数
+  end
+  else
+  begin
+    vPaper := THCPaper.Create;
+    try
+      vPaper.LoadToStream(AStream, AFileVersion);  // 页面参数
+    finally
+      FreeAndNil(vPaper);
+    end;
+  end;
+
+  // 文档都有哪些部件的数据
+  vLoadParts := [];
+  AStream.ReadBuffer(vArea, SizeOf(vArea));
+  if vArea then
+    vLoadParts := vLoadParts + [saHeader];
+
+  AStream.ReadBuffer(vArea, SizeOf(vArea));
+  if vArea then
+    vLoadParts := vLoadParts + [saFooter];
+
+  AStream.ReadBuffer(vArea, SizeOf(vArea));
+  if vArea then
+    vLoadParts := vLoadParts + [saPage];
+
+  if saHeader in vLoadParts then
+  begin
+    AStream.Position := AStream.Position + SizeOf(FHeaderOffset);
+    if APart = TSectionArea.saHeader then Exit;
+
+    //FHeader.LoadFromStream(AStream, FStyle, AFileVersion);
+    AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
+    AStream.Position := AStream.Position + vDataSize;
+  end;
+  if APart = TSectionArea.saHeader then Exit;
+
+  if APart = TSectionArea.saFooter then Exit;
+  if saFooter in vLoadParts then
+  begin
+    //FFooter.LoadFromStream(AStream, FStyle, AFileVersion);
+    AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
+    AStream.Position := AStream.Position + vDataSize;
+  end;
+
+  AStream.Position := AStream.Position + SizeOf(FPage.ShowUnderLine);  // 下划线
+  AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
+  if APart = TSectionArea.saPage then Exit;  
+end;
+
 function THCSection.ToHtml(const APath: string): string;
 begin
   Result := FHeader.ToHtml(APath) + sLineBreak + FPage.ToHtml(APath) + sLineBreak + FFooter.ToHtml(APath);
@@ -3227,6 +3340,8 @@ begin
   ANode.Attributes['symmargin'] := FSymmetryMargin; // 是否对称页边距
   ANode.Attributes['ori'] := Ord(FPaperOrientation);  // 纸张方向
   ANode.Attributes['pagenovisible'] := FPageNoVisible;  // 是否显示页码
+  ANode.Attributes['pagenofrom'] := FPageNoFrom;
+  ANode.Attributes['pagenoformat'] := FPageNoFormat;
 
   ANode.Attributes['pagesize'] :=  // 纸张大小
     IntToStr(FPaper.Size)

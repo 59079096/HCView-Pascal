@@ -49,7 +49,7 @@ type
     /// <summary> 正在其上时内部是否处理指定的Key和Shif </summary>
     function WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean; override;
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -474,9 +474,9 @@ begin
   FSubText := ANode.Attributes['sub'];
 end;
 
-procedure THCSupSubScriptItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCSupSubScriptItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FSupText);
   HCSaveTextToStream(AStream, FSubText);
 end;

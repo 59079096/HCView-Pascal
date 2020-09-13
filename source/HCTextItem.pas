@@ -36,7 +36,7 @@ type
     function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
 
     // ±£¥Ê∫Õ∂¡»°
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
 
@@ -157,13 +157,13 @@ begin
   FText := ANode.Text;
 end;
 
-procedure THCTextItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCTextItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   vS: string;
   vBuffer: TBytes;
   vSize: DWORD;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   vS := SubString(AStart + 1, AEnd - AStart);
   //if (vS = '') and (not Self.ParaFirst) then
   //  raise Exception.Create(HCS_EXCEPTION_SAVENULLTEXT);

@@ -169,6 +169,7 @@ type
 
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
+    function GetText: string; override;
 
     // 撤销重做相关方法
     function DoSelfUndoNew: THCUndo; override;
@@ -224,6 +225,7 @@ type
     procedure SetActiveItemText(const AText: string); override;
     function IsSelectComplateTheory: Boolean; override;
     function SelectExists: Boolean; override;
+    function GetOffsetAt(const X: Integer): Integer; override;
     procedure TraverseItem(const ATraverse: THCItemTraverse); override;
 
     /// <summary> 当前位置开始查找指定的内容 </summary>
@@ -255,7 +257,7 @@ type
       var ABreakRow, AFmtOffset, ACellMaxInc: Integer); override;
 
     // 保存和读取
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure SaveSelectToStream(const AStream: TStream); override;  // inherited TCustomRect
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
     function ToHtml(const APath: string): string; override;
@@ -459,7 +461,7 @@ var
 begin
   if not FFormatDirty then
   begin
-    ClearFormatExtraHeight;
+    ClearFormatExtraHeight;  // 表格没有变化，表格所在的Data格式化时才体现这里
     Exit;
   end;
 
@@ -1860,7 +1862,10 @@ begin
 
   FResizeInfo := GetCellAt(X, Y, vMouseDownRow, vMouseDownCol);
 
-  Resizing := (Button = mbLeft) and ((FResizeInfo.TableSite = tsBorderRight) or (FResizeInfo.TableSite = tsBorderBottom));
+  Resizing := (Button = mbLeft)
+    and ((FResizeInfo.TableSite = tsBorderRight) or (FResizeInfo.TableSite = tsBorderBottom))
+    and Self.AllowResize;
+
   if Resizing then
   begin
     if (FMouseDownRow <> vMouseDownRow) or (FMouseDownCol <> vMouseDownCol) then
@@ -2203,11 +2208,14 @@ begin
     FMouseMoveRow := -1;
     FMouseMoveCol := -1;
 
-    if vResizeInfo.TableSite = tsBorderRight then // 鼠标不在单元格中
-      GCursor := crHSplit
-    else
-    if vResizeInfo.TableSite = tsBorderBottom then
-      GCursor := crVSplit;
+    if Self.AllowResize then
+    begin
+      if vResizeInfo.TableSite = tsBorderRight then // 鼠标不在单元格中
+        GCursor := crHSplit
+      else
+      if vResizeInfo.TableSite = tsBorderBottom then
+        GCursor := crVSplit;
+    end;
   end;
 
   if OwnerData.Style.UpdateInfo.DragingSelected then
@@ -3030,6 +3038,17 @@ begin
     Result := vCell.CellData.GetHint;
 end;
 
+function THCTableItem.GetOffsetAt(const X: Integer): Integer;
+begin
+  if X <= 0 then
+    Result := OffsetBefor
+  else
+  if X >= Width then
+    Result := OffsetAfter
+  else
+    Result := OffsetInner;
+end;
+
 function THCTableItem.GetCells(const ARow, ACol: Integer): THCTableCell;
 begin
   Result := FRows[ARow][ACol];
@@ -3263,6 +3282,26 @@ begin
   end
   else  // 源单元格不能获取源单元格
     raise Exception.Create(HCS_EXCEPTION_VOIDSOURCECELL);
+end;
+
+function THCTableItem.GetText: string;
+var
+  vR, vC: Integer;
+begin
+  Result := inherited GetText;
+  for vR := 0 to FRows.Count - 1 do
+  begin
+    for vC := 0 to FRows[vR].ColCount - 1 do
+    begin
+      if FRows[vR][vC].CellData <> nil then
+      begin
+        if Result <> '' then
+          Result := Result + '，' + FRows[vR][vC].CellData.SaveToText
+        else
+          Result := Result + FRows[vR][vC].CellData.SaveToText;
+      end;
+    end;
+  end;
 end;
 
 function THCTableItem.GetTopLevelData: THCCustomData;
@@ -4327,11 +4366,11 @@ begin
   end;
 end;
 
-procedure THCTableItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCTableItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   i, vR, vC: Integer;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
 
   AStream.WriteBuffer(FBorderVisible, SizeOf(FBorderVisible));
   AStream.WriteBuffer(FBorderWidthPt, SizeOf(FBorderWidthPt));
@@ -5397,41 +5436,41 @@ begin
   if vRow < 0 then  // 没在表格上面，在前面或后面
   begin
     if FOutsideInfo.Row >= 0 then  // 前后坐标对应有行
+      vRow := FOutsideInfo.Row
+    else  // 没有的话按最一行
+      vRow := FRows.Count - 1;
+
+    if FOutsideInfo.Leftside then  // 在左边
+      ACaretInfo.X := ACaretInfo.X - 2;  // 为使光标更明显，向左偏移2
+
+    vTop := 0;
+    for i := FPageBreaks.Count - 1 downto 0 do  // 找光标顶部位置
     begin
-      if FOutsideInfo.Leftside then  // 在左边
-        ACaretInfo.X := ACaretInfo.X - 2;  // 为使光标更明显，向左偏移2
-
-      vTop := 0;
-      for i := FPageBreaks.Count - 1 downto 0 do  // 找光标顶部位置
+      if FPageBreaks[i].Row <= vRow then  // 当前行前面分页了
       begin
-        if FPageBreaks[i].Row <= FOutsideInfo.Row then  // 当前行前面分页了
+        if FPageBreaks[i].PageIndex = ACaretInfo.PageIndex - 1 then  // 前面分页正好是当前页前一页
         begin
-          if FPageBreaks[i].PageIndex = ACaretInfo.PageIndex - 1 then  // 前面分页正好是当前页前一页
-          begin
-            vTop := FPageBreaks[i].BreakBottom;  // 分页底部位置
-            Break;
-          end;
+          vTop := FPageBreaks[i].BreakBottom;  // 分页底部位置
+          Break;
         end;
       end;
+    end;
 
-      vBottom := Self.Height;
-      for i := 0 to FPageBreaks.Count - 1 do  // 找光标底部位置
+    vBottom := Self.Height;
+    for i := 0 to FPageBreaks.Count - 1 do  // 找光标底部位置
+    begin
+      if FPageBreaks[i].Row >= vRow then  // 当前行后面分页了
       begin
-        if FPageBreaks[i].Row >= FOutsideInfo.Row then  // 当前行后面分页了
+        if FPageBreaks[i].PageIndex = ACaretInfo.PageIndex then  // 分页是当前页
         begin
-          if FPageBreaks[i].PageIndex = ACaretInfo.PageIndex then  // 分页是当前页
-          begin
-            vBottom := FPageBreaks[i].BreakSeat;  // 分页顶部位置
-            Break;
-          end;
+          vBottom := FPageBreaks[i].BreakSeat;  // 分页顶部位置
+          Break;
         end;
       end;
+    end;
 
-      ACaretInfo.Y := ACaretInfo.Y + vTop;
-      ACaretInfo.Height := vBottom - vTop;
-    end
-    else
-      ACaretInfo.Visible := False;
+    ACaretInfo.Y := ACaretInfo.Y + vTop;
+    ACaretInfo.Height := vBottom - vTop;
 
     Exit;
   end

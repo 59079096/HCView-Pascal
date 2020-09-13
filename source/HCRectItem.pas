@@ -164,7 +164,7 @@ type
     procedure Undo(const AUndoAction: THCCustomUndoAction); override;
     procedure Redo(const ARedoAction: THCCustomUndoAction); override;
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     function ToHtml(const APath: string): string; override;
@@ -204,7 +204,7 @@ type
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure PaintTop(const ACanvas: TCanvas); override;
     function SaveToBitmap(var ABitmap: TBitmap): Boolean; override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -228,7 +228,7 @@ type
       const AMatchStyle: THCStyleMatch); override;
     procedure MarkStyleUsed(const AMark: Boolean); override;
     function SelectExists: Boolean; override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -239,18 +239,23 @@ type
   THCControlItem = class(THCTextRectItem)
   private
     FAutoSize: Boolean;  // 是根据内容自动大小，还是外部指定大小
+    FOnClick: TNotifyEvent;
   protected
     FPaddingLeft, FPaddingRight, FPaddingTop, FPaddingBottom: Byte;
     FMinWidth, FMinHeight: Integer;
+    function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
+    procedure DoClick; virtual;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     procedure Assign(Source: THCCustomItem); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
+    function ClientRect: TRect; virtual;
     property AutoSize: Boolean read FAutoSize write FAutoSize;
+    property OnClick: TNotifyEvent read FOnClick write FOnClick;
   end;
 
   TGripType = (gtNone, gtLeftTop, gtRightTop, gtLeftBottom, gtRightBottom,
@@ -280,10 +285,12 @@ type
 
     function GetResizing: Boolean; virtual;
     procedure SetResizing(const Value: Boolean); virtual;
+    function GetAllowResize: Boolean;  // 控制是否允许缩放(比如OwnerData只读时)，暂时没有定义为虚方法
     property ResizeGrip: TGripType read FResizeGrip;
     property ResizeRect: TRect read FResizeRect;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
+    procedure Assign(Source: THCCustomItem); override;
     /// <summary> 获取坐标X、Y是否在选中区域中 </summary>
     function CoordInSelect(const X, Y: Integer): Boolean; override;
     procedure PaintTop(const ACanvas: TCanvas); override;
@@ -292,6 +299,13 @@ type
     function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function CanDrag: Boolean; override;
     function SelectExists: Boolean; override;
+    function IsSelectComplateTheory: Boolean; override;
+    function GetOffsetAt(const X: Integer): Integer; override;
+
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
+    procedure ToXml(const ANode: IHCXMLNode); override;
+    procedure ParseXml(const ANode: IHCXMLNode); override;
 
     /// <summary> 约束到指定大小范围内 </summary>
     procedure RestrainSize(const AWidth, AHeight: Integer); virtual;
@@ -300,6 +314,7 @@ type
     property ResizeWidth: Integer read FResizeWidth;
     property ResizeHeight: Integer read FResizeHeight;
     property CanResize: Boolean read FCanResize write FCanResize;
+    property AllowResize: Boolean read GetAllowResize;
   end;
 
   THCAnimateRectItem = class(THCCustomRectItem)  // 动画RectItem
@@ -554,7 +569,11 @@ begin
   if not Assigned(FOnGetMainUndoList) then Exit;
 
   Result := FOnGetMainUndoList;
-  if Assigned(Result) and Result.Enable and (Result.Last.Actions.Last is THCItemSelfUndoAction) then
+  if Assigned(Result) and Result.Enable
+    and (Result.Count > 0)  // 防止通过代码直接操作(非界面)单元格Data插入内容时，Undo列表为空时的异常
+    and (Result.Last.Actions.Count > 0)
+    and (Result.Last.Actions.Last is THCItemSelfUndoAction)
+  then
   begin
     vItemAction := Result.Last.Actions.Last as THCItemSelfUndoAction;
     if not Assigned(vItemAction.&Object) then
@@ -708,9 +727,9 @@ begin
   Result := True;
 end;
 
-procedure THCCustomRectItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCCustomRectItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   AStream.WriteBuffer(FWidth, SizeOf(FWidth));
   AStream.WriteBuffer(FHeight, SizeOf(FHeight));
 end;
@@ -826,6 +845,12 @@ end;
 
 { THCResizeRectItem }
 
+procedure THCResizeRectItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FCanResize := (Source as THCResizeRectItem).CanResize;
+end;
+
 function THCResizeRectItem.CanDrag: Boolean;
 begin
   Result := not FResizing;
@@ -874,12 +899,14 @@ begin
       APaintInfo.TopItems.Add(Self);
     end;
 
-    // 绘制缩放拖动提示锚点
-    ACanvas.Brush.Color := clGray;
-    ACanvas.FillRect(Bounds(ADrawRect.Left, ADrawRect.Top, GripSize, GripSize));
-    ACanvas.FillRect(Bounds(ADrawRect.Right - GripSize, ADrawRect.Top, GripSize, GripSize));
-    ACanvas.FillRect(Bounds(ADrawRect.Left, ADrawRect.Bottom - GripSize, GripSize, GripSize));
-    ACanvas.FillRect(Bounds(ADrawRect.Right - GripSize, ADrawRect.Bottom - GripSize, GripSize, GripSize));
+    if AllowResize then // 绘制缩放拖动提示锚点
+    begin
+      ACanvas.Brush.Color := clGray;
+      ACanvas.FillRect(Bounds(ADrawRect.Left, ADrawRect.Top, GripSize, GripSize));
+      ACanvas.FillRect(Bounds(ADrawRect.Right - GripSize, ADrawRect.Top, GripSize, GripSize));
+      ACanvas.FillRect(Bounds(ADrawRect.Left, ADrawRect.Bottom - GripSize, GripSize, GripSize));
+      ACanvas.FillRect(Bounds(ADrawRect.Right - GripSize, ADrawRect.Bottom - GripSize, GripSize, GripSize));
+    end;
   end;
 end;
 
@@ -922,6 +949,11 @@ begin
   inherited DoSelfUndoDestroy(AUndo);
 end;
 
+function THCResizeRectItem.GetAllowResize: Boolean;
+begin
+  Result := FCanResize and OwnerData.CanEdit;
+end;
+
 function THCResizeRectItem.GetGripType(const X, Y: Integer): TGripType;
 var
   vPt: TPoint;
@@ -942,9 +974,38 @@ begin
     Result := gtNone;
 end;
 
+function THCResizeRectItem.GetOffsetAt(const X: Integer): Integer;
+begin
+  if AllowResize then
+    Result := inherited GetOffsetAt(X)
+  else
+  begin
+    if X < Width div 2 then
+      Result := OffsetBefor
+    else
+      Result := OffsetAfter;
+  end;
+end;
+
 function THCResizeRectItem.GetResizing: Boolean;
 begin
   Result := FResizing;
+end;
+
+function THCResizeRectItem.IsSelectComplateTheory: Boolean;
+begin
+  if not AllowResize then
+    Result := False
+  else
+    Result := inherited IsSelectComplateTheory;
+end;
+
+procedure THCResizeRectItem.LoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited LoadFromStream(AStream, AStyle, AFileVersion);
+  if AFileVersion > 44 then
+    AStream.ReadBuffer(FCanResize, SizeOf(FCanResize));
 end;
 
 function THCResizeRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -952,7 +1013,7 @@ function THCResizeRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X
 begin
   FResizeGrip := gtNone;
   Result := inherited MouseDown(Button, Shift, X, Y);
-  if Active then
+  if Active and AllowResize then
   begin
     FResizeGrip := GetGripType(X, Y);
     FResizing := FResizeGrip <> gtNone;
@@ -973,7 +1034,7 @@ var
 begin
   Result := inherited MouseMove(Shift, X, Y);
   GCursor := crDefault;
-  if Active then
+  if Active and AllowResize then
   begin
     if FResizing then  // 正在缩放中
     begin
@@ -1121,8 +1182,22 @@ begin
   end;
 end;
 
+procedure THCResizeRectItem.ParseXml(const ANode: IHCXMLNode);
+begin
+  inherited ParseXml(ANode);
+  if ANode.HasAttribute('canresize') then
+    FCanResize := ANode.Attributes['canresize'];
+end;
+
 procedure THCResizeRectItem.RestrainSize(const AWidth, AHeight: Integer);
 begin
+end;
+
+procedure THCResizeRectItem.SaveToStreamRange(const AStream: TStream;
+  const AStart, AEnd: Integer);
+begin
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
+  AStream.WriteBuffer(FCanResize, SizeOf(FCanResize));
 end;
 
 function THCResizeRectItem.SelectExists: Boolean;
@@ -1134,6 +1209,12 @@ procedure THCResizeRectItem.SetResizing(const Value: Boolean);
 begin
   if FResizing <> Value then
     FResizing := Value;
+end;
+
+procedure THCResizeRectItem.ToXml(const ANode: IHCXMLNode);
+begin
+  inherited ToXml(ANode);
+  ANode.Attributes['canresize'] := FCanResize;
 end;
 
 procedure THCResizeRectItem.SelfUndo_Resize(const ANewWidth, ANewHeight: Integer);
@@ -1220,10 +1301,9 @@ begin
     FTextStyleNo := OwnerData.Style.TextStyles[FTextStyleNo].TempNo;
 end;
 
-procedure THCTextRectItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCTextRectItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   AStream.WriteBuffer(FTextStyleNo, SizeOf(FTextStyleNo));
 end;
 
@@ -1262,6 +1342,11 @@ begin
   FAutoSize := (Source as THCControlItem).AutoSize;
 end;
 
+function THCControlItem.ClientRect: TRect;
+begin
+  Result := Rect(0, 0, Width, Height);
+end;
+
 constructor THCControlItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
@@ -1272,6 +1357,12 @@ begin
   FPaddingBottom := 5;
   FMinWidth := 20;
   FMinHeight := 10;
+end;
+
+procedure THCControlItem.DoClick;
+begin
+  if Assigned(FOnClick) and OwnerData.CanEdit then
+    FOnClick(Self);
 end;
 
 procedure THCControlItem.ParseXml(const ANode: IHCXMLNode);
@@ -1287,10 +1378,18 @@ begin
   AStream.ReadBuffer(FAutoSize, SizeOf(FAutoSize));
 end;
 
-procedure THCControlItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+function THCControlItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
+  Y: Integer): Boolean;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  if (Button = mbLeft) and PtInRect(Self.ClientRect, Point(X, Y)) then
+    DoClick;
+
+  Result := inherited MouseUp(Button, Shift, X, Y);
+end;
+
+procedure THCControlItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
+begin
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   AStream.WriteBuffer(FAutoSize, SizeOf(FAutoSize));
 end;
 
@@ -1440,10 +1539,9 @@ begin
   Result := False;
 end;
 
-procedure THCDomainItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCDomainItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   AStream.WriteBuffer(FMarkType, SizeOf(FMarkType));
   AStream.WriteBuffer(FLevel, SizeOf(FLevel));
 end;

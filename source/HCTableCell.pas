@@ -162,7 +162,7 @@ end;
 
 destructor THCTableCell.Destroy;
 begin
-  FCellData.Free;
+  FreeAndNil(FCellData);
   inherited;
 end;
 

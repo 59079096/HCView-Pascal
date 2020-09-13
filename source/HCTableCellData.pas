@@ -50,6 +50,9 @@ type
     procedure ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
       const ANextWhenMid: Boolean = False); override;
 
+    procedure ReFormatData(const AFirstDrawItemNo: Integer; const ALastItemNo: Integer = -1;
+      const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False); override;
+
     procedure SetActive(const Value: Boolean);
   public
     procedure ApplySelectTextStyle(const AMatchStyle: THCStyleMatch); override;
@@ -211,6 +214,15 @@ end;
 function THCTableCellData.PointInCellRect(const APt: TPoint): Boolean;
 begin
   Result := PtInRect(Bounds(0, 0, Width, FCellHeight), APt);
+end;
+
+procedure THCTableCellData.ReFormatData(const AFirstDrawItemNo, ALastItemNo,
+  AExtraItemCount: Integer; const AForceClearExtra: Boolean);
+begin
+  inherited ReFormatData(AFirstDrawItemNo, ALastItemNo, AExtraItemCount, AForceClearExtra);
+  Self.FormatChange := False;  // 防止下次变动高度没有变化时也通知表格SizeChange
+  if Self.FormatHeightChange then
+    Self.SilenceChange;
 end;
 
 procedure THCTableCellData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;

@@ -18,7 +18,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, Messages, HCStyle, HCCustomData, {$IFDEF SYNPDF}SynPdf,{$ENDIF}
   Generics.Collections, SysUtils, HCCommon, HCViewData, HCRichData, HCDrawItem,
-  HCSection, HCScrollBar, HCRichScrollBar, HCStatusScrollBar, HCParaStyle,
+  HCSection, HCScrollBar, HCRichScrollBar, HCStatusScrollBar, HCParaStyle, HCXml,
   HCTextStyle, HCRectItem, HCTextItem, HCItem, HCCustomFloatItem, HCUndo,
   HCAnnotateData, HCSectionData;
 
@@ -91,12 +91,11 @@ type
 
   TPaintEvent = procedure(const ACanvas: TCanvas; const APaintInfo: TPaintInfo) of object;
   THCCopyPasteEvent = function(const AFormat: Word): Boolean of object;
-  THCLoadProc = reference to procedure(const AFileVersion: Word; const AStyle: THCStyle);
 
   THCView = class(TCustomControl)
   private
     { Private declarations }
-    FFileName, FPageNoFormat: string;
+    FFileName: string;
     FStyle: THCStyle;
     FSections: TObjectList<THCSection>;
     FUndoList: THCUndoList;
@@ -111,7 +110,7 @@ type
     FZoom: Single;
     FAutoZoom,  // 自动缩放
     FIsChanged: Boolean;  // 是否发生了改变
-
+    FCanEditChecked, FCanEditSnapShot: Boolean;
     FAnnotatePre: THCAnnotatePre;  // 批注管理
 
     FViewModel: THCViewModel;  // 界面显示模式：页面、Web
@@ -213,6 +212,7 @@ type
 
     function GetReadOnly: Boolean;
     procedure SetReadOnly(const Value: Boolean);
+    function GetPageNoFormat: string;
     procedure SetPageNoFormat(const Value: string);
     procedure SetViewModel(const Value: THCViewModel);
     procedure SetActiveSectionIndex(const Value: Integer);
@@ -300,6 +300,8 @@ type
     /// <summary> 视图绘制完成 </summary>
     procedure DoPaintViewAfter(const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
+    procedure DoPaintViewHintLayer(const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
+
     /// <summary> 保存文档前触发事件，便于订制特征数据 </summary>
     procedure DoSaveStreamBefor(const AStream: TStream); virtual;
 
@@ -311,6 +313,9 @@ type
 
     /// <summary> 读取文档后触发事件，便于确认订制特征数据 </summary>
     procedure DoLoadStreamAfter(const AStream: TStream; const AFileVersion: Word); virtual;
+
+    procedure DoSaveXmlDocument(const AXmlDoc: IHCXMLDocument); virtual;
+    procedure DoLoadXmlDocument(const AXmlDoc: IHCXMLDocument); virtual;
     //
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -384,10 +389,13 @@ type
     /// <summary> 各节重新计算排版 </summary>
     procedure FormatData;
 
-    /// <summary> 插入流 </summary>
+    /// <summary> 插入文件流 </summary>
     function InsertStream(const AStream: TStream): Boolean;
+    /// <summary> 插入Lite流 </summary>
     function InsertLiteStream(const AStream: TStream): Boolean;
     function AppendStream(const AStream: TStream): Boolean;
+    function LoadHeaderFromStream(const AStream: TStream; const APaperInfo: Boolean): Boolean;
+    function LoadFooterFromStream(const AStream: TStream; const APaperInfo: Boolean): Boolean;
 
     /// <summary> 插入文本(可包括#13#10) </summary>
     function InsertText(const AText: string): Boolean;
@@ -863,7 +871,7 @@ type
     property ReadOnly: Boolean read GetReadOnly write SetReadOnly;
 
     /// <summary> 页码的格式 </summary>
-    property PageNoFormat: string read FPageNoFormat write SetPageNoFormat;
+    property PageNoFormat: string read GetPageNoFormat write SetPageNoFormat;
 
     /// <summary> 鼠标按下时触发 </summary>
     property OnMouseDown: TMouseEvent read FOnMouseDown write FOnMouseDown;
@@ -923,7 +931,7 @@ type
 implementation
 
 uses
-  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCXml, HCDocumentRW,
+  Printers, Imm, Forms, Math, Clipbrd, HCImageItem, ShellAPI, HCDocumentRW,
   HCRtfRW, HCUnitConversion, HCEditItem;
 
 const
@@ -1151,6 +1159,7 @@ begin
   inherited Create(AOwner);
   //
   Self.Color := RGB(82, 89, 107);  // 控制paper之外区域的颜色
+  FUpdateCount := 0;
 
   FUndoList := THCUndoList.Create;
   FUndoList.OnUndo := DoUndo;
@@ -1164,8 +1173,10 @@ begin
   FAnnotatePre.OnUpdateView := DoAnnotatePreUpdateView;
 
   FFileName := '';
-  FPageNoFormat := '%d/%d';
   FIsChanged := False;
+  FCanEditChecked := False;
+  FCanEditSnapShot := False;
+
   FZoom := 1;
   FAutoZoom := False;
   FViewModel := hvmFilm;
@@ -1458,7 +1469,7 @@ begin
 
       vAllPageCount := vAllPageCount + FSections[i].PageCount;
     end;
-    vS := Format(FPageNoFormat, [vSectionStartPageIndex + vSection.PageNoFrom + APageIndex, vAllPageCount]);
+    vS := Format(vSection.PageNoFormat, [vSectionStartPageIndex + vSection.PageNoFrom + APageIndex, vAllPageCount]);
     ACanvas.Brush.Style := bsClear;
     ACanvas.Font.Size := 10;
     ACanvas.Font.Name := '宋体';
@@ -1508,7 +1519,7 @@ begin
     ACanvas.TextOut(ARect.Left, ARect.Bottom + 4, '编辑器由 HCView 提供，技术交流QQ群：649023932');
   end;
 
-  if FAnnotatePre.Visible then  // 当前页有批注，绘制批注
+  if FAnnotatePre.Visible and not APaintInfo.Print then  // 当前页有批注，绘制批注
     FAnnotatePre.PaintDrawAnnotate(Sender, ARect, ACanvas, APaintInfo);
 
   if Assigned(FOnSectionPaintPaperAfter) then
@@ -1585,7 +1596,9 @@ var
 begin
   vPageIndex := GetPagePreviewFirst;
   if vPageIndex > 0 then
-    FVScrollBar.Position := GetPageIndexFilmTop(vPageIndex - 1);
+    FVScrollBar.Position := GetPageIndexFilmTop(vPageIndex - 1)
+  else
+    FVScrollBar.Position := 0;
 end;
 
 procedure THCView.DoPaintViewAfter(const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -1598,6 +1611,10 @@ procedure THCView.DoPaintViewBefor(const ACanvas: TCanvas; const APaintInfo: TPa
 begin
   if Assigned(FOnPaintViewBefor) then
     FOnPaintViewBefor(ACanvas, APaintInfo);
+end;
+
+procedure THCView.DoPaintViewHintLayer(const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
 end;
 
 function THCView.DoPasteRequest(const AFormat: Word): Boolean;
@@ -1652,6 +1669,10 @@ begin
   // 用于外部程序存储自定义数据，如上次浏览位置等
 end;
 
+procedure THCView.DoSaveXmlDocument(const AXmlDoc: IHCXMLDocument);
+begin
+end;
+
 procedure THCView.DoSectionActivePageChange(Sender: TObject);
 begin
   if Assigned(FOnSectionActivePageChange) then
@@ -1660,10 +1681,19 @@ end;
 
 function THCView.DoSectionCanEdit(const Sender: TObject): Boolean;
 begin
+  if FCanEditChecked then
+  begin
+    Result := FCanEditSnapShot;
+    Exit;
+  end;
+
   if (not Style.States.Contain(hosLoading)) and Assigned(FOnSectionCanEdit) then
     Result := FOnSectionCanEdit(Sender)
   else
     Result := True;
+
+  FCanEditChecked := True;
+  FCanEditSnapShot := Result;
 end;
 
 procedure THCView.DoSectionCaretItemChanged(const Sender: TObject;
@@ -1737,6 +1767,8 @@ end;
 
 procedure THCView.DoChange;
 begin
+  FCanEditChecked := False;
+
   SetIsChanged(True);
   DoMapChanged;
   if Assigned(FOnChange) then
@@ -1892,8 +1924,8 @@ begin
     ACanvas.Pen.Style := psSolid;
     ACanvas.Pen.Color := clBlue;
     ACanvas.Pen.Width := 1;
-    ACanvas.MoveTo(ADrawRect.Left, ADrawRect.Bottom);
-    ACanvas.LineTo(ADrawRect.Right, ADrawRect.Bottom);
+    ACanvas.MoveTo(AClearRect.Left, AClearRect.Bottom);
+    ACanvas.LineTo(AClearRect.Right, AClearRect.Bottom);
   end;
 
   if Assigned(FOnSectionDrawItemPaintAfter) then
@@ -1979,6 +2011,10 @@ begin
 end;
 
 procedure THCView.DoLoadStreamBefor(const AStream: TStream; const AFileVersion: Word);
+begin
+end;
+
+procedure THCView.DoLoadXmlDocument(const AXmlDoc: IHCXMLDocument);
 begin
 end;
 
@@ -2290,6 +2326,7 @@ begin
   Self.BeginUpdate;
   try
     vSection := NewDefaultSection;
+    vSection.PageNoFormat := FSections[FActiveSectionIndex].PageNoFormat;
     vSection.AssignPaper(FSections[FActiveSectionIndex]);  // 复制上一节的页大小和边距
     FSections.Insert(FActiveSectionIndex + 1, vSection);
     FActiveSectionIndex := FActiveSectionIndex + 1;
@@ -2324,6 +2361,13 @@ begin
         begin
           AStream.ReadBuffer(vByte, 1);  // 节数量
 
+          if AFileVersion > 42 then
+          begin
+            ActiveSection.SeekStreamToArea(AStream, vStyle, AFileVersion, TSectionArea.saPage, False);
+            vResult := ActiveSection.InsertStream(AStream, vStyle, AFileVersion);  // 只插入第一节的数据
+            Exit;
+          end;
+
           vDataStream := TMemoryStream.Create;
           try
             vSection := THCSection.Create(vStyle);
@@ -2336,6 +2380,7 @@ begin
               vSection.Page.SaveToStream(vDataStream);
               vDataStream.Position := 0;
               vDataStream.ReadBuffer(vShowUnderLine, SizeOf(vShowUnderLine));
+              vDataStream.Position := vDataStream.Position + 8;  // 跳过DataSize
               vResult := ActiveSection.InsertStream(vDataStream, vStyle, HC_FileVersionInt);  // 只插入第一节的数据
             finally
               FreeAndNil(vSection);
@@ -2726,6 +2771,8 @@ begin
         vVersion := vXml.DocumentElement.Attributes['ver'];
         vLang := vXml.DocumentElement.Attributes['lang'];
 
+        DoLoadXmlDocument(vXml);
+
         FStyle.States.Include(hosLoading);
         try
           for i := 0 to vXml.DocumentElement.ChildNodes.Count - 1 do
@@ -2760,6 +2807,94 @@ begin
   finally
     Self.EndUpdate;
   end;
+end;
+
+function THCView.LoadHeaderFromStream(const AStream: TStream; const APaperInfo: Boolean): Boolean;
+var
+  vStyle: THCStyle;
+  vResult: Boolean;
+begin
+  Result := False;
+  vResult := False;
+
+  Self.BeginUpdate;
+  try
+    vStyle := THCStyle.Create;
+    try
+      DoLoadFromStream(AStream, vStyle, procedure(const AFileVersion: Word)
+        var
+          vByte: Byte;
+        begin
+          AStream.ReadBuffer(vByte, 1);  // 节数量
+
+          if AFileVersion > 42 then  // 半成品方法，暂时无法方便的响应APaperInfo参数处理Paper信息
+          begin
+            Self.ActiveSection.Header.BeginFormat;
+            try
+              Self.ActiveSection.SeekStreamToArea(AStream, vStyle, AFileVersion, TSectionArea.saHeader, APaperInfo);
+              Self.ActiveSection.Header.LoadFromStream(AStream, vStyle, AFileVersion);  // 只插入第一节的数据
+            finally
+              Self.ActiveSection.Header.EndFormat(False);
+            end;
+
+            //if APaperInfo then
+            Self.ResetActiveSectionMargin;
+
+            vResult := True;
+          end;
+        end);
+    finally
+      FreeAndNil(vStyle);
+    end;
+  finally
+    Self.EndUpdate;
+  end;
+
+  Result := vResult;
+end;
+
+function THCView.LoadFooterFromStream(const AStream: TStream; const APaperInfo: Boolean): Boolean;
+var
+  vStyle: THCStyle;
+  vResult: Boolean;
+begin
+  Result := False;
+  vResult := False;
+
+  Self.BeginUpdate;
+  try
+    vStyle := THCStyle.Create;
+    try
+      DoLoadFromStream(AStream, vStyle, procedure(const AFileVersion: Word)
+        var
+          vByte: Byte;
+        begin
+          AStream.ReadBuffer(vByte, 1);  // 节数量
+
+          if AFileVersion > 42 then
+          begin
+            Self.ActiveSection.Footer.BeginFormat;
+            try
+              Self.ActiveSection.SeekStreamToArea(AStream, vStyle, AFileVersion, TSectionArea.saFooter, APaperInfo);
+              Self.ActiveSection.Footer.LoadFromStream(AStream, vStyle, AFileVersion);  // 只插入第一节的数据
+            finally
+              Self.ActiveSection.Footer.EndFormat(False);
+            end;
+
+            //if APaperInfo then
+            Self.ResetActiveSectionMargin;
+
+            vResult := True;
+          end;
+        end);
+    finally
+      FreeAndNil(vStyle);
+    end;
+  finally
+    Self.EndUpdate;
+  end;
+
+  Result := vResult;
 end;
 
 procedure THCView.MapChange;
@@ -2989,6 +3124,11 @@ begin
     else
       Result := Result + vPageIndex * (FPagePadding + FSections[vSectionIndex].GetPageHeight);
   end;
+end;
+
+function THCView.GetPageNoFormat: string;
+begin
+  Result := Self.ActiveSection.PageNoFormat;
 end;
 
 function THCView.GetPagePreviewFirst: Integer;
@@ -3653,12 +3793,14 @@ var
 begin
   if not Assigned(FCaret) then Exit;
 
-  {if ((not FStyle.UpdateInfo.Draging) and ActiveSection.SelectExists) then  单击选中图片
-  if not FStyle.UpdateInfo.Draging then
+  // 想去掉有选中时也取光标，更换过后发现异常，跨DrawItem划选时，光标处的DrawItemNo
+  // 和GetCaretInfo时取的会有冲突，又如划选完成后滚动重新取光标位置，取的是SelectInfo.Start信息
+  // 所以，应该用SeekItemNo相关的处理下是不是更合适
+  if ((not FStyle.UpdateInfo.DragingSelected) and ActiveSection.SelectExists) then
   begin
     FCaret.Hide;
     Exit;
-  end;}
+  end;
 
   { 初始化光标信息，为处理表格内往外迭代，只能放在这里 }
   vCaretInfo.X := 0;
@@ -4087,6 +4229,7 @@ begin
   vXml.DocumentElement.Attributes['EXT'] := HC_EXT;
   vXml.DocumentElement.Attributes['ver'] := HC_FileVersion;
   vXml.DocumentElement.Attributes['lang'] := HC_PROGRAMLANGUAGE;
+  DoSaveXmlDocument(vXml);
 
   vNode := vXml.DocumentElement.AddChild('style');
   FStyle.ToXml(vNode);  // 样式表
@@ -4363,11 +4506,7 @@ end;
 
 procedure THCView.SetPageNoFormat(const Value: string);
 begin
-  if FPageNoFormat <> Value then
-  begin
-    FPageNoFormat := Value;
-    UpdateView;
-  end;
+  Self.ActiveSection.PageNoFormat := Value;
 end;
 
 procedure THCView.SetPagePadding(const Value: Byte);
@@ -4814,6 +4953,8 @@ begin
             FDataBmp.Canvas.MoveTo(FCaret.X, FCaret.Y);
             FDataBmp.Canvas.LineTo(FCaret.X, FCaret.Y + FCaret.Height);
           end;
+
+          DoPaintViewHintLayer(FDataBmp.Canvas, vPaintInfo);
         finally
           vPaintInfo.RestoreCanvasScale(FDataBmp.Canvas, vScaleInfo);
         end;
@@ -5175,7 +5316,7 @@ begin
           vText := vDrawAnnotate.DataAnnotate.Title + ':' + vDrawAnnotate.DataAnnotate.Text;
 
         vDrawAnnotate.Rect := Rect(0, 0, AnnotationWidth - 30, 0);
-        Windows.DrawTextEx(ACanvas.Handle, PChar(vText), -1, vDrawAnnotate.Rect,
+        Windows.DrawTextEx(ACanvas.Handle, PChar(IntToStr(i) + vText), -1, vDrawAnnotate.Rect,
           DT_TOP or DT_LEFT or DT_WORDBREAK or DT_CALCRECT, nil);  // 计算区域
         if vDrawAnnotate.Rect.Right < AnnotationWidth - 30 then
           vDrawAnnotate.Rect.Right := AnnotationWidth - 30;

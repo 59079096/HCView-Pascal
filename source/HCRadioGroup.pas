@@ -60,6 +60,7 @@ type
     procedure MouseEnter; override;
     procedure MouseLeave; override;
     function GetOffsetAt(const X: Integer): Integer; override;
+    function GetText: string; override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     destructor Destroy; override;
@@ -69,7 +70,7 @@ type
     procedure AddItem(const AText: string; const ATextValue: string = '';
       const AChecked: Boolean = False);
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -171,6 +172,7 @@ procedure THCRadioGroup.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const APaintInfo: TPaintInfo);
 var
   vPaintRegion: HRGN;
+  vClipBoxRect: TRect;
 begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
@@ -193,10 +195,19 @@ begin
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
   if not AutoSize then
   begin
+    GetClipBox(ACanvas.Handle, vClipBoxRect);  // 保存当前的绘图区域
+
     vPaintRegion := CreateRectRgn(ADrawRect.Left, ADrawRect.Top, ADrawRect.Right, ADrawRect.Bottom);
     try
       SelectClipRgn(ACanvas.Handle, vPaintRegion);
       DoPaintItems(ACanvas, ADrawRect, APaintInfo);
+    finally
+      DeleteObject(vPaintRegion);
+    end;
+
+    vPaintRegion := CreateRectRgnIndirect(vClipBoxRect);
+    try
+      SelectClipRgn(ACanvas.Handle, vPaintRegion);
     finally
       DeleteObject(vPaintRegion);
     end;
@@ -337,6 +348,23 @@ begin
     Result := OffsetAfter
   else
     Result := OffsetInner;
+end;
+
+function THCRadioGroup.GetText: string;
+var
+  i: Integer;
+begin
+  Result := inherited GetText;
+  for i := 0 to FItems.Count - 1 do
+  begin
+    if FItems[i].Checked then
+    begin
+      if Result <> '' then
+        Result := Result + '，' + FItems[i].Text
+      else
+        Result := Result + FItems[i].Text;
+    end;
+  end;
 end;
 
 procedure THCRadioGroup.LoadFromStream(const AStream: TStream;
@@ -623,13 +651,13 @@ begin
   end;
 end;
 
-procedure THCRadioGroup.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCRadioGroup.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   i: Integer;
   vByte: Byte;
   vTexts, vTextValues: string;
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
 
   AStream.WriteBuffer(FColumns, SizeOf(FColumns));
   vByte := 0;

@@ -58,7 +58,17 @@ type
     property EndNo: Integer read FEndNo write FEndNo;
   end;
 
-  TDomainStack = class(TObjectStack<THCDomainInfo>);
+  THCDomainNode = class(THCDomainInfo)
+  public
+    Parent: THCDomainNode;
+    Childs: TObjectList<THCDomainNode>;
+    constructor Create; override;
+    destructor Destroy; override;
+    function AppendChild: THCDomainNode;
+    procedure Clear; override;
+  end;
+
+  TDomainStack = class(TStack<THCDomainNode>);
 
   TDataDomainItemNoEvent = procedure(const AData: THCCustomData; const ADomainStack: TDomainStack; const AItemNo: Integer) of object;
   TDataItemEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
@@ -300,6 +310,7 @@ type
     function GetActiveDrawItem: THCCustomDrawItem;
     function GetActiveItemNo: Integer; virtual;
     function GetActiveItem: THCCustomItem; virtual;
+    function GetActiveRectItem: THCCustomItem;
     function GetTopLevelItem: THCCustomItem;
     function GetTopLevelDrawItem: THCCustomDrawItem;
     function GetTopLevelDrawItemCoord: TPoint;
@@ -425,7 +436,8 @@ type
     /// <param name="ADrawNo">指定的DrawItem</param>
     /// <returns>DrawItem的行间距</returns>
     function GetDrawItemLineSpace(const ADrawNo: Integer): Integer;
-
+    /// <summary> 选中起始是否在Item边界 </summary>
+    function SelectStartItemBoundary: Boolean;
     /// <summary> 是否有选中 </summary>
     function SelectExists(const AIfRectItem: Boolean = True): Boolean;
     procedure MarkStyleUsed(const AMark: Boolean);
@@ -434,7 +446,7 @@ type
       AEndItemNo, AEndOffset: Integer);
     procedure SaveToStream(const AStream: TStream); overload; virtual;
     procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
-      AEndItemNo, AEndOffset: Integer); overload; virtual;
+      AEndItemNo, AEndOffset: Integer); overload;  // 不继承，防止SaveLiteStream时带上继承后的多态数据
 
     function SaveToText: string; overload;
     function SaveToText(const AStartItemNo, AStartOffset,
@@ -473,6 +485,7 @@ type
 
   TTraverseItemEvent = reference to procedure(const AData: THCCustomData;
     const AItemNo, ATag: Integer; const ADomainStack: TDomainStack; var AStop: Boolean);
+  THCLoadProc = reference to procedure(const AFileVersion: Word; const AStyle: THCStyle);
 
   THCItemTraverse = class(TObject)
   public
@@ -481,6 +494,7 @@ type
     Tag: Integer;
     Stop: Boolean;
     Process: TTraverseItemEvent;
+    DomainNode: THCDomainNode;
     DomainStack: TDomainStack;
     constructor Create;
     destructor Destroy; override;
@@ -2344,11 +2358,11 @@ begin
           then
             vTextHeight := vTextHeight + vTextHeight;
 
-          if vItem.HyperLink <> '' then
+          {if vItem.HyperLink <> '' then  // 这里绘制会干扰前后相同样式的item暂时由 DoSectionDrawItemPaintAfter绘制了下划线，或者由其内部绘制是否更合适
           begin
             ACanvas.Font.Color := HyperTextColor;
             ACanvas.Font.Style := ACanvas.Font.Style + [fsUnderline];
-          end;
+          end;}
         end;
 
         case FStyle.ParaStyles[vItem.ParaNo].AlignVert of  // 垂直对齐方式
@@ -2642,7 +2656,7 @@ begin
     begin
       if DoSaveItem(AStartItemNo) then
       begin
-        FItems[AStartItemNo].SaveToStream(AStream, AStartOffset, FItems[AStartItemNo].Length);
+        FItems[AStartItemNo].SaveToStreamRange(AStream, AStartOffset, FItems[AStartItemNo].Length);
         Inc(vCountAct);
       end;
 
@@ -2657,14 +2671,14 @@ begin
 
       if DoSaveItem(AEndItemNo) then
       begin
-        FItems[AEndItemNo].SaveToStream(AStream, 0, AEndOffset);
+        FItems[AEndItemNo].SaveToStreamRange(AStream, 0, AEndOffset);
         Inc(vCountAct);
       end;
     end
     else
     if DoSaveItem(AStartItemNo) then
     begin
-      FItems[AStartItemNo].SaveToStream(AStream, AStartOffset, AEndOffset);
+      FItems[AStartItemNo].SaveToStreamRange(AStream, AStartOffset, AEndOffset);
       Inc(vCountAct);
     end;
   end;
@@ -2729,6 +2743,7 @@ end;
 procedure THCCustomData.SaveToStream(const AStream: TStream; const AStartItemNo,
   AStartOffset, AEndItemNo, AEndOffset: Integer);
 begin
+  // 目前这个方法有点多余了，为了历史包袱暂时留着
   Self.SaveItemToStream(AStream, AStartItemNo, AStartOffset, AEndItemNo, AEndOffset);
 end;
 
@@ -2776,7 +2791,10 @@ begin
           if FItems[i].ParaFirst then
             Result := Result + sLineBreak;
 
-          Result := Result + (FItems[AEndItemNo] as THCCustomRectItem).SaveSelectToText;
+          if AEndOffset = OffsetAfter then
+            Result := Result + FItems[AEndItemNo].Text
+          else
+            Result := Result + (FItems[AEndItemNo] as THCCustomRectItem).SaveSelectToText;
         end;
       end;
     end
@@ -2909,6 +2927,13 @@ end;
 function THCCustomData.SelectInSameItem: Boolean;
 begin
   Result := FSelectInfo.StartItemNo = FSelectInfo.EndItemNo;
+end;
+
+function THCCustomData.SelectStartItemBoundary: Boolean;
+begin
+  Result := (FSelectInfo.StartItemNo >= 0)
+        and ((FSelectInfo.StartItemOffset = 0)
+            or (FSelectInfo.StartItemOffset = GetItemOffsetAfter(FSelectInfo.StartItemNo)));
 end;
 
 procedure THCCustomData.SetCaretDrawItemNo(const Value: Integer);
@@ -3105,6 +3130,16 @@ begin
   Result := FSelectInfo.StartItemNo;
 end;
 
+function THCCustomData.GetActiveRectItem: THCCustomItem;
+var
+  vItem: THCCustomItem;
+begin
+  Result := nil;
+  vItem := GetActiveItem;
+  if vItem.StyleNo < THCStyle.Null then
+    Result := vItem;
+end;
+
 procedure THCCustomData.GetCaretInfo(const AItemNo, AOffset: Integer;
   var ACaretInfo: THCCaretInfo);
 var
@@ -3276,12 +3311,55 @@ begin
   Areas := [];
   Tag := 0;
   Stop := False;
+  DomainNode := THCDomainNode.Create;
   DomainStack := TDomainStack.Create;
+  DomainStack.Push(DomainNode);
 end;
 
 destructor THCItemTraverse.Destroy;
 begin
   FreeAndNil(DomainStack);
+  DomainNode.Clear;
+  FreeAndNil(DomainNode);
+  inherited Destroy;
+end;
+
+{ THCDomainNode }
+
+function THCDomainNode.AppendChild: THCDomainNode;
+begin
+  Result := THCDomainNode.Create;
+  Result.Parent := Self;
+  Childs.Add(Result);
+end;
+
+procedure THCDomainNode.Clear;
+var
+  i: Integer;
+begin
+  inherited Clear;
+
+  if Assigned(Childs) then
+  begin
+    for i := 0 to Childs.Count - 1 do
+    begin
+      Childs[i].Clear;
+      Childs[i].Free;
+    end;
+
+    Childs.Clear;
+  end;
+end;
+
+constructor THCDomainNode.Create;
+begin
+  inherited Create;
+  Childs := TObjectList<THCDomainNode>.Create(False);
+end;
+
+destructor THCDomainNode.Destroy;
+begin
+  Clear;
   inherited Destroy;
 end;
 

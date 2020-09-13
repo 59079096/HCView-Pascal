@@ -40,7 +40,7 @@ type
     constructor Create(const AOwnerData: THCCustomData; const AText: string; const AChecked: Boolean); virtual;
     procedure Assign(Source: THCCustomItem); override;
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -210,10 +210,9 @@ begin
   HCLoadTextFromStream(AStream, FText, AFileVersion);  // ¶ÁText
 end;
 
-procedure THCCheckBoxItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCCheckBoxItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
 
   AStream.WriteBuffer(FChecked, SizeOf(FChecked));  // ´æ¹´Ñ¡×´Ì¬
   HCSaveTextToStream(AStream, FText);

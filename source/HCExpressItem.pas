@@ -37,7 +37,7 @@ type
     procedure Assign(Source: THCCustomItem); override;
 
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -413,9 +413,9 @@ begin
   FRightText := ANode.Attributes['righttext'];
 end;
 
-procedure THCExpressItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCExpressItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FLeftText);
   HCSaveTextToStream(AStream, FRightText);
 end;

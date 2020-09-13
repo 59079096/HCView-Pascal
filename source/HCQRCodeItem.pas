@@ -32,7 +32,7 @@ type
     constructor Create(const AOwnerData: THCCustomData; const AText: string);
     destructor Destroy; override;
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -151,10 +151,9 @@ begin
   end;
 end;
 
-procedure THCQRCodeItem.SaveToStream(const AStream: TStream; const AStart,
-  AEnd: Integer);
+procedure THCQRCodeItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FText);
 end;
 

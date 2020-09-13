@@ -65,8 +65,7 @@ type
     /// <summary> 插入浮动Item </summary>
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
 
-    procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
-      AEndItemNo, AEndOffset: Integer); override;
+    procedure SaveToStream(const AStream: TStream); override;
 
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -492,7 +491,11 @@ procedure THCSectionData.DoLoadFromStream(const AStream: TStream;
 var
   vFloatCount, vStyleNo: Integer;
   vFloatItem: THCCustomFloatItem;
+  vDataSize: Int64;
 begin
+  if AFileVersion > 42 then
+    AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));  // 数据大小占位
+
   inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
   if AFileVersion > 12 then
   begin
@@ -653,17 +656,26 @@ begin
   end;
 end;
 
-procedure THCSectionData.SaveToStream(const AStream: TStream;
-  const AStartItemNo, AStartOffset, AEndItemNo, AEndOffset: Integer);
+procedure THCSectionData.SaveToStream(const AStream: TStream);
 var
   i, vFloatCount: Integer;
+  vBegPos, vEndPos: Int64;
 begin
-  inherited SaveToStream(AStream, AStartItemNo, AStartOffset, AEndItemNo, AEndOffset);
+  vBegPos := AStream.Position;
+  AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位，便于越过
+
+  inherited SaveToStream(AStream);
 
   vFloatCount := FFloatItems.Count;
   AStream.WriteBuffer(vFloatCount, SizeOf(vFloatCount));
   for i := 0 to FFloatItems.Count - 1 do
-    FFloatItems[i].SaveToStream(AStream, 0, OffsetAfter);
+    FFloatItems[i].SaveToStream(AStream);
+
+  vEndPos := AStream.Position;
+  AStream.Position := vBegPos;
+  vBegPos := vEndPos - vBegPos - SizeOf(vBegPos);
+  AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 当前页数据大小
+  AStream.Position := vEndPos;
 end;
 
 procedure THCSectionData.SetReadOnly(const Value: Boolean);

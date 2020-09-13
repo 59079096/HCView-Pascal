@@ -26,6 +26,7 @@ type
 
   THCViewData = class(THCViewDevData)  // 具有高亮域和操作Items功能的Data类
   private
+    FScript: string;
     FCaretItemChanged: Boolean;
     FDomainStartDeletes: THCIntegerList;  // 仅用于选中删除时，当域起始结束都选中时，删除了结束后标明起始的可删除
     FHotDomain,  // 当前高亮域
@@ -42,9 +43,10 @@ type
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; override;
     /// <summary> 是否允许保存该Item </summary>
     function DoSaveItem(const AItemNo: Integer): Boolean; override;
-
+    procedure DoLoadFromStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); override;
     /// <summary> 用于从流加载完Items后，检查不合格的Item并删除 </summary>
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; override;
+    procedure ReSetSelectAndCaret(const AItemNo, AOffset: Integer; const ANextWhenMid: Boolean = False); override;
     procedure DoCaretItemChanged; override;
     procedure DoInsertItem(const AItem: THCCustomItem); override;
     procedure DoRemoveItem(const AItem: THCCustomItem); override;
@@ -78,13 +80,13 @@ type
 
     function DoInsertTextBefor(const AItemNo, AOffset: Integer; const AText: string): Boolean; override;
 
+    procedure SaveToStream(const AStream: TStream); override;
     /// <summary> 根据传入的域"模具"创建域 </summary>
     /// <param name="AMouldDomain">"模具"调用完此方法后请自行释放</param>
     function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
-    /// <summary> 获取指定位置所在的域栈信息 </summary>
-    procedure GetDomainStackFrom(const AItemNo, AOffset: Integer; const ADomainStack: TDomainStack);
     /// <summary> 获取指定位置所在的域信息 </summary>
-    procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo);
+    procedure GetDomainFrom(const AItemNo, AOffset: Integer; const ADomainInfo: THCDomainInfo;
+      const AIsWantDomain: TRectItemActionEvent = nil);
     /// <summary> 设置选中范围 </summary>
     /// <param name="ASilence">是否"静默"调用，False：响应此选中操作的相关动作(光标位置、界面更新) True：不响应(外部自己处理)</param>
     procedure SetSelectBound(const AStartNo, AStartOffset, AEndNo, AEndOffset: Integer;
@@ -115,11 +117,11 @@ type
     procedure TraverseItem(const ATraverse: THCItemTraverse);
 
     /// <summary>
-    /// 保存域内容到文件流
+    /// 保存域内容到文件流，因为存版本和样式和HCView层面的DataSaveLiteStream重复，暂时又不用此方法，所以没有把DataSaveLiteStream重构到此单元
     /// </summary>
     /// <param name="AStream">流</param>
     /// <param name="ADomainItemNo">域起始或结束ItemNo</param>
-    procedure SaveDomainToStream(const AStream: TStream; const ADomainItemNo: Integer);
+    //procedure SaveDomainToStream(const AStream: TStream; const ADomainItemNo: Integer);
 
     property OnCaretItemChanged: TDataItemEvent read FOnCaretItemChanged write FOnCaretItemChanged;
 
@@ -189,8 +191,7 @@ begin
     Result := FOnCanEdit(Self);
 end;
 
-function THCViewData.CheckInsertItemCount(const AStartNo,
-  AEndNo: Integer): Integer;
+function THCViewData.CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer;
 var
   i, vDelCount, vLevel: Integer;
   vDomainInfo: THCDomainInfo;
@@ -216,6 +217,7 @@ begin
       if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始
         Inc(vLevel);
 
+      Assert(vLevel > -1);
       (Items[i] as THCDomainItem).Level := vLevel;
 
       if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结束
@@ -223,7 +225,7 @@ begin
     end;
   end;
 
-  // 域内容整体替换，如果域是单独的段，样式随插入内容
+  // 域内容整体替换，如果域是单独的段，段样式随插入内容
   if Style.States.Contain(hosDomainWholeReplace) then
   begin
     // [ 是段首，紧接其后面插入非段首
@@ -306,6 +308,7 @@ end;
 
 constructor THCViewData.Create(const AStyle: THCStyle);
 begin
+  FScript := '';
   FDomainCount := 0;
   FCaretItemChanged := False;
   FDomainStartDeletes := THCIntegerList.Create;
@@ -436,9 +439,9 @@ end;
 
 destructor THCViewData.Destroy;
 begin
-  FHotDomain.Free;
-  FActiveDomain.Free;
-  FDomainStartDeletes.Free;
+  FreeAndNil(FHotDomain);
+  FreeAndNil(FActiveDomain);
+  FreeAndNil(FDomainStartDeletes);
   inherited Destroy;
 end;
 
@@ -458,7 +461,9 @@ begin
   if THCDomainItem.IsBeginMark(AItem) then
     Dec(FDomainCount);
 
-  FHotDomain.Clear;
+  if Assigned(FHotDomain) then  // Destroy时释放了FHotDomain，父类释放Items时触发DoRemoveItem
+    FHotDomain.Clear;
+
   inherited DoRemoveItem(AItem);
 end;
 
@@ -558,6 +563,11 @@ begin
       if ADrawItemNo = DrawItems.Count - 1 then
         DrawLineLastMrak(ADrawRect);  // 段尾的换行符
     end;
+
+    {$IFDEF SHOWDOMAINLEVEL}
+    if (AData.Items[AItemNo] is THCDomainItem) then
+      DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 12, IntToStr((AData.Items[AItemNo] as THCDomainItem).Level));
+    {$ENDIF}
   end;
 end;
 
@@ -617,6 +627,14 @@ begin
   Result := inherited DoInsertTextBefor(AItemNo, AOffset, AText);
   if Result and Assigned(FOnInsertTextBefor) then
     Result := FOnInsertTextBefor(Self, AItemNo, AOffset, AText);
+end;
+
+procedure THCViewData.DoLoadFromStream(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+begin
+  inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
+  if AFileVersion > 42 then
+    HCLoadTextFromStream(AStream, FScript, AFileVersion);
 end;
 
 function THCViewData.DoSaveItem(const AItemNo: Integer): Boolean;
@@ -680,10 +698,20 @@ begin
 end;
 
 procedure THCViewData.GetDomainFrom(const AItemNo, AOffset: Integer;
-  const ADomainInfo: THCDomainInfo);
+  const ADomainInfo: THCDomainInfo; const AIsWantDomain: TRectItemActionEvent = nil);
+
+  function AskIsWantDomain(const AItemNo: Integer): Boolean;
+  begin
+    if Assigned(AIsWantDomain) then
+      Result := AIsWantDomain(Items[AItemNo] as THCCustomRectItem)
+    else
+      Result := True;
+  end;
+
 var
   i, vStartNo, vEndNo, vCount: Integer;
   vLevel: Byte;
+  vDomainItem: THCDomainItem;
 begin
   ADomainInfo.Clear;
 
@@ -692,15 +720,16 @@ begin
   { 找起始标识 }
   vStartNo := AItemNo;
   vEndNo := AItemNo;
-  if Items[AItemNo]is THCDomainItem then  // 起始位置就是Group
+  if (Items[AItemNo] is THCDomainItem) and AskIsWantDomain(AItemNo) then  // 起始位置就是Group
   begin
-    if (Items[AItemNo] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 起始位置是起始标记
+    vDomainItem := Items[AItemNo] as THCDomainItem;
+    if vDomainItem.MarkType = TMarkType.cmtBeg then  // 起始位置是起始标记
     begin
       if AOffset = OffsetAfter then  // 光标在后面
       begin
         ADomainInfo.Data := Self;
         ADomainInfo.BeginNo := AItemNo;  // 当前即为起始标识
-        vLevel := (Items[AItemNo] as THCDomainItem).Level;
+        vLevel := vDomainItem.Level;
         vEndNo := AItemNo + 1;
       end
       else  // 光标在前面
@@ -736,9 +765,10 @@ begin
     begin
       for i := vStartNo downto 0 do  // 先往前找起始
       begin
-        if Items[i] is THCDomainItem then
+        if (Items[i] is THCDomainItem) and AskIsWantDomain(i) then
         begin
-          if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 起始标记
+          vDomainItem := Items[i] as THCDomainItem;
+          if vDomainItem.MarkType = TMarkType.cmtBeg then  // 起始标记
           begin
             if vCount > 0 then
               Dec(vCount)
@@ -746,7 +776,7 @@ begin
             begin
               ADomainInfo.Data := Self;
               ADomainInfo.BeginNo := i;
-              vLevel := (Items[i] as THCDomainItem).Level;
+              vLevel := vDomainItem.Level;
               Break;
             end;
           end
@@ -759,11 +789,12 @@ begin
       begin
         for i := vEndNo to Items.Count - 1 do
         begin
-          if Items[i] is THCDomainItem then
+          if (Items[i] is THCDomainItem) and AskIsWantDomain(i) then
           begin
-            if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结尾
+            vDomainItem := Items[i] as THCDomainItem;
+            if vDomainItem.MarkType = TMarkType.cmtEnd then  // 是结尾
             begin
-              if (Items[i] as THCDomainItem).Level = vLevel then
+              if vDomainItem.Level = vLevel then
               begin
                 ADomainInfo.EndNo := i;
                 Break;
@@ -780,16 +811,17 @@ begin
     begin
       for i := vEndNo to Self.Items.Count - 1 do  // 先往后找结束
       begin
-        if Items[i] is THCDomainItem then
+        if (Items[i] is THCDomainItem) and AskIsWantDomain(i) then
         begin
-          if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 结束标记
+          vDomainItem := Items[i] as THCDomainItem;
+          if vDomainItem.MarkType = TMarkType.cmtEnd then  // 结束标记
           begin
             if vCount > 0 then
               Dec(vCount)
             else
             begin
               ADomainInfo.EndNo := i;
-              vLevel := (Items[i] as THCDomainItem).Level;
+              vLevel := vDomainItem.Level;
               Break;
             end;
           end
@@ -802,11 +834,12 @@ begin
       begin
         for i := vStartNo downto 0 do
         begin
-          if Items[i] is THCDomainItem then
+          if (Items[i] is THCDomainItem) and AskIsWantDomain(i) then
           begin
-            if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtBeg then  // 是起始
+            vDomainItem := Items[i] as THCDomainItem;
+            if vDomainItem.MarkType = TMarkType.cmtBeg then  // 是起始
             begin
-              if (Items[i] as THCDomainItem).Level = vLevel then
+              if vDomainItem.Level = vLevel then
               begin
                 ADomainInfo.Data := Self;
                 ADomainInfo.BeginNo := i;
@@ -826,11 +859,12 @@ begin
   begin
     for i := vEndNo to Items.Count - 1 do
     begin
-      if Items[i] is THCDomainItem then
+      if (Items[i] is THCDomainItem) and AskIsWantDomain(i) then
       begin
-        if (Items[i] as THCDomainItem).MarkType = TMarkType.cmtEnd then  // 是结尾
+        vDomainItem := Items[i] as THCDomainItem;
+        if vDomainItem.MarkType = TMarkType.cmtEnd then  // 是结尾
         begin
-          if (Items[i] as THCDomainItem).Level = vLevel then
+          if vDomainItem.Level = vLevel then
           begin
             ADomainInfo.EndNo := i;
             Break;
@@ -841,30 +875,6 @@ begin
 
     if ADomainInfo.EndNo < 0 then
       raise Exception.Create('异常：获取域结束位置出错！');
-  end;
-end;
-
-procedure THCViewData.GetDomainStackFrom(const AItemNo, AOffset: Integer;
-  const ADomainStack: TDomainStack);
-var
-  i: Integer;
-  vDomainInfo: THCDomainInfo;
-begin
-  for i := 0 to AItemNo - 1 do
-  begin
-    if Items[i] is THCDomainItem then
-    begin
-      if THCDomainItem.IsBeginMark(Items[i]) then
-      begin
-        vDomainInfo := THCDomainInfo.Create;
-        vDomainInfo.Data := Self;
-        //GetDomainFrom(i, OffsetAfter, vDomainInfo);  // 如果用这句，注释掉上句，因为里面取了Data了
-        vDomainInfo.BeginNo := i;
-        ADomainStack.Push(vDomainInfo);
-      end
-      else
-        ADomainStack.Pop;
-    end;
   end;
 end;
 
@@ -949,7 +959,7 @@ begin
 
   Undo_GroupBegin(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   try
-    Self.Style.States.Include(hosBatchInsert);
+    Self.Style.States.Include(hosBatchInsert);  // 批量插入防止插入1个起始触发取配对时，结束还没插入呢
     try
       // 插入头
       vDomainItem := CreateDefaultDomainItem as THCDomainItem;
@@ -980,6 +990,9 @@ begin
   finally
     Undo_GroupEnd(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
   end;
+
+  // 因上面批量屏蔽了取当前位置域的功能，所以都插完后，取一下当前位置域情况
+  ReSetSelectAndCaret(SelectInfo.StartItemNo);
 end;
 
 function THCViewData.InsertItem(const AIndex: Integer;
@@ -1091,24 +1104,41 @@ begin
   InsertText(AText);
 end;
 
-procedure THCViewData.SaveDomainToStream(const AStream: TStream;
-  const ADomainItemNo: Integer);
-var
-  vGroupBeg, vGroupEnd: Integer;
+procedure THCViewData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer; const ANextWhenMid: Boolean = False);
 begin
-  vGroupEnd := GetDomainAnother(ADomainItemNo);
-
-  if vGroupEnd > ADomainItemNo then
-    vGroupBeg := ADomainItemNo
-  else
+  inherited ReSetSelectAndCaret(AItemNo, AOffset, ANextWhenMid);
+  if not Self.Style.States.Contain(THCState.hosBatchInsert) then
   begin
-    vGroupBeg := vGroupEnd;
-    vGroupEnd := ADomainItemNo;
+    if FDomainCount > 0 then
+      GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, FActiveDomain)  // 获取当前光标处ActiveDeGroup信息
+    else
+      FActiveDomain.Clear;
   end;
+end;
 
-  _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
-  Self.Style.SaveToStream(AStream);
-  SaveItemToStream(AStream, vGroupBeg + 1, 0, vGroupEnd - 1, GetItemOffsetAfter(vGroupEnd - 1));
+//procedure THCViewData.SaveDomainToStream(const AStream: TStream; const ADomainItemNo: Integer);
+//var
+//  vGroupBeg, vGroupEnd: Integer;
+//begin
+//  vGroupEnd := GetDomainAnother(ADomainItemNo);
+//
+//  if vGroupEnd > ADomainItemNo then
+//    vGroupBeg := ADomainItemNo
+//  else
+//  begin
+//    vGroupBeg := vGroupEnd;
+//    vGroupEnd := ADomainItemNo;
+//  end;
+//
+//  _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
+//  Self.Style.SaveToStream(AStream);
+//  SaveItemToStream(AStream, vGroupBeg + 1, 0, vGroupEnd - 1, GetItemOffsetAfter(vGroupEnd - 1));
+//end;
+
+procedure THCViewData.SaveToStream(const AStream: TStream);
+begin
+  inherited SaveToStream(AStream);
+  HCSaveTextToStream(AStream, FScript);
 end;
 
 function THCViewData.Search(const AKeyword: string; const AForward,
@@ -1456,7 +1486,7 @@ end;
 procedure THCViewData.TraverseItem(const ATraverse: THCItemTraverse);
 var
   i: Integer;
-  vDomainInfo: THCDomainInfo;
+  vDomainInfo: THCDomainNode;
 begin
   if ATraverse <> nil then
   begin
@@ -1468,12 +1498,18 @@ begin
       begin
         if THCDomainItem.IsBeginMark(Items[i]) then
         begin
-          vDomainInfo := THCDomainInfo.Create;
-          GetDomainFrom(i, OffsetAfter, vDomainInfo);
+          vDomainInfo := ATraverse.DomainStack.Peek;
+          vDomainInfo := vDomainInfo.AppendChild;
+          //GetDomainFrom(i, OffsetAfter, vDomainInfo);
+          vDomainInfo.Data := Self;
+          vDomainInfo.BeginNo := i;
           ATraverse.DomainStack.Push(vDomainInfo);
         end
         else
-          ATraverse.DomainStack.Pop;
+        begin
+          vDomainInfo := ATraverse.DomainStack.Pop;
+          vDomainInfo.EndNo := i;
+        end;
       end;
 
       ATraverse.Process(Self, i, ATraverse.Tag, ATraverse.DomainStack, ATraverse.Stop);

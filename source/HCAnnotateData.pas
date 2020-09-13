@@ -110,8 +110,7 @@ type
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure InitializeField; override;
     procedure Clear; override;
-    procedure SaveToStream(const AStream: TStream; const AStartItemNo, AStartOffset,
-      AEndItemNo, AEndOffset: Integer); override;
+    procedure SaveToStream(const AStream: TStream); override;
 
     function InsertAnnotate(const ATitle, AText: string): Boolean;
     property DataAnnotates: THCDataAnnotates read FDataAnnotates;
@@ -221,8 +220,8 @@ end;
 
 destructor THCAnnotateData.Destroy;
 begin
-  FDataAnnotates.Free;
-  FDrawItemAnnotates.Free;
+  FreeAndNil(FDataAnnotates);
+  FreeAndNil(FDrawItemAnnotates);
   inherited Destroy;
 end;
 
@@ -367,7 +366,8 @@ procedure THCAnnotateData.DoItemAction(const AItemNo, AOffset: Integer;
             and (AOffset <= vDataAnn.EndItemOffset)  // 在批注中间
           then
             vDataAnn.EndItemOffset := vDataAnn.EndItemOffset - 1
-          else  // 在批注所在的Item批注位置前面删除
+          else
+          if (AOffset <= vDataAnn.StartItemOffset) then  // 在批注所在的Item批注位置前面删除
           begin
             vDataAnn.StartItemOffset := vDataAnn.StartItemOffset - 1;
             vDataAnn.EndItemOffset := vDataAnn.EndItemOffset - 1
@@ -665,13 +665,12 @@ begin
   FDrawItemAnnotates.Clear;
 end;
 
-procedure THCAnnotateData.SaveToStream(const AStream: TStream;
-  const AStartItemNo, AStartOffset, AEndItemNo, AEndOffset: Integer);
+procedure THCAnnotateData.SaveToStream(const AStream: TStream);
 var
   vAnnCount: Word;
   i: Integer;
 begin
-  inherited SaveToStream(AStream, AStartItemNo, AStartOffset, AEndItemNo, AEndOffset);
+  inherited SaveToStream(AStream);
   // 存批注
   vAnnCount := FDataAnnotates.Count;
   AStream.WriteBuffer(vAnnCount, SizeOf(vAnnCount));  // 数量

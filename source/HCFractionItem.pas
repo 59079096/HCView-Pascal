@@ -54,7 +54,7 @@ type
     constructor Create(const AOwnerData: THCCustomData; const ATopText, ABottomText: string); virtual;
     procedure Assign(Source: THCCustomItem); override;
 
-    procedure SaveToStream(const AStream: TStream; const AStart, AEnd: Integer); override;
+    procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
     procedure ToXml(const ANode: IHCXMLNode); override;
@@ -435,9 +435,9 @@ begin
   FBottomText := ANode.Attributes['bottomtext'];
 end;
 
-procedure THCFractionItem.SaveToStream(const AStream: TStream; const AStart, AEnd: Integer);
+procedure THCFractionItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 begin
-  inherited SaveToStream(AStream, AStart, AEnd);
+  inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FTopText);
   HCSaveTextToStream(AStream, FBottomText);
 end;

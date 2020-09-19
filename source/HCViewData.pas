@@ -1397,6 +1397,12 @@ begin
       DisSelect;  // 清除最后找到选中状态
       Self.SelectInfo.StartItemNo := vItemNo;
       Self.SelectInfo.StartItemOffset := vOffset;
+    end
+    else
+    if Self.SelectInfo.StartItemNo < 0 then
+    begin
+      Self.SelectInfo.StartItemNo := vItemNo;
+      Self.SelectInfo.StartItemOffset := vOffset;
     end;
   end
   else

@@ -2689,7 +2689,8 @@ var
         // 如果行中RectItem最高，RectItem格式化时行高是Style.LineSpaceMin，也不影响
         // 另外如果Rect是行第一个，减了能放下留在本页，同行后面是文本却放不到本页下移，造成错乱
         //if vRectItem is THCDataItem then
-        //InflateRect(vDrawRect, 0, -FPage.GetLineBlankSpace(ADrawItemNo) div 2);  // 减掉行间距，为了达到去掉行间距能放下不换页的效果
+        if (ADrawItemNo = FPage.DrawItems.Count - 1) or (FPage.DrawItems[ADrawItemNo + 1].LineFirst) then
+          InflateRect(vDrawRect, 0, -FPage.GetLineBlankSpace(ADrawItemNo) div 2);
 
         vRectItem.CheckFormatPageBreak(  // 去除行间距后，判断表格跨页位置
           FPages.Count - 1,

@@ -142,6 +142,12 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
 
+    procedure DoCellPaintDataBefor(const ARow, ACol: Integer; const ACellDrawRect: TRect;
+      const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
+    procedure DoCellDataDrawItemPaintAfter(const AData: THCCustomData; const AItemNo, ADrawItemNo: Integer;
+      const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+      ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
+
     //procedure PaintPartTo(const ACanvas: TCanvas; const ADrawLeft, ADrawTop, ADrawBottom, ADataScreenTop,
     //  ADataScreenBottom, AStartRow, AStartRowDataOffs, AEndRow, AEndRowDataOffs: Integer); overload;
     {procedure ConvertToDrawItems(const AItemNo, AOffs, AContentWidth,
@@ -802,6 +808,17 @@ begin
   end;
 end;
 
+procedure THCTableItem.DoCellDataDrawItemPaintAfter(const AData: THCCustomData;
+  const AItemNo, ADrawItemNo: Integer; const ADrawRect, AClearRect: TRect;
+  const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
+  ADataScreenBottom: Integer; const ACanvas: TCanvas;
+  const APaintInfo: TPaintInfo);
+begin
+  (OwnerData as THCViewData).OnDrawItemPaintAfter(AData, AItemNo, ADrawItemNo,
+    ADrawRect, AClearRect, ADataDrawLeft, ADataDrawRight, ADataDrawBottom,
+    ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+end;
+
 function THCTableItem.DoCellDataGetRootData: THCCustomData;
 begin
   Result := OwnerData.GetRootData;
@@ -815,6 +832,11 @@ end;
 procedure THCTableItem.DoCellDataSilenceChange(Sender: TObject);
 begin
   Self.SilenceChange;
+end;
+
+procedure THCTableItem.DoCellPaintDataBefor(const ARow, ACol: Integer;
+  const ACellDrawRect: TRect; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
+begin
 end;
 
 function THCTableItem.DoSelfUndoNew: THCUndo;
@@ -1046,9 +1068,13 @@ begin
         //Assert(vCellScreenBottom - vMergeCellDataDrawTop >= FRows[vR].Height, '计划使用Continue但待确认会符合情况的');
         vCellData := FRows[vDestRow][vDestCol].CellData;  // 目标CellData，20170208003 如果移到if vDrawData外面则20170208002不需要了
         vCellScreenTop := Math.Max(ADataScreenTop, vCellDataDrawTop - FCellVPaddingPix);  // 屏显最上端
-        if vCellScreenTop - vDestCellDataDrawTop < vCellData.Height then  // 可显示的起始位置小于数据高度(当>=时说明数据高度小于行高时，数据已经完全卷到上面了)
+
+        if vCellScreenTop - vDestCellDataDrawTop < FRows[vDestRow][vDestCol].Height then
         begin
-          vCellRect := Rect(vCellDrawLeft, vCellScreenTop, vCellDrawLeft + FRows[vR][vC].Width, vCellScreenBottom);
+          vCellRect := Rect(vCellDrawLeft,
+            vDestCellDataDrawTop - FCellVPaddingPix,
+            vCellDrawLeft + FRows[vDestRow][vDestCol].CellData.Width + FCellHPaddingPix + FCellHPaddingPix,
+            vDestCellDataDrawTop + FRows[vDestRow][vDestCol].CellData.Height);
 
           if (Self.IsSelectComplate or vCellData.CellSelectedAll) and (not APaintInfo.Print) then  // 表格全选中或单元格全选中
           begin
@@ -1087,6 +1113,8 @@ begin
           //if vFristDItemNo >= 0 then
           if vCellScreenBottom - vCellScreenTop > FCellVPaddingPix then  // 有可显示的DrawItem
           begin
+            DoCellPaintDataBefor(vDestRow, vDestCol, vCellRect, ACanvas, APaintInfo);
+
             FRows[vDestRow][vDestCol].PaintTo(
               vCellDrawLeft, vDestCellDataDrawTop - FCellVPaddingPix,
               vCellDrawLeft + FColWidths[vC] + GetColSpanWidth(vDestRow, vDestCol),
@@ -3385,7 +3413,7 @@ begin
   ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
   ACellData.OnDrawItemPaintContent := (OwnerData as THCRichData).OnDrawItemPaintContent;
-  ACellData.OnDrawItemPaintAfter := (OwnerData as THCViewData).OnDrawItemPaintAfter;
+  ACellData.OnDrawItemPaintAfter := DoCellDataDrawItemPaintAfter;
 
   ACellData.OnInsertAnnotate := (OwnerData as THCViewData).OnInsertAnnotate;
   ACellData.OnRemoveAnnotate := (OwnerData as THCViewData).OnRemoveAnnotate;

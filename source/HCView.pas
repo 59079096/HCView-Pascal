@@ -739,12 +739,12 @@ type
     /// <param name="AMatchCase">True：区分大小写，False：不区分大小写</param>
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward: Boolean = False;
-      const AMatchCase: Boolean = False): Boolean;
+      const AMatchCase: Boolean = False): Boolean; virtual;
 
     /// <summary> 替换已经通过查找选中的内容 </summary>
     /// <param name="AText">要替换为的内容</param>
     /// <returns>是否替换成功</returns>
-    function Replace(const AText: string): Boolean;
+    function Replace(const AText: string): Boolean; virtual;
 
     /// <summary> 字数 </summary>
     function NumberOfWords: Cardinal;

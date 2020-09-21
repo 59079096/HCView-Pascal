@@ -44,6 +44,7 @@ type
     procedure RestrainSize(const AWidth, AHeight: Integer); override;
     procedure LoadGraphicFile(const AFileName: string; const AResize: Boolean = True);
     procedure LoadGraphicStream(const AStream: TStream; const AResize: Boolean = True);
+    procedure ImageAssign(const AGraphic: TGraphic);
 
     procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -323,6 +324,12 @@ begin
   Result := inherited GetWidth;
   if Result = 0 then
     Result := FImage.Width;
+end;
+
+procedure THCImageItem.ImageAssign(const AGraphic: TGraphic);
+begin
+  FImage.Assign(AGraphic);
+  FEmpty := False;
 end;
 
 procedure THCImageItem.LoadGraphicFile(const AFileName: string; const AResize: Boolean = True);

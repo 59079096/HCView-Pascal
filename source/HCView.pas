@@ -3193,12 +3193,12 @@ procedure THCView.Paste;
     vBitmap: TBitmap;
   begin
     vTopData := Self.ActiveSectionTopLevelData as THCRichData;
-    vImageItem := THCImageItem.Create(vTopData);
+    vImageItem := vTopData.CreateItemByStyle(THCStyle.Image) as THCImageItem;
 
     vBitmap := TBitmap.Create;
     try
       vBitmap.Assign(Clipboard);
-      vImageItem.Image.Assign(vBitmap);
+      vImageItem.ImageAssign(vBitmap);
     finally
       FreeAndNil(vBitmap);
     end;

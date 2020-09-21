@@ -2551,6 +2551,13 @@ begin
         vItem.ParaNo := vCaretParaNo;
       end;
 
+      if (vItem.StyleNo > 0) and (vItem.Text = '') and not vItem.ParaFirst then
+      begin
+        Inc(vIgnoreCount);
+        FreeAndNil(vItem);
+        Continue;
+      end;
+
       if i = 0 then  // 插入的第一个Item
       begin
         if vInsertBefor then  // 第一个在某Item最前面插入(粘贴或替换整个域)

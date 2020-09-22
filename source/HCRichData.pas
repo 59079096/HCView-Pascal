@@ -1467,7 +1467,7 @@ begin
       else
         UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
-      vFormatFirstDrawItemNo := Items[SelectInfo.StartItemNo].FirstDItemNo;
+      vFormatFirstDrawItemNo := GetFormatFirstDrawItem(Items[SelectInfo.StartItemNo].FirstDItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, SelectInfo.StartItemNo);
       (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ApplySelectParaStyle(Self.Style, AMatchStyle);
       ReFormatData(vFormatFirstDrawItemNo, SelectInfo.StartItemNo);

@@ -14,7 +14,7 @@ unit HCTextItem;
 interface
 
 uses
-  Windows, Classes, SysUtils, Graphics, HCStyle, HCItem, HCXml;
+  Windows, Classes, SysUtils, Graphics, HCStyle, HCItem, HCXml, HCCommon;
 
 type
   THCTextItemClass = class of THCTextItem;
@@ -34,7 +34,7 @@ type
     procedure Assign(Source: THCCustomItem); override;
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
-
+    function AcceptAction(const AOffset: Integer; const ARestrain: Boolean; const AAction: THCAction): Boolean; override;
     // 保存和读取
     procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
@@ -58,7 +58,7 @@ var
 implementation
 
 uses
-  HCCommon, HCTextStyle;
+  HCTextStyle;
 
 { THCTextItem }
 
@@ -74,6 +74,14 @@ begin
   Create;  // 这里如果 inherited Create; 则调用THCCustomItem的Create，子类TEmrTextItem调用CreateByText时不能执行自己的Create
   FText := AText;
   FHyperLink := '';
+end;
+
+function THCTextItem.AcceptAction(const AOffset: Integer;
+  const ARestrain: Boolean; const AAction: THCAction): Boolean;
+begin
+  Result := inherited AcceptAction(AOffset, ARestrain, AAction);
+  if Result and (FHyperLink <> '') and (AAction = THCAction.actConcatText) then
+    Result := False;
 end;
 
 procedure THCTextItem.Assign(Source: THCCustomItem);

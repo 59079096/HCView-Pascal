@@ -2292,8 +2292,8 @@ var
       vPageDataScreenTop,     // 界面呈现当前页数据的Top位置
       vPageDataScreenBottom,  // 界面呈现当前页数据Bottom位置
       APaintInfo.PageDataFmtTop,  // 指定从哪个位置开始的数据绘制到页数据起始位置
-      FPages[APageIndex].StartDrawItemNo,
-      FPages[APageIndex].EndDrawItemNo,
+      //FPages[APageIndex].StartDrawItemNo,
+      //FPages[APageIndex].EndDrawItemNo,
       ACanvas,
       APaintInfo);
 
@@ -2569,9 +2569,9 @@ begin
   // 恢复区域，准备给整页绘制用(为支持浮动Item，所以纸张边距)
   vPaintRegion := CreateRectRgn(
     APaintInfo.GetScaleX(vPaperDrawLeft),
-    APaintInfo.GetScaleX(vPaperDrawTop),
+    APaintInfo.GetScaleY(vPaperDrawTop),
     APaintInfo.GetScaleX(vPaperDrawRight),
-    APaintInfo.GetScaleX(vPaperDrawBottom));
+    APaintInfo.GetScaleY(vPaperDrawBottom));
   try
     SelectClipRgn(ACanvas.Handle, vPaintRegion);
 

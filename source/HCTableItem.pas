@@ -4373,6 +4373,7 @@ begin
     vData := THCTableCellData.Create(OwnerData.Style);
     try
       vData.BeginFormat;
+      vData.Items.Clear;
       //vData.Width := vWidth;
       vData.OnSaveItem := OwnerData.OnSaveItem;
       //vTable := vData.CreateItemByStyle(Self.StyleNo);

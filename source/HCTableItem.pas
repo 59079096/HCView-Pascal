@@ -95,7 +95,9 @@ type
     procedure InitializeCellData(const ACellData: THCTableCellData);
     function DoCellDataGetRootData: THCCustomData;
     procedure DoCellDataSilenceChange(Sender: TObject);
-    procedure DoCellDataItemRequestFormat(const AData: THCCustomData; const AItem: THCCustomItem);
+    function DoCellExecuteScript(const AData: THCCustomData; const AItemNo: Integer): Boolean;
+    procedure DoCellDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
+    function DoCellDataGetFormatTop(const ACellData: THCCustomData): Integer;
 
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
@@ -225,6 +227,7 @@ type
     function InsertItem(const AItem: THCCustomItem): Boolean; override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word): Boolean; override;
     procedure ReFormatActiveItem; override;
+    procedure ReFormatRequest; override;
     procedure ActiveItemReAdaptEnvironment; override;
     function DeleteActiveDomain: Boolean; override;
     procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean); override;
@@ -273,7 +276,7 @@ type
 
     /// <summary> 获取当前表格格式化宽度 </summary>
     function GetFormatWidth: Integer;
-
+    procedure AdjustWidth(const AReFormat: Boolean);
     /// <summary> 获取指定位置处的行、列(如果是被合并单元格则返回目标单元格行、列) </summary>
     /// <param name="X">横坐标</param>
     /// <param name="Y">纵坐标</param>
@@ -320,6 +323,7 @@ type
     function SelectedCellCanMerge: Boolean;
     function GetEditCell: THCTableCell; overload;
     procedure GetEditCell(var ARow, ACol: Integer); overload;
+    procedure CellExecuteScript(const ARow, ACol: Integer);
     function InsertRowAfter(const ACount: Integer): Boolean;
     function InsertRowBefor(const ACount: Integer): Boolean;
     function InsertColAfter(const ACount: Integer): Boolean;
@@ -819,19 +823,58 @@ begin
     ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
 end;
 
+function THCTableItem.DoCellDataGetFormatTop(const ACellData: THCCustomData): Integer;
+var
+  vR, vC, vTop: Integer;
+  vCellData: THCTableCellData;
+  vStop: Boolean;
+begin
+  Result := 0;
+  vTop := 0;
+  vStop := False;
+
+  for vR := 0 to FRows.Count - 1 do
+  begin
+    if vStop then
+      Break;
+
+    for vC := 0 to FColWidths.Count - 1 do
+    begin
+      vCellData := FRows[vR][vC].CellData;
+      if vCellData = ACellData then
+      begin
+        vTop := vTop + FCellVPaddingPix;
+        vStop := True;
+        Break;
+      end;
+    end;
+
+    if not vStop then
+      vTop := vTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidthPix;
+  end;
+
+  Result := vTop + (OwnerData as THCRichData).GetDrawItemFormatTop(Self.FirstDItemNo);
+end;
+
 function THCTableItem.DoCellDataGetRootData: THCCustomData;
 begin
   Result := OwnerData.GetRootData;
 end;
 
-procedure THCTableItem.DoCellDataItemRequestFormat(const AData: THCCustomData; const AItem: THCCustomItem);
+procedure THCTableItem.DoCellDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
 begin
-  (OwnerData as THCRichData).ItemRequestFormat(Self);
+  (OwnerData as THCRichData).ItemReFormatRequest(Self);
 end;
 
 procedure THCTableItem.DoCellDataSilenceChange(Sender: TObject);
 begin
   Self.SilenceChange;
+end;
+
+function THCTableItem.DoCellExecuteScript(const AData: THCCustomData;
+  const AItemNo: Integer): Boolean;
+begin
+  Result := False;
 end;
 
 procedure THCTableItem.DoCellPaintDataBefor(const ARow, ACol: Integer;
@@ -2884,6 +2927,13 @@ begin
   Self.FormatDirty;  // 对于修改表格整体属性，如边框宽度等并不仅仅是某个单元格的变化，需要强制重新格式化
 end;
 
+procedure THCTableItem.ReFormatRequest;
+begin
+  //inherited;
+  FormatDirty;
+  (OwnerData as THCRichData).ItemReFormatRequest(Self);
+end;
+
 function THCTableItem.ResetRowCol(const AWidth, ARowCount, AColCount: Integer): Boolean;
 var
   i, vDataWidth: Integer;
@@ -3405,10 +3455,12 @@ begin
   ACellData.OnRemoveItem := OwnerData.OnRemoveItem;
   ACellData.OnSaveItem := OwnerData.OnSaveItem;
   ACellData.OnAcceptAction := (OwnerData as THCRichData).OnAcceptAction;
+
   ACellData.OnItemMouseDown := (OwnerData as THCViewData).OnItemMouseDown;
   ACellData.OnItemMouseUp := (OwnerData as THCViewData).OnItemMouseUp;
   ACellData.OnDrawItemMouseMove := (OwnerData as THCRichData).OnDrawItemMouseMove;
-  ACellData.OnItemRequestFormat := DoCellDataItemRequestFormat;
+  ACellData.OnItemReFormatRequest := DoCellDataItemReFormatRequest;
+  ACellData.OnExecuteScript := DoCellExecuteScript;
 
   ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
@@ -3429,6 +3481,7 @@ begin
   ACellData.OnCreateItem := (OwnerData as THCRichData).OnCreateItem;
   ACellData.OnGetUndoList := Self.GetSelfUndoList;
   ACellData.OnGetRootData := DoCellDataGetRootData;
+  ACellData.OnGetFormatTop := DoCellDataGetFormatTop;
   ACellData.OnSilenceChange := DoCellDataSilenceChange;
 end;
 
@@ -3968,6 +4021,18 @@ begin
     Self.SizeChanged := FRows[ARow][ACol].CellData.FormatHeightChange;
 
   //FLastChangeFormated := not Self.SizeChanged;
+end;
+
+procedure THCTableItem.CellExecuteScript(const ARow, ACol: Integer);
+var
+  vCell: THCTableCell;
+begin
+  vCell := FRows[ARow][ACol];
+  if Assigned(vCell.CellData) then
+  begin
+    if vCell.CellData.ExecuteScript(0) then
+      ReFormatRequest;
+  end;
 end;
 
 function THCTableItem.CellsCanMerge(const AStartRow, AStartCol, AEndRow, AEndCol: Integer): Boolean;
@@ -5194,6 +5259,44 @@ begin
 
   AEndRow := vLastRow;
   AEndCol := vLastCol;
+end;
+
+procedure THCTableItem.AdjustWidth(const AReFormat: Boolean);
+var
+  i, vWidth, vZ, vY: Integer;
+begin
+  vWidth := (OwnerData as THCRichData).Width - GetFormatWidth;
+  if vWidth <> 0 then
+  begin
+    vZ := vWidth div FColWidths.Count;
+    vY := vWidth mod FColWidths.Count;
+
+    for i := 0 to FColWidths.Count - 1 do
+    begin
+      FColWidths[i] := FColWidths[i] + vZ;
+      if vY <> 0 then
+      begin
+        if i = FColWidths.Count - 1 then
+          FColWidths[i] := FColWidths[i] + vY
+        else
+        begin
+          if vY > 0 then
+          begin
+            FColWidths[i] := FColWidths[i] + 1;
+            Dec(vY);
+          end
+          else
+          begin
+            FColWidths[i] := FColWidths[i] - 1;
+            Inc(vY);
+          end;
+        end;
+      end;
+    end;
+
+    if AReFormat then
+      ReFormatRequest;
+  end;
 end;
 
 procedure THCTableItem.ApplyContentAlign(const AAlign: THCContentAlign);

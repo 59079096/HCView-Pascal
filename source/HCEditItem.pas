@@ -15,7 +15,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Controls, Graphics, HCItem, HCRectItem, HCStyle,
-  HCCustomData, HCFormatData, HCCommon, HCXml;
+  HCCustomData, HCRichData, HCCommon, HCXml;
 
 const
   BTNWIDTH = 16;
@@ -673,7 +673,7 @@ begin
       FCaretOffset := 0;
 
     if Self.AutoSize then
-      (OwnerData as THCFormatData).ItemRequestFormat(Self)
+      (OwnerData as THCRichData).ItemReFormatRequest(Self)
     else
       OwnerData.Style.UpdateInfoRePaint;
   end;

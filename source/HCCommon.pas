@@ -376,6 +376,7 @@ type
   procedure HCDrawArrow(const ACanvas: TCanvas; const AColor: TColor; const ALeft, ATop: Integer; const AType: Byte);
   procedure HCDrawFrameControl(const ACanvas: TCanvas; const ARect: TRect;
     const AState: THCControlState; AStyle: THCControlStyle);
+  procedure HCDrawWave(const ACanvas: TCanvas; const ARect: TRect);
 
   function SaveCanvas(const ACanvas: TCanvas): THCCanvas;
 
@@ -489,6 +490,29 @@ begin
       ACanvas.LineTo(vRect.Left - 2 + 16 div 2, vRect.Bottom - 3);
       ACanvas.LineTo(vRect.Right - 3, vRect.Top + 3);
     end;
+  end;
+end;
+
+procedure HCDrawWave(const ACanvas: TCanvas; const ARect: TRect);
+var
+  vDT: Boolean;
+  vStart: Integer;
+begin
+  vDT := False;
+  vStart := ARect.Left;
+  ACanvas.MoveTo(vStart, ARect.Bottom);
+  while vStart < ARect.Right do
+  begin
+    vStart := vStart + 2;
+    if vStart > ARect.Right then
+      vStart := ARect.Right;
+
+    if not vDT then
+      ACanvas.LineTo(vStart, ARect.Bottom + 2)
+    else
+      ACanvas.LineTo(vStart, ARect.Bottom);
+
+    vDT := not vDT;
   end;
 end;
 

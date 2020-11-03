@@ -18,6 +18,7 @@ uses
 
 type
   TGetRootDataEvent = function (): THCCustomData of object;
+  TGetFormatTopFun = function(const ACellData: THCCustomData): Integer of object;
 
   THCTableCellData = class(THCViewData)
   private
@@ -31,6 +32,7 @@ type
     FCellHeight: Integer;  // 所属单元格高度(因合并或手动拖高，单元格高度会大于等于其内数据高度)
     FOnSilenceChange: TNotifyEvent;
     FOnGetRootData: TGetRootDataEvent;
+    FOnGetFormatTop: TGetFormatTopFun;
     function PointInCellRect(const APt: TPoint): Boolean;
   protected
     function GetHeight: Cardinal; override;
@@ -54,9 +56,11 @@ type
       const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False); override;
 
     procedure SetActive(const Value: Boolean);
+    function GetFormatTop: Integer;
   public
     procedure ApplySelectTextStyle(const AMatchStyle: THCStyleMatch); override;
     procedure ApplySelectParaStyle(const AMatchStyle: THCParaMatch); override;
+    function GetDrawItemFormatTop(const ADrawItemNo: Integer): Integer; override;
 
     /// <summary> 全选 </summary>
     procedure SelectAll; override;
@@ -95,7 +99,7 @@ type
     property Active: Boolean read FActive write SetActive;
 
     property OnGetRootData: TGetRootDataEvent read FOnGetRootData write FOnGetRootData;
-
+    property OnGetFormatTop: TGetFormatTopFun read FOnGetFormatTop write FOnGetFormatTop;
     property OnSilenceChange: TNotifyEvent read FOnSilenceChange write FOnSilenceChange;
   end;
 
@@ -169,6 +173,20 @@ function THCTableCellData.DisSelect: Boolean;
 begin
   Result := inherited DisSelect;
   FCellSelectedAll := False;
+end;
+
+function THCTableCellData.GetDrawItemFormatTop(const ADrawItemNo: Integer): Integer;
+begin
+  Result := inherited GetDrawItemFormatTop(ADrawItemNo);
+  Result := Result + GetFormatTop;
+end;
+
+function THCTableCellData.GetFormatTop: Integer;
+begin
+  if Assigned(FOnGetFormatTop) then
+    Result := FOnGetFormatTop(Self)
+  else
+    Result := 0;
 end;
 
 function THCTableCellData.GetHeight: Cardinal;

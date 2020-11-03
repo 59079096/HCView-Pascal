@@ -73,6 +73,7 @@ type
     /// <summary> 清除并返回为处理分页比净高增加的高度(为重新格式化时后面计算偏移用) </summary>
     function ClearFormatExtraHeight: Integer; virtual;
     procedure ReFormatActiveItem; virtual;
+    procedure ReFormatRequest; virtual;
     /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
     procedure ActiveItemReAdaptEnvironment; virtual;
     function DeleteSelected: Boolean; virtual;
@@ -195,6 +196,7 @@ type
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
   public
+    Empty: Boolean;
     constructor Create(const AOwnerData: THCCustomData); override;
     class function IsBeginMark(const AItem: THCCustomItem): Boolean;
     class function IsEndMark(const AItem: THCCustomItem): Boolean;
@@ -688,6 +690,10 @@ begin
 end;
 
 procedure THCCustomRectItem.ReFormatActiveItem;
+begin
+end;
+
+procedure THCCustomRectItem.ReFormatRequest;
 begin
 end;
 
@@ -1416,6 +1422,7 @@ begin
   FLevel := 0;
   Width := 0;
   Height := AOwnerData.Style.TextStyles[0].FontHeight;
+  Empty := True;
 end;
 
 procedure THCDomainItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -1439,20 +1446,25 @@ var
 begin
   Self.Width := 0;
   Self.Height := ARichData.Style.TextStyles[0].FontHeight;;  // 默认大小
+  Empty := False;
+
   if FMarkType = TMarkType.cmtBeg then  // 域起始标识
   begin
-    if AItemNo < ARichData.Items.Count - 1 then  // 插入时可能是在Data最后面插入起始，后面不一定有结束
+    if AItemNo < ARichData.Items.Count - 1 then
     begin
       vItem := ARichData.Items[AItemNo + 1];
-      if (vItem.StyleNo = Self.StyleNo)  // 下一个是域标识
-        and ((vItem as THCDomainItem).MarkType = TMarkType.cmtEnd)  // 下一个是结束标识
+      if (vItem.StyleNo = Self.StyleNo)
+        and ((vItem as THCDomainItem).MarkType = TMarkType.cmtEnd)
       then
-        Self.Width := 10  // 增加宽度以便输入时光标可方便点击
+      begin
+        Self.Width := 10;
+        Empty := True;
+      end
       else
-      if vItem.ParaFirst then  // 下一个是段首，我是段尾
-        Self.Width := 10  // 增加宽度以便输入时光标可方便点击
+      if vItem.ParaFirst then
+        Self.Width := 10
       else
-      if vItem.StyleNo > THCStyle.Null then  // 后面是文本，跟随后面的高度
+      if vItem.StyleNo > THCStyle.Null then
         Self.Height := ARichData.Style.TextStyles[vItem.StyleNo].FontHeight;
     end
     else
@@ -1463,13 +1475,16 @@ begin
     vItem := ARichData.Items[AItemNo - 1];  // 前一个
     if (vItem.StyleNo = Self.StyleNo)
       and ((vItem as THCDomainItem).MarkType = TMarkType.cmtBeg)
-    then  // 前一个是起始标识
+    then
+    begin
+      Self.Width := 10;
+      Empty := True;
+    end
+    else
+    if Self.ParaFirst then
       Self.Width := 10
     else
-    if Self.ParaFirst then  // 结束标识是段首，增加宽度
-      Self.Width := 10
-    else
-    if vItem.StyleNo > THCStyle.Null then  // 前面是文本，距离前面的高度
+    if vItem.StyleNo > THCStyle.Null then
       Self.Height := ARichData.Style.TextStyles[vItem.StyleNo].FontHeight;
   end;
 end;

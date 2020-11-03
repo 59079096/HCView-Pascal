@@ -151,7 +151,7 @@ type
     procedure DoDataDrawItemMouseMove(const AData: THCCustomData; const AItemNo, AOffset,
        ADrawItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataChanged(Sender: TObject);
-    procedure DoDataItemRequestFormat(const ASectionData: THCCustomData; const AItem: THCCustomItem);
+    procedure DoDataItemReFormatRequest(const ASectionData: THCCustomData; const AItem: THCCustomItem);
 
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
@@ -747,7 +747,7 @@ var
     AData.OnItemMouseDown := DoDataItemMouseDown;
     AData.OnItemMouseUp := DoDataItemMouseUp;
     AData.OnDrawItemMouseMove := DoDataDrawItemMouseMove;
-    AData.OnItemRequestFormat := DoDataItemRequestFormat;
+    AData.OnItemReFormatRequest := DoDataItemReFormatRequest;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
     AData.OnPaintDomainRegion := DoDataPaintDomainRegion;
     AData.OnCanEdit := DoDataCanEdit;
@@ -1007,12 +1007,12 @@ begin
     FOnItemMouseUp(Self, AData, AItemNo, AOffset, Button, Shift, X, Y);
 end;
 
-procedure THCCustomSection.DoDataItemRequestFormat(const ASectionData: THCCustomData;
+procedure THCCustomSection.DoDataItemReFormatRequest(const ASectionData: THCCustomData;
   const AItem: THCCustomItem);
 begin
   DoSectionDataAction(ASectionData as THCSectionData, function(): Boolean
     begin
-      (ASectionData as THCSectionData).ReFormatActiveItem;
+      (ASectionData as THCSectionData).ItemReFormatResponse(AItem);
       Result := True;
     end);
 end;
@@ -2397,7 +2397,7 @@ begin
         if vHeaderAreaHeight > FPaper.MarginTopPix then  // 页眉数据超出页上边距
         begin
           ACanvas.Pen.Style := TPenStyle.psDot;
-          ACanvas.Pen.Color := clGray;
+          ACanvas.Pen.Color := clWebLightgrey;
           APaintInfo.DrawNoScaleLine(ACanvas, [Point(vPageDrawLeft, vPageDrawTop - 1),
             Point(vPageDrawRight, vPageDrawTop - 1)]);
         end;
@@ -2408,6 +2408,11 @@ begin
         begin
           ACanvas.Pen.Color := clBlue;
           ACanvas.MoveTo(vPageDrawLeft, vPageDrawTop);
+          ACanvas.LineTo(vPageDrawRight, vPageDrawTop);
+          // 绘制页眉数据范围区域边框
+          ACanvas.MoveTo(vPageDrawLeft, vPageDrawTop);
+          ACanvas.LineTo(vPageDrawLeft, vPaperDrawTop + FHeaderOffset);
+          ACanvas.LineTo(vPageDrawRight, vPaperDrawTop + FHeaderOffset);
           ACanvas.LineTo(vPageDrawRight, vPageDrawTop);
 
           // 正在编辑页眉提示
@@ -2423,11 +2428,15 @@ begin
           ACanvas.Pen.Color := clGray;
 
         // 左上， 左-原-上
-        APaintInfo.DrawNoScaleLine(ACanvas, [Point(vPageDrawLeft - PMSLineHeight, vPageDrawTop),
-          Point(vPageDrawLeft, vPageDrawTop), Point(vPageDrawLeft, vPageDrawTop - PMSLineHeight)]);
+        APaintInfo.DrawNoScaleLine(ACanvas, [
+          Point(vPageDrawLeft - PMSLineHeight, ATop + FPaper.MarginTopPix),
+          Point(vPageDrawLeft, ATop + FPaper.MarginTopPix),
+          Point(vPageDrawLeft, ATop + FPaper.MarginTopPix - PMSLineHeight)]);
         // 右上，右-原-上
-        APaintInfo.DrawNoScaleLine(ACanvas, [Point(vPageDrawRight + PMSLineHeight, vPageDrawTop),
-          Point(vPageDrawRight, vPageDrawTop), Point(vPageDrawRight, vPageDrawTop - PMSLineHeight)]);
+        APaintInfo.DrawNoScaleLine(ACanvas, [
+          Point(vPageDrawRight + PMSLineHeight, ATop + FPaper.MarginTopPix),
+          Point(vPageDrawRight, ATop + FPaper.MarginTopPix),
+          Point(vPageDrawRight, ATop + FPaper.MarginTopPix - PMSLineHeight)]);
       end;
       {$ENDREGION}
 

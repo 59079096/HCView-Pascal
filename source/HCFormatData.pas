@@ -41,10 +41,11 @@ type
     /// <summary> 多次格式化是否有变动，外部由此决定是否重新计算分页起始结束DrawItemNo </summary>
     FFormatChange: Boolean;
 
-    FOnItemRequestFormat: TDataItemEvent;
+    FOnItemReFormatRequest: TDataItemEvent;
 
     procedure FormatRange(const AStartDrawItemNo, ALastItemNo: Integer);
-
+    procedure FormatItem(const AItem: THCCustomItem);
+    procedure FormatItemNo(const AItemNo: Integer);
     procedure CalcItemFormatHeigh(const AItem: THCCustomItem);
 
     /// <summary> 转换指定Item指定Offs格式化为DItem </summary>
@@ -106,7 +107,9 @@ type
     procedure ReFormatActiveParagraph; virtual;
     /// <summary> 重新格式化当前Item(用于仅修改当前Item属性或内容) </summary>
     procedure ReFormatActiveItem; virtual;
-    procedure ItemRequestFormat(const AItem: THCCustomItem); virtual;
+    procedure ItemReFormatRequest(const AItem: THCCustomItem); virtual;
+    procedure ItemReFormatResponse(const AItem: THCCustomItem); virtual;
+    function GetDrawItemFormatTop(const ADrawItemNo: Integer): Integer; virtual;
     procedure BeginFormat;
     procedure EndFormat(const AReformat: Boolean = True);
     property Width: Integer read FWidth write FWidth;
@@ -115,7 +118,7 @@ type
     property FormatDrawItemCountChange: Boolean read FFormatDrawItemCountChange;
     property FormatChange: Boolean read FFormatChange write FFormatChange;
     property FormatCount: Integer read FFormatCount;
-    property OnItemRequestFormat: TDataItemEvent read FOnItemRequestFormat write FOnItemRequestFormat;
+    property OnItemReFormatRequest: TDataItemEvent read FOnItemReFormatRequest write FOnItemReFormatRequest;
   end;
 
 implementation
@@ -292,6 +295,41 @@ begin
   FFormatStartTop := 0;
   FFormatEndBottom := 0;
   FLastFormatParaNo := THCStyle.Null;
+end;
+
+procedure THCFormatData.FormatItem(const AItem: THCCustomItem);
+var
+  i: Integer;
+  vPointer: Pointer;
+begin
+  vPointer := Pointer(AItem);
+
+  for i := 0 to Items.Count - 1 do
+  begin
+    if Pointer(Items[i]) = vPointer then
+    begin
+      FormatItemNo(i);
+      Break;
+    end;
+  end;
+end;
+
+procedure THCFormatData.FormatItemNo(const AItemNo: Integer);
+var
+  vFirstDrawItemNo, vLastItemNo: Integer;
+begin
+  if AItemNo >= 0 then
+  begin
+    GetFormatRange(AItemNo, 0, vFirstDrawItemNo, vLastItemNo);
+    FormatPrepare(vFirstDrawItemNo, vLastItemNo);
+    ReFormatData(vFirstDrawItemNo, vLastItemNo);
+
+    Style.UpdateInfoRePaint;
+    Style.UpdateInfoReCaret;
+
+    if (SelectInfo.StartItemNo = AItemNo) and (SelectInfo.StartItemOffset > Items[AItemNo].Length) then
+      ReSetSelectAndCaret(AItemNo);
+  end;
 end;
 
 procedure THCFormatData.FormatItemToDrawItems(const AItemNo, AOffset, AFmtLeft,
@@ -1036,6 +1074,11 @@ begin
   Result := GetFormatFirstDrawItem(vDrawItemNo);
 end;
 
+function THCFormatData.GetDrawItemFormatTop(const ADrawItemNo: Integer): Integer;
+begin
+  Result := DrawItems[ADrawItemNo].Rect.Top;
+end;
+
 function THCFormatData.GetFormatFirstDrawItem(const ADrawItemNo: Integer): Integer;
 begin
   Result := ADrawItemNo;
@@ -1094,10 +1137,15 @@ begin
 //  ALastItemNo := GetParaLastItemNo(AItemNo);
 end;
 
-procedure THCFormatData.ItemRequestFormat(const AItem: THCCustomItem);
+procedure THCFormatData.ItemReFormatRequest(const AItem: THCCustomItem);
 begin
-  if Assigned(FOnItemRequestFormat) then
-    FOnItemRequestFormat(Self, AItem);
+  if Assigned(FOnItemReFormatRequest) then
+    FOnItemReFormatRequest(Self, AItem);
+end;
+
+procedure THCFormatData.ItemReFormatResponse(const AItem: THCCustomItem);
+begin
+  FormatItem(AItem);
 end;
 
 procedure THCFormatData.ReFormat;

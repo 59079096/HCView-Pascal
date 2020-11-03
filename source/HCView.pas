@@ -223,6 +223,7 @@ type
 
     procedure AutoScrollTimer(const AStart: Boolean);
     procedure GetPagesAndActive;
+    procedure ResetCanEditShot;
   protected
     { Protected declarations }
     procedure CreateWnd; override;
@@ -1174,8 +1175,7 @@ begin
 
   FFileName := '';
   FIsChanged := False;
-  FCanEditChecked := False;
-  FCanEditSnapShot := False;
+  ResetCanEditShot;
 
   FZoom := 1;
   FAutoZoom := False;
@@ -2012,10 +2012,12 @@ end;
 
 procedure THCView.DoLoadStreamBefor(const AStream: TStream; const AFileVersion: Word);
 begin
+  ResetCanEditShot;
 end;
 
 procedure THCView.DoLoadXmlDocument(const AXmlDoc: IHCXMLDocument);
 begin
+  ResetCanEditShot;
 end;
 
 procedure THCView.EndUpdate;
@@ -3923,6 +3925,12 @@ procedure THCView.ResetActiveSectionMargin;
 begin
   ActiveSection.ResetMargin;
   DoViewResize;
+end;
+
+procedure THCView.ResetCanEditShot;
+begin
+  FCanEditChecked := False;
+  FCanEditSnapShot := False;
 end;
 
 procedure THCView.Resize;

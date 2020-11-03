@@ -291,6 +291,30 @@ var
 begin
   if Assigned(FCellData) then
   begin
+    if (not APaintInfo.Print) and (FCellData.Script <> '') then
+    begin
+      ACanvas.Pen.Width := 1;
+      ACanvas.Pen.Color := clGray;
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.MoveTo(ADrawRight - 5, ADrawTop);
+      ACanvas.LineTo(ADrawRight, ADrawTop);
+
+      ACanvas.MoveTo(ADrawRight - 4, ADrawTop + 1);
+      ACanvas.LineTo(ADrawRight, ADrawTop + 1);
+
+      ACanvas.MoveTo(ADrawRight - 3, ADrawTop + 2);
+      ACanvas.LineTo(ADrawRight, ADrawTop + 2);
+
+      ACanvas.MoveTo(ADrawRight - 2, ADrawTop + 3);
+      ACanvas.LineTo(ADrawRight, ADrawTop + 3);
+
+      ACanvas.MoveTo(ADrawRight - 1, ADrawTop + 4);
+      ACanvas.LineTo(ADrawRight, ADrawTop + 4);
+
+      ACanvas.MoveTo(ADrawRight, ADrawTop + 5);
+      ACanvas.LineTo(ADrawRight, ADrawTop + 5);
+    end;
+
     vTop := ADrawTop + GetCellDataTop(ACellVPadding);
     FCellData.PaintData(ADrawLeft + ACellHPadding, vTop, ADrawRight - ACellHPadding,
       ADataDrawBottom, ADataScreenTop, ADataScreenBottom, AVOffset, ACanvas, APaintInfo);

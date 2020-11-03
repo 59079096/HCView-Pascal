@@ -39,7 +39,9 @@ type
     FOnInsertTextBefor: TTextEvent;
     FOnCaretItemChanged: TDataItemEvent;
     FOnPaintDomainRegion: TDataItemNoFunEvent;
+    FOnExecuteScript: TDataItemNoFunEvent;
   protected
+    function DoExecuteScript(const AItemNo: Integer): Boolean; virtual;
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; override;
     /// <summary> 是否允许保存该Item </summary>
     function DoSaveItem(const AItemNo: Integer): Boolean; override;
@@ -123,8 +125,11 @@ type
     /// <param name="ADomainItemNo">域起始或结束ItemNo</param>
     //procedure SaveDomainToStream(const AStream: TStream; const ADomainItemNo: Integer);
 
-    property OnCaretItemChanged: TDataItemEvent read FOnCaretItemChanged write FOnCaretItemChanged;
+    function ExecuteScript(const AItemNo: Integer): Boolean;
 
+    property Script: string read FScript write FScript;
+    property OnExecuteScript: TDataItemNoFunEvent read FOnExecuteScript write FOnExecuteScript;
+    property OnCaretItemChanged: TDataItemEvent read FOnCaretItemChanged write FOnCaretItemChanged;
     property HotDomain: THCDomainInfo read FHotDomain;
     property ActiveDomain: THCDomainInfo read FActiveDomain;
     property DomainCount: Integer read FDomainCount;
@@ -613,6 +618,14 @@ begin
   end;
 end;
 
+function THCViewData.DoExecuteScript(const AItemNo: Integer): Boolean;
+begin
+  if Assigned(FOnExecuteScript) then
+    Result := FOnExecuteScript(Self, AItemNo)
+  else
+    Result := False;
+end;
+
 procedure THCViewData.DoInsertItem(const AItem: THCCustomItem);
 begin
   if THCDomainItem.IsBeginMark(AItem) then
@@ -650,6 +663,11 @@ begin
       Result := (vItemNo >= SelectInfo.StartItemNo) and (vItemNo <= SelectInfo.EndItemNo);
     end;
   end;
+end;
+
+function THCViewData.ExecuteScript(const AItemNo: Integer): Boolean;
+begin
+  Result := DoExecuteScript(AItemNo);
 end;
 
 function THCViewData.GetDomainAnother(const AItemNo: Integer): Integer;

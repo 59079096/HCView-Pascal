@@ -138,6 +138,7 @@ type
 
   THCState = (
     hosLoading,  // 文档加载
+    hosSaving,   // 文档保存
     hosCopying,  // 复制
     hosPasting,  // 粘贴
     hosDomainWholeReplace,  // 域整体替换

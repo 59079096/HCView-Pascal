@@ -431,7 +431,14 @@ begin
   Self.Clear;
   FStyle.Initialize;
   if AText <> '' then
-    Result := ActiveSection.InsertText(AText);
+  begin
+    FStyle.States.Include(hosLoading);
+    try
+      Result := ActiveSection.InsertText(AText);
+    finally
+      FStyle.States.Exclude(hosLoading);
+    end;
+  end;
 end;
 
 function THCViewLite.LoadFromTextFile(const AFileName: string; const AEncoding: TEncoding): Boolean;
@@ -815,31 +822,41 @@ var
   vByte: Byte;
   i: Integer;
 begin
-  _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
-  DoSaveStreamBefor(AStream);
+  FStyle.States.Include(hosSaving);
+  try
+    _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
+    DoSaveStreamBefor(AStream);
 
-  if not AQuick then
-    DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
+    if not AQuick then
+      DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
 
-  FStyle.SaveToStream(AStream);
+    FStyle.SaveToStream(AStream);
 
-  // 节数量
-  vByte := FSections.Count;
-  AStream.WriteBuffer(vByte, 1);
-  // 各节数据
-  for i := 0 to FSections.Count - 1 do
-    FSections[i].SaveToStream(AStream, AAreas);
+    // 节数量
+    vByte := FSections.Count;
+    AStream.WriteBuffer(vByte, 1);
+    // 各节数据
+    for i := 0 to FSections.Count - 1 do
+      FSections[i].SaveToStream(AStream, AAreas);
 
-  DoSaveStreamAfter(AStream);
+    DoSaveStreamAfter(AStream);
+  finally
+    FStyle.States.Exclude(hosSaving);
+  end;
 end;
 
 function THCViewLite.SaveToText: string;
 var
   i: Integer;
 begin
-  Result := FSections[0].SaveToText;
-  for i := 1 to FSections.Count - 1 do  // 各节数据
-    Result := Result + sLineBreak + FSections[i].SaveToText;
+  FStyle.States.Include(hosSaving);
+  try
+    Result := FSections[0].SaveToText;
+    for i := 1 to FSections.Count - 1 do  // 各节数据
+      Result := Result + sLineBreak + FSections[i].SaveToText;
+  finally
+    FStyle.States.Exclude(hosSaving);
+  end;
 end;
 
 procedure THCViewLite.SaveToTextFile(const AFileName: string; const AEncoding: TEncoding);
@@ -889,28 +906,33 @@ var
   vNode: IHCXMLNode;
   i: Integer;
 begin
-  DeleteUnUsedStyle(FStyle, FSections, [saHeader, saPage, saFooter]);
+  FStyle.States.Include(hosSaving);
+  try
+    DeleteUnUsedStyle(FStyle, FSections, [saHeader, saPage, saFooter]);
 
-  vXml := THCXMLDocument.Create(nil);
-  vXml.Active := True;
-  vXml.Version := '1.0';
-  vXml.Encoding := GetEncodingName(AEncoding);
+    vXml := THCXMLDocument.Create(nil);
+    vXml.Active := True;
+    vXml.Version := '1.0';
+    vXml.Encoding := GetEncodingName(AEncoding);
 
-  vXml.DocumentElement := vXml.CreateNode('HCView');
-  vXml.DocumentElement.Attributes['EXT'] := HC_EXT;
-  vXml.DocumentElement.Attributes['ver'] := HC_FileVersion;
-  vXml.DocumentElement.Attributes['lang'] := HC_PROGRAMLANGUAGE;
+    vXml.DocumentElement := vXml.CreateNode('HCView');
+    vXml.DocumentElement.Attributes['EXT'] := HC_EXT;
+    vXml.DocumentElement.Attributes['ver'] := HC_FileVersion;
+    vXml.DocumentElement.Attributes['lang'] := HC_PROGRAMLANGUAGE;
 
-  vNode := vXml.DocumentElement.AddChild('style');
-  FStyle.ToXml(vNode);  // 样式表
+    vNode := vXml.DocumentElement.AddChild('style');
+    FStyle.ToXml(vNode);  // 样式表
 
-  vNode := vXml.DocumentElement.AddChild('sections');
-  vNode.Attributes['count'] := FSections.Count;  // 节数量
+    vNode := vXml.DocumentElement.AddChild('sections');
+    vNode.Attributes['count'] := FSections.Count;  // 节数量
 
-  for i := 0 to FSections.Count - 1 do  // 各节数据
-    FSections[i].ToXml(vNode.AddChild('sc'));
+    for i := 0 to FSections.Count - 1 do  // 各节数据
+      FSections[i].ToXml(vNode.AddChild('sc'));
 
-  vXml.SaveToStream(AStream);
+    vXml.SaveToStream(AStream);
+  finally
+    FStyle.States.Exclude(hosSaving);
+  end;
 end;
 
 end.

@@ -502,8 +502,6 @@ type
 
 implementation
 
-{$I HCView.inc}
-
 uses
   SysUtils, Math, HCTextItem, HCRectItem, HCUnitConversion;
 
@@ -2641,6 +2639,7 @@ procedure THCCustomData.SaveItemToStream(const AStream: TStream;
 var
   i, vCount, vCountAct: Integer;
   vBegPos, vEndPos: Int64;
+  vParaFirstTemp: Boolean;
 begin
   vBegPos := AStream.Position;
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位，便于越过
@@ -2654,24 +2653,54 @@ begin
 
     if AStartItemNo <> AEndItemNo then
     begin
+      vParaFirstTemp := False;
+
       if DoSaveItem(AStartItemNo) then
       begin
         FItems[AStartItemNo].SaveToStreamRange(AStream, AStartOffset, FItems[AStartItemNo].Length);
         Inc(vCountAct);
-      end;
+      end
+      else
+        vParaFirstTemp := FItems[AStartItemNo].ParaFirst;
 
       for i := AStartItemNo + 1 to AEndItemNo - 1 do
       begin
         if DoSaveItem(i) then
         begin
-          FItems[i].SaveToStream(AStream);
+          if vParaFirstTemp and not FItems[i].ParaFirst then
+          begin
+            FItems[i].ParaFirst := True;  // 临时赋值未存段首属性
+            try
+              FItems[i].SaveToStream(AStream);
+            finally
+              FItems[i].ParaFirst := False;  // 恢复
+            end;
+
+            vParaFirstTemp := False;  // 已经处理了未存段首的段首属性了
+          end
+          else
+            FItems[i].SaveToStream(AStream);
+
           Inc(vCountAct);
-        end;
+        end
+        else  // 从段首开始连接的不允许保存，段首属性要一直保留到可以存的Item，所以用or
+          vParaFirstTemp := vParaFirstTemp or FItems[i].ParaFirst;
       end;
 
       if DoSaveItem(AEndItemNo) then
       begin
-        FItems[AEndItemNo].SaveToStreamRange(AStream, 0, AEndOffset);
+        if vParaFirstTemp and not FItems[AEndItemNo].ParaFirst then
+        begin
+          FItems[AEndItemNo].ParaFirst := True;  // 临时赋值未存段首属性
+          try
+            FItems[AEndItemNo].SaveToStreamRange(AStream, 0, AEndOffset);
+          finally
+            FItems[AEndItemNo].ParaFirst := False;  // 恢复
+          end;
+        end
+        else
+          FItems[AEndItemNo].SaveToStreamRange(AStream, 0, AEndOffset);
+
         Inc(vCountAct);
       end;
     end
@@ -2751,6 +2780,7 @@ function THCCustomData.SaveToText(const AStartItemNo, AStartOffset, AEndItemNo,
   AEndOffset: Integer): string;
 var
   i: Integer;
+  vParaFirstTemp: Boolean;
 begin
   Result := '';
   i := AEndItemNo - AStartItemNo + 1;
@@ -2758,37 +2788,46 @@ begin
   begin
     if AStartItemNo <> AEndItemNo then
     begin
-      if DoSaveItem(AStartItemNo) then // 起始
+      vParaFirstTemp := False;
+
+      if DoSaveItem(AStartItemNo) then
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
           Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
         else
           Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText;
-      end;
+      end
+      else
+        vParaFirstTemp := FItems[AStartItemNo].ParaFirst;
 
-      for i := AStartItemNo + 1 to AEndItemNo - 1 do  // 中间
+      for i := AStartItemNo + 1 to AEndItemNo - 1 do
       begin
         if DoSaveItem(i) then
         begin
-          if FItems[i].ParaFirst then
+          if vParaFirstTemp or FItems[i].ParaFirst then
             Result := Result + sLineBreak + FItems[i].Text
           else
             Result := Result + FItems[i].Text;
-        end;
+
+          if vParaFirstTemp and not FItems[i].ParaFirst then
+            vParaFirstTemp := False;
+        end
+        else
+          vParaFirstTemp := vParaFirstTemp or FItems[i].ParaFirst;
       end;
 
-      if DoSaveItem(AEndItemNo) then  // 结尾
+      if DoSaveItem(AEndItemNo) then
       begin
         if FItems[AEndItemNo].StyleNo > THCStyle.Null then
         begin
-          if FItems[i].ParaFirst then
+          if vParaFirstTemp or FItems[AEndItemNo].ParaFirst then
             Result := Result + sLineBreak;
 
           Result := Result + (FItems[AEndItemNo] as THCTextItem).SubString(1, AEndOffset);
         end
         else
         begin
-          if FItems[i].ParaFirst then
+          if vParaFirstTemp or FItems[AEndItemNo].ParaFirst then
             Result := Result + sLineBreak;
 
           if AEndOffset = OffsetAfter then
@@ -2798,7 +2837,7 @@ begin
         end;
       end;
     end
-    else  // 选中在同一Item
+    else
     begin
       if DoSaveItem(AStartItemNo) then
       begin

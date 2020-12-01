@@ -151,6 +151,7 @@ type
     procedure DoVerScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
     procedure DoHorScroll(Sender: TObject; ScrollCode: TScrollCode; const ScrollPos: Integer);
     procedure DoSectionDataChange(Sender: TObject);
+    procedure DoSetChange(Sender: TObject);
     procedure DoSectionChangeTopLevelData(Sender: TObject);
 
     // 仅重绘和重建光标，不触发Change事件
@@ -1745,6 +1746,14 @@ begin
   CheckUpdateInfo;
 end;
 
+procedure THCView.DoSetChange(Sender: TObject);
+begin
+  FCanEditChecked := False;
+  SetIsChanged(True);
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
+
 function THCView.DoSectionAcceptAction(const Sender: TObject; const AData: THCCustomData;
   const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean;
 begin
@@ -1774,12 +1783,8 @@ end;
 
 procedure THCView.DoChange;
 begin
-  FCanEditChecked := False;
-
-  SetIsChanged(True);
   DoMapChanged;
-  if Assigned(FOnChange) then
-    FOnChange(Self);
+  DoSetChange(Self);
 end;
 
 function THCView.DoCopyRequest(const AFormat: Word): Boolean;
@@ -3052,6 +3057,7 @@ begin
   Result := THCSection.Create(FStyle);
   // 创建节后马上赋值事件（保证后续插入表格等需要这些事件的操作可获取到事件）
   Result.OnDataChange := DoSectionDataChange;
+  Result.OnDataSetChange := DoSetChange;
   Result.OnChangeTopLevelData := DoSectionChangeTopLevelData;
   Result.OnCheckUpdateInfo := DoSectionDataCheckUpdateInfo;
   Result.OnCreateItem := DoSectionCreateItem;

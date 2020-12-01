@@ -30,15 +30,12 @@ type
     FCellSelectedAll
       : Boolean;
     FCellHeight: Integer;  // 所属单元格高度(因合并或手动拖高，单元格高度会大于等于其内数据高度)
-    FOnSilenceChange: TNotifyEvent;
+    FOnFormatDirty: TNotifyEvent;
     FOnGetRootData: TGetRootDataEvent;
     FOnGetFormatTop: TGetFormatTopFun;
     function PointInCellRect(const APt: TPoint): Boolean;
   protected
     function GetHeight: Cardinal; override;
-
-    /// <summary> ResizeItem缩放完成事件(可控制缩放不要超过页面) </summary>
-    procedure DoItemResized(const AItemNo: Integer); override;
 
     /// <summary> 取消选中 </summary>
     /// <returns>取消时当前是否有选中，True：有选中；False：无选中</returns>
@@ -55,6 +52,7 @@ type
     procedure ReFormatData(const AFirstDrawItemNo: Integer; const ALastItemNo: Integer = -1;
       const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False); override;
 
+    procedure DoFormatDirty;
     procedure SetActive(const Value: Boolean);
     function GetFormatTop: Integer;
   public
@@ -64,7 +62,6 @@ type
 
     /// <summary> 全选 </summary>
     procedure SelectAll; override;
-    procedure SilenceChange; override;
 
     /// <summary> 坐标是否在AItem的选中区域中 </summary>
     function CoordInSelect(const X, Y, AItemNo, AOffset: Integer;
@@ -100,7 +97,7 @@ type
 
     property OnGetRootData: TGetRootDataEvent read FOnGetRootData write FOnGetRootData;
     property OnGetFormatTop: TGetFormatTopFun read FOnGetFormatTop write FOnGetFormatTop;
-    property OnSilenceChange: TNotifyEvent read FOnSilenceChange write FOnSilenceChange;
+    property OnFormatDirty: TNotifyEvent read FOnFormatDirty write FOnFormatDirty;
   end;
 
 implementation
@@ -212,10 +209,10 @@ begin
     Result := inherited GetRootData;
 end;
 
-procedure THCTableCellData.DoItemResized(const AItemNo: Integer);
+procedure THCTableCellData.DoFormatDirty;
 begin
-  Self.SilenceChange;
-  inherited DoItemResized(AItemNo);
+  if Assigned(FOnFormatDirty) then
+    FOnFormatDirty(Self);
 end;
 
 procedure THCTableCellData.DoLoadFromStream(const AStream: TStream;
@@ -240,7 +237,7 @@ begin
   inherited ReFormatData(AFirstDrawItemNo, ALastItemNo, AExtraItemCount, AForceClearExtra);
   Self.FormatChange := False;  // 防止下次变动高度没有变化时也通知表格SizeChange
   if Self.FormatHeightChange then
-    Self.SilenceChange;
+    DoFormatDirty;
 end;
 
 procedure THCTableCellData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
@@ -299,12 +296,6 @@ begin
     Self.InitializeField;
     Style.UpdateInfoRePaint;
   end;
-end;
-
-procedure THCTableCellData.SilenceChange;
-begin
-  if Assigned(FOnSilenceChange) then
-    FOnSilenceChange(Self);
 end;
 
 end.

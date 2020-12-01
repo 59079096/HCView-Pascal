@@ -99,6 +99,7 @@ type
       : Boolean;
     FOptions: TItemOptions;
     FSelectState: TItemSelectState;
+    FOnDblClick: TNotifyEvent;
   protected
     function GetParaFirst: Boolean;
     procedure SetParaFirst(const Value: Boolean);
@@ -186,6 +187,7 @@ type
     property Active: Boolean read FActive write SetActive;
     property Visible: Boolean read FVisible write FVisible;
     property PrintInvisible: Boolean read FPrintInvisible write FPrintInvisible;
+    property OnDblClick: TNotifyEvent read FOnDblClick write FOnDblClick;
   end;
 
   TItemNotifyEvent = procedure(const AItem: THCCustomItem) of object;
@@ -256,6 +258,8 @@ end;
 
 procedure THCCustomItem.DblClick(const X, Y: Integer);
 begin
+  if Assigned(FOnDblClick) then
+    FOnDblClick(Self);
 end;
 
 procedure THCCustomItem.DisSelect;

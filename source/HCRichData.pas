@@ -64,7 +64,6 @@ type
     FOnDrawItemMouseMove: TDrawItemMouseEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
     FOnAcceptAction: TDataActionEvent;
-    FOnChange: TNotifyEvent;
 
     /// <summary> Shift按键按下时鼠标点击，根据按下位置适配选择范围 </summary>
     /// <param name="AMouseDonwItemNo"></param>
@@ -107,7 +106,6 @@ type
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; virtual;
     procedure DoItemMouseLeave(const AItemNo: Integer); virtual;
     procedure DoItemMouseEnter(const AItemNo: Integer); virtual;
-    procedure DoChange; virtual;
     /// <summary> ResizeItem缩放完成事件缩放完成事件(可控制缩放不要超过页面) </summary>
     procedure DoItemResized(const AItemNo: Integer); virtual;
     function GetHeight: Cardinal; virtual;
@@ -234,7 +232,6 @@ type
     property Height: Cardinal read GetHeight;  // 实际内容的高
     property ReadOnly: Boolean read FReadOnly write SetReadOnly;
     property Selecting: Boolean read FSelecting;
-    property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnItemResized: TDataItemNoEvent read FOnItemResized write FOnItemResized;
     property OnItemMouseDown: TItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
@@ -391,13 +388,13 @@ begin
       UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
     vRectItem.DeleteActiveDataItems(AStartNo, AEndNo, AKeepPara);
-    if vRectItem.SizeChanged then
+    if vRectItem.IsFormatDirty then
     begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
-      vRectItem.SizeChanged := False;
+      vRectItem.IsFormatDirty := False;
     end
     else
       Self.FormatInit;
@@ -1003,6 +1000,7 @@ end;
 
 procedure THCRichData.DoItemResized(const AItemNo: Integer);
 begin
+  Self.Change;
   if Assigned(FOnItemResized) then
     FOnItemResized(Self, AItemNo);
 end;
@@ -1825,13 +1823,13 @@ begin
         UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
       (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
-      if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).SizeChanged then
+      if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).IsFormatDirty then
       begin
         // 如果改变会引起RectItem宽度变化，则需要格式化到最后一个Item
         GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
         FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        (Items[SelectInfo.StartItemNo] as THCCustomRectItem).SizeChanged := False;
+        (Items[SelectInfo.StartItemNo] as THCCustomRectItem).IsFormatDirty := False;
       end
       else
         Self.FormatInit;
@@ -1954,12 +1952,6 @@ begin
   Result := Items[AItemNo].AcceptAction(AOffset, SelectInfo.StartRestrain, AAction);
   if Result and Assigned(FOnAcceptAction) then
     Result := FOnAcceptAction(Self, AItemNo, AOffset, AAction);
-end;
-
-procedure THCRichData.DoChange;
-begin
-  if Assigned(FOnChange) then
-    FOnChange(Self);
 end;
 
 procedure THCRichData.DoDrawItemMouseMove(const AData: THCCustomData;
@@ -3283,12 +3275,12 @@ begin
         UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
       Result := vRectItem.InsertText(AText);
-      if vRectItem.SizeChanged then
+      if vRectItem.IsFormatDirty then
       begin
         GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
         FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        vRectItem.SizeChanged := False;
+        vRectItem.IsFormatDirty := False;
       end
       else
         Self.FormatInit;
@@ -3350,7 +3342,6 @@ begin
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
   Style.UpdateInfoReScroll;
-  DoChange;
 end;
 
 function THCRichData.IsSelectSeekStart: Boolean;
@@ -4398,12 +4389,12 @@ var
           UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
         vRectItem.KeyDown(Key, Shift);
-        if vRectItem.SizeChanged then
+        if vRectItem.IsFormatDirty then
         begin
           GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
           FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
           ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-          vRectItem.SizeChanged := False;
+          vRectItem.IsFormatDirty := False;
         end
         else
           Self.FormatInit;
@@ -5616,7 +5607,6 @@ begin
         Style.UpdateInfoRePaint;
         Style.UpdateInfoReCaret;  // 删除后以新位置光标为当前样式
         Style.UpdateInfoReScroll;
-        DoChange;
       end;
 
     VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
@@ -5656,22 +5646,20 @@ begin
       UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
     vRectItem.KeyPress(Key);
-    if vRectItem.SizeChanged then
+    if vRectItem.IsFormatDirty then
     begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
       if Key <> #0 then
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
-      vRectItem.SizeChanged := False;
+      vRectItem.IsFormatDirty := False;
       Style.UpdateInfoRePaint;
       Style.UpdateInfoReCaret;
       Style.UpdateInfoReScroll;
     end
     else
       Self.FormatInit;
-
-    DoChange;
   end
   else
     InsertText(Key);
@@ -5815,6 +5803,8 @@ begin
       // 重新赋值新位置
       FMouseDownItemNo := vMouseDownItemNo;
       FMouseDownItemOffset := vMouseDownItemOffset;
+      if (not SelectInfo.StartRestrain) and vRestrain then  // RectItem从激活变为非激活
+        Items[FMouseDownItemNo].Active := False;
       {if not vRestrain then  // 没收敛
         Items[FMouseDownItemNo].Active := True;}
 
@@ -6189,13 +6179,13 @@ begin
       UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
     vRectItem.ActiveItemReAdaptEnvironment;
-    if vRectItem.SizeChanged then
+    if vRectItem.IsFormatDirty then
     begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
-      vRectItem.SizeChanged := False;
+      vRectItem.IsFormatDirty := False;
     end
     else
       Self.FormatInit;
@@ -6399,13 +6389,13 @@ begin
       UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
 
     vRectItem.SetActiveItemText(AText);
-    if vRectItem.SizeChanged then
+    if vRectItem.IsFormatDirty then
     begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
-      vRectItem.SizeChanged := False;
+      vRectItem.IsFormatDirty := False;
     end
     else
       Self.FormatInit;

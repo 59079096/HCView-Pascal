@@ -223,6 +223,7 @@ begin
   if FChecked <> Value then
   begin
     FChecked := Value;
+    Self.DoChange;
   end;
 end;
 

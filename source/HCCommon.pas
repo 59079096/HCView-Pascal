@@ -929,6 +929,7 @@ end;
 procedure HCSaveColorToStream(const AStream: TStream; const AColor: TColor);
 var
   vByte: Byte;
+  vInt: Integer;
 begin
   if AColor = HCTransparentColor then  // 透明
   begin
@@ -943,14 +944,14 @@ begin
   begin
     vByte := 255;
     AStream.WriteBuffer(vByte, 1);
-
-    vByte := GetRValue(AColor);
+    vInt := ColorToRGB(AColor);  // 转换clBtnFace这样的负数
+    vByte := vInt and $FF;  // R
     AStream.WriteBuffer(vByte, 1);
 
-    vByte := GetGValue(AColor);
+    vByte := (vInt shr 8) and $FF;  // G
     AStream.WriteBuffer(vByte, 1);
 
-    vByte := GetBValue(AColor);
+    vByte := (vInt shr 16) and $FF;  // B
     AStream.WriteBuffer(vByte, 1);
   end;
 end;
@@ -968,7 +969,7 @@ begin
     AColor := HCTransparentColor
   else
   if vA = 255 then
-    AColor := vB shl 16 + vG shl 8 + vR;
+    AColor := vR or (vG shl 8) or (vB shl 16);
 end;
 
 function HCColorToRGBString(const AColor: TColor): string;

@@ -276,7 +276,7 @@ begin
     end;
     Inc(FCaretOffset, System.Length(AText));
 
-    Self.SizeChanged := True;
+    Self.FormatDirty;
     Result := True;
   end
   else
@@ -302,7 +302,7 @@ procedure THCSupSubScriptItem.KeyDown(var Key: Word; Shift: TShiftState);
       ceaBottom: BackDeleteChar(FSubText);
     end;
 
-    Self.SizeChanged := True;
+    Self.FormatDirty;
   end;
 
   procedure LeftKeyDown;
@@ -337,7 +337,7 @@ procedure THCSupSubScriptItem.KeyDown(var Key: Word; Shift: TShiftState);
       ceaBottom: DeleteChar(FSubText);
     end;
 
-    Self.SizeChanged := True;
+    Self.FormatDirty;
   end;
 
   procedure HomeKeyDown;

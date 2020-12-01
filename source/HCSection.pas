@@ -80,6 +80,7 @@ type
       : Integer;
 
     FOnDataChange,  // 页眉、页脚、页面某一个修改时触发
+    FOnDataSetChange,
     FOnCheckUpdateInfo,  // 当前Data需要UpdateInfo更新时触发
     FOnReadOnlySwitch,  // 页眉、页脚、页面只读状态发生变化时触发
     FOnChangeTopLevelData  // 切换页眉、页脚、正文、表格单元格时触发
@@ -151,8 +152,9 @@ type
     procedure DoDataDrawItemMouseMove(const AData: THCCustomData; const AItemNo, AOffset,
        ADrawItemNo: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoDataChanged(Sender: TObject);
+    procedure DoDataSetChange(Sender: TObject);
     procedure DoDataItemReFormatRequest(const ASectionData: THCCustomData; const AItem: THCCustomItem);
-
+    procedure DoDataItemSetCaretRequest(const ASectionData: THCCustomData; const AItemNo, AOffset: Integer);
     /// <summary> 缩放Item约束不要超过整页宽、高 </summary>
     procedure DoDataItemResized(const AData: THCCustomData; const AItemNo: Integer);
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem;
@@ -446,6 +448,7 @@ type
     /// <summary> 文档所有部分是否只读 </summary>
     property ReadOnly: Boolean read GetReadOnly write SetReadOnly;
     property OnDataChange: TNotifyEvent read FOnDataChange write FOnDataChange;
+    property OnDataSetChange: TNotifyEvent read FOnDataSetChange write FOnDataSetChange;
     property OnChangeTopLevelData: TNotifyEvent read FOnChangeTopLevelData write FOnChangeTopLevelData;
     property OnReadOnlySwitch: TNotifyEvent read FOnReadOnlySwitch write FOnReadOnlySwitch;
     property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
@@ -748,6 +751,7 @@ var
     AData.OnItemMouseUp := DoDataItemMouseUp;
     AData.OnDrawItemMouseMove := DoDataDrawItemMouseMove;
     AData.OnItemReFormatRequest := DoDataItemReFormatRequest;
+    AData.OnItemSetCaretRequest := DoDataItemSetCaretRequest;
     AData.OnCreateItemByStyle := DoDataCreateStyleItem;
     AData.OnPaintDomainRegion := DoDataPaintDomainRegion;
     AData.OnCanEdit := DoDataCanEdit;
@@ -764,6 +768,7 @@ var
     AData.OnGetUndoList := DoDataGetUndoList;
     AData.OnCurParaNoChange := DoDataCurParaNoChange;
     AData.OnCaretItemChanged := DoDataCaretItemChanged;
+    AData.OnChange := DoDataSetChange;
   end;
 
 begin
@@ -1042,6 +1047,10 @@ begin
     FOnItemResize(AData, AItemNo);
 end;
 
+procedure THCCustomSection.DoDataItemSetCaretRequest(const ASectionData: THCCustomData; const AItemNo, AOffset: Integer);
+begin
+end;
+
 function THCCustomSection.DoDataPaintDomainRegion(const AData: THCCustomData;
   const AItemNo: Integer): Boolean;
 begin
@@ -1077,6 +1086,12 @@ begin
     Result := FOnSaveItem(Self, AData, AItemNo)
   else
     Result := True;
+end;
+
+procedure THCCustomSection.DoDataSetChange(Sender: TObject);
+begin
+  if Assigned(FOnDataSetChange) then
+    FOnDataSetChange(Sender);
 end;
 
 function THCCustomSection.DoGetScreenCoordEvent(const X, Y: Integer): TPoint;

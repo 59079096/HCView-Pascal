@@ -79,7 +79,7 @@ type
       : Integer;
     FResizeInfo: TResizeInfo;
     FMulCellUndo: THCMulCellUndo;
-    FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto, FFormatDirty,  // 最后变动已经格式化完了
+    FBorderVisible, FMouseLBDowning, FSelecting, FDraging, FOutSelectInto,
     FResizeKeepWidth  // 拖动改变非最右侧边框宽度时，是否保持当前整体宽度不变
       : Boolean;
 
@@ -96,9 +96,10 @@ type
     procedure InitializeMouseInfo;
     procedure InitializeCellData(const ACellData: THCTableCellData);
     function DoCellDataGetRootData: THCCustomData;
-    procedure DoCellDataSilenceChange(Sender: TObject);
+    procedure DoCellDataFormatDirty(Sender: TObject);
     procedure DoCheckCellScript(const ARow, ACol: Integer);
     procedure DoCellDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
+    procedure DoCellDataItemSetCaretRequest(const AData: THCCustomData; const AItemNo, AOffset: Integer);
     function DoCellDataGetFormatTop(const ACellData: THCCustomData): Integer;
 
     /// <summary> 表格行有添加时 </summary>
@@ -171,7 +172,6 @@ type
     function ClearFormatExtraHeight: Integer; override;
     function DeleteSelected: Boolean; override;
     procedure DisSelect; override;
-    procedure FormatDirty; override;
     procedure MarkStyleUsed(const AMark: Boolean); override;
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     procedure SetActive(const Value: Boolean); override;
@@ -296,9 +296,9 @@ type
     procedure SelectAll;
     procedure PaintRow(const ARow, ALeft, ATop, ABottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-    procedure PaintFixRows(const ALeft, ATop, ABottom: Integer; const ACanvas: TCanvas;
+    procedure PaintFixRows(const ALeft, ATop, AScreenBottom: Integer; const ACanvas: TCanvas;
       const APaintInfo: TPaintInfo);
-    procedure PaintFixCols(const ATableDrawTop, ALeft, ATop, ABottom: Integer; const ACanvas: TCanvas;
+    procedure PaintFixCols(const ATableDrawTop, ALeft, ATop, AScreenBottom: Integer; const ACanvas: TCanvas;
       const APaintInfo: TPaintInfo);
 
     /// <summary> 计算行中单元格宽度并格式化行 </summary>
@@ -329,7 +329,6 @@ type
     function SelectedCellCanMerge: Boolean;
     function GetEditCell: THCTableCell; overload;
     procedure GetEditCell(var ARow, ACol: Integer); overload;
-    procedure CellExecuteScript(const ARow, ACol: Integer);
     function InsertRowAfter(const ACount: Integer): Boolean;
     function InsertRowBefor(const ACount: Integer): Boolean;
     function InsertColAfter(const ACount: Integer): Boolean;
@@ -442,12 +441,6 @@ begin
   end;
 end;
 
-procedure THCTableItem.FormatDirty;
-begin
-  FFormatDirty := True;
-  inherited FormatDirty;
-end;
-
 procedure THCTableItem.FormatRow(const ARow: Cardinal);
 var
   vC, vWidth: Integer;
@@ -475,7 +468,7 @@ procedure THCTableItem.FormatToDrawItem(const ARichData: THCCustomData; const AI
 var
   i, vR, vC: Integer;
 begin
-  if not FFormatDirty then
+  if not Self.IsFormatDirty then
   begin
     ClearFormatExtraHeight;  // 表格没有变化，表格所在的Data格式化时才体现这里
     Exit;
@@ -486,8 +479,6 @@ begin
     FormatRow(vR);  // 格式化行，并计算行高度
     CalcRowCellHeight(vR);  // 以行中所有无行合并操作列中最大高度更新其他列
   end;
-
-  FFormatDirty := False;
 
   CalcMergeRowHeightFrom(0);
   Self.Height := GetFormatHeight;  // 计算整体高度
@@ -631,7 +622,6 @@ begin
   CheckFixColSafe(ACol);
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
-  Self.SizeChanged := True;
   Self.FormatDirty;
   Result := True;
 end;
@@ -696,7 +686,6 @@ begin
   CheckFixRowSafe(ARow);
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
-  Self.SizeChanged := True;
   Self.FormatDirty;
   Result := True;
 end;
@@ -799,6 +788,8 @@ begin
       begin
         vCellData.DisSelect;
         vCellData.InitializeField;
+
+        DoCheckCellScript(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
       end;
     end;
 
@@ -877,9 +868,16 @@ begin
   (OwnerData as THCRichData).ItemReFormatRequest(Self);
 end;
 
-procedure THCTableItem.DoCellDataSilenceChange(Sender: TObject);
+procedure THCTableItem.DoCellDataItemSetCaretRequest(const AData: THCCustomData;
+  const AItemNo, AOffset: Integer);
 begin
-  Self.SilenceChange;
+  (OwnerData as THCRichData).ItemSetCaretRequest(
+    (OwnerData as THCRichData).GetItemNo(Self), OffsetInner);
+end;
+
+procedure THCTableItem.DoCellDataFormatDirty(Sender: TObject);
+begin
+  Self.FormatDirty;
 end;
 
 procedure THCTableItem.DoCellPaintDataBefor(const ARow, ACol: Integer;
@@ -1008,6 +1006,7 @@ var
           end;
         end;
       end;
+
       vShouLian := Max(vShouLian, vBreakBottom);
     end;
   end;
@@ -1049,7 +1048,7 @@ var
   {$ENDREGION}
 
 var
-  vFirstDrawRowIsBreak: Boolean;
+  vDrawFixRow: Boolean;
   vExtPen: HPEN;
   vOldPen: HGDIOBJ;
   vBorderOffs: Integer;
@@ -1057,7 +1056,7 @@ var
 begin
   //vFixHeight := GetFixRowHeight;
   vBorderOffs := FBorderWidthPix div 2;
-  vFirstDrawRowIsBreak := False;
+  vDrawFixRow := False;
   vFirstDrawRow := -1;
   vCellDataDrawTop := ADrawRect.Top + FBorderWidthPix;  // 第1行数据绘制起始位置，因为边框在ADrawRect.Top也占1像素，所以要减掉
   for vR := 0 to FRows.Count - 1 do
@@ -1066,8 +1065,8 @@ begin
     vCellDataDrawTop := vCellDataDrawTop + FRows[vR].FmtOffset + FCellVPaddingPix;
     if vCellDataDrawTop > ADataScreenBottom then  // 行数据顶部大于可显示区域显示不出来不绘制
     begin
-      if (vFirstDrawRow < 0) and IsBreakRow(vR){(FRows[vR].FmtOffset > 0)} then  // 有标题行导致的第vR行没在此页绘制时显示出来
-        vFirstDrawRowIsBreak := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1);
+      if (vFirstDrawRow < 0) and IsBreakRow(vR){(FRows[vR].FmtOffset > 0)} then  // 有标题行导致的第vR行没显示出来，但固定行可以显示出来
+        vDrawFixRow := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1);
 
       Break;
     end;
@@ -1084,9 +1083,7 @@ begin
     begin
       vFirstDrawRow := vR;
 
-      if IsBreakRow(vR) then  //  FRows[vR].FmtOffset > 0 then
-        vFirstDrawRowIsBreak := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1)
-      else
+      vDrawFixRow := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1);
       if (not APaintInfo.Print) and (vR >= FFixRow) and (vR < FFixRow + FFixRowCount) then
       begin
         vCellRect := Rect(ADrawRect.Left,
@@ -1211,7 +1208,7 @@ begin
           begin
             vSrcRowBorderTop := vBorderTop;
             vDestRow2 := vR;  // 借用变量
-            while vDestRow2 <= FRows.Count - 1 do  // 找显示底部边框的源
+            while vDestRow2 < FRows.Count do  // 找显示底部边框的源
             begin
               vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].FmtOffset + FRows[vDestRow2].Height + FBorderWidthPix;
               if vSrcRowBorderTop > ADataScreenBottom then  // 此合并源单元格所在的行底部边框显示不出来了
@@ -1242,7 +1239,7 @@ begin
 
               // 我是跨页后目标单元格正在此页源的第一个，我要负责目标在此页的边框
               vDestRow2 := vR;  // 借用变量
-              while vDestRow2 <= FRows.Count - 1 do  // 找显示底部边框的源
+              while vDestRow2 < FRows.Count do  // 找显示底部边框的源
               begin
                 vSrcRowBorderTop := vSrcRowBorderTop + FRows[vDestRow2].Height + FBorderWidthPix;
                 if vSrcRowBorderTop > ADataScreenBottom then  // 此合并源单元格所在的行底部边框显示不出来了
@@ -1260,7 +1257,8 @@ begin
               end;
             end;
           end
-          else  // 普通单元格(不是合并目标也不是合并源)跨页，计算收敛
+          else  // 普通单元格(不是合并目标也不是合并源)\
+          if IsBreakRow(vR) then
           begin
             CheckRowBorderShouLian(vR);
             vBorderBottom := vShouLian;
@@ -1463,7 +1461,7 @@ begin
     vCellDataDrawTop := vCellDataDrawBottom + FCellVPaddingPix + FBorderWidthPix;  // 下一行的Top位置
   end;
 
-  if vFirstDrawRowIsBreak then  // 绘制标题行
+  if vDrawFixRow then  // 绘制标题行
     PaintFixRows(ADrawRect.Left, ADataDrawTop, ADataScreenBottom, ACanvas, APaintInfo);
 
   if (FFixCol >= 0) and (GetFixColLeft + ADrawRect.Left < 0) then  // 绘制标题列
@@ -1801,8 +1799,6 @@ var
 var
   vOldKey: Word;
 begin
-  Self.SizeChanged := False;
-
   vEditCell := GetEditCell;
   if vEditCell <> nil then
   begin
@@ -2475,7 +2471,7 @@ begin
   end;
 end;
 
-procedure THCTableItem.PaintFixCols(const ATableDrawTop, ALeft, ATop, ABottom: Integer;
+procedure THCTableItem.PaintFixCols(const ATableDrawTop, ALeft, ATop, AScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vR, vC, vCellLeft, vCellTop, vCellBottom, vBorderOffs,
@@ -2489,7 +2485,7 @@ begin
   for vR := 0 to FFixRow + FFixRowCount - 1 do
     vCellTop := vCellTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidthPix;
 
-  vRect := Bounds(ALeft, vCellTop, GetFixColWidth, ABottom - vCellTop);
+  vRect := Bounds(ALeft, vCellTop, GetFixColWidth, AScreenBottom - vCellTop);
   if not APaintInfo.Print then
   begin
     ACanvas.Brush.Color := clBtnFace;
@@ -2513,13 +2509,13 @@ begin
     for vC := FFixCol to FFixCol + FFixColCount - 1 do
     begin
       vRect := Rect(vCellLeft, vCellTop, vCellLeft + FColWidths[vC], vCellBottom);
-      if vRect.Top > ABottom then
+      if vRect.Top > AScreenBottom then
         Break;
 
-      if vRect.Bottom > ABottom then
-        vRect.Bottom := ABottom;
+      if vRect.Bottom > AScreenBottom then
+        vRect.Bottom := AScreenBottom;
 
-      FRows[vR][vC].PaintTo(vCellLeft, vCellTop, vRect.Right, vCellBottom, ATop, ABottom, 0,
+      FRows[vR][vC].PaintTo(vCellLeft, vCellTop, vRect.Right, vCellBottom, ATop, AScreenBottom, 0,
         FCellHPaddingPix, FCellVPaddingPix, ACanvas, APaintInfo);
 
       {$REGION ' 绘制边框线 '}
@@ -2582,7 +2578,7 @@ begin
             end;
           end;
 
-          if (vBorderBottom <= ABottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // 下边框
+          if (vBorderBottom <= AScreenBottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // 下边框
           begin
             if APaintInfo.Print then
             begin
@@ -2651,13 +2647,16 @@ begin
   end;
 end;
 
-procedure THCTableItem.PaintFixRows(const ALeft, ATop, ABottom: Integer;
+procedure THCTableItem.PaintFixRows(const ALeft, ATop, AScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vR, vC, vTop, vH: Integer;
   vRect: TRect;
 begin
-  vRect := Bounds(ALeft, ATop, Width, GetFixRowHeight);
+  vH := GetFixRowHeight;
+  if ATop + vH < 0 then Exit;
+
+  vRect := Bounds(ALeft, ATop, Width, vH);
   if not APaintInfo.Print then
   begin
     ACanvas.Brush.Color := clBtnFace;
@@ -2680,7 +2679,7 @@ begin
     vH := Max(vH, FRows[vR].Height) + FBorderWidthPix + FBorderWidthPix;
 
     vRect := Bounds(ALeft, vTop, Width, vH);
-    if vRect.Top >= ABottom then
+    if vRect.Top >= AScreenBottom then
       Break;
 
     PaintRow(vR, vRect.Left, vRect.Top, vRect.Bottom, ACanvas, APaintInfo);
@@ -2809,7 +2808,7 @@ begin
           end;
         end;
 
-        if (vBorderBottom <= ABottom) and (cbsBottom in FRows[ARow][vC].BorderSides) then  // 下边框
+        if cbsBottom in FRows[ARow][vC].BorderSides then  // 下边框
         begin
           if APaintInfo.Print then
           begin
@@ -3489,6 +3488,7 @@ begin
   ACellData.OnItemMouseUp := (OwnerData as THCViewData).OnItemMouseUp;
   ACellData.OnDrawItemMouseMove := (OwnerData as THCRichData).OnDrawItemMouseMove;
   ACellData.OnItemReFormatRequest := DoCellDataItemReFormatRequest;
+  ACellData.OnItemSetCaretRequest := DoCellDataItemSetCaretRequest;
 
   ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
@@ -3499,6 +3499,7 @@ begin
   ACellData.OnRemoveAnnotate := (OwnerData as THCViewData).OnRemoveAnnotate;
   ACellData.OnDrawItemAnnotate := (OwnerData as THCViewData).OnDrawItemAnnotate;
   ACellData.OnCaretItemChanged := (OwnerData as THCViewData).OnCaretItemChanged;
+  ACellData.OnChange := OwnerData.OnChange;
 
   ACellData.OnCanEdit := (OwnerData as THCViewData).OnCanEdit;
   ACellData.OnInsertTextBefor := (OwnerData as THCViewData).OnInsertTextBefor;
@@ -3510,7 +3511,7 @@ begin
   ACellData.OnGetUndoList := Self.GetSelfUndoList;
   ACellData.OnGetRootData := DoCellDataGetRootData;
   ACellData.OnGetFormatTop := DoCellDataGetFormatTop;
-  ACellData.OnSilenceChange := DoCellDataSilenceChange;
+  ACellData.OnFormatDirty := DoCellDataFormatDirty;
 end;
 
 procedure THCTableItem.InitializeMouseInfo;
@@ -3566,7 +3567,6 @@ begin
 
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
-  Self.SizeChanged := True;
   Self.FormatDirty;
   Result := True;
 end;
@@ -3658,7 +3658,6 @@ begin
 
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
-  Self.SizeChanged := True;
   Self.FormatDirty;
   Result := True;
 end;
@@ -4044,10 +4043,10 @@ end;
 
 procedure THCTableItem.CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure);
 begin
-  Self.SizeChanged := False;
+  Self.IsFormatDirty := False;
   AProcedure();
-  if not Self.SizeChanged then
-    Self.SizeChanged := FRows[ARow][ACol].CellData.FormatHeightChange;
+  if not Self.IsFormatDirty then
+    Self.IsFormatDirty := FRows[ARow][ACol].CellData.FormatHeightChange;
 
   //FLastChangeFormated := not Self.SizeChanged;
 end;
@@ -4338,10 +4337,15 @@ begin
       // 偏移量增加到此行高度
       for i := 0 to vColCrosses.Count - 1 do  // vColCrosses里只有合并目标或普通单元格
       begin
-        if (vColCrosses[i].VDrawOffset > 0) and (vColCrosses[i].DrawItemNo = 0) then  // 第一个放不下，需要整行向下偏移
+        if vColCrosses[i].DrawItemNo = 0 then
         begin
-          FRows[ABreakRow].FmtOffset := vColCrosses[i].VDrawOffset + vFixHeight;  // 表格行向下偏移后整行起始在下一页显示，同行多个单元都放不下第一个时会重复赋相同值(重复赋值会有不一样的值吗？)
-          vColCrosses[i].VDrawOffset := 0;  // 整体偏移了，DrawItem就不用单独记偏移量了
+          if vColCrosses[i].VDrawOffset > 0 then
+          begin
+            FRows[ABreakRow].FmtOffset := vColCrosses[i].VDrawOffset + vFixHeight;
+            vColCrosses[i].VDrawOffset := 0;
+          end
+          else
+            FRows[ABreakRow].FmtOffset := vFixHeight;
         end;
       end;
     end
@@ -5455,7 +5459,7 @@ begin
           vData := FRows[vR][vC].CellData;
           if Assigned(vData) then
           begin
-            if Self.SizeChanged then  // 表格会重新格式化，CellData不用格式化了
+            if Self.IsFormatDirty then  // 表格会重新格式化，CellData不用格式化了
             begin
               vData.BeginFormat;
               try
@@ -5467,7 +5471,7 @@ begin
             else
             begin
               vData.ApplySelectParaStyle(AMatchStyle);
-              Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
+              Self.IsFormatDirty := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
             end;
           end;
         end;
@@ -5477,7 +5481,7 @@ begin
     begin
       vData := GetEditCell.CellData;
       vData.ApplySelectParaStyle(AMatchStyle);
-      Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
+      Self.IsFormatDirty := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
     end;
 
     //FLastChangeFormated := not Self.SizeChanged;
@@ -5495,7 +5499,7 @@ begin
   begin
     vData := GetEditCell.CellData;
     vData.ApplySelectTextStyle(AMatchStyle);
-    Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
+    Self.IsFormatDirty := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
   end
   else
   if FSelectCellRang.StartRow >= 0 then  // 有选择起始行
@@ -5508,7 +5512,7 @@ begin
         vData := FRows[vR][vC].CellData;
         if Assigned(vData) then
         begin
-          if Self.SizeChanged then  // 表格会重新格式化，CellData不用格式化了
+          if Self.IsFormatDirty then  // 表格会重新格式化，CellData不用格式化了
           begin
             vData.BeginFormat;
             try
@@ -5520,7 +5524,7 @@ begin
           else
           begin
             vData.ApplySelectTextStyle(AMatchStyle);
-            Self.SizeChanged := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
+            Self.IsFormatDirty := vData.FormatHeightChange or vData.FormatDrawItemCountChange;
           end;
         end;
       end;

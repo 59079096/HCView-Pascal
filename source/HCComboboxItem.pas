@@ -536,6 +536,8 @@ begin
       FItemIndex := -1;
       Text := '';
     end;
+
+    Self.DoChange;
   end;
 end;
 

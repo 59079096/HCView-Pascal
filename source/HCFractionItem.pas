@@ -235,9 +235,9 @@ begin
       ceaTop: System.Insert(AText, FTopText, FCaretOffset + 1);
       ceaBottom: System.Insert(AText, FBottomText, FCaretOffset + 1);
     end;
-    Inc(FCaretOffset, System.Length(AText));
 
-    Self.SizeChanged := True;
+    Inc(FCaretOffset, System.Length(AText));
+    Self.FormatDirty;
     Result := True;
   end
   else
@@ -263,7 +263,7 @@ procedure THCFractionItem.KeyDown(var Key: Word; Shift: TShiftState);
       ceaBottom: BackDeleteChar(FBottomText);
     end;
 
-    Self.SizeChanged := True;
+    Self.FormatDirty;
   end;
 
   procedure LeftKeyDown;
@@ -298,7 +298,7 @@ procedure THCFractionItem.KeyDown(var Key: Word; Shift: TShiftState);
       ceaBottom: DeleteChar(FBottomText);
     end;
 
-    Self.SizeChanged := True;
+    Self.FormatDirty;
   end;
 
   procedure HomeKeyDown;

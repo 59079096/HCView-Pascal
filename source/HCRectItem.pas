@@ -36,7 +36,7 @@ type
     // 标识内部高度是否发生了变化，用于此Item内部格式化时给其所属的Data标识需要重新格式化此Item
     // 如表格的一个单元格内容变化在没有引起表格整体变化时，不需要重新格式化表格，也不需要重新计算页数
     // 由拥有此Item的Data使用完后应该立即赋值为False，可参考TableItem.KeyPress的使用
-    FSizeChanged,
+    FIsFormatDirty,
     FCanPageBreak: Boolean;  // 在当前页显示不下时是否可以分页截断显示
     FOnGetMainUndoList: TGetUndoListEvent;
   protected
@@ -45,8 +45,7 @@ type
     procedure SetWidth(const Value: Integer); virtual;
     function GetHeight: Integer; virtual;
     procedure SetHeight(const Value: Integer); virtual;
-    procedure DoSizeChanged; virtual;
-    procedure SetSizeChanged(const Value: Boolean);
+    procedure DoChange; virtual;
     //
     procedure SelfUndoListInitializate(const AUndoList: THCUndoList);
     procedure SelfUndo_New;
@@ -146,7 +145,6 @@ type
     /// <returns>True：找到</returns>
     function Search(const AKeyword: string; const AForward, AMatchCase: Boolean): Boolean; virtual;
     procedure Clear; virtual;
-    procedure SilenceChange; virtual;
 
     /// <summary> 返回指定位置处的顶层Data(为松耦合请返回TCustomData类型) </summary>
     function GetTopLevelDataAt(const X, Y: Integer): THCCustomData; virtual;
@@ -177,7 +175,7 @@ type
     property Width: Integer read GetWidth write SetWidth;
     property Height: Integer read GetHeight write SetHeight;
     property TextWrapping: Boolean read FTextWrapping write FTextWrapping;  // 文本环绕
-    property SizeChanged: Boolean read FSizeChanged write SetSizeChanged;
+    property IsFormatDirty: Boolean read FIsFormatDirty write FIsFormatDirty;
 
     /// <summary> 在当前页显示不下时是否可以分页截断显示 </summary>
     property CanPageBreak: Boolean read FCanPageBreak write FCanPageBreak;
@@ -327,8 +325,8 @@ type
 
   THCDataItem = class(THCResizeRectItem)  // 内部有管理Data的Item，也便于统一判断是否进入RectItem内部判断或寻找
   { to do: 将不是所有RectItem用到的方法移植到这里来}
-  public
-    procedure SilenceChange; override;
+  protected
+    procedure DoChange; override;
   end;
 
 var
@@ -417,7 +415,7 @@ begin
   FWidth := 100;   // 默认尺寸
   FHeight := 50;
   FTextWrapping := False;
-  FSizeChanged := False;
+  FIsFormatDirty := False;
   FCanPageBreak := False;
   FMangerUndo := False;
 end;
@@ -450,9 +448,9 @@ begin
   Result := THCUndo.Create;
 end;
 
-procedure THCCustomRectItem.DoSizeChanged;
+procedure THCCustomRectItem.DoChange;
 begin
-  FormatDirty;
+  OwnerData.Change;
 end;
 
 procedure THCCustomRectItem.DoSelfRedo(const ARedo: THCUndo);
@@ -474,6 +472,7 @@ end;
 
 procedure THCCustomRectItem.FormatDirty;
 begin
+  FIsFormatDirty := True;
 end;
 
 procedure THCCustomRectItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -765,22 +764,9 @@ begin
   FHeight := Value;
 end;
 
-procedure THCCustomRectItem.SetSizeChanged(const Value: Boolean);
-begin
-  if FSizeChanged <> Value then
-  begin
-    FSizeChanged := Value;
-    DoSizeChanged;
-  end;
-end;
-
 procedure THCCustomRectItem.SetWidth(const Value: Integer);
 begin
   FWidth := Value;
-end;
-
-procedure THCCustomRectItem.SilenceChange;
-begin
 end;
 
 function THCCustomRectItem.ToHtml(const APath: string): string;
@@ -1584,10 +1570,10 @@ end;
 
 { THCDataItem }
 
-procedure THCDataItem.SilenceChange;
+procedure THCDataItem.DoChange;
 begin
   Self.FormatDirty;
-  OwnerData.SilenceChange;
+  inherited DoChange;
 end;
 
 end.

@@ -73,6 +73,7 @@ type
   TDataDomainItemNoEvent = procedure(const AData: THCCustomData; const ADomainStack: TDomainStack; const AItemNo: Integer) of object;
   TDataItemEvent = procedure(const AData: THCCustomData; const AItem: THCCustomItem) of object;
   TDataItemNoEvent = procedure(const AData: THCCustomData; const AItemNo: Integer) of object;
+  TDataItemNoOffsetEvent = procedure(const AData: THCCustomData; const AItemNo, AOffset: Integer) of object;
   TDataItemNoFunEvent = function(const AData: THCCustomData; const AItemNo: Integer): Boolean of object;
   TDataActionEvent = function(const AData: THCCustomData; const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean of object;
 
@@ -99,7 +100,7 @@ type
     FOnInsertItem, FOnRemoveItem: TDataItemEvent;
     FOnSaveItem: TDataItemNoFunEvent;  // 可控制保存时不保存指定的Item实现一次性的功能
     FOnGetUndoList: TGetUndoListEvent;
-    FOnCurParaNoChange: TNotifyEvent;
+    FOnCurParaNoChange, FOnChange: TNotifyEvent;
     FOnDrawItemPaintBefor, FOnDrawItemPaintAfter: TDrawItemPaintEvent;
     FOnDrawItemPaintContent: TDrawItemPaintContentEvent;
     procedure DoRemoveItem_(const AItem: THCCustomItem);
@@ -200,7 +201,7 @@ type
     function SelectedAll: Boolean; virtual;
     procedure Clear; virtual;
     procedure InitializeField; virtual;
-    procedure SilenceChange; virtual;
+    procedure Change; virtual;
 
     /// <summary> 嵌套时获取根级Data </summary>
     function GetRootData: THCCustomData; virtual;
@@ -482,6 +483,7 @@ type
     property OnInsertItem: TDataItemEvent read FOnInsertItem write FOnInsertItem;
     property OnRemoveItem: TDataItemEvent read FOnRemoveItem write FOnRemoveItem;
     property OnSaveItem: TDataItemNoFunEvent read FOnSaveItem write FOnSaveItem;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
   TTraverseItemEvent = reference to procedure(const AData: THCCustomData;
@@ -3063,8 +3065,10 @@ begin
     FCurStyleNo := Value;
 end;
 
-procedure THCCustomData.SilenceChange;
+procedure THCCustomData.Change;
 begin
+  if Assigned(FOnChange) then
+    FOnChange(Self);
 end;
 
 function THCCustomData.ToHtml(const APath: string): string;

@@ -355,7 +355,7 @@ begin
   System.Insert(AText, FText, FCaretOffset + 1);
   Inc(FCaretOffset, System.Length(AText));
   ScrollAdjust(FCaretOffset);
-  Self.SizeChanged := True;
+  Self.FormatDirty;
 end;
 
 function THCEditItem.IsSelectComplateTheory: Boolean;
@@ -378,7 +378,7 @@ procedure THCEditItem.KeyDown(var Key: Word; Shift: TShiftState);
     end;
 
     ScrollAdjust(FCaretOffset);
-    Self.SizeChanged := True;
+    Self.FormatDirty;
   end;
 
   procedure LeftKeyDown;
@@ -413,7 +413,7 @@ procedure THCEditItem.KeyDown(var Key: Word; Shift: TShiftState);
     end;
 
     ScrollAdjust(FCaretOffset);
-    Self.SizeChanged := True;
+    Self.FormatDirty;
   end;
 
 begin
@@ -453,7 +453,7 @@ begin
     System.Insert(Key, FText, FCaretOffset);
     CalcTextSize;
     ScrollAdjust(FCaretOffset);
-    Self.SizeChanged := True;
+    Self.FormatDirty;
   end
   else
     inherited KeyPress(Key);

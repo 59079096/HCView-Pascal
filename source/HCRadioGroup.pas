@@ -469,7 +469,10 @@ begin
   begin
     vIndex := GetItemAt(X, Y);
     if vIndex >= 0 then
+    begin
       FItems[vIndex].Checked := not FItems[vIndex].Checked;
+      Self.DoChange;
+    end;
   end;
 end;
 

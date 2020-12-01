@@ -42,7 +42,7 @@ type
     FFormatChange: Boolean;
 
     FOnItemReFormatRequest: TDataItemEvent;
-
+    FOnItemSetCaretRequest: TDataItemNoOffsetEvent;
     procedure FormatRange(const AStartDrawItemNo, ALastItemNo: Integer);
     procedure FormatItem(const AItem: THCCustomItem);
     procedure FormatItemNo(const AItemNo: Integer);
@@ -109,7 +109,9 @@ type
     procedure ReFormatActiveItem; virtual;
     procedure ItemReFormatRequest(const AItem: THCCustomItem); virtual;
     procedure ItemReFormatResponse(const AItem: THCCustomItem); virtual;
+    procedure ItemSetCaretRequest(const AItemNo, AOffset: Integer); virtual;
     function GetDrawItemFormatTop(const ADrawItemNo: Integer): Integer; virtual;
+    function GetItemNo(const AItem: THCCustomItem): Integer;
     procedure BeginFormat;
     procedure EndFormat(const AReformat: Boolean = True);
     property Width: Integer read FWidth write FWidth;
@@ -119,6 +121,7 @@ type
     property FormatChange: Boolean read FFormatChange write FFormatChange;
     property FormatCount: Integer read FFormatCount;
     property OnItemReFormatRequest: TDataItemEvent read FOnItemReFormatRequest write FOnItemReFormatRequest;
+    property OnItemSetCaretRequest: TDataItemNoOffsetEvent read FOnItemSetCaretRequest write FOnItemSetCaretRequest;
   end;
 
 implementation
@@ -299,19 +302,11 @@ end;
 
 procedure THCFormatData.FormatItem(const AItem: THCCustomItem);
 var
-  i: Integer;
-  vPointer: Pointer;
+  vItemNo: Integer;
 begin
-  vPointer := Pointer(AItem);
-
-  for i := 0 to Items.Count - 1 do
-  begin
-    if Pointer(Items[i]) = vPointer then
-    begin
-      FormatItemNo(i);
-      Break;
-    end;
-  end;
+  vItemNo := GetItemNo(AItem);
+  if vItemNo >= 0 then
+    FormatItemNo(vItemNo);
 end;
 
 procedure THCFormatData.FormatItemNo(const AItemNo: Integer);
@@ -1137,6 +1132,24 @@ begin
 //  ALastItemNo := GetParaLastItemNo(AItemNo);
 end;
 
+function THCFormatData.GetItemNo(const AItem: THCCustomItem): Integer;
+var
+  i: Integer;
+  vPointer: Pointer;
+begin
+  Result := -1;
+
+  vPointer := Pointer(AItem);
+  for i := 0 to Items.Count - 1 do
+  begin
+    if Pointer(Items[i]) = vPointer then
+    begin
+      Result := i;
+      Break;
+    end;
+  end;
+end;
+
 procedure THCFormatData.ItemReFormatRequest(const AItem: THCCustomItem);
 begin
   if Assigned(FOnItemReFormatRequest) then
@@ -1146,6 +1159,17 @@ end;
 procedure THCFormatData.ItemReFormatResponse(const AItem: THCCustomItem);
 begin
   FormatItem(AItem);
+end;
+
+procedure THCFormatData.ItemSetCaretRequest(const AItemNo, AOffset: Integer);
+begin
+  if AItemNo >= 0 then
+  begin
+    ReSetSelectAndCaret(AItemNo, AOffset);
+    Style.UpdateInfoReCaret(True);
+    if Assigned(FOnItemSetCaretRequest) then
+      FOnItemSetCaretRequest(Self, AItemNo, AOffset);
+  end;
 end;
 
 procedure THCFormatData.ReFormat;
@@ -1238,7 +1262,7 @@ begin
 
   // 计算格式化后段的底部位置变化
   vLastDrawItemNo := GetItemLastDrawItemNo(vLastItemNo);
-  if (Items[vLastItemNo] is THCCustomRectItem) and (Items[vLastItemNo] as THCCustomRectItem).SizeChanged then
+  if (Items[vLastItemNo] is THCCustomRectItem) and (Items[vLastItemNo] as THCCustomRectItem).IsFormatDirty then
     vFmtHeightChange := True
   else
     vFmtHeightChange := AForceClearExtra

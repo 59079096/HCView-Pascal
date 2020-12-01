@@ -617,7 +617,7 @@ type
     procedure LoadFromDocumentStream(const AStream: TStream; const AExt: string);
 
     /// <summary> 文档保存为PDF格式 </summary>
-    procedure SaveToPDF(const AFileName: string);
+    procedure SaveToPDF(const AFileName: string; const APageImage: Boolean = False);
 
     procedure SaveToPDFStream(const AStream: TStream; const APageImage: Boolean = False);
 
@@ -749,6 +749,8 @@ type
 
     /// <summary> 字数 </summary>
     function NumberOfWords: Cardinal;
+
+    function CanEdit: Boolean;
 
     // 属性部分
     /// <summary> 当前文档名称 </summary>
@@ -1038,6 +1040,11 @@ begin
 
   FVScrollBar.Max := vVMax;
   FHScrollBar.Max := vHMax;
+end;
+
+function THCView.CanEdit: Boolean;
+begin
+  Result := DoSectionCanEdit(Self);
 end;
 
 procedure THCView.CheckUpdateInfo;
@@ -4136,7 +4143,7 @@ begin
   end;
 end;
 
-procedure THCView.SaveToPDF(const AFileName: string);
+procedure THCView.SaveToPDF(const AFileName: string; const APageImage: Boolean = False);
 var
   vStream: TMemoryStream;
 begin
@@ -4426,7 +4433,7 @@ var
   vTopData: THCCustomData;
   vStartDrawItemNo, vEndDrawItemNo: Integer;
   vPt: TPoint;
-  vStartDrawRect, vEndDrawRect: TRect;
+  vDrawRect: TRect;
 begin
   Result := Self.ActiveSection.Search(AKeyword, AForward, AMatchCase);
   if Result then
@@ -4441,43 +4448,46 @@ begin
 
       if vStartDrawItemNo = vEndDrawItemNo then  // 选中在同一个DrawItem
       begin
-        vStartDrawRect.Left := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vStartDrawItemNo,
+        vDrawRect.Left := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vStartDrawItemNo,
           SelectInfo.StartItemOffset - DrawItems[vStartDrawItemNo].CharOffs + 1));
-        vStartDrawRect.Top := vPt.Y;
-        vStartDrawRect.Right := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vEndDrawItemNo,
+        vDrawRect.Top := vPt.Y;
+        vDrawRect.Right := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vEndDrawItemNo,
           SelectInfo.EndItemOffset - DrawItems[vEndDrawItemNo].CharOffs + 1));
-        vStartDrawRect.Bottom := vPt.Y + ZoomIn(DrawItems[vEndDrawItemNo].Rect.Height);
-
-        vEndDrawRect := vStartDrawRect;
+        vDrawRect.Bottom := vPt.Y + ZoomIn(DrawItems[vEndDrawItemNo].Rect.Height);
       end
       else  // 选中不在同一个DrawItem
       begin
-        vStartDrawRect.Left := vPt.X + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Left - DrawItems[vEndDrawItemNo].Rect.Left
-          + GetDrawItemOffsetWidth(vStartDrawItemNo, SelectInfo.StartItemOffset - DrawItems[vStartDrawItemNo].CharOffs + 1));
-        vStartDrawRect.Top := vPt.Y + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Top - DrawItems[vEndDrawItemNo].Rect.Top);
-        vStartDrawRect.Right := vPt.X + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Left - DrawItems[vEndDrawItemNo].Rect.Left
-          + DrawItems[vStartDrawItemNo].Rect.Width);
-        vStartDrawRect.Bottom := vStartDrawRect.Top + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Height);
-
-        vEndDrawRect.Left := vPt.X;
-        vEndDrawRect.Top := vPt.Y;
-        vEndDrawRect.Right := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vEndDrawItemNo,
-          SelectInfo.EndItemOffset - DrawItems[vEndDrawItemNo].CharOffs + 1));
-        vEndDrawRect.Bottom := vPt.Y + ZoomIn(DrawItems[vEndDrawItemNo].Rect.Height);
+        if not AForward then
+        begin
+          vDrawRect.Left := vPt.X;
+          vDrawRect.Top := vPt.Y;
+          vDrawRect.Right := vPt.X + ZoomIn(GetDrawItemOffsetWidth(vEndDrawItemNo,
+            SelectInfo.EndItemOffset - DrawItems[vEndDrawItemNo].CharOffs + 1));
+          vDrawRect.Bottom := vPt.Y + ZoomIn(DrawItems[vEndDrawItemNo].Rect.Height);
+        end
+        else
+        begin
+          vDrawRect.Left := vPt.X + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Left - DrawItems[vEndDrawItemNo].Rect.Left
+            + GetDrawItemOffsetWidth(vStartDrawItemNo, SelectInfo.StartItemOffset - DrawItems[vStartDrawItemNo].CharOffs + 1));
+          vDrawRect.Top := vPt.Y + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Top - DrawItems[vEndDrawItemNo].Rect.Top);
+          vDrawRect.Right := vPt.X + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Left - DrawItems[vEndDrawItemNo].Rect.Left
+            + DrawItems[vStartDrawItemNo].Rect.Width);
+          vDrawRect.Bottom := vDrawRect.Top + ZoomIn(DrawItems[vStartDrawItemNo].Rect.Height);
+        end;
       end;
     end;
 
-    if vStartDrawRect.Top < 0 then
-      Self.FVScrollBar.Position := Self.FVScrollBar.Position + vStartDrawRect.Top
+    if vDrawRect.Top < 0 then
+      Self.FVScrollBar.Position := Self.FVScrollBar.Position + vDrawRect.Top
     else
-    if vStartDrawRect.Bottom > FViewHeight then
-      Self.FVScrollBar.Position := Self.FVScrollBar.Position + vStartDrawRect.Bottom - FViewHeight;
+    if vDrawRect.Bottom > FViewHeight then
+      Self.FVScrollBar.Position := Self.FVScrollBar.Position + vDrawRect.Bottom - FViewHeight;
 
-    if vStartDrawRect.Left < 0 then
-      Self.FHScrollBar.Position := Self.FHScrollBar.Position + vStartDrawRect.Left
+    if vDrawRect.Left < 0 then
+      Self.FHScrollBar.Position := Self.FHScrollBar.Position + vDrawRect.Left
     else
-    if vStartDrawRect.Right > FViewWidth then
-      Self.FHScrollBar.Position := Self.FHScrollBar.Position + vStartDrawRect.Right - FViewWidth;
+    if vDrawRect.Right > FViewWidth then
+      Self.FHScrollBar.Position := Self.FHScrollBar.Position + vDrawRect.Right - FViewWidth;
   end;
 end;
 

@@ -39,9 +39,7 @@ type
     FOnInsertTextBefor: TTextEvent;
     FOnCaretItemChanged: TDataItemEvent;
     FOnPaintDomainRegion: TDataItemNoFunEvent;
-    FOnExecuteScript: TDataItemNoFunEvent;
   protected
-    function DoExecuteScript(const AItemNo: Integer): Boolean; virtual;
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; override;
     /// <summary> 是否允许保存该Item </summary>
     function DoSaveItem(const AItemNo: Integer): Boolean; override;
@@ -125,10 +123,9 @@ type
     /// <param name="ADomainItemNo">域起始或结束ItemNo</param>
     //procedure SaveDomainToStream(const AStream: TStream; const ADomainItemNo: Integer);
 
-    function ExecuteScript(const AItemNo: Integer): Boolean;
+    function ExecuteScript(const AItemNo: Integer): Boolean; virtual;
 
     property Script: string read FScript write FScript;
-    property OnExecuteScript: TDataItemNoFunEvent read FOnExecuteScript write FOnExecuteScript;
     property OnCaretItemChanged: TDataItemEvent read FOnCaretItemChanged write FOnCaretItemChanged;
     property HotDomain: THCDomainInfo read FHotDomain;
     property ActiveDomain: THCDomainInfo read FActiveDomain;
@@ -618,14 +615,6 @@ begin
   end;
 end;
 
-function THCViewData.DoExecuteScript(const AItemNo: Integer): Boolean;
-begin
-  if Assigned(FOnExecuteScript) then
-    Result := FOnExecuteScript(Self, AItemNo)
-  else
-    Result := False;
-end;
-
 procedure THCViewData.DoInsertItem(const AItem: THCCustomItem);
 begin
   if THCDomainItem.IsBeginMark(AItem) then
@@ -667,7 +656,7 @@ end;
 
 function THCViewData.ExecuteScript(const AItemNo: Integer): Boolean;
 begin
-  Result := DoExecuteScript(AItemNo);
+  Result := False;
 end;
 
 function THCViewData.GetDomainAnother(const AItemNo: Integer): Integer;
@@ -1436,7 +1425,15 @@ begin
     end;
   end
   else
+  begin
+    vItemNo := SelectInfo.StartItemNo;
+    vOffset := SelectInfo.StartItemOffset;
+    ReSetSelectAndCaret(SelectInfo.EndItemNo, SelectInfo.EndItemOffset, not aForward);
+
+    SelectInfo.StartItemNo := vItemNo;
+    SelectInfo.StartItemOffset := vOffset;
     MatchItemSelectState;
+  end;
 
   Self.Style.UpdateInfoRePaint;
   Self.Style.UpdateInfoReCaret;

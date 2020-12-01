@@ -328,7 +328,7 @@ begin
   FRowSpan := ANode.Attributes['rowspan'];
   FColSpan := ANode.Attributes['colspan'];
   FAlignVert := THCAlignVert(ANode.Attributes['vert']);
-  FBackgroundColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);  // 背景色
+  FBackgroundColor := HCRGBStringToColor(ANode.Attributes['bkcolor']);  // 背景色
   SetBorderSideByPro(ANode.Attributes['border'], FBorderSides);
 
   if (FRowSpan < 0) or (FColSpan < 0) then
@@ -399,7 +399,7 @@ begin
   ANode.Attributes['rowspan'] := FRowSpan;
   ANode.Attributes['colspan'] := FColSpan;
   ANode.Attributes['vert'] := Ord(FAlignVert);
-  ANode.Attributes['bkcolor'] := GetColorXmlRGB(FBackgroundColor);
+  ANode.Attributes['bkcolor'] := HCColorToRGBString(FBackgroundColor);
   ANode.Attributes['border'] := GetBorderSidePro(FBorderSides);
 
   if Assigned(FCellData) then  // 存数据

@@ -31,11 +31,12 @@ type
 
   THCTableRows = class(TObjectList<THCTableRow>)
   private
-    FOnRowAdd: TRowAddEvent;
+    FOnRowAdd, FOnRowRemove: TRowAddEvent;
   protected
     procedure Notify(const Value: THCTableRow; Action: TCollectionNotification); override;
   public
     property OnRowAdd: TRowAddEvent read FOnRowAdd write FOnRowAdd;
+    property OnRowRemove: TRowAddEvent read FOnRowRemove write FOnRowRemove;
   end;
 
   THCMulCellUndo = class(TObject)
@@ -74,7 +75,7 @@ type
     FMouseDownRow, FMouseDownCol,
     FMouseMoveRow, FMouseMoveCol,
     FMouseDownX, FMouseDownY,
-    FFormatHeight
+    FFormatHeight, FDefaultRowHeight
       : Integer;
     FResizeInfo: TResizeInfo;
     FMulCellUndo: THCMulCellUndo;
@@ -86,6 +87,7 @@ type
      在单个单元格中选择时结束行、列信息为-1 }
     FSelectCellRang: TSelectCellRang;
     FBorderColor: TColor;  // 边框颜色
+    FFixColor: TColor;
     FRows: THCTableRows;  // 行
     FColWidths: TList<Integer>;  // 记录各列宽度(除边框、含FCellHPadding * 2)，方便有合并的单元格获取自己水平开始处的位置
     FPageBreaks: TObjectList<TPageBreak>;  // 记录各行分页时的信息
@@ -95,12 +97,13 @@ type
     procedure InitializeCellData(const ACellData: THCTableCellData);
     function DoCellDataGetRootData: THCCustomData;
     procedure DoCellDataSilenceChange(Sender: TObject);
-    function DoCellExecuteScript(const AData: THCCustomData; const AItemNo: Integer): Boolean;
+    procedure DoCheckCellScript(const ARow, ACol: Integer);
     procedure DoCellDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
     function DoCellDataGetFormatTop(const ACellData: THCCustomData): Integer;
 
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
+    procedure DoRowRemove(const ARow: THCTableRow);
     procedure CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure);
 
     /// <summary> 获取当前表格格式化高度 </summary>
@@ -124,6 +127,8 @@ type
     procedure SetBorderWidthPt(const Value: Single);
     procedure SetCellVPaddingMM(const Value: Single);
     procedure SetCellHPaddingMM(const Value: Single);
+    procedure DeleteEmptyRows(const ASRow, AERow: Cardinal);
+    procedure DeleteEmptyCols(const ASCol, AECol: Cardinal);
   protected
     function CanDrag: Boolean; override;
     function GetSelectComplate: Boolean; override;
@@ -150,6 +155,7 @@ type
       const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
+    procedure DoFormatToDrawItem; virtual;
     //procedure PaintPartTo(const ACanvas: TCanvas; const ADrawLeft, ADrawTop, ADrawBottom, ADataScreenTop,
     //  ADataScreenBottom, AStartRow, AStartRowDataOffs, AEndRow, AEndRowDataOffs: Integer); overload;
     {procedure ConvertToDrawItems(const AItemNo, AOffs, AContentWidth,
@@ -273,7 +279,6 @@ type
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
     function ResetRowCol(const AWidth, ARowCount, AColCount: Integer): Boolean;
-
     /// <summary> 获取当前表格格式化宽度 </summary>
     function GetFormatWidth: Integer;
     procedure AdjustWidth(const AReFormat: Boolean);
@@ -318,7 +323,8 @@ type
 
     /// <summary> 获取指定单元格合并后单元格的Data </summary>
     //function GetMergeDestCellData(const ARow, ACol: Integer): THCTableCellData;
-
+    procedure SetFixRowAndCount(const ARow: ShortInt; const ACount: Byte);
+    procedure SetFixColAndCount(const ACol: ShortInt; const ACount: Byte);
     function MergeSelectCells: Boolean;
     function SelectedCellCanMerge: Boolean;
     function GetEditCell: THCTableCell; overload;
@@ -351,12 +357,13 @@ type
     property CellVPaddingPix: Byte read FCellVPaddingPix;
     property CellVPaddingMM: Single read FCellVPaddingMM write SetCellVPaddingMM;
     property CellHPaddingMM: Single read FCellHPaddingMM write SetCellHPaddingMM;
-    property FixCol: ShortInt read FFixCol write FFixCol;
+    property FixCol: ShortInt read FFixCol;
     /// <summary> 固定列跨度 </summary>
-    property FixColCount: Byte read FFixColCount write FFixColCount;
-    property FixRow: ShortInt read FFixRow write FFixRow;
+    property FixColCount: Byte read FFixColCount;
+    property FixRow: ShortInt read FFixRow;
     /// <summary> 固定行跨度 </summary>
-    property FixRowCount: Byte read FFixRowCount write FFixRowCount;
+    property FixRowCount: Byte read FFixRowCount;
+    property DefaultRowHeight: Integer read FDefaultRowHeight;
     property OnCellPaintBK: THCCellPaintEvent read FOnCellPaintBK write FOnCellPaintBK;
     property OnCellPaintData: THCCellPaintDataEvent read FOnCellPaintData write FOnCellPaintData;
   end;
@@ -457,7 +464,6 @@ begin
       {for i := 1 to vRow[vC].ColSpan do
         vWidth := vWidth + FBorderWidth + FColWidths[vC + i];}
 
-
       vRow[vC].Width := vWidth;
       vRow[vC].CellData.Width := vWidth - FCellHPaddingPix - FCellHPaddingPix;
       vRow[vC].CellData.ReFormat;
@@ -502,11 +508,13 @@ begin
 
   GripSize := 2;
   FFormatHeight := 0;
+  FDefaultRowHeight := MinRowHeight;
   FDraging := False;
   CellHPaddingMM := 0.5;
   CellVPaddingMM := 0;
   BorderWidthPt := 0.5;
   FBorderColor := clBlack;
+  FFixColor := clBtnFace;
   FBorderVisible := True;
   FResizeKeepWidth := False;
 
@@ -519,6 +527,7 @@ begin
   FColWidths := TList<Integer>.Create;
   FRows := THCTableRows.Create;
   FRows.OnRowAdd := DoRowAdd;  // 添加行时触发的事件
+  FRows.OnRowRemove := DoRowRemove;
   Self.ResetRowCol(AWidth, ARowCount, AColCount);
   FMangerUndo := True;  // 自己管理自己的撤销和恢复操作
 end;
@@ -618,6 +627,7 @@ begin
   end;
 
   FColWidths.Delete(ACol);
+  DeleteEmptyRows(0, RowCount - 1);
   CheckFixColSafe(ACol);
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
@@ -682,6 +692,7 @@ begin
   end;
 
   FRows.Delete(ARow);
+  DeleteEmptyCols(0, ColCount - 1);
   CheckFixRowSafe(ARow);
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
@@ -871,15 +882,14 @@ begin
   Self.SilenceChange;
 end;
 
-function THCTableItem.DoCellExecuteScript(const AData: THCCustomData;
-  const AItemNo: Integer): Boolean;
-begin
-  Result := False;
-end;
-
 procedure THCTableItem.DoCellPaintDataBefor(const ARow, ACol: Integer;
   const ACellDrawRect: TRect; const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 begin
+end;
+
+procedure THCTableItem.DoCheckCellScript(const ARow, ACol: Integer);
+begin
+
 end;
 
 function THCTableItem.DoSelfUndoNew: THCUndo;
@@ -1075,7 +1085,17 @@ begin
       vFirstDrawRow := vR;
 
       if IsBreakRow(vR) then  //  FRows[vR].FmtOffset > 0 then
-        vFirstDrawRowIsBreak := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1);
+        vFirstDrawRowIsBreak := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1)
+      else
+      if (not APaintInfo.Print) and (vR >= FFixRow) and (vR < FFixRow + FFixRowCount) then
+      begin
+        vCellRect := Rect(ADrawRect.Left,
+          Math.Max(ADataScreenTop, vCellDataDrawTop - FCellVPaddingPix),
+          ADrawRect.Right, ADrawRect.Top + GetFixRowHeight);
+
+        ACanvas.Brush.Color := FFixColor;
+        ACanvas.FillRect(vCellRect);
+      end;
     end;
 
     vCellDrawLeft := ADrawRect.Left + FBorderWidthPix;
@@ -1117,7 +1137,7 @@ begin
           vCellRect := Rect(vCellDrawLeft,
             vDestCellDataDrawTop - FCellVPaddingPix,
             vCellDrawLeft + FRows[vDestRow][vDestCol].CellData.Width + FCellHPaddingPix + FCellHPaddingPix,
-            vDestCellDataDrawTop + FRows[vDestRow][vDestCol].CellData.Height);
+            vDestCellDataDrawTop + FRows[vDestRow][vDestCol].CellData.Height + FCellVPaddingPix);
 
           if (Self.IsSelectComplate or vCellData.CellSelectedAll) and (not APaintInfo.Print) then  // 表格全选中或单元格全选中
           begin
@@ -1130,10 +1150,10 @@ begin
             if Assigned(FOnCellPaintBK) then  // 有外部自定义绘制
               FOnCellPaintBK(Self, FRows[vDestRow][vDestCol], vCellRect, ACanvas, APaintInfo, vDrawDefault);
 
-            if vDrawDefault then  // 允许默认绘制
+            if vDrawDefault and not APaintInfo.Print then
             begin
-              if IsFixRow(vR) or IsFixCol(vC) then  // 是固定行
-                ACanvas.Brush.Color := clBtnFace
+              if IsFixCol(vC) then
+                ACanvas.Brush.Color := FFixColor
               else
               if FRows[vDestRow][vDestCol].BackgroundColor <> HCTransparentColor then  // 背景色
                 ACanvas.Brush.Color := FRows[vDestRow][vDestCol].BackgroundColor
@@ -1174,6 +1194,7 @@ begin
         end;
       end;
       {$ENDREGION}
+
       {$REGION ' 绘制各单元格边框线 '}
       if FBorderVisible or (not APaintInfo.Print) then
       begin
@@ -1558,6 +1579,11 @@ begin
     if vCellData <> nil then
       InitializeCellData(vCellData);
   end;
+end;
+
+procedure THCTableItem.DoRowRemove(const ARow: THCTableRow);
+begin
+  InitializeMouseInfo;
 end;
 
 procedure THCTableItem.DoSelfUndo(const AUndo: THCUndo);
@@ -2464,8 +2490,11 @@ begin
     vCellTop := vCellTop + FRows[vR].FmtOffset + FRows[vR].Height + FBorderWidthPix;
 
   vRect := Bounds(ALeft, vCellTop, GetFixColWidth, ABottom - vCellTop);
-  ACanvas.Brush.Color := clBtnFace;
-  ACanvas.FillRect(vRect);
+  if not APaintInfo.Print then
+  begin
+    ACanvas.Brush.Color := clBtnFace;
+    ACanvas.FillRect(vRect);
+  end;
 
   vBorderOffs := FBorderWidthPix div 2;
   vCellTop := ATableDrawTop + FBorderWidthPix;
@@ -2629,8 +2658,11 @@ var
   vRect: TRect;
 begin
   vRect := Bounds(ALeft, ATop, Width, GetFixRowHeight);
-  ACanvas.Brush.Color := clBtnFace;
-  ACanvas.FillRect(vRect);
+  if not APaintInfo.Print then
+  begin
+    ACanvas.Brush.Color := clBtnFace;
+    ACanvas.FillRect(vRect);
+  end;
 
   vTop := ATop;
   for vR := FFixRow to FFixRow + FFixRowCount - 1 do
@@ -2937,9 +2969,7 @@ end;
 function THCTableItem.ResetRowCol(const AWidth, ARowCount, AColCount: Integer): Boolean;
 var
   i, vDataWidth: Integer;
-  {$IFDEF RESETTABLEUSEFIRSTROWHEIGHT}
   vRowHeight: Integer;
-  {$ENDIF}
   vRow: THCTableRow;
 begin
   Result := False;
@@ -2947,22 +2977,18 @@ begin
   FFixRowCount := 0;
   FFixCol := -1;
   FFixColCount := 0;
+  FDefaultRowHeight := MinRowHeight;
 
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
 
   Self.Width := AWidth;
+  vRowHeight := FDefaultRowHeight;
   {$IFDEF RESETTABLEUSEFIRSTROWHEIGHT}
   if FRows.Count > 0 then
-    vRowHeight := FRows[0].Height
-  else
-    vRowHeight := MinRowHeight;
-
-  Height := ARowCount * (vRowHeight + FBorderWidthPix) + FBorderWidthPix;
-  {$ELSE}
-  Height := ARowCount * (MinRowHeight + FBorderWidthPix) + FBorderWidthPix;
+    vRowHeight := FRows[0].Height;
   {$ENDIF}
-
+  Height := ARowCount * (vRowHeight + FBorderWidthPix) + FBorderWidthPix;
   vDataWidth := AWidth - (AColCount + 1) * FBorderWidthPix;
 
   FRows.Clear;
@@ -2970,9 +2996,12 @@ begin
   begin
     vRow := THCTableRow.Create(OwnerData.Style, AColCount);
     vRow.SetRowWidth(vDataWidth);
+    if i = 0 then
+      FDefaultRowHeight := vRow.Cols[0].CellData.Height + FCellVPaddingPix + FCellVPaddingPix;
+
     {$IFDEF RESETTABLEUSEFIRSTROWHEIGHT}
     vRow.Height := vRowHeight;
-    if vRowHeight <> MinRowHeight then
+    if vRowHeight <> FDefaultRowHeight then
       vRow.AutoHeight := False;
     {$ENDIF}
 
@@ -3460,7 +3489,6 @@ begin
   ACellData.OnItemMouseUp := (OwnerData as THCViewData).OnItemMouseUp;
   ACellData.OnDrawItemMouseMove := (OwnerData as THCRichData).OnDrawItemMouseMove;
   ACellData.OnItemReFormatRequest := DoCellDataItemReFormatRequest;
-  ACellData.OnExecuteScript := DoCellExecuteScript;
 
   ACellData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
   ACellData.OnDrawItemPaintBefor := (OwnerData as THCRichData).OnDrawItemPaintBefor;
@@ -3511,6 +3539,7 @@ begin
     begin
       vCell := THCTableCell.Create(OwnerData.Style);
       vCell.Width := vWidth;
+      vCell.Height := FRows[vRow].Height;
       InitializeCellData(vCell.CellData);
 
       if (ACol < FColWidths.Count) and (FRows[vRow][ACol].ColSpan < 0) then  // 合并的源列
@@ -3601,6 +3630,8 @@ begin
   for i := 0 to ACount - 1 do
   begin
     vTableRow := THCTableRow.Create(OwnerData.Style, FColWidths.Count);
+    vTableRow.Height := FDefaultRowHeight;
+
     for vCol := 0 to FColWidths.Count - 1 do
     begin
       vTableRow[vCol].Width := FColWidths[vCol];
@@ -3754,96 +3785,94 @@ begin
   end;
 end;
 
-function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow,
-  AEndCol: Integer): Boolean;
-
-  procedure DeleteEmptyRows(const ASRow, AERow: Cardinal);
-  var
-    vR, vC, i: Integer;
-    vEmptyRow: Boolean;
+procedure THCTableItem.DeleteEmptyCols(const ASCol, AECol: Cardinal);
+var
+  vR, vC, i: Integer;
+  vEmptyCol: Boolean;
+  vTableCell: THCTableCell;
+begin
+  for vC := AECol downto ASCol do
   begin
-    for vR := AERow downto ASRow do  // 遍历行
+    vEmptyCol := True;
+    for vR := 0 to RowCount - 1 do
     begin
-      vEmptyRow := True;
-      for vC := 0 to FRows[vR].ColCount - 1 do  // 当前行各列
+      if FRows[vR][vC].CellData <> nil then
       begin
-        if FRows[vR][vC].CellData <> nil then  // 存在没有被合并的列
-        begin
-          vEmptyRow := False;  // 不是空行
-          Break;
-        end;
-      end;
-
-      if vEmptyRow then  // 空行
-      begin
-        for i := 0 to vR - 1 do
-        begin
-          for vC := 0 to FRows[i].ColCount - 1 do
-          begin
-            if FRows[i][vC].RowSpan > 0 then
-              FRows[i][vC].RowSpan := FRows[i][vC].RowSpan - 1;
-          end;
-        end;
-
-        for i := vR + 1 to FRows.Count - 1 do
-        begin
-          for vC := 0 to FRows[i].ColCount - 1 do
-          begin
-            if FRows[i][vC].RowSpan < 0 then
-              FRows[i][vC].RowSpan := FRows[i][vC].RowSpan + 1;
-          end;
-        end;
-
-        FRows.Delete(vR);  // 删除当前空行
+        vEmptyCol := False;
+        Break;
       end;
     end;
-  end;
 
-  procedure DeleteEmptyCols(const ASCol, AECol: Cardinal);
-  var
-    vR, vC, i: Integer;
-    vEmptyCol: Boolean;
-    vTableCell: THCTableCell;
-  begin
-    for vC := AECol downto ASCol do  // 循环各列
+    if vEmptyCol then
     begin
-      vEmptyCol := True;
-      for vR := 0 to RowCount - 1 do  // 循环各行
+      for vR := RowCount - 1 downto 0 do
       begin
-        if FRows[vR][vC].CellData <> nil then  // 某行的第vC列没有被合并
+        for i := 0 to vC - 1 do
         begin
-          vEmptyCol := False;
-          Break;
-        end;
-      end;
-
-      if vEmptyCol then  // 是空列
-      begin
-        for vR := RowCount - 1 downto 0 do  // 循环各行，删除对应列
-        begin
-          for i := 0 to vC - 1 do
-          begin
-            vTableCell := FRows[vR][i];
-            if i + vTableCell.ColSpan >= vC then
-              vTableCell.ColSpan := vTableCell.ColSpan - 1;
-          end;
-
-          for i := vC + 1 to FRows[vR].ColCount - 1 do
-          begin
-            vTableCell := FRows[vR][i];
-            if i + vTableCell.ColSpan < vC then
-              vTableCell.ColSpan := vTableCell.ColSpan + 1;
-          end;
-
-          FRows[vR].Delete(vC);  // 删除列
+          vTableCell := FRows[vR][i];
+          if i + vTableCell.ColSpan >= vC then
+            vTableCell.ColSpan := vTableCell.ColSpan - 1;
         end;
 
-        FColWidths[vC - 1] := FColWidths[vC - 1] + FBorderWidthPix + FColWidths[vC];
-        FColWidths.Delete(vC);
+        for i := vC + 1 to FRows[vR].ColCount - 1 do
+        begin
+          vTableCell := FRows[vR][i];
+          if i + vTableCell.ColSpan < vC then
+            vTableCell.ColSpan := vTableCell.ColSpan + 1;
+        end;
+
+        FRows[vR].Delete(vC);
       end;
+
+      FColWidths[vC - 1] := FColWidths[vC - 1] + FBorderWidthPix + FColWidths[vC];
+      FColWidths.Delete(vC);
     end;
   end;
+end;
 
+procedure THCTableItem.DeleteEmptyRows(const ASRow, AERow: Cardinal);
+var
+  vR, vC, i: Integer;
+  vEmptyRow: Boolean;
+begin
+  for vR := AERow downto ASRow do
+  begin
+    vEmptyRow := True;
+    for vC := 0 to FRows[vR].ColCount - 1 do
+    begin
+      if FRows[vR][vC].CellData <> nil then
+      begin
+        vEmptyRow := False;
+        Break;
+      end;
+    end;
+
+    if vEmptyRow then
+    begin
+      for i := 0 to vR - 1 do
+      begin
+        for vC := 0 to FRows[i].ColCount - 1 do
+        begin
+          if FRows[i][vC].RowSpan > 0 then
+            FRows[i][vC].RowSpan := FRows[i][vC].RowSpan - 1;
+        end;
+      end;
+
+      for i := vR + 1 to FRows.Count - 1 do
+      begin
+        for vC := 0 to FRows[i].ColCount - 1 do
+        begin
+          if FRows[i][vC].RowSpan < 0 then
+            FRows[i][vC].RowSpan := FRows[i][vC].RowSpan + 1;
+        end;
+      end;
+
+      FRows.Delete(vR);
+    end;
+  end;
+end;
+
+function THCTableItem.MergeCells(const AStartRow, AStartCol, AEndRow, AEndCol: Integer): Boolean;
 var
   vR, vC, vEndRow, vEndCol: Integer;  // 真正的结束位置
 begin
@@ -4021,18 +4050,6 @@ begin
     Self.SizeChanged := FRows[ARow][ACol].CellData.FormatHeightChange;
 
   //FLastChangeFormated := not Self.SizeChanged;
-end;
-
-procedure THCTableItem.CellExecuteScript(const ARow, ACol: Integer);
-var
-  vCell: THCTableCell;
-begin
-  vCell := FRows[ARow][ACol];
-  if Assigned(vCell.CellData) then
-  begin
-    if vCell.CellData.ExecuteScript(0) then
-      ReFormatRequest;
-  end;
 end;
 
 function THCTableItem.CellsCanMerge(const AStartRow, AStartCol, AEndRow, AEndCol: Integer): Boolean;
@@ -4774,6 +4791,68 @@ begin
     Cells[vR, AIndex].Width := AWidth;
     if Assigned(Cells[vR, AIndex].CellData) then
       Cells[vR, AIndex].CellData.Width := AWidth - FCellHPaddingPix - FCellHPaddingPix;
+  end;
+end;
+
+procedure THCTableItem.SetFixColAndCount(const ACol: ShortInt; const ACount: Byte);
+var
+  vCol: ShortInt;
+  vCount: Byte;
+begin
+  if (ACol < 0) or (ACount = 0) then
+  begin
+    FFixCol := -1;
+    FFixColCount := 0;
+  end
+  else  // > 0
+  begin
+    if ACol > FColWidths.Count - 1 then
+      vCol := FColWidths.Count - 1
+    else
+      vCol := ACol;
+
+    if vCol + ACount > FColWidths.Count then
+      vCount := FColWidths.Count - vCol
+    else
+      vCount := ACount;
+
+    if (FFixCol <> vCol) or (FFixColCount <> vCount) then
+    begin
+      FFixCol := vCol;
+      FFixColCount := vCount;
+      FormatDirty;
+    end;
+  end;
+end;
+
+procedure THCTableItem.SetFixRowAndCount(const ARow: ShortInt; const ACount: Byte);
+var
+  vRow: ShortInt;
+  vCount: Byte;
+begin
+  if (ARow < 0) or (ACount = 0) then
+  begin
+    FFixRow := -1;
+    FFixRowCount := 0;
+  end
+  else  // > 0
+  begin
+    if ARow > FRows.Count - 1 then
+      vRow := FRows.Count - 1
+    else
+      vRow := ARow;
+
+    if vRow + ACount > FRows.Count then
+      vCount := FRows.Count - vRow
+    else
+      vCount := ACount;
+
+    if (FFixRow <> vRow) or (FFixRowCount <> vCount) then
+    begin
+      FFixRow := vRow;
+      FFixRowCount := vCount;
+      FormatDirty;
+    end;
   end;
 end;
 
@@ -5662,6 +5741,12 @@ begin
   begin
     if Assigned(FOnRowAdd) then
       FOnRowAdd(Value);
+  end
+  else
+  if Action = TCollectionNotification.cnRemoved then
+  begin
+    if Assigned(FOnRowRemove) then
+      FOnRowRemove(nil);
   end;
 end;
 

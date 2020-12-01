@@ -123,6 +123,7 @@ type
     procedure CheckFormatPageBreak(const APageIndex, ADrawItemRectTop,
       ADrawItemRectBottom, APageDataFmtTop, APageDataFmtBottom, AStartSeat: Integer;
       var ABreakSeat, AFmtOffset, AFmtHeightInc: Integer); virtual;
+    function CheckPageSurplus(const ASurplus: Integer): Integer; virtual;
 
     function InsertItem(const AItem: THCCustomItem): Boolean; virtual;
     function InsertText(const AText: string): Boolean; virtual;
@@ -395,6 +396,11 @@ end;
 
 procedure THCCustomRectItem.CheckFormatPageBreakBefor;
 begin
+end;
+
+function THCCustomRectItem.CheckPageSurplus(const ASurplus: Integer): Integer;
+begin
+  Result := 0;
 end;
 
 function THCCustomRectItem.CoordInSelect(const X, Y: Integer): Boolean;

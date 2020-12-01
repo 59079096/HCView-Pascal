@@ -27,8 +27,6 @@ type
   end;
 
   function GetEncodingName(const AEncoding: TEncoding): string;
-  function GetColorXmlRGB(const AColor: TColor): string;
-  function GetXmlRGBColor(const AColorStr: string): TColor;
   //function GetColorHtmlRGB(const AColor: TColor): string;
   function GetXmlRN(const AText: string): string;
 
@@ -99,44 +97,6 @@ begin
     AGraphic.LoadFromStream(vMs);
   finally
     FreeAndNil(vMs);
-  end;
-end;
-
-function GetColorXmlRGB(const AColor: TColor): string;
-var
-  vR, vG, vB: Byte;
-begin
-  if AColor = HCTransparentColor then
-    Result := '0,255,255,255'
-  else
-  begin
-    vR := Byte(AColor);
-    vG := Byte(AColor shr 8);
-    vB := Byte(AColor shr 16);
-    Result := Format('255,%d,%d,%d', [vR, vG, vB]);
-  end;
-end;
-
-function GetXmlRGBColor(const AColorStr: string): TColor;
-var
-  vsRGB: TStringList;
-begin
-  vsRGB := TStringList.Create;
-  try
-    vsRGB.Delimiter := ',';
-    vsRGB.DelimitedText := AColorStr;
-
-    if vsRGB.Count > 3 then
-    begin
-      if vsRGB[0] = '0' then
-        Result := HCTransparentColor
-      else
-        Result := RGB(StrToInt(vsRGB[1]), StrToInt(vsRGB[2]), StrToInt(vsRGB[3]));
-    end
-    else
-      Result := RGB(StrToInt(vsRGB[0]), StrToInt(vsRGB[1]), StrToInt(vsRGB[2]));
-  finally
-    FreeAndNil(vsRGB);
   end;
 end;
 

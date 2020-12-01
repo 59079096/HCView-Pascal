@@ -57,12 +57,14 @@ type
 
     FReadOnly,
     FSelecting, FDraging: Boolean;
+    FCheckEmptyItem: Boolean;
 
     FOnItemResized: TDataItemNoEvent;
     FOnItemMouseDown, FOnItemMouseUp: TItemMouseEvent;
     FOnDrawItemMouseMove: TDrawItemMouseEvent;
     FOnCreateItem: TNotifyEvent;  // 新建了Item(目前主要是为了打字和用中文输入法输入英文时痕迹的处理)
     FOnAcceptAction: TDataActionEvent;
+    FOnChange: TNotifyEvent;
 
     /// <summary> Shift按键按下时鼠标点击，根据按下位置适配选择范围 </summary>
     /// <param name="AMouseDonwItemNo"></param>
@@ -105,7 +107,7 @@ type
     function CheckInsertItemCount(const AStartNo, AEndNo: Integer): Integer; virtual;
     procedure DoItemMouseLeave(const AItemNo: Integer); virtual;
     procedure DoItemMouseEnter(const AItemNo: Integer); virtual;
-
+    procedure DoChange; virtual;
     /// <summary> ResizeItem缩放完成事件缩放完成事件(可控制缩放不要超过页面) </summary>
     procedure DoItemResized(const AItemNo: Integer); virtual;
     function GetHeight: Cardinal; virtual;
@@ -141,6 +143,7 @@ type
 
     /// <summary> 初始化相关字段和变量 </summary>
     procedure InitializeField; override;
+    procedure SaveToStream(const AStream: TStream); override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -231,6 +234,7 @@ type
     property Height: Cardinal read GetHeight;  // 实际内容的高
     property ReadOnly: Boolean read FReadOnly write SetReadOnly;
     property Selecting: Boolean read FSelecting;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
     property OnItemResized: TDataItemNoEvent read FOnItemResized write FOnItemResized;
     property OnItemMouseDown: TItemMouseEvent read FOnItemMouseDown write FOnItemMouseDown;
     property OnItemMouseUp: TItemMouseEvent read FOnItemMouseUp write FOnItemMouseUp;
@@ -1952,6 +1956,12 @@ begin
     Result := FOnAcceptAction(Self, AItemNo, AOffset, AAction);
 end;
 
+procedure THCRichData.DoChange;
+begin
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
+
 procedure THCRichData.DoDrawItemMouseMove(const AData: THCCustomData;
   const AItemNo, AOffset, ADrawItemNo: Integer; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
@@ -1978,6 +1988,8 @@ end;
 
 procedure THCRichData.InitializeField;
 begin
+  FSelectSeekNo := -1;
+  FSelectSeekOffset := -1;
   InitializeMouseField;
   inherited InitializeField;
 end;
@@ -1991,8 +2003,6 @@ begin
   FMouseMoveItemOffset := -1;
   FMouseMoveDrawItemNo := -1;
   FMouseMoveRestrain := False;
-  FSelectSeekNo := -1;
-  FSelectSeekOffset := -1;
   FSelecting := False;
   FDraging := False;
 end;
@@ -2579,6 +2589,17 @@ begin
         Inc(vIgnoreCount);
         FreeAndNil(vItem);
         Continue;
+      end;
+
+      if (not FCheckEmptyItem) and (i > 0) and (not vItem.ParaFirst) then
+      begin
+        if (vItem.StyleNo > THCStyle.Null) and (vItem.Length = 0) then
+          FCheckEmptyItem := True;
+
+        if (Items[vInsPos + i - vIgnoreCount - 1].StyleNo > THCStyle.Null)
+          and (Items[vInsPos + i - vIgnoreCount - 1].Length = 0)
+        then
+          FCheckEmptyItem := True;
       end;
 
       Items.Insert(vInsPos + i - vIgnoreCount, vItem);
@@ -3329,6 +3350,7 @@ begin
   Style.UpdateInfoRePaint;
   Style.UpdateInfoReCaret;
   Style.UpdateInfoReScroll;
+  DoChange;
 end;
 
 function THCRichData.IsSelectSeekStart: Boolean;
@@ -4006,7 +4028,11 @@ var
           SelectInfo.EndItemOffset := DrawItems[vLastDItemNo].CharOffsetEnd;
 
         CheckSelectEndEff;
-        SetSelectSeekEnd;
+
+        if SelectInfo.EndItemNo < 0 then
+          SetSelectSeekStart
+        else
+          SetSelectSeekEnd;
       end;
 
       MatchItemSelectState;
@@ -5590,6 +5616,7 @@ begin
         Style.UpdateInfoRePaint;
         Style.UpdateInfoReCaret;  // 删除后以新位置光标为当前样式
         Style.UpdateInfoReScroll;
+        DoChange;
       end;
 
     VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN, VK_HOME, VK_END:
@@ -5643,6 +5670,8 @@ begin
     end
     else
       Self.FormatInit;
+
+    DoChange;
   end
   else
     InsertText(Key);
@@ -5671,8 +5700,14 @@ begin
 
   Self.BeginFormat;
   try
+    FCheckEmptyItem := False;
     InsertStream(AStream, AStyle, AFileVersion);
-    // 加载完成后，初始化(有一部分在LoadFromStream中初始化了)
+    if AFileVersion > 47 then
+      AStream.ReadBuffer(FReadOnly, SizeOf(FReadOnly));
+
+    if FCheckEmptyItem then
+      DeleteEmptyItem;
+
     ReSetSelectAndCaret(0, 0);
   finally
     Self.EndFormat;
@@ -6203,6 +6238,13 @@ begin
       Style.UpdateInfoReCaret;
     end;
   end;
+end;
+
+procedure THCRichData.SaveToStream(const AStream: TStream);
+begin
+  inherited SaveToStream(AStream);
+  if HC_FileVersionInt > 47 then
+    AStream.WriteBuffer(FReadOnly, SizeOf(FReadOnly));
 end;
 
 function THCRichData.SelectByMouseDownShift(var AMouseDownItemNo,

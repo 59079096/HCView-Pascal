@@ -334,27 +334,8 @@ begin
   FTableItem.BorderWidthPt := StrToFloatDef(edtBorderWidth.Text, 0.5);
   FTableItem.BorderVisible := chkBorderVisible.Checked;
 
-  if FFixRowFirst > 0 then
-  begin
-    FTableItem.FixRow := FFixRowFirst - 1;
-    FTableItem.FixRowCount := FFixRowLast - FFixRowFirst + 1;
-  end
-  else
-  begin
-    FTableItem.FixRow := -1;
-    FTableItem.FixRowCount := 0;
-  end;
-
-  if FFixColFirst > 0 then
-  begin
-    FTableItem.FixCol := FFixColFirst - 1;
-    FTableItem.FixColCount := FFixColLast - FFixColFirst + 1;
-  end
-  else
-  begin
-    FTableItem.FixCol := -1;
-    FTableItem.FixColCount := 0;
-  end;
+  FTableItem.SetFixRowAndCount(FFixRowFirst, FFixRowLast - FFixRowFirst + 1);
+  FTableItem.SetFixColAndCount(FFixColFirst, FFixColLast - FFixColFirst + 1);
 
   // ÐÐ
   if (FTableItem.SelectCellRang.StartRow >= 0) and (TryStrToInt(edtRowHeight.Text, viValue)) then

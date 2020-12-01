@@ -358,6 +358,9 @@ type
   procedure HCSaveColorToStream(const AStream: TStream; const AColor: TColor);
   procedure HCLoadColorFromStream(const AStream: TStream; var AColor: TColor);
 
+  function HCColorToRGBString(const AColor: TColor): string;
+  function HCRGBStringToColor(const AColorStr: string): TColor;
+
   procedure BitmapSaveAsJPGE(const ABitmap: TBitmap; const AFile: string);
   procedure BitmapSaveAsPNG(const ABitmap: TBitmap; const AFile: string);
 
@@ -966,6 +969,44 @@ begin
   else
   if vA = 255 then
     AColor := vB shl 16 + vG shl 8 + vR;
+end;
+
+function HCColorToRGBString(const AColor: TColor): string;
+var
+  vR, vG, vB: Byte;
+begin
+  if AColor = HCTransparentColor then
+    Result := '0,255,255,255'
+  else
+  begin
+    vR := Byte(AColor);
+    vG := Byte(AColor shr 8);
+    vB := Byte(AColor shr 16);
+    Result := Format('255,%d,%d,%d', [vR, vG, vB]);
+  end;
+end;
+
+function HCRGBStringToColor(const AColorStr: string): TColor;
+var
+  vsRGB: TStringList;
+begin
+  vsRGB := TStringList.Create;
+  try
+    vsRGB.Delimiter := ',';
+    vsRGB.DelimitedText := AColorStr;
+
+    if vsRGB.Count > 3 then
+    begin
+      if vsRGB[0] = '0' then
+        Result := HCTransparentColor
+      else
+        Result := RGB(StrToInt(vsRGB[1]), StrToInt(vsRGB[2]), StrToInt(vsRGB[3]));
+    end
+    else
+      Result := RGB(StrToInt(vsRGB[0]), StrToInt(vsRGB[1]), StrToInt(vsRGB[2]));
+  finally
+    FreeAndNil(vsRGB);
+  end;
 end;
 
 procedure BitmapSaveAsJPGE(const ABitmap: TBitmap; const AFile: string);

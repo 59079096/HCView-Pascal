@@ -197,7 +197,11 @@ begin
   begin
     GetClipBox(ACanvas.Handle, vClipBoxRect);  // 保存当前的绘图区域
 
-    vPaintRegion := CreateRectRgn(ADrawRect.Left, ADrawRect.Top, ADrawRect.Right, ADrawRect.Bottom);
+    vPaintRegion := CreateRectRgn(
+      APaintInfo.GetScaleX(ADrawRect.Left),
+      APaintInfo.GetScaleY(ADrawRect.Top),
+      APaintInfo.GetScaleX(ADrawRect.Right),
+      APaintInfo.GetScaleY(ADrawRect.Bottom));
     try
       SelectClipRgn(ACanvas.Handle, vPaintRegion);
       DoPaintItems(ACanvas, ADrawRect, APaintInfo);
@@ -205,7 +209,12 @@ begin
       DeleteObject(vPaintRegion);
     end;
 
-    vPaintRegion := CreateRectRgnIndirect(vClipBoxRect);
+    //vPaintRegion := CreateRectRgnIndirect(vClipBoxRect);
+    vPaintRegion := CreateRectRgn(
+      APaintInfo.GetScaleX(vClipBoxRect.Left),
+      APaintInfo.GetScaleY(vClipBoxRect.Top),
+      APaintInfo.GetScaleX(vClipBoxRect.Right),
+      APaintInfo.GetScaleY(vClipBoxRect.Bottom));
     try
       SelectClipRgn(ACanvas.Handle, vPaintRegion);
     finally

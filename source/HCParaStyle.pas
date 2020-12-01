@@ -248,7 +248,7 @@ begin
   FirstIndent := ANode.Attributes['firstindent'];
   LeftIndent := ANode.Attributes['leftindent'];
   RightIndent := ANode.Attributes['rightindent'];
-  FBackColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);
+  FBackColor := HCRGBStringToColor(ANode.Attributes['bkcolor']);
   FBreakRough := ANode.Attributes['breakrough'];
   GetXMLLineSpaceMode_;
   GetXMLHorz_;
@@ -362,7 +362,7 @@ begin
   ANode.Attributes['firstindent'] := FFirstIndent;
   ANode.Attributes['leftindent'] := FLeftIndent;
   ANode.Attributes['rightindent'] := FRightIndent;
-  ANode.Attributes['bkcolor'] := GetColorXmlRGB(FBackColor);
+  ANode.Attributes['bkcolor'] := HCColorToRGBString(FBackColor);
   ANode.Attributes['breakrough'] := FBreakRough;
   ANode.Attributes['spacemode'] := GetLineSpaceModeXML_;
   ANode.Attributes['horz'] := GetHorzXML_;

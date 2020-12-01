@@ -35,6 +35,7 @@ uses
   /// <summary> 磅转像素，1磅=1/72英寸 </summary>
   function PtToPixel(const APt: Single; const ADpi: Cardinal): Cardinal;
   function PixelToPt(const APix, ADPI: Integer): Single;
+  function TwipToPt(const AValue: Single): Single;
 
 var
   /// <summary> 水平1毫米dpi数 </summary>
@@ -56,6 +57,11 @@ var
 function TwipToPixel(const AValue: Single; const ADpi: Single): Cardinal;
 begin
   Result := Round(AValue * ADpi / 1440);
+end;
+
+function TwipToPt(const AValue: Single): Single;
+begin
+  Result := AValue / 1440 * 72
 end;
 
 function PixelToTwip(const AValue, ADpi: Cardinal): Cardinal;

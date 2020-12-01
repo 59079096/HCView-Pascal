@@ -789,7 +789,7 @@ var
     vFirstCharWidth := vCharWidths[ACharOffset - 1] - ABasePos;  // 第一个字符的宽度
 
     if APlaceWidth < 0 then  // 左缩进超过右边距
-      viBreakOffset := 1
+      viBreakOffset := ACharOffset  // 当前位置截断
     else
     begin
       if Style.FormatVersion = 2 then
@@ -826,7 +826,7 @@ var
       end;
     end;
 
-    if viBreakOffset < 1 then  // 当前行剩余空间把vText全放置下了
+    if viBreakOffset = 0 then  // 当前行剩余空间把vText全放置下了
     begin
       vRect.Left := APos.X;
       vRect.Top := APos.Y;
@@ -838,7 +838,7 @@ var
       vRemainderWidth := AFmtRight - vRect.Right;  // 放入最多后的剩余量
     end
     else
-    if viBreakOffset = 1 then  // 当前行剩余空间连第一个字符也放不下(第一次处理此Item就一个也放不下)
+    if viBreakOffset = ACharOffset then  // 当前行剩余空间连第一个字符也放不下(第一次处理此Item就一个也放不下)
     begin
       if vFirstCharWidth > AFmtRight - AFmtLeft then  // Data的格式化宽度不足一个字符(强制保持在此行)
       begin

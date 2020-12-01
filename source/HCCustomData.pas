@@ -117,6 +117,7 @@ type
     procedure SetCurParaNo(const Value: Integer);
   protected
     FCurStyleNo, FCurParaNo: Integer;  // 便于子类批量处理时静默设置
+
     /// <summary> 合并2个文本Item </summary>
     /// <param name="ADestItem">合并后的Item</param>
     /// <param name="ASrcItem">源Item</param>
@@ -159,7 +160,7 @@ type
     /// <param name="ACharIndexs">记录各分隔的起始位置</param>
     /// <returns>分散分隔数量</returns>
     function GetJustifyCount(const AText: string; const ACharIndexs: THCIntegerList): Integer;
-
+    procedure DeleteEmptyItem;
     procedure SetCaretDrawItemNo(const Value: Integer);
 
     /// <summary> 计算行高(文本高+行间距) </summary>
@@ -797,6 +798,31 @@ end;
 function THCCustomData.CreateItemByStyle(const AStyleNo: Integer): THCCustomItem;
 begin
   Result := nil;
+end;
+
+procedure THCCustomData.DeleteEmptyItem;
+var
+  i: Integer;
+begin
+  if Self.Loading then
+  begin
+    for i := FItems.Count - 1 downto 0 do
+    begin
+      if (FItems[i].StyleNo > tHCStyle.Null) and (FItems[i].Length = 0) then  // 空文本Item
+      begin
+        if not FItems[i].ParaFirst then
+          FItems.Delete(i)
+        else  // 段首
+        begin
+          if (i < FItems.Count - 1) and (not FItems[i + 1].ParaFirst) then  // 段首空Item后面跟了个不是段首的
+          begin
+            FItems[i + 1].ParaFirst := True;
+            FItems.Delete(i);
+          end;
+        end;
+      end;
+    end;
+  end;
 end;
 
 function THCCustomData.DeleteSelected: Boolean;

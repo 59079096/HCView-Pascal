@@ -2605,9 +2605,9 @@ begin
   // 恢复区域，准备给外部绘制用
   vPaintRegion := CreateRectRgn(
     APaintInfo.GetScaleX(vClipBoxRect.Left),
-    APaintInfo.GetScaleX(vClipBoxRect.Top),
+    APaintInfo.GetScaleY(vClipBoxRect.Top),
     APaintInfo.GetScaleX(vClipBoxRect.Right),
-    APaintInfo.GetScaleX(vClipBoxRect.Bottom));
+    APaintInfo.GetScaleY(vClipBoxRect.Bottom));
   try
     SelectClipRgn(ACanvas.Handle, vPaintRegion);
   finally
@@ -2711,7 +2711,7 @@ var
           vBreakSeat,  // 当前页分页的行(位置)
           vFmtOffset,  // 当前RectItem为了避开分页位置整体向下偏移的高度
           vFmtHeightInc  // 当前行各列为了避开分页位置单元格内容额外偏移的最大高度
-          );
+        );
 
         if vBreakSeat < 0 then // 除去行间距后不用跨页就可以显示了
         begin

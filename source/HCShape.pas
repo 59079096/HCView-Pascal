@@ -854,7 +854,7 @@ procedure THCShape.ParseXml(const ANode: IHCXMLNode);
 begin
   FStyle := ANode.Attributes['style'];
   FVersion := ANode.Attributes['ver'];
-  FColor := GetXmlRGBColor(ANode.Attributes['color']);
+  FColor := HCRGBStringToColor(ANode.Attributes['color']);
 end;
 
 function THCShape.PointInClient(const X, Y: Integer): Boolean;
@@ -904,7 +904,7 @@ procedure THCShape.ToXml(const ANode: IHCXMLNode);
 begin
   ANode.Attributes['style'] := FStyle;
   ANode.Attributes['ver'] := FVersion;
-  ANode.Attributes['color'] := GetColorXmlRGB(FColor);
+  ANode.Attributes['color'] := HCColorToRGBString(FColor);
 end;
 
 { THCShapeRectangle }

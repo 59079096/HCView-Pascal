@@ -308,8 +308,8 @@ procedure THCTextStyle.ParseXml(const ANode: IHCXmlNode);
 begin
   FFamily := ANode.Text;
   FSize := ANode.Attributes['size'];
-  FColor := GetXmlRGBColor(ANode.Attributes['color']);
-  FBackColor := GetXmlRGBColor(ANode.Attributes['bkcolor']);
+  FColor := HCRGBStringToColor(ANode.Attributes['color']);
+  FBackColor := HCRGBStringToColor(ANode.Attributes['bkcolor']);
   GetFontStyles_;
 end;
 
@@ -434,8 +434,8 @@ procedure THCTextStyle.ToXml(const ANode: IHCXMLNode);
 
 begin
   ANode.Attributes['size'] := FormatFloat('0.#', FSize);
-  ANode.Attributes['color'] := GetColorXmlRGB(FColor);
-  ANode.Attributes['bkcolor'] := GetColorXmlRGB(FBackColor);
+  ANode.Attributes['color'] := HCColorToRGBString(FColor);
+  ANode.Attributes['bkcolor'] := HCColorToRGBString(FBackColor);
   ANode.Attributes['style'] := GetFontStyleXML;
   ANode.Text := FFamily;
 end;

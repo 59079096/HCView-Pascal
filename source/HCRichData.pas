@@ -2839,8 +2839,7 @@ begin
   end;
 end;
 
-function THCRichData.InsertTable(const ARowCount,
-  AColCount: Integer): Boolean;
+function THCRichData.InsertTable(const ARowCount, AColCount: Integer): Boolean;
 var
   vTopData: THCRichData;
   vItem: THCCustomItem;

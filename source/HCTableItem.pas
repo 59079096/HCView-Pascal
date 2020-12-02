@@ -156,7 +156,6 @@ type
       const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
-    procedure DoFormatToDrawItem; virtual;
     //procedure PaintPartTo(const ACanvas: TCanvas; const ADrawLeft, ADrawTop, ADrawBottom, ADataScreenTop,
     //  ADataScreenBottom, AStartRow, AStartRowDataOffs, AEndRow, AEndRowDataOffs: Integer); overload;
     {procedure ConvertToDrawItems(const AItemNo, AOffs, AContentWidth,
@@ -820,9 +819,12 @@ procedure THCTableItem.DoCellDataDrawItemPaintAfter(const AData: THCCustomData;
   ADataScreenBottom: Integer; const ACanvas: TCanvas;
   const APaintInfo: TPaintInfo);
 begin
-  (OwnerData as THCViewData).OnDrawItemPaintAfter(AData, AItemNo, ADrawItemNo,
-    ADrawRect, AClearRect, ADataDrawLeft, ADataDrawRight, ADataDrawBottom,
-    ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  if Assigned(OwnerData.OnDrawItemPaintAfter) then
+  begin
+    OwnerData.OnDrawItemPaintAfter(AData, AItemNo, ADrawItemNo,
+      ADrawRect, AClearRect, ADataDrawLeft, ADataDrawRight, ADataDrawBottom,
+      ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+  end;
 end;
 
 function THCTableItem.DoCellDataGetFormatTop(const ACellData: THCCustomData): Integer;
@@ -3505,7 +3507,7 @@ begin
   ACellData.OnInsertTextBefor := (OwnerData as THCViewData).OnInsertTextBefor;
   ACellData.OnPaintDomainRegion := (OwnerData as THCViewData).OnPaintDomainRegion;
   ACellData.OnItemResized := (OwnerData as THCRichData).OnItemResized;
-  ACellData.OnCurParaNoChange := (OwnerData as THCRichData).OnCurParaNoChange;
+  ACellData.OnCurParaNoChange := OwnerData.OnCurParaNoChange;
 
   ACellData.OnCreateItem := (OwnerData as THCRichData).OnCreateItem;
   ACellData.OnGetUndoList := Self.GetSelfUndoList;

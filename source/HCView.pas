@@ -3395,24 +3395,24 @@ begin
   try
     vPaintInfo.Print := True;
 
-    Printer.BeginDoc;
     try
       vPrintCanvas := TCanvas.Create;
       try
-        vPrintCanvas.Handle := Printer.Canvas.Handle;  // 为什么不用vPrintCanvas中介打印就不行呢？
-
         for i := 0 to Length(APages) - 1 do
         begin
           // 根据页码获取起始节和结束节
           vSectionIndex := GetSectionPageIndexByPageIndex(APages[i], vFirstPageIndex);
           if vPaintInfo.SectionIndex <> vSectionIndex then
           begin
-            vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
-            vPaintInfo.SectionIndex := vSectionIndex;
+            if Printer.Printing then
+              Printer.EndDoc;
 
             SetPrintBySectionInfo(vSectionIndex);
-            if i <> 0 then
-              Printer.NewPage;
+            Printer.BeginDoc;
+            vPrintCanvas.Handle := Printer.Canvas.Handle;  // 为什么不用vPrintCanvas中介打印就不行呢？
+
+            vPaintInfo.DPI := GetDeviceCaps(vPrintCanvas.Handle, LOGPIXELSX);
+            vPaintInfo.SectionIndex := vSectionIndex;
 
             vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);  // 4961
             vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);  // 7016
@@ -4609,8 +4609,9 @@ begin
     finally
       GlobalUnlock(vHDMode);
     end;
+
     ResetDC(Printer.Handle, vPDMode^);
-    //HCPrinter.SetPrinter(vDevice, vDriver, vPort, vHDMode);
+    Printer.SetPrinter(vDevice, vDriver, vPort, vHDMode);
   end;
 end;
 

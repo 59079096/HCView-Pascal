@@ -256,7 +256,9 @@ procedure THCImageItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 var
   vBitmap: TBitmap;
+  {$IFDEF BMPIMAGEITEM}
   vStream: TMemoryStream;
+  {$ENDIF}
 begin
   if APaintInfo.Print then
   begin

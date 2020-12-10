@@ -123,6 +123,7 @@ type
     procedure ApplyTextFontSize(const AFontSize: Single);
     procedure ApplyTextColor(const AColor: TColor);
     procedure ApplyTextBackColor(const AColor: TColor);
+    function InsertText(const AText: string): Boolean;
     function InsertItem(const AItem: THCCustomItem): Boolean; overload;
     function InsertItem(const AIndex: Integer; const AItem: THCCustomItem): Boolean; overload;
     function InsertDomain(const AMouldDomain: THCDomainItem): Boolean;
@@ -603,6 +604,14 @@ begin
     end);
 end;
 
+function THCEdit.InsertText(const AText: string): Boolean;
+begin
+  Result := DataChangeByAction(function(): Boolean
+    begin
+      Result := FData.InsertText(AText);
+    end);
+end;
+
 function THCEdit.InsertItem(const AItem: THCCustomItem): Boolean;
 begin
   Result := DataChangeByAction(function(): Boolean
@@ -864,7 +873,7 @@ end;
 procedure THCEdit.ReBuildCaret(const AScrollBar: Boolean = False);
 var
   vCaretInfo: THCCaretInfo;
-  vViewHeight: Integer;
+  vViewHeight, vViewWidth: Integer;
 begin
   if FCaret = nil then Exit;
 
@@ -893,9 +902,10 @@ begin
   FCaret.Height := vCaretInfo.Height;
 
   vViewHeight := GetViewHeight;
-  if AScrollBar then // 滚动条平滑滚动时，可能将光标卷掉看不见
+  vViewWidth := GetViewWidth;
+  if not FStyle.UpdateInfo.ReScroll then // 滚动条平滑滚动时，可能将光标卷掉看不见
   begin
-    if (FCaret.X < 0) or (FCaret.X > GetViewWidth) then
+    if (FCaret.X < 0) or (FCaret.X > vViewWidth) then
     begin
       FCaret.Hide;
       Exit;
@@ -911,13 +921,37 @@ begin
   begin
     if FCaret.Height < vViewHeight then
     begin
-      if FCaret.Y < 0 then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - Self.Padding.Top
-      else
-      if FCaret.Y + FCaret.Height + Self.Padding.Top > vViewHeight then
-        FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + Self.Padding.Top - vViewHeight;
+      if not FCaret.VScroll then
+      begin
+        FCaret.VScroll := True;
+        try
+          if FCaret.Y < 0 then
+            FVScrollBar.Position := FVScrollBar.Position + FCaret.Y - Self.Padding.Top
+          else
+          if FCaret.Y + FCaret.Height + Self.Padding.Top > vViewHeight then
+            FVScrollBar.Position := FVScrollBar.Position + FCaret.Y + FCaret.Height + Self.Padding.Top - vViewHeight;
+        finally
+          FCaret.VScroll := False;
+        end;
+      end;
+
+      if not FCaret.HScroll then
+      begin
+        FCaret.HScroll := True;
+        try
+          if FCaret.X < 0 then
+            FHScrollBar.Position := FHScrollBar.Position + FCaret.X - Self.Padding.Left
+          else
+          if FCaret.X + Self.Padding.Left > vViewWidth then
+            FHScrollBar.Position := FHScrollBar.Position + FCaret.X + Self.Padding.Left - vViewWidth;
+        finally
+          FCaret.HScroll := False;
+        end;
+      end;
     end;
   end;
+
+  if FCaret.VScroll or FCaret.HScroll then Exit;
 
   if FCaret.Y + FCaret.Height > vViewHeight then
     FCaret.Height := vViewHeight - FCaret.Y;

@@ -426,8 +426,6 @@ begin
 
           FPercent := (Width - FLeftBlank - FRightBlank - 2 * ButtonSize - vThumHeight) / (FRange - FPageSize);  // 界面可滚动范围和实际代表范围的比率
           if FPercent < 0 then Exit;  // 防止vThumHeight小于Leftbtn、RightBtn、ThumBtn默认高度总和 3 * ButtonSize时计算出错
-          if FPercent = 0 then
-            FPercent := 1;
 
           FThumRect.Left := FLeftBlank + ButtonSize + Round(FPosition * FPercent);
           FThumRect.Right := FThumRect.Left + vThumHeight;
@@ -452,8 +450,6 @@ begin
 
           FPercent := (Height - FLeftBlank - FRightBlank - 2 * ButtonSize - vThumHeight) / (FRange - FPageSize);  // 界面可滚动范围和实际代表范围的比率
           if FPercent < 0 then Exit;  // 防止vThumHeight小于Leftbtn、RightBtn、ThumBtn默认高度总和 3 * ButtonSize时计算出错
-          if FPercent = 0 then
-            FPercent := 1;
 
           FThumRect.Top := FLeftBlank + ButtonSize + Round(FPosition * FPercent);
           FThumRect.Bottom := FThumRect.Top + vThumHeight;
@@ -466,6 +462,9 @@ begin
         end;
       end;
   end;
+
+  if FPercent = 0 then
+    FPercent := 1;
 end;
 
 procedure THCScrollBar.Resize;

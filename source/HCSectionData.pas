@@ -545,8 +545,16 @@ begin
       Exit;
     end;
 
-    Result := FFloatItems[FFloatItemIndex].MouseDown(Button, Shift,
-      X - FFloatItems[FFloatItemIndex].Left, Y - FFloatItems[FFloatItemIndex].Top);
+    if ssDouble in Shift then
+    begin
+      FFloatItems[FFloatItemIndex].DblClick(X - FFloatItems[FFloatItemIndex].Left, Y - FFloatItems[FFloatItemIndex].Top);
+      Result := True;
+    end
+    else
+    begin
+      Result := FFloatItems[FFloatItemIndex].MouseDown(Button, Shift,
+        X - FFloatItems[FFloatItemIndex].Left, Y - FFloatItems[FFloatItemIndex].Top);
+    end;
   end;
 
   if (FMouseDownIndex < 0) and (vOldIndex < 0) then

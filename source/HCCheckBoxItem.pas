@@ -178,7 +178,7 @@ var
   vSize: TSize;
 begin
   Result := inherited MouseUp(Button, Shift, X, Y);
-  if OwnerData.CanEdit then
+  if OwnerData.CanEdit and not OwnerData.Style.UpdateInfo.Selecting then
   begin
     if FItemHit then  // 文本就命中
     begin

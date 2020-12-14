@@ -403,7 +403,10 @@ end;
 
 function THCCustomRectItem.CoordInSelect(const X, Y: Integer): Boolean;
 begin
-  Result := False;
+  if IsSelectComplate then
+    Result := PtInRect(Bounds(0, 0, Width, Height), Point(X, Y))
+  else
+    Result := False;
 end;
 
 constructor THCCustomRectItem.Create(const AOwnerData: THCCustomData);

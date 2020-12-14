@@ -539,12 +539,13 @@ end;
 procedure THCTableItem.DblClick(const X, Y: Integer);
 var
   vPt: TPoint;
+  vCell: THCTableCell;
 begin
   if FSelectCellRang.EditCell then
   begin
     vPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
-    FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.DblClick(
-      X - vPt.X - FCellHPaddingPix, Y - vPt.Y - FCellVPaddingPix);
+    vCell := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol];
+    vCell.CellData.DblClick(X - vPt.X - FCellHPaddingPix, Y - vPt.Y - vCell.GetCellDataTop(FCellVPaddingPix));
   end
   else
     inherited DblClick(X, Y);
@@ -784,12 +785,7 @@ begin
       FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := False;
       vCellData := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData;
       if vCellData <> nil then
-      begin
-        vCellData.DisSelect;
-        vCellData.InitializeField;
-
         DoCheckCellScript(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
-      end;
     end;
 
     for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
@@ -4396,7 +4392,7 @@ end;
 function THCTableItem.CoordInSelect(const X, Y: Integer): Boolean;
 var
   vCellPt: TPoint;
-  vCellData: THCTableCellData;
+  vCell: THCTableCell;
   vX, vY, vItemNo, vDrawItemNo, vOffset, vRow, vCol: Integer;
   vRestrain: Boolean;
   vResizeInfo: TResizeInfo;
@@ -4419,15 +4415,15 @@ begin
         end
         else  // 无选择结束行，判断是否在当前单元格的选中中
         begin
-          vCellData := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData;
-          if vCellData.SelectExists then
+          vCell := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol];
+          if vCell.CellData.SelectExists then
           begin
             vCellPt := GetCellPostion(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
             vX := X - vCellPt.X - FCellHPaddingPix;
-            vY := Y - vCellPt.Y - FCellVPaddingPix;
-            vCellData.GetItemAt(vX, vY, vItemNo, vOffset, vDrawItemNo, vRestrain);
+            vY := Y - vCellPt.Y - vCell.GetCellDataTop(FCellVPaddingPix);
+            vCell.CellData.GetItemAt(vX, vY, vItemNo, vOffset, vDrawItemNo, vRestrain);
 
-            Result := vCellData.CoordInSelect(vX, vY, vItemNo, vOffset, vRestrain);
+            Result := vCell.CellData.CoordInSelect(vX, vY, vItemNo, vOffset, vRestrain);
           end;
         end;
       end;
@@ -4464,7 +4460,7 @@ begin
       vData.Items.Clear;
       //vData.Width := vWidth;
       vData.OnSaveItem := OwnerData.OnSaveItem;
-      //vTable := vData.CreateItemByStyle(Self.StyleNo);
+      vData.OnCreateItemByStyle := (OwnerData as THCViewData).OnCreateItemByStyle;
       for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
       begin
         for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
@@ -4475,8 +4471,7 @@ begin
         end;
       end;
 
-      //vData.InsertItem(vTable);
-      vData.SaveToStream(AStream);
+      vData.SaveItemToStream(AStream, 0, 0, vData.Items.Count - 1, vData.Items.Last.Length);
     finally
       FreeAndNil(vData);
     end;

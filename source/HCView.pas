@@ -4609,9 +4609,6 @@ begin
     finally
       GlobalUnlock(vHDMode);
     end;
-
-    ResetDC(Printer.Handle, vPDMode^);
-    Printer.SetPrinter(vDevice, vDriver, vPort, vHDMode);
   end;
 end;
 

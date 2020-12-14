@@ -112,7 +112,7 @@ type
     FOnGetUndoList: TGetUndoListEvent;
 
     procedure SetPageNoFormat(const Value: string);
-
+    procedure SetViewModel(const Value: THCViewModel);
     /// <summary> 返回当前节指定的垂直偏移处对应的页 </summary>
     /// <param name="AVOffset">垂直偏移</param>
     /// <returns>页序号，-1表示无对应页</returns>
@@ -434,7 +434,7 @@ type
     /// <summary> 当前文档激活区域页眉、页脚、页面 </summary>
     property ActiveArea: TSectionArea read GetActiveArea;
     property ActivePageIndex: Integer read FActivePageIndex;
-    property ViewModel: THCViewModel read FViewModel write FViewModel;
+    property ViewModel: THCViewModel read FViewModel write SetViewModel;
     /// <summary> 是否对称边距 </summary>
     property SymmetryMargin: Boolean read FSymmetryMargin write FSymmetryMargin;
     property DisplayFirstPageIndex: Integer read FDisplayFirstPageIndex write FDisplayFirstPageIndex;  // 屏显第一页
@@ -1049,6 +1049,7 @@ end;
 
 procedure THCCustomSection.DoDataItemSetCaretRequest(const ASectionData: THCCustomData; const AItemNo, AOffset: Integer);
 begin
+  DoActiveDataCheckUpdateInfo;
 end;
 
 function THCCustomSection.DoDataPaintDomainRegion(const AData: THCCustomData;
@@ -1115,6 +1116,8 @@ end;
 
 procedure THCCustomSection.SetActiveData(const Value: THCSectionData);
 begin
+  if (FViewModel <> hvmFilm) and (Value <> FPage) then Exit;
+
   if FActiveData <> Value then
   begin
     if FActiveData <> nil then
@@ -1911,7 +1914,7 @@ begin
   SectionCoordToPaper(FActivePageIndex, X, Y, vX, vY);  // X，Y转换到指定页的坐标vX,vY
   vNewActiveData := GetSectionDataAt(vX, vY);
 
-  if (vNewActiveData <> FActiveData) and (ssDouble in Shift) then  // 双击、新的Data
+  if (vNewActiveData <> FActiveData) and (ssDouble in Shift) and (FViewModel = hvmFilm) then  // 双击、新的Data
   begin
     SetActiveData(vNewActiveData);
     vChangeActiveData := True;
@@ -3083,6 +3086,15 @@ begin
   FHeader.ReadOnly := Value;
   FFooter.ReadOnly := Value;
   FPage.ReadOnly := Value;
+end;
+
+procedure THCCustomSection.SetViewModel(const Value: THCViewModel);
+begin
+  if FViewModel <> Value then
+  begin
+    FViewModel := Value;
+    SetActiveData(FPage);
+  end;
 end;
 
 function THCCustomSection.TableApplyContentAlign(

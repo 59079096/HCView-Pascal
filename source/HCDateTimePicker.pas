@@ -47,6 +47,7 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function InsertText(const AText: string): Boolean; override;
+    procedure SetText(const Value: string); override;
   public
     constructor Create(const AOwnerData: THCCustomData; const ADateTime: TDateTime); virtual;
     //destructor Destroy; override;
@@ -709,6 +710,8 @@ end;
 
 procedure THCDateTimePicker.KeyDown(var Key: Word; Shift: TShiftState);
 begin
+  if ReadOnly then Exit;
+
   case Key of
     VK_ESCAPE:  // 取消输入的年字符串
       begin
@@ -986,7 +989,7 @@ begin
   if FDateTime <> Value then
   begin
     FDateTime := Value;
-    Self.Text := FormatDateTime(FFormat, FDateTime);
+    inherited SetText(FormatDateTime(FFormat, FDateTime));
     FAreaRect := GetAreaRect(FActiveArea);
   end;
 end;
@@ -1036,6 +1039,10 @@ begin
     Self.DateTime := RecodeYear(FDateTime, GetYear(FNewYear));
     FNewYear := '';  // 取消输入的年内容
   end;
+end;
+
+procedure THCDateTimePicker.SetText(const Value: string);
+begin
 end;
 
 procedure THCDateTimePicker.ToXml(const ANode: IHCXMLNode);

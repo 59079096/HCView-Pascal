@@ -292,6 +292,7 @@ type
       const AReDest: Boolean = True): TResizeInfo;
     procedure GetDestCell(const ARow, ACol: Cardinal; var ADestRow, ADestCol: Integer);
     procedure GetSourceCell(const ARow, ACol: Cardinal; var ASrcRow, ASrcCol: Integer);
+    procedure SelectRange(const AStartRow, AStartCol, AEndRow, AEndCol: Integer);
     procedure SelectAll;
     procedure PaintRow(const ARow, ALeft, ATop, ABottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
@@ -868,9 +869,37 @@ end;
 
 procedure THCTableItem.DoCellDataItemSetCaretRequest(const AData: THCCustomData;
   const AItemNo, AOffset: Integer);
+var
+  vR, vC, vRow, vCol: Integer;
+  vPointer: Pointer;
 begin
-  (OwnerData as THCRichData).ItemSetCaretRequest(
-    (OwnerData as THCRichData).GetItemNo(Self), OffsetInner);
+  Self.DisSelect;
+
+  vRow := -1;
+  vCol := -1;
+  vPointer := Pointer(AData);
+  for vR := 0 to Self.RowCount - 1 do
+  begin
+    if vRow >= 0 then
+      Break;
+
+    for vC := 0 to FColWidths.Count - 1 do
+    begin
+      if Pointer(FRows[vR].Cols[vC].CellData) = vPointer then
+      begin
+        vRow := vR;
+        vCol := vC;
+        Break;
+      end;
+    end;
+  end;
+
+  if vRow >= 0 then
+  begin
+    FSelectCellRang.SetStart(vRow, vCol);
+    (OwnerData as THCRichData).ItemSetCaretRequest(
+      (OwnerData as THCRichData).GetItemNo(Self), OffsetInner);
+  end;
 end;
 
 procedure THCTableItem.DoCellDataFormatDirty(Sender: TObject);
@@ -4715,6 +4744,26 @@ begin
 //  end;
 end;
 
+procedure THCTableItem.SelectRange(const AStartRow, AStartCol, AEndRow, AEndCol: Integer);
+var
+  vRow, vCol: Integer;
+begin
+  if (AStartRow = 0) and (AStartCol = 0) and (AEndRow = Self.RowCount - 1) and (AEndCol = FColWidths.Count - 1) then
+    inherited SelectComplate;
+
+  FSelectCellRang.SetStart(AStartRow, AStartCol);
+  FSelectCellRang.SetEnd(AEndRow, AEndCol);
+
+  for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
+  begin
+    for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
+    begin
+      if FRows[vRow][vCol].CellData <> nil then
+        FRows[vRow][vCol].CellData.SelectAll;
+    end;
+  end;
+end;
+
 procedure THCTableItem.SetActive(const Value: Boolean);
 var
   vCell: THCTableCell;
@@ -5125,24 +5174,8 @@ begin
 end;
 
 procedure THCTableItem.SelectComplate;
-var
-  vRow, vCol: Integer;
 begin
-  inherited SelectComplate;
-
-  FSelectCellRang.StartRow := 0;
-  FSelectCellRang.StartCol := 0;
-  FSelectCellRang.EndRow := Self.RowCount - 1;
-  FSelectCellRang.EndCol := FColWidths.Count - 1;
-
-  for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
-  begin
-    for vCol := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
-    begin
-      if FRows[vRow][vCol].CellData <> nil then
-        FRows[vRow][vCol].CellData.SelectAll;
-    end;
-  end;
+  SelectRange(0, 0, Self.RowCount - 1, FColWidths.Count - 1);
 end;
 
 function THCTableItem.SelectedCellCanMerge: Boolean;

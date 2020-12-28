@@ -5781,14 +5781,6 @@ begin
   end
   else  // 没点在选中区域中
   begin
-    if SelectInfo.StartItemNo >= 0 then  // 旧按下的或者方向键移入的取消激活
-    begin
-      if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
-        (Items[SelectInfo.StartItemNo] as THCCustomRectItem).DisSelect;
-
-      Style.UpdateInfoRePaint;  // 旧的去焦点，新的入焦点
-    end;
-
     if (vMouseDownItemNo <> FMouseDownItemNo)
       or (vMouseDownItemOffset <> FMouseDownItemOffset)
       or (CaretDrawItemNo <> vDrawItemNo)

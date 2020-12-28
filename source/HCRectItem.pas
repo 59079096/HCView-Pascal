@@ -404,7 +404,7 @@ end;
 function THCCustomRectItem.CoordInSelect(const X, Y: Integer): Boolean;
 begin
   if IsSelectComplate then
-    Result := PtInRect(Bounds(0, 0, Width, Height), Point(X, Y))
+    Result := PtInRect(Bounds(0, 0, FWidth, FHeight), Point(X, Y))
   else
     Result := False;
 end;

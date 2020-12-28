@@ -23,8 +23,9 @@ type
     FText: string;
     FChecked, FMouseIn, FItemHit: Boolean;
     function GetBoxRect: TRect;
-  protected
     procedure SetChecked(const Value: Boolean);
+  protected
+    procedure DoSetChecked(const Value: Boolean); virtual;
     //
     function GetText: string; override;
     procedure SetText(const Value: string); override;
@@ -133,6 +134,11 @@ begin
     ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2, FText);
 end;
 
+procedure THCCheckBoxItem.DoSetChecked(const Value: Boolean);
+begin
+  SetChecked(Value);
+end;
+
 procedure THCCheckBoxItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
 var
@@ -187,11 +193,11 @@ begin
       if PtInRect(Classes.Bounds(FPaddingLeft, 0, FPaddingLeft + CheckBoxSize + FPaddingLeft + vSize.cx, vSize.cy),
         Point(X, Y))
       then
-        Checked := not FChecked;
+        DoSetChecked(not FChecked);
     end
     else
     if PtInRect(GetBoxRect, Point(X, Y)) then  // 点在了勾选框中
-      Checked := not FChecked;
+      DoSetChecked(not FChecked);
   end;
 end;
 

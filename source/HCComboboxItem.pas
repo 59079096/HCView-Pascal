@@ -39,7 +39,6 @@ type
     procedure DoItemsChange(Sender: TObject);
     procedure DoPopupFormPaint(const ACanvas: TCanvas; const AClientRect: TRect);
     procedure DoPopupFormClose(Sender: TObject);
-    procedure DoPopup;
 
     procedure DoPopupFormMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoPopupFormMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
@@ -47,6 +46,7 @@ type
     procedure DoPopupFormMouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
   protected
+    procedure DoPopup; virtual;
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -190,8 +190,6 @@ procedure THCComboboxItem.DoPopup;
 var
   vPt: TPoint;
 begin
-  if not OwnerData.CanEdit then Exit;
-
   if Assigned(FOnPopupItem) then
     FOnPopupItem(Self);
 

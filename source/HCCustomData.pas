@@ -722,17 +722,7 @@ begin
   vDrawRect := DrawItems[vDrawItemNo].Rect;
   Result := PtInRect(vDrawRect, Point(X, Y));
   if Result then  // 在对应的DrawItem上
-  begin
-    if FItems[AItemNo].StyleNo < THCStyle.Null then
-    begin
-      vX := X - vDrawRect.Left;
-      vY := Y - vDrawRect.Top - GetLineBlankSpace(vDrawItemNo) div 2;
-
-      Result := (FItems[AItemNo] as THCCustomRectItem).CoordInSelect(vX, vY);
-    end
-    else
-      Result := OffsetInSelect(AItemNo, AOffset);  // 对应的AOffset在选中内容中
-  end;
+    Result := OffsetInSelect(AItemNo, AOffset);  // 对应的AOffset在选中内容中
 end;
 
 procedure THCCustomData.CoordToItemOffset(const X, Y, AItemNo,
@@ -845,36 +835,29 @@ var
   i: Integer;
   vItem: THCCustomItem;
 begin
-  { THCCustomRichData.MouseUp看的DisSelectAfterStartItemNo中有保留起始不清选中，
-   如果多处需要保留起始，可以在此方法增加是否保留起始参数以共用 }
+  // 如果选中是在RectItem中进，下面循环SelectInfo.EndItemNo<0，不能取消选中，所以单独处理StartItemNo
+  if FSelectInfo.StartItemNo >= 0 then
+  begin
+    vItem := FItems[FSelectInfo.StartItemNo];
+    vItem.DisSelect;
+    vItem.Active := False;  // 方向键移动到EditItem里激活，鼠标再点EditItem时不应该取消激活后面再激活
+  end;
 
   Result := SelectExists;
   if Result then  // 有选中内容
   begin
-    // 如果选中是在RectItem中进，下面循环SelectInfo.EndItemNo<0，不能取消选中，所以单独处理StartItemNo
-    vItem := FItems[SelectInfo.StartItemNo];
-    vItem.DisSelect;
-    vItem.Active := False;
-
-    for i := SelectInfo.StartItemNo + 1 to SelectInfo.EndItemNo do  // 遍历选中的其他Item
+    for i := FSelectInfo.StartItemNo + 1 to FSelectInfo.EndItemNo do  // 遍历选中的其他Item
     begin
       vItem := FItems[i];
       vItem.DisSelect;
       vItem.Active := False;
     end;
-    SelectInfo.EndItemNo := -1;
-    SelectInfo.EndItemOffset := -1;
-  end
-  else  // 没有选中
-  if SelectInfo.StartItemNo >= 0 then
-  begin
-    vItem := FItems[SelectInfo.StartItemNo];
-    vItem.DisSelect;
-    //vItem.Active := False;  // 方向键移动到EditItem里激活，鼠标再点EditItem时不应该取消激活后面再激活
+    FSelectInfo.EndItemNo := -1;
+    FSelectInfo.EndItemOffset := -1;
   end;
 
-  SelectInfo.StartItemNo := -1;
-  SelectInfo.StartItemOffset := -1;
+  FSelectInfo.StartItemNo := -1;
+  FSelectInfo.StartItemOffset := -1;
 end;
 
 procedure THCCustomData.DoCaretItemChanged;

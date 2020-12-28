@@ -40,6 +40,8 @@ type
     procedure DisSelectText;
   protected
     FTextSize: TSize;
+    function GetReadOnly: Boolean; virtual;
+    procedure SetReadOnly(const Value: Boolean); virtual;
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -80,7 +82,7 @@ type
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
-    property ReadOnly: Boolean read FReadOnly write FReadOnly;
+    property ReadOnly: Boolean read GetReadOnly write SetReadOnly;
     property PrintOnlyText: Boolean read FPrintOnlyText write FPrintOnlyText;
     property BorderSides: TBorderSides read FBorderSides write FBorderSides;
     property BorderWidth: Byte read FBorderWidth write FBorderWidth;
@@ -335,6 +337,11 @@ begin
     Result := OffsetAfter
   else
     Result := OffsetInner;
+end;
+
+function THCEditItem.GetReadOnly: Boolean;
+begin
+  Result := FReadOnly;
 end;
 
 function THCEditItem.GetText: string;
@@ -662,6 +669,12 @@ begin
     FLeftOffset := 0;
     FCaretOffset := -1;
   end;
+end;
+
+procedure THCEditItem.SetReadOnly(const Value: Boolean);
+begin
+  if FReadOnly <> Value then
+    FReadOnly := Value;
 end;
 
 procedure THCEditItem.SetText(const Value: string);

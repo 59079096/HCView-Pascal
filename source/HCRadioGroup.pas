@@ -47,6 +47,7 @@ type
     procedure SetColumns(const Value: Byte);
     procedure SetColumnAlign(const Value: Boolean);
   protected
+    procedure DoSetItemChecked(const AIndex: Integer; const Value: Boolean); virtual;
     procedure DoItemNotify(Sender: TObject; const Item: THCRadioButton; Action: TCollectionNotification);
     procedure DoItemSetChecked(Sender: TObject);
     procedure DoPaintItems(const ACanvas: TCanvas; const ADrawRect: TRect; const APaintInfo: TPaintInfo);
@@ -301,6 +302,12 @@ begin
   end;
 end;
 
+procedure THCRadioGroup.DoSetItemChecked(const AIndex: Integer; const Value: Boolean);
+begin
+  FItems[AIndex].Checked := Value;
+  Self.DoChange;
+end;
+
 procedure THCRadioGroup.EndAdd;
 begin
   if FBatchCount > 0 then
@@ -469,10 +476,7 @@ begin
   begin
     vIndex := GetItemAt(X, Y);
     if vIndex >= 0 then
-    begin
-      FItems[vIndex].Checked := not FItems[vIndex].Checked;
-      Self.DoChange;
-    end;
+      DoSetItemChecked(vIndex, not FItems[vIndex].Checked);
   end;
 end;
 

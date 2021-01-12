@@ -2801,17 +2801,20 @@ begin
     begin
       vParaFirstTemp := False;
 
-      if DoSaveItem(AStartItemNo) then
+      if DoSaveItem(AStartItemNo) then // 起始
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
           Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
         else
-          Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText;
+        if (FItems[AStartItemNo] as THCCustomRectItem).SelectExists then
+          Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText
+        else
+          Result := FItems[AStartItemNo].Text;
       end
-      else
+      else  // 20201121001
         vParaFirstTemp := FItems[AStartItemNo].ParaFirst;
 
-      for i := AStartItemNo + 1 to AEndItemNo - 1 do
+      for i := AStartItemNo + 1 to AEndItemNo - 1 do  // 中间
       begin
         if DoSaveItem(i) then
         begin
@@ -2821,13 +2824,13 @@ begin
             Result := Result + FItems[i].Text;
 
           if vParaFirstTemp and not FItems[i].ParaFirst then
-            vParaFirstTemp := False;
+            vParaFirstTemp := False;  // 已经处理了未存段首的段首属性了
         end
-        else
+        else  // 从段首开始连接的不允许保存，段首属性要一直保留到可以存的Item，所以用or 20201121001
           vParaFirstTemp := vParaFirstTemp or FItems[i].ParaFirst;
       end;
 
-      if DoSaveItem(AEndItemNo) then
+      if DoSaveItem(AEndItemNo) then  // 结尾
       begin
         if FItems[AEndItemNo].StyleNo > THCStyle.Null then
         begin
@@ -2848,12 +2851,17 @@ begin
         end;
       end;
     end
-    else
+    else  // 选中在同一Item
     begin
       if DoSaveItem(AStartItemNo) then
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
-          Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, AEndOffset - AStartOffset);
+          Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, AEndOffset - AStartOffset)
+        else
+        if (FItems[AStartItemNo] as THCCustomRectItem).SelectExists then
+          Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText
+        else
+          Result := FItems[AStartItemNo].Text;
       end;
     end;
   end;
@@ -2861,7 +2869,7 @@ end;
 
 function THCCustomData.SaveToText: string;
 begin
-  Result := SaveToText(0, 0, FItems.Count - 1, FItems.Last.Length);
+  Result := SaveToText(0, 0, FItems.Count - 1, GetItemOffsetAfter(FItems.Count - 1));
 end;
 
 procedure THCCustomData.SelectAll;

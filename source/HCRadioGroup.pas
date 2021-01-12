@@ -34,7 +34,7 @@ type
 
   THCRadioGroup = class(THCControlItem)
   private
-    FMultSelect, FMouseIn: Boolean;
+    FMultSelect: Boolean;
     FItems: TObjectList<THCRadioButton>;
     FRadioStyle: THCRadioStyle;
     FItemHit: Boolean;
@@ -58,8 +58,6 @@ type
 
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
-    procedure MouseEnter; override;
-    procedure MouseLeave; override;
     function GetOffsetAt(const X: Integer): Integer; override;
     function GetText: string; override;
   public
@@ -480,18 +478,6 @@ begin
   end;
 end;
 
-procedure THCRadioGroup.MouseEnter;
-begin
-  inherited MouseEnter;
-  FMouseIn := True;
-end;
-
-procedure THCRadioGroup.MouseLeave;
-begin
-  inherited MouseLeave;
-  FMouseIn := False;
-end;
-
 function THCRadioGroup.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;
 begin
   Result := inherited MouseMove(Shift, X, Y);
@@ -523,13 +509,13 @@ begin
     vList := TStringList.Create;
     try
       // ItemsÎÄ±¾ÄÚÈÝ
-      vList.DelimitedText := ANode.Attributes['item'];
+      vList.DelimitedText := GetXmlRN(ANode.Attributes['item']);
       for i := 0 to vList.Count - 1 do
         AddItem(vList[i]);
 
       if ANode.HasAttribute('itemvalue') then
       begin
-        vList.DelimitedText := ANode.Attributes['itemvalue'];
+        DelimitedXMLRN(ANode.Attributes['itemvalue'], vList);
         for i := 0 to FItems.Count - 1 do
           FItems[i].TextValue := vList[i];
       end;

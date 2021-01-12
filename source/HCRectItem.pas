@@ -242,10 +242,13 @@ type
     FAutoSize: Boolean;  // 是根据内容自动大小，还是外部指定大小
     FOnClick: TNotifyEvent;
   protected
+    FMouseIn: Boolean;
     FPaddingLeft, FPaddingRight, FPaddingTop, FPaddingBottom: Byte;
     FMinWidth, FMinHeight: Integer;
     function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure DoClick; virtual;
+    procedure MouseEnter; override;
+    procedure MouseLeave; override;
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     procedure Assign(Source: THCCustomItem); override;
@@ -1359,6 +1362,7 @@ end;
 constructor THCControlItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
+  FMouseIn := False;
   FAutoSize := True;
   FPaddingLeft := 5;
   FPaddingRight := 5;
@@ -1385,6 +1389,18 @@ procedure THCControlItem.LoadFromStream(const AStream: TStream;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
   AStream.ReadBuffer(FAutoSize, SizeOf(FAutoSize));
+end;
+
+procedure THCControlItem.MouseEnter;
+begin
+  FMouseIn := True;
+  inherited MouseEnter;
+end;
+
+procedure THCControlItem.MouseLeave;
+begin
+  FMouseIn := False;
+  inherited MouseLeave;
 end;
 
 function THCControlItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,

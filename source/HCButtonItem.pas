@@ -21,11 +21,10 @@ type
   THCButtonItem = class(THCControlItem)
   private
     FText: string;
-    FMouseIn, FDown: Boolean;
+    FDown: Boolean;
   protected
     function GetText: string; override;
     procedure SetText(const Value: string); override;
-    procedure MouseEnter; override;
     procedure MouseLeave; override;
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
@@ -65,7 +64,6 @@ begin
   inherited Create(AOwnerData);
   Self.StyleNo := THCStyle.Button;
   FText := AText;
-  FMouseIn := False;
   FDown := False;
 end;
 
@@ -128,15 +126,8 @@ begin
   inherited MouseDown(Button, Shift, X, Y);
 end;
 
-procedure THCButtonItem.MouseEnter;
-begin
-  FMouseIn := True;
-  inherited MouseEnter;
-end;
-
 procedure THCButtonItem.MouseLeave;
 begin
-  FMouseIn := False;
   FDown := False;
   inherited MouseLeave;
 end;

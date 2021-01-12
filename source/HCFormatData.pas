@@ -779,7 +779,7 @@ var
 
     vSqueeze: Boolean;
   begin
-    vLineFirst := vParaFirst or ((APos.X = AFmtLeft) and ((DrawItems[ALastDrawItemNo].Width <> 0) or 1(not DrawItems[ALastDrawItemNo].LineFirst)));
+    vLineFirst := vParaFirst or ((APos.X = AFmtLeft) and ((DrawItems[ALastDrawItemNo].Width <> 0) or (not DrawItems[ALastDrawItemNo].LineFirst)));
 
     viBreakOffset := 0;  // 换行位置，第几个字符放不下
     vFirstCharWidth := vCharWidths[ACharOffset - 1] - ABasePos;  // 第一个字符的宽度

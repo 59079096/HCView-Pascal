@@ -2634,7 +2634,6 @@ end;
 function THCView.LoadFromStream(const AStream: TStream): Boolean;
 begin
   Result := False;
-  if ReadOnly then Exit;
 
   Self.BeginUpdate;
   try
@@ -2681,7 +2680,6 @@ end;
 function THCView.LoadFromText(const AText: string): Boolean;
 begin
   Result := False;
-  if ReadOnly then Exit;
 
   Self.Clear;
   FStyle.Initialize;
@@ -2770,8 +2768,6 @@ var
   i, j: Integer;
 begin
   Result := False;
-
-  if ReadOnly then Exit;
 
   Self.BeginUpdate;
   try

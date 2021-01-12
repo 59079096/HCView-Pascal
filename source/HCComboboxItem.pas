@@ -154,6 +154,9 @@ begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
 
+  FButtonDrawRect := FButtonRect;
+  FButtonDrawRect.Offset(ADrawRect.Location);
+
   if not APaintInfo.Print then  // ·Ç´òÓ¡
   begin
     if IsSelectComplate then
@@ -164,8 +167,6 @@ begin
     else
       ACanvas.Brush.Color := clWindow;
 
-    FButtonDrawRect := FButtonRect;
-    FButtonDrawRect.Offset(ADrawRect.Location);
     ACanvas.FillRect(FButtonDrawRect);
   end
   else  // ´òÓ¡
@@ -439,13 +440,17 @@ end;
 procedure THCComboboxItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
-  FItems.Text := ANode.Attributes['item'];
-  if ANode.HasAttribute('itemvalue') then
-    FItemValues.Text := ANode.Attributes['itemvalue']
-  else
-    FItemValues.Clear;
-
   FSaveItem := ANode.Attributes['saveitem'] or (FItems.Count > 0);
+  if FSaveItem then
+  begin
+    FItems.Text := GetXmlRN(ANode.Attributes['item']);
+    DelimitedXMLRN(ANode.Attributes['itemvalue'], FItemValues);
+  end
+  else
+  begin
+    FItems.Clear;
+    FItemValues.Clear;
+  end;
 
   if ANode.HasAttribute('static') then
     FStatic := ANode.Attributes['static'];

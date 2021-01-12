@@ -141,7 +141,6 @@ type
 
     /// <summary> 初始化相关字段和变量 </summary>
     procedure InitializeField; override;
-    procedure SaveToStream(const AStream: TStream); override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -5681,6 +5680,7 @@ end;
 procedure THCRichData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
+  FReadOnly := False;
   if not CanEdit then Exit;
   //Self.InitializeField;  LoadFromStream中的Clear处理了
   inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
@@ -5689,8 +5689,14 @@ begin
   try
     FCheckEmptyItem := False;
     InsertStream(AStream, AStyle, AFileVersion);
+    if AFileVersion > 48 then
+
+    else
     if AFileVersion > 47 then
+    begin
       AStream.ReadBuffer(FReadOnly, SizeOf(FReadOnly));
+      FReadOnly := False;
+    end;
 
     if FCheckEmptyItem then
       DeleteEmptyItem;
@@ -6219,13 +6225,6 @@ begin
       Style.UpdateInfoReCaret;
     end;
   end;
-end;
-
-procedure THCRichData.SaveToStream(const AStream: TStream);
-begin
-  inherited SaveToStream(AStream);
-  if HC_FileVersionInt > 47 then
-    AStream.WriteBuffer(FReadOnly, SizeOf(FReadOnly));
 end;
 
 function THCRichData.SelectByMouseDownShift(var AMouseDownItemNo,

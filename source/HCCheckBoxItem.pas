@@ -21,7 +21,7 @@ type
   THCCheckBoxItem = class(THCControlItem)
   private
     FText: string;
-    FChecked, FMouseIn, FItemHit: Boolean;
+    FChecked, FItemHit: Boolean;
     function GetBoxRect: TRect;
     procedure SetChecked(const Value: Boolean);
   protected
@@ -29,8 +29,6 @@ type
     //
     function GetText: string; override;
     procedure SetText(const Value: string); override;
-    procedure MouseEnter; override;
-    procedure MouseLeave; override;
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     procedure FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer); override;
@@ -84,7 +82,6 @@ begin
   Self.StyleNo := THCStyle.CheckBox;
   FChecked := AChecked;
   FText := AText;
-  FMouseIn := False;
   FItemHit := False;
   FPaddingLeft := 2;
 end;
@@ -157,18 +154,6 @@ begin
 
   if Height < FMinHeight then
     Height := FMinHeight;
-end;
-
-procedure THCCheckBoxItem.MouseEnter;
-begin
-  inherited MouseEnter;
-  FMouseIn := True;
-end;
-
-procedure THCCheckBoxItem.MouseLeave;
-begin
-  inherited MouseLeave;
-  FMouseIn := False;
 end;
 
 function THCCheckBoxItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;

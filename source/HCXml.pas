@@ -33,6 +33,7 @@ type
   /// <summary> Bitmap×ªÎªBase64×Ö·û </summary>
   function GraphicToBase64(const AGraphic: TGraphic): string;
   procedure Base64ToGraphic(const ABase64: string; const AGraphic: TGraphic);
+  procedure DelimitedXMLRN(const AText: string; const AStrings: TStrings);
 
 implementation
 
@@ -105,6 +106,49 @@ begin
   Result := StringReplace(AText, #10, #13#10, [rfReplaceAll]);
 end;
 
+procedure DelimitedXMLRN(const AText: string; const AStrings: TStrings);
+var
+  vPCharStart, vPCharEnd, vPtr: PChar;
+  vS: string;
+begin
+  AStrings.BeginUpdate;
+  try
+    AStrings.Clear;
+
+    vPCharStart := PChar(AText);
+    vPCharEnd := vPCharStart + Length(AText);
+    if vPCharStart = vPCharEnd then Exit;
+    vPtr := vPCharStart;
+    while vPtr < vPCharEnd do
+    begin
+      case vPtr^ of
+        #10:
+          begin
+            System.SetString(vS, vPCharStart, vPtr - vPCharStart);
+            AStrings.Add(vS);
+
+            Inc(vPtr);
+            vPCharStart := vPtr;
+            Continue;
+          end;
+
+        {#10:
+          begin
+            Inc(vPtr);
+            vPCharStart := vPtr;
+            Continue;
+          end;}
+      end;
+
+      Inc(vPtr);
+    end;
+
+    System.SetString(vS, vPCharStart, vPtr - vPCharStart);
+    AStrings.Add(vS);
+  finally
+    AStrings.EndUpdate;
+  end;
+end;
 //function GetColorHtmlRGB(const AColor: TColor): string;
 //begin
 //  Result := 'rgb(' + GetColorXmlRGB(AColor) + ')';

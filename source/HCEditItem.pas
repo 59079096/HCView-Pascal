@@ -27,7 +27,7 @@ type
     FText: string;
     FBorderWidth: Byte;
     FBorderSides: TBorderSides;
-    FMouseIn, FReadOnly, FPrintOnlyText: Boolean;
+    FReadOnly, FPrintOnlyText: Boolean;
     FCaretOffset, FSelEnd,
     FSelMove,  // to do: shift + 方向键选中
     FLeftOffset  // 0位置是相对左FMargin
@@ -48,8 +48,6 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     function GetOffsetAt(const X: Integer): Integer; override;
     procedure SetActive(const Value: Boolean); override;
-    procedure MouseEnter; override;
-    procedure MouseLeave; override;
     function MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseMove(Shift: TShiftState; X, Y: Integer): Boolean; override;
     function MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean; override;
@@ -129,7 +127,6 @@ begin
   inherited Create(AOwnerData);
   Self.StyleNo := THCStyle.Edit;
   FText := AText;
-  FMouseIn := False;
   FPaddingLeft := 4;
   FPaddingRight := 4;
   FPaddingTop := 4;
@@ -493,18 +490,6 @@ begin
     ScrollAdjust(vOffset);
     OwnerData.Style.UpdateInfoReCaret;
   end;
-end;
-
-procedure THCEditItem.MouseEnter;
-begin
-  inherited MouseEnter;
-  FMouseIn := True;
-end;
-
-procedure THCEditItem.MouseLeave;
-begin
-  inherited MouseLeave;
-  FMouseIn := False;
 end;
 
 function THCEditItem.MouseMove(Shift: TShiftState; X, Y: Integer): Boolean;

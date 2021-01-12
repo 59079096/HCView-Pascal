@@ -68,7 +68,7 @@ implementation
 {$I HCView.inc}
 
 uses
-  DateUtils;
+  DateUtils, Variants;
 
 { THCDateTimePicker }
 
@@ -962,7 +962,7 @@ procedure THCDateTimePicker.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
   FFormat := ANode.Attributes['format'];
-  FDateTime := StrToDateTime(ANode.Attributes['datetime']);
+  FDateTime := VarToDateTime(ANode.Attributes['datetime']);
 end;
 
 procedure THCDateTimePicker.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);

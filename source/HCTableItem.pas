@@ -101,6 +101,7 @@ type
     procedure DoCellDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoCellDataItemSetCaretRequest(const AData: THCCustomData; const AItemNo, AOffset: Integer);
     function DoCellDataGetFormatTop(const ACellData: THCCustomData): Integer;
+    procedure DoSelectCellChange(const AOrgRow, AOrgCol, ADestRow, ADestCol: Integer);
 
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
@@ -183,6 +184,7 @@ type
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure KeyPress(var Key: Char); override;
     function GetText: string; override;
+    function GetPageBreakCount: Cardinal; override;
 
     // 撤销重做相关方法
     function DoSelfUndoNew: THCUndo; override;
@@ -782,12 +784,7 @@ begin
     if (FSelectCellRang.StartRow = ARow) and (FSelectCellRang.StartCol = ACol) then
 
     else
-    begin
       FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := False;
-      vCellData := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData;
-      if vCellData <> nil then
-        DoCheckCellScript(FSelectCellRang.StartRow, FSelectCellRang.StartCol);
-    end;
 
     for vRow := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
     begin
@@ -974,7 +971,7 @@ var
 
   procedure CheckRowBorderShouLian(const ARow: Integer);
   var
-    vC, i, vRowDataDrawTop, vDestCellDataDrawTop, vBreakBottom: Integer;
+    vC, i, vRowDataDrawTop, vDestCellDataDrawTop, vBreakBottom, vCellDataVerTop: Integer;
     vRect: TRect;
   begin
     if vShouLian = 0 then  // 没有计算过当前行有跨页的所有列中最佳跨页时收敛位置
@@ -983,22 +980,30 @@ var
       for i := 0 to ARow - 1 do
         vRowDataDrawTop := vRowDataDrawTop + FRows[i].FmtOffset + FRows[i].Height + FBorderWidthPix;
 
-      if (FRows[ARow].FmtOffset > 0)  // 分页行整体下移了
-        and (ARow <> vFirstDrawRow)  // 不是第一次绘制整体下移的分页行
-      then  // 以上一行最低为收敛
+      if (FRows[ARow].FmtOffset > 0) then
       begin
-        vShouLian := vRowDataDrawTop - FBorderWidthPix;  // 上一行底部边框位置
-        Exit;
+        if (ARow <> vFirstDrawRow) then
+        begin
+          vShouLian := vRowDataDrawTop - FBorderWidthPix;
+          Exit;
+        end
+        else
+        if vRowDataDrawTop + FRows[ARow].FmtOffset + FRows[ARow].Height <= ADataDrawBottom then
+        begin
+          vShouLian := vRowDataDrawTop + FRows[ARow].FmtOffset + FRows[ARow].Height;
+          Exit;
+        end;
       end;
 
       // 分页行Data绘制起始位置，第一次绘制整体下移分页行时要增加偏移，否则不增加(和上一行结尾相同)做为收敛位置(见前上行Exit处)
-      vRowDataDrawTop := vRowDataDrawTop + FRows[ARow].FmtOffset + FCellVPaddingPix;
+      vRowDataDrawTop := vRowDataDrawTop + FRows[ARow].FmtOffset;
 
       vBreakBottom := 0;
       for vC := 0 to FRows[ARow].ColCount - 1 do  // 遍历同行各列，获取截断位置(因为各行在CheckFormatPage已经算好分页位置，所以此处只要一个单元格跨页位置同时适用当前行所有单元格跨页位置)
       begin
         vDestCellDataDrawTop := vRowDataDrawTop; //vCellDataDrawTop;
         GetDestCell(ARow, vC, vDestRow2, vDestCol2);  // 获取到目标单元格所在行号
+        vCellDataVerTop := FRows[vDestRow2][vDestCol2].GetCellDataTop(FCellVPaddingPix);
 
         if vC <> vDestCol2 + FRows[vDestRow2][vDestCol2].ColSpan then  // 只在当前页分页位置的合并最后源处理一次
           Continue;
@@ -1012,24 +1017,23 @@ var
           if vCellData.DrawItems[i].LineFirst then
           begin
             vRect := vCellData.DrawItems[i].Rect;
-            //if DrawiInLastLine(i) then  // 单元格内最后一行内容补充FCellVPadding
-            vRect.Bottom := vRect.Bottom + FCellVPaddingPix; // 每一行可能是要截断的，截断时下面要能放下FCellVPadding
-            if vDestCellDataDrawTop + vRect.Bottom > ADataDrawBottom then  // 此DrawItem超过当前页了
+            vRect.Bottom := vRect.Bottom + FCellVPaddingPix;
+            if vDestCellDataDrawTop + vCellDataVerTop + vRect.Bottom > ADataDrawBottom then
             begin
-              if i > 0 then  // 跨页的Draw不是第一行
+              if i > 0 then
               begin
-                if ADataDrawBottom - vDestCellDataDrawTop - vCellData.DrawItems[i - 1].Rect.Bottom > FCellVPaddingPix then
-                  vShouLian := Max(vShouLian, vDestCellDataDrawTop + vCellData.DrawItems[i - 1].Rect.Bottom + FCellVPaddingPix)
+                if ADataDrawBottom - vDestCellDataDrawTop - vCellDataVerTop - vCellData.DrawItems[i - 1].Rect.Bottom > FCellVPaddingPix then
+                  vShouLian := Max(vShouLian, vDestCellDataDrawTop + vCellDataVerTop + vCellData.DrawItems[i - 1].Rect.Bottom + FCellVPaddingPix)
                 else
-                  vShouLian := Max(vShouLian, vDestCellDataDrawTop + vCellData.DrawItems[i - 1].Rect.Bottom);  // 上一个最下面做为截断位置
+                  vShouLian := Max(vShouLian, vDestCellDataDrawTop + vCellDataVerTop + vCellData.DrawItems[i - 1].Rect.Bottom);
               end
-              else  // 第一行就在当前页放不下
-                vShouLian := Max(vShouLian, vDestCellDataDrawTop - FCellVPaddingPix - FBorderWidthPix);
+              else
+                vShouLian := Max(vShouLian, vDestCellDataDrawTop - FBorderWidthPix);
 
               Break;
             end
             else  // 此DrawItem没有超过当前页
-              vBreakBottom := Max(vBreakBottom, vDestCellDataDrawTop + vRect.Bottom);  // 记录为可放下的最后一个下面(有的单元格在当前页能全部显示，并不跨页)
+              vBreakBottom := Max(vBreakBottom, vDestCellDataDrawTop + vCellDataVerTop + vRect.Bottom);  // 记录为可放下的最后一个下面(有的单元格在当前页能全部显示，并不跨页)
           end;
         end;
       end;
@@ -1515,6 +1519,12 @@ begin
   end;
   {$ENDREGION}
 
+end;
+
+procedure THCTableItem.DoSelectCellChange(const AOrgRow, AOrgCol, ADestRow, ADestCol: Integer);
+begin
+  if (AOrgRow >= 0) and (AOrgCol >= 0) then
+    DoCheckCellScript(AOrgRow, AOrgCol);
 end;
 
 procedure THCTableItem.DoSelfRedo(const ARedo: THCUndo);
@@ -2029,19 +2039,17 @@ begin
       if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then  // 新位置
       begin
         vCell := GetEditCell;
-        if vCell <> nil then  // 取消原来编辑
+        if vCell <> nil then
           vCell.Active := False;
 
+        DoSelectCellChange(FMouseDownRow, FMouseDownCol, vMouseDownRow, vMouseDownCol);
         OwnerData.Style.UpdateInfoReCaret;
       end;
 
       DisSelect;  // 清除原选中
 
-      if (FMouseDownRow <> vMouseDownRow) or (FMouseDownCol <> vMouseDownCol) then
+      if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then
       begin
-        if FMouseDownRow >= 0 then
-          FRows[FMouseDownRow][FMouseDownCol].Active := False;
-
         FMouseDownRow := vMouseDownRow;
         FMouseDownCol := vMouseDownCol;
       end;
@@ -3182,6 +3190,11 @@ begin
     Result := OffsetInner;
 end;
 
+function THCTableItem.GetPageBreakCount: Cardinal;
+begin
+  Result := FPageBreaks.Count;
+end;
+
 function THCTableItem.GetCells(const ARow, ACol: Integer): THCTableCell;
 begin
   Result := FRows[ARow][ACol];
@@ -4167,7 +4180,8 @@ var
   vDestRow, vDestCol,  // 合并的目标单元格
   /// <summary> 分页时，此行各列分页位置最大的(相对于表格顶部的高度) </summary>
   vRowBreakSeat,
-  vPageBreakBottom
+  vPageBreakBottom,
+  vCellDataVerTop
     : Integer;
   i, vR, vC, vFixHeight: Integer;
   vCellData: THCTableCellData;
@@ -4243,6 +4257,8 @@ begin
     if ABreakRow <> vDestRow then
       vDestCellDataFmtTop := vDestCellDataFmtTop - SrcCellDataTopDistanceToDest(ABreakRow, vDestRow);
 
+    vCellDataVerTop := FRows[vDestRow][vDestCol].GetCellDataTop(FCellVPaddingPix);
+
     // 判断合并目标内容在当前分页行的分页位置
     for i := 0 to vCellData.DrawItems.Count - 1 do
     begin
@@ -4250,7 +4266,7 @@ begin
       if not vDrawItem.LineFirst then  // 只需要判断列中每行第一个
         Continue;
 
-      if vDestCellDataFmtTop + vDrawItem.Rect.Bottom + FCellVPaddingPix + FBorderWidthPix > APageDataFmtBottom then  // 当前DrawItem底部超过页底部了 20160323002 // 行底部的边框线显示不下时也向下偏移
+      if vDestCellDataFmtTop + vCellDataVerTop + vDrawItem.Rect.Bottom + FBorderWidthPix > APageDataFmtBottom then  // 当前DrawItem底部超过页底部了 20160323002 // 行底部的边框线显示不下时也向下偏移
       begin                                    // |如果FBorderWidth比行高大就不合适
         if i = 0 then  // 第一个DrawItem就放不下，需要整体下移(下移位置由下面判断)
         begin
@@ -4775,7 +4791,10 @@ begin
       vCell.Active := Value;
 
     if not Value then
+    begin
+      DoSelectCellChange(FSelectCellRang.StartRow, FSelectCellRang.StartCol, -1, -1);
       Self.InitializeMouseInfo;
+    end;
 
     inherited SetActive(Value);
   end;

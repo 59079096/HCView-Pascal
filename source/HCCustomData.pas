@@ -839,8 +839,8 @@ begin
   if FSelectInfo.StartItemNo >= 0 then
   begin
     vItem := FItems[FSelectInfo.StartItemNo];
+    vItem.Active := False;
     vItem.DisSelect;
-    vItem.Active := False;  // 方向键移动到EditItem里激活，鼠标再点EditItem时不应该取消激活后面再激活
   end;
 
   Result := SelectExists;
@@ -849,8 +849,8 @@ begin
     for i := FSelectInfo.StartItemNo + 1 to FSelectInfo.EndItemNo do  // 遍历选中的其他Item
     begin
       vItem := FItems[i];
-      vItem.DisSelect;
       vItem.Active := False;
+      vItem.DisSelect;
     end;
     FSelectInfo.EndItemNo := -1;
     FSelectInfo.EndItemOffset := -1;

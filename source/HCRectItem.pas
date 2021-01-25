@@ -55,6 +55,7 @@ type
     function DoSelfUndoNew: THCUndo; virtual;
     procedure DoSelfUndo(const AUndo: THCUndo); virtual;
     procedure DoSelfRedo(const ARedo: THCUndo); virtual;
+    function GetPageBreakCount: Cardinal; virtual;
   public
     /// <summary> 适用于运行期间创建 </summary>
     constructor Create(const AOwnerData: THCCustomData); overload; virtual;
@@ -179,6 +180,7 @@ type
 
     /// <summary> 在当前页显示不下时是否可以分页截断显示 </summary>
     property CanPageBreak: Boolean read FCanPageBreak write FCanPageBreak;
+    property PageBreakCount: Cardinal read GetPageBreakCount;
     property OwnerData: THCCustomData read FOwnerData;
     property MangerUndo: Boolean read FMangerUndo;
   end;
@@ -547,6 +549,11 @@ begin
     Result := OffsetAfter
   else
     Result := OffsetInner;
+end;
+
+function THCCustomRectItem.GetPageBreakCount: Cardinal;
+begin
+  Result := 0;
 end;
 
 function THCCustomRectItem.GetTopLevelData: THCCustomData;

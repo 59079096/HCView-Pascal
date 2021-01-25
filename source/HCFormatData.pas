@@ -1076,6 +1076,8 @@ begin
 end;
 
 function THCFormatData.GetFormatFirstDrawItem(const ADrawItemNo: Integer): Integer;
+var
+  vRectItem: THCCustomRectItem;
 begin
   Result := ADrawItemNo;
   if not DrawItems[Result].ParaFirst then
@@ -1090,6 +1092,13 @@ begin
       else
         Dec(Result);
     end;
+  end;
+
+  if (Result > 0) and (GetDrawItemStyle(Result - 1) < THCStyle.Null) then
+  begin
+    vRectItem := Items[DrawItems[Result - 1].ItemNo] as THCCustomRectItem;
+    if vRectItem.PageBreakCount > 0 then
+      Result := Result - 1;
   end;
 end;
 

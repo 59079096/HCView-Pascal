@@ -865,7 +865,7 @@ end;
 
 procedure THCCustomSection.DisSelect;
 begin
-  FActiveData.GetTopLevelData.DisSelect;
+  FActiveData.DisSelect;
 end;
 
 procedure THCCustomSection.DoActiveDataCheckUpdateInfo;

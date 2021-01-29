@@ -4201,6 +4201,9 @@ var
   vByte: Byte;
   i: Integer;
 begin
+  {$IFDEF USESCRIPT}
+  Self.DisSelect;
+  {$ENDIF}
   FStyle.States.Include(hosSaving);
   try
     _SaveFileFormatAndVersion(AStream);  // 文件格式和版本

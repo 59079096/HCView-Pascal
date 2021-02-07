@@ -235,24 +235,21 @@ var
   vActive: Boolean;
   vDrawAnnotate: THCDrawItemAnnotate;
 begin
-  if Assigned(FOnDrawItemAnnotate) and DrawItemOfAnnotate(ADrawItemNo, ACanvas, AClearRect) then  // 当前DrawItem是某批注中的一部分
+  if not APaintInfo.Print and Assigned(FOnDrawItemAnnotate) and DrawItemOfAnnotate(ADrawItemNo, ACanvas, AClearRect) then
   begin
-    for i := 0 to FDrawItemAnnotates.Count - 1 do  // 此DrawItem所有批注信息
+    for i := 0 to FDrawItemAnnotates.Count - 1 do
     begin
       vDrawAnnotate := FDrawItemAnnotates[i];
 
-      if not APaintInfo.Print then
-      begin
-        vActive := vDrawAnnotate.DataAnnotate.Equals(FHotAnnotate) or
-          vDrawAnnotate.DataAnnotate.Equals(FActiveAnnotate);
+      vActive := vDrawAnnotate.DataAnnotate.Equals(FHotAnnotate) or
+        vDrawAnnotate.DataAnnotate.Equals(FActiveAnnotate);
 
-        if vActive then
-          ACanvas.Brush.Color := AnnotateBKActiveColor
-        else
-          ACanvas.Brush.Color := AnnotateBKColor;
+      if vActive then
+        ACanvas.Brush.Color := AnnotateBKActiveColor
+      else
+        ACanvas.Brush.Color := AnnotateBKColor;
 
-        ACanvas.FillRect(vDrawAnnotate.DrawRect);
-      end;
+      ACanvas.FillRect(vDrawAnnotate.DrawRect);
 
       if vDrawAnnotate.First then  // 是批注头 [
       begin

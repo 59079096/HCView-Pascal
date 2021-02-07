@@ -449,7 +449,8 @@ var
   vRow: THCTableRow;
 begin
   vRow := FRows[ARow];
-  vRow.FmtOffset := 0;  // 恢复上次格式化可能的偏移
+  vRow.FmtOffset := 0;
+  vRow.FormatInit;
   // 格式化各单元格中的Data
   for vC := 0 to vRow.ColCount - 1 do
   begin
@@ -3873,6 +3874,7 @@ procedure THCTableItem.DeleteEmptyRows(const ASRow, AERow: Cardinal);
 var
   vR, vC, i: Integer;
   vEmptyRow: Boolean;
+   vTableCell: THCTableCell;
 begin
   for vR := AERow downto ASRow do
   begin
@@ -3892,8 +3894,9 @@ begin
       begin
         for vC := 0 to FRows[i].ColCount - 1 do
         begin
-          if FRows[i][vC].RowSpan > 0 then
-            FRows[i][vC].RowSpan := FRows[i][vC].RowSpan - 1;
+          vTableCell := FRows[i][vC];
+          if i + vTableCell.RowSpan >= vR then
+            vTableCell.RowSpan := vTableCell.RowSpan - 1;
         end;
       end;
 
@@ -3901,8 +3904,9 @@ begin
       begin
         for vC := 0 to FRows[i].ColCount - 1 do
         begin
-          if FRows[i][vC].RowSpan < 0 then
-            FRows[i][vC].RowSpan := FRows[i][vC].RowSpan + 1;
+          vTableCell := FRows[i][vC];
+          if i + vTableCell.RowSpan < vR then
+            vTableCell.RowSpan := vTableCell.RowSpan + 1;
         end;
       end;
 

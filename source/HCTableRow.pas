@@ -35,9 +35,11 @@ type
       : Integer;
     FAutoHeight: Boolean;  // True根据内容自动匹配合适的高度 False用户拖动后的自定义高度
     procedure SetCapacity(const Value: Integer);
+    function CalcMaxCellHeight: Integer;
     function GetItems(Index: Integer): Pointer;
     procedure SetItems(Index: Integer; const Value: Pointer);
     procedure SetColCount(const Value: Integer);
+    procedure SetHeight(const Value: Integer);
   protected
     function GetCols(const Index: Integer): THCTableCell;
 
@@ -50,9 +52,8 @@ type
     procedure Clear;
     procedure Delete(Index: Integer);
     //
-    //function CalcFormatHeight: Integer;
+    procedure FormatInit;
     procedure SetRowWidth(const AWidth: Integer);
-    procedure SetHeight(const Value: Integer);  // 外部拖动改变行高
 
     procedure ToXml(const ANode: IHCXMLNode);
     procedure ParseXml(const ANode: IHCXMLNode);
@@ -143,23 +144,20 @@ begin
     Cols[i].ToXml(ANode.AddChild('cell'));
 end;
 
-{function THCTableRow.CalcFormatHeight: Integer;
+function THCTableRow.CalcMaxCellHeight: Integer;
 var
-  i, vH: Integer;
+  i: Integer;
 begin
   Result := MinRowHeight;
-  for i := 0 to FColCount - 1 do
+  for i := 0 to FColCount - 1 do  // 找行中最高的单元格
   begin
-    if Cols[i] <> nil then
+    if (Cols[i].CellData <> nil) and (Cols[i].RowSpan = 0) then  // 不是被合并的单元格，不是行合并的行单元格
     begin
-      vH := Cols[i].DrawItems[Cols[i].DrawItems.Count - 1].Rect.Bottom
-        + Cols[i].DrawItems[Cols[i].DrawItems.Count - 1].TopOffset;
-
-      if vH > Result then
-        Result := vH;
+      if Cols[i].CellData.Height > Result then
+        Result := Cols[i].CellData.Height;
     end;
   end;
-end;}
+end;
 
 procedure THCTableRow.Clear;
 begin
@@ -198,6 +196,15 @@ destructor THCTableRow.Destroy;
 begin
   Clear;
   inherited;
+end;
+
+procedure THCTableRow.FormatInit;
+var
+  i: Integer;
+begin
+  FHeight := CalcMaxCellHeight;  // 恢复到行中最高单元格高度，当合并列后，如果造成空行删除，目标单元格高度可能会减少，所以需要恢复供重新计算
+  for i := 0 to FColCount - 1 do
+    Cols[i].Height := FHeight;
 end;
 
 function THCTableRow.GetCols(const Index: Integer): THCTableCell;
@@ -248,16 +255,7 @@ var
 begin
   if FHeight <> Value then
   begin
-    vMaxDataHeight := 0;
-    for i := 0 to FColCount - 1 do  // 找行中最高的单元格
-    begin
-      if (Cols[i].CellData <> nil) and (Cols[i].RowSpan = 0) then  // 不是被合并的单元格，不是行合并的行单元格
-      begin
-        if Cols[i].CellData.Height > vMaxDataHeight then
-          vMaxDataHeight := Cols[i].CellData.Height;
-      end;
-    end;
-
+    vMaxDataHeight := CalcMaxCellHeight;
     if vMaxDataHeight < Value then  // 设置的高度大于最高内容，以设置的为准(这里应该是Data高度+上下FCellVPadding和Value比更准确)
       FHeight := Value
     else

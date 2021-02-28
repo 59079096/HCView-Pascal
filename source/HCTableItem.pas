@@ -106,7 +106,7 @@ type
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
     procedure DoRowRemove(const ARow: THCTableRow);
-    function DowRowGetVPaddingPix: Byte;
+    function DoRowGetVPaddingPix: Byte;
     procedure CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure);
 
     /// <summary> 获取当前表格格式化高度 </summary>
@@ -945,7 +945,7 @@ begin
     Result := inherited DoSelfUndoNew;
 end;
 
-function THCTableItem.DowRowGetVPaddingPix: Byte;
+function THCTableItem.DoRowGetVPaddingPix: Byte;
 begin
   Result := FCellVPaddingPix;
 end;
@@ -1618,7 +1618,7 @@ var
   i: Integer;
   vCellData: THCTableCellData;
 begin
-  ARow.OnGetVPaddingPix := DowRowGetVPaddingPix;
+  ARow.OnGetVPaddingPix := DoRowGetVPaddingPix;
   for i := 0 to ARow.ColCount - 1 do
   begin
     vCellData := ARow[i].CellData;

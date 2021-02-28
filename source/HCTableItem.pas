@@ -106,6 +106,7 @@ type
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
     procedure DoRowRemove(const ARow: THCTableRow);
+    function DowRowGetVPaddingPix: Byte;
     procedure CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure);
 
     /// <summary> 获取当前表格格式化高度 </summary>
@@ -426,8 +427,11 @@ begin
             begin
               if FRows[vR][i].CellData = nil then  // 源列
               begin
+                if FRows[vR][i].ColSpan < 0 then
+                  Continue;
+
                 GetDestCell(vR, i, vDestRow2, vDestCol2);  // 获取目标单元格
-                if (vDestRow2 <> vDestRow) and (vDestCol2 <> vDestCol) then  // 不是当前要处理的目标单元格
+                if (vDestRow2 <> vDestRow) or (vDestCol2 <> vDestCol) then  // 不是当前要处理的目标单元格
                   FRows[vDestRow2][i].Height := FRows[vDestRow2][i].Height + vH;
               end;
             end;
@@ -939,6 +943,11 @@ begin
   end
   else
     Result := inherited DoSelfUndoNew;
+end;
+
+function THCTableItem.DowRowGetVPaddingPix: Byte;
+begin
+  Result := FCellVPaddingPix;
 end;
 
 procedure THCTableItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
@@ -1609,6 +1618,7 @@ var
   i: Integer;
   vCellData: THCTableCellData;
 begin
+  ARow.OnGetVPaddingPix := DowRowGetVPaddingPix;
   for i := 0 to ARow.ColCount - 1 do
   begin
     vCellData := ARow[i].CellData;
@@ -4097,40 +4107,28 @@ end;
 
 function THCTableItem.CellsCanMerge(const AStartRow, AStartCol, AEndRow, AEndCol: Integer): Boolean;
 var
-  vR, vC: Integer;
+  vR, vC, vEndRow, vEndCol, vDestRow, vDestCol, vSrcRow, vSrcCol: Integer;
 begin
   Result := False;
 
-  for vR := AStartRow to AEndRow do
+  GetSourceCell(AEndRow, AEndCol, vEndRow, vEndCol);
+  for vR := AStartRow to vEndRow do
   begin
-    for vC := AStartCol to AEndCol do
+    for vC := AStartCol to vEndCol do
     begin
-      if FRows[vR][vC].CellData <> nil then
+      if not Assigned(FRows[vR][vC].CellData) then
       begin
-        if not FRows[vR][vC].CellData.CellSelectedAll then
+        GetDestCell(vR, vC, vDestRow, vDestCol);
+        GetSourceCell(vDestRow, vDestCol, vSrcRow, vSrcCol);
+        if (vDestRow < AStartRow) or (vSrcRow > vEndRow)
+          or (vDestCol < AStartCol) or (vSrcCol > vEndCol)
+        then
           Exit;
       end;
     end;
   end;
 
   Result := True;
-
-  {GetDestCell(AStartRow, AStartCol, vStartDestRow, vStartDestCol);
-  vCell := FRows[vStartDestRow][vStartDestCol];
-  vStartDestRow := vStartDestRow + vCell.RowSpan;
-  vStartDestCol := vStartDestCol + vCell.ColSpan;
-
-  // 结束单元格的有效范围
-  GetDestCell(AEndRow, AEndCol, vEndDestRow, vEndDestCol);
-  vCell := FRows[vEndDestRow][vEndDestCol];
-  vEndDestRow := vEndDestRow + vCell.RowSpan;
-  vEndDestCol := vEndDestCol + vCell.ColSpan;
-
-  if vStartDestRow = vEndDestRow then
-    Result := vStartDestCol < vEndDestCol
-  else
-  if vStartDestRow < vEndDestRow then
-    Result := vStartDestCol <= vEndDestCol;}
 end;
 
 procedure THCTableItem.CheckFixColSafe(const ACol: Integer);
@@ -5207,12 +5205,7 @@ var
 begin
   Result := False;
   if FSelectCellRang.SelectExists then
-  begin
-    vEndRow := FSelectCellRang.EndRow;
-    vEndCol := FSelectCellRang.EndCol;
-    AdjustCellRange(FSelectCellRang.StartRow, FSelectCellRang.StartCol, vEndRow, vEndCol);
-    Result := CellsCanMerge(FSelectCellRang.StartRow, FSelectCellRang.StartCol, vEndRow, vEndCol);
-  end;
+    Result := CellsCanMerge(FSelectCellRang.StartRow, FSelectCellRang.StartCol, FSelectCellRang.EndRow, FSelectCellRang.EndCol);
 end;
 
 function THCTableItem.ToHtml(const APath: string): string;

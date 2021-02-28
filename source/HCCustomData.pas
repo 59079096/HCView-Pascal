@@ -2792,6 +2792,7 @@ function THCCustomData.SaveToText(const AStartItemNo, AStartOffset, AEndItemNo,
 var
   i: Integer;
   vParaFirstTemp: Boolean;
+  vText: String;
 begin
   Result := '';
   i := AEndItemNo - AStartItemNo + 1;
@@ -2804,7 +2805,7 @@ begin
       if DoSaveItem(AStartItemNo) then // 起始
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
-          Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
+          Result := (FItems[AStartItemNo] as THCTextItem).SubStringEffective(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
         else
         if (FItems[AStartItemNo] as THCCustomRectItem).SelectExists then
           Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText
@@ -2818,10 +2819,15 @@ begin
       begin
         if DoSaveItem(i) then
         begin
-          if vParaFirstTemp or FItems[i].ParaFirst then
-            Result := Result + sLineBreak + FItems[i].Text
+          if FItems[i].StyleNo > THCStyle.Null then
+            vText := (FItems[i] as THCTextItem).TextEffective
           else
-            Result := Result + FItems[i].Text;
+            vText := FItems[i].Text;
+
+          if vParaFirstTemp or FItems[i].ParaFirst then
+            Result := Result + sLineBreak + vText
+          else
+            Result := Result + vText;
 
           if vParaFirstTemp and not FItems[i].ParaFirst then
             vParaFirstTemp := False;  // 已经处理了未存段首的段首属性了
@@ -2837,7 +2843,7 @@ begin
           if vParaFirstTemp or FItems[AEndItemNo].ParaFirst then
             Result := Result + sLineBreak;
 
-          Result := Result + (FItems[AEndItemNo] as THCTextItem).SubString(1, AEndOffset);
+          Result := Result + (FItems[AEndItemNo] as THCTextItem).SubStringEffective(1, AEndOffset);
         end
         else
         begin
@@ -2856,7 +2862,7 @@ begin
       if DoSaveItem(AStartItemNo) then
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
-          Result := (FItems[AStartItemNo] as THCTextItem).SubString(AStartOffset + 1, AEndOffset - AStartOffset)
+          Result := (FItems[AStartItemNo] as THCTextItem).SubStringEffective(AStartOffset + 1, AEndOffset - AStartOffset)
         else
         if (FItems[AStartItemNo] as THCCustomRectItem).SelectExists then
           Result := (FItems[AStartItemNo] as THCCustomRectItem).SaveSelectToText

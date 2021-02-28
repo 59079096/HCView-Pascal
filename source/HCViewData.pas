@@ -1175,6 +1175,7 @@ var
     vText, vConcatText, vOverText: string;
   begin
     Result := False;
+    if not Self.Items[AItemNo].Visible then Exit;
 
     if Self.Items[AItemNo].StyleNo < THCStyle.Null then
     begin
@@ -1235,13 +1236,13 @@ var
             and (Self.Items[vItemNo - 1].StyleNo > THCStyle.Null)
           do
           begin
-            if Self.Items[vItemNo - 1].Length < Length(vKeyword) then
+            if not Self.Items[vItemNo - 1].Visible then
             begin
               Dec(vItemNo);
               Continue;
             end;
 
-            vText := RightStr(Self.Items[vItemNo - 1].Text, Length(vKeyword) - 1);  // 取后面比关键字少一个字符长度的，以便和当前末尾最后一个拼接
+            vText := RightStr((Self.Items[vItemNo - 1] as THCTextItem).TextEffective, Length(vKeyword) - 1);
             vOverText := vOverText + vText;  // 记录拼接了多少个字符
             vConcatText := vText + vConcatText;  // 拼接后的字符
             if not AMatchCase then  // 不区分大小写
@@ -1259,7 +1260,9 @@ var
 
               while vItemNo < AItemNo do  // 减去中间Item的宽度
               begin
-                Self.SelectInfo.EndItemOffset := Self.SelectInfo.EndItemOffset - Self.Items[vItemNo].Length;
+                if Self.Items[vItemNo].Visible then
+                  Self.SelectInfo.EndItemOffset := Self.SelectInfo.EndItemOffset - Length((Self.Items[vItemNo] as THCTextItem).TextEffective);
+
                 Inc(vItemNo);
               end;
 
@@ -1287,7 +1290,7 @@ var
             and (Self.Items[vItemNo + 1].StyleNo > THCStyle.Null)
           do  // 同段后面的TextItem
           begin
-            if Self.Items[vItemNo + 1].Length < Length(vKeyword) then
+            if (not Self.Items[vItemNo + 1].Visible) then
             begin
               Inc(vItemNo);
               Continue;
@@ -1311,7 +1314,9 @@ var
 
               while vItemNo >= AItemNo + 1 do  // 减去中间Item的宽度
               begin
-                Self.SelectInfo.EndItemOffset := Self.SelectInfo.EndItemOffset - Self.Items[vItemNo].Length;
+                if Self.Items[vItemNo].Visible then
+                  Self.SelectInfo.EndItemOffset := Self.SelectInfo.EndItemOffset - Length((Self.Items[vItemNo] as THCTextItem).TextEffective);
+
                 Dec(vItemNo);
               end;
 

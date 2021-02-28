@@ -31,6 +31,8 @@ type
     function GetLength: Integer; override;
   public
     constructor CreateByText(const AText: string); virtual;
+    function TextEffective: string; virtual;
+    function SubStringEffective(const AStartOffs, ALength: Integer): string; virtual;
     procedure Assign(Source: THCCustomItem); override;
     function BreakByOffset(const AOffset: Integer): THCCustomItem; override;
     function CanConcatItems(const AItem: THCCustomItem): Boolean; override;
@@ -123,6 +125,11 @@ begin
   Result := Copy(FText, AStartOffs, ALength);
 end;
 
+function THCTextItem.SubStringEffective(const AStartOffs, ALength: Integer): string;
+begin
+  Result := Self.SubString(AStartOffs, ALength);
+end;
+
 procedure THCTextItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 var
@@ -198,6 +205,11 @@ procedure THCTextItem.SetText(const Value: string);
 begin
   //if Value <> '' then  // 如果判断了，会影响空变为有字符后的撤销时的赋值
   FText := HCDeleteBreak(Value);
+end;
+
+function THCTextItem.TextEffective: string;
+begin
+  Result := Self.GetText;
 end;
 
 function THCTextItem.ToHtml(const APath: string): string;

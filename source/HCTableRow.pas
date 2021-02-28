@@ -24,6 +24,7 @@ const
 type
   PPointerList = ^TPointerList;
   TPointerList = array[0..MaxListSize] of Pointer;
+  TOnGetVPaddingPixEvent = function(): Byte of object;
 
   THCTableRow = class(TObject)
   private
@@ -33,16 +34,18 @@ type
     FHeight,  // 行高，不带上下边框 = 行中单元格最高的(单元格高包括单元格为分页而在某行额外偏移的高度)
     FFmtOffset  // 格式化时的偏移，主要是处理当前行整体下移到下一页时，简化上一页底部的鼠标点击、移动时的计算
       : Integer;
+
     FAutoHeight: Boolean;  // True根据内容自动匹配合适的高度 False用户拖动后的自定义高度
+    FOnGetVPaddingPix: TOnGetVPaddingPixEvent;
     procedure SetCapacity(const Value: Integer);
-    function CalcMaxCellHeight: Integer;
+    function CalcMaxCellDataHeight: Integer;
     function GetItems(Index: Integer): Pointer;
     procedure SetItems(Index: Integer; const Value: Pointer);
     procedure SetColCount(const Value: Integer);
-    procedure SetHeight(const Value: Integer);
+    procedure SetHeight(const Value: Integer);  // 外部拖动改变行高
   protected
     function GetCols(const Index: Integer): THCTableCell;
-
+    function GetVPadding: Byte;
     property Items[Index: Integer]: Pointer read GetItems write SetItems;
   public
     constructor Create(const AStyle: THCStyle; const AColCount: Integer);
@@ -67,9 +70,10 @@ type
     /// <summary> 当前行中所有没有发生合并单元格的高度(含CellVPadding * 2因为会受有合并列的影响，所以>=数据高度) </summary>
     property Height: Integer read FHeight write SetHeight;
     property AutoHeight: Boolean read FAutoHeight write FAutoHeight;
-
     /// <summary>因跨页向下整体偏移的量</summary>
     property FmtOffset: Integer read FFmtOffset write FFmtOffset;
+
+    property OnGetVPaddingPix: TOnGetVPaddingPixEvent read FOnGetVPaddingPix write FOnGetVPaddingPix;
   end;
 
   TRowAddEvent = procedure(const ARow: THCTableRow) of object;
@@ -144,7 +148,7 @@ begin
     Cols[i].ToXml(ANode.AddChild('cell'));
 end;
 
-function THCTableRow.CalcMaxCellHeight: Integer;
+function THCTableRow.CalcMaxCellDataHeight: Integer;
 var
   i: Integer;
 begin
@@ -200,9 +204,15 @@ end;
 
 procedure THCTableRow.FormatInit;
 var
-  i: Integer;
+  i, vHeight: Integer;
 begin
-  FHeight := CalcMaxCellHeight;  // 恢复到行中最高单元格高度，当合并列后，如果造成空行删除，目标单元格高度可能会减少，所以需要恢复供重新计算
+  vHeight := CalcMaxCellDataHeight + GetVPadding + GetVPadding;
+  if FAutoHeight then
+    FHeight := vHeight
+  else
+  if FHeight < vHeight then
+    FHeight := vHeight;
+
   for i := 0 to FColCount - 1 do
     Cols[i].Height := FHeight;
 end;
@@ -211,6 +221,15 @@ function THCTableRow.GetCols(const Index: Integer): THCTableCell;
 begin
   Result := THCTableCell(Items[Index]);
 end;
+
+function THCTableRow.GetVPadding: Byte;
+begin
+  if Assigned(FOnGetVPaddingPix) then
+    Result := FOnGetVPaddingPix
+  else
+    Result := 0;
+end;
+
 
 function THCTableRow.GetItems(Index: Integer): Pointer;
 begin
@@ -251,15 +270,16 @@ end;
 
 procedure THCTableRow.SetHeight(const Value: Integer);
 var
-  i, vMaxDataHeight: Integer;
+  i, vMaxHeight: Integer;
 begin
   if FHeight <> Value then
   begin
-    vMaxDataHeight := CalcMaxCellHeight;
-    if vMaxDataHeight < Value then  // 设置的高度大于最高内容，以设置的为准(这里应该是Data高度+上下FCellVPadding和Value比更准确)
+    vMaxHeight := CalcMaxCellDataHeight + GetVPadding + GetVPadding;
+
+    if vMaxHeight < Value then
       FHeight := Value
     else
-      FHeight := vMaxDataHeight;
+      FHeight := vMaxHeight;
 
     for i := 0 to FColCount - 1 do
       Cols[i].Height := FHeight;

@@ -1732,7 +1732,11 @@ var
           vBeforItem.StyleNo := vStyleNo;
           vBeforItem.Text := vSelText;  // 创建前半部分文本对应的Item
           vBeforItem.ParaFirst := vItem.ParaFirst;
-          vItem.ParaFirst := False;
+          if vItem.ParaFirst then
+          begin
+            UndoAction_ItemParaFirst(AItemNo, 0, False);
+            vItem.ParaFirst := False;
+          end;
 
           Items.Insert(AItemNo, vBeforItem);
           UndoAction_InsertItem(AItemNo, 0);
@@ -4614,8 +4618,10 @@ var
                 if MergeItemText(Items[SelectInfo.StartItemNo - 1], Items[SelectInfo.StartItemNo]) then  // 原RectItem前后能合并
                 begin
                   UndoAction_InsertText(SelectInfo.StartItemNo - 1,
-                    Items[SelectInfo.StartItemNo - 1].Length + 1, Items[SelectInfo.StartItemNo].Text);
+                    Items[SelectInfo.StartItemNo - 1].Length - Items[SelectInfo.StartItemNo].Length + 1,
+                    Items[SelectInfo.StartItemNo].Text);
 
+                  UndoAction_DeleteItem(SelectInfo.StartItemNo, 0);
                   Items.Delete(SelectInfo.StartItemNo);
                   ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo - 2, -2);
                 end

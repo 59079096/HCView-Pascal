@@ -2703,7 +2703,7 @@ begin
   if ATop + vH < 0 then Exit;
 
   vRect := Bounds(ALeft, ATop, Width, vH);
-  if not APaintInfo.Print then
+  //if not APaintInfo.Print then
   begin
     ACanvas.Brush.Color := clBtnFace;
     ACanvas.FillRect(vRect);
@@ -4574,6 +4574,7 @@ begin
     begin
       FSelectCellRang.StartRow := FRows.Count - 1;
       FSelectCellRang.StartCol := FColWidths.Count - 1;
+      FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := True;
 
       vRow := FSelectCellRang.StartRow;
       vCol := FSelectCellRang.StartCol;
@@ -4605,6 +4606,12 @@ begin
             Continue
           else
           begin
+            if (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.StartCol >= 0) then
+              FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := False;
+
+            FSelectCellRang.StartCol := j;
+            FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := True;
+
             with FRows[vRow][j].CellData do
             begin
               SelectInfo.StartItemNo := Items.Count - 1;
@@ -4615,10 +4622,7 @@ begin
           end;
 
           if Result then
-          begin
-            FSelectCellRang.StartCol := j;
             Break;
-          end;
         end;
       end;
 
@@ -4632,6 +4636,13 @@ begin
               Continue
             else
             begin
+              if (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.StartCol >= 0) then
+                FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := False;
+
+              FSelectCellRang.StartRow := i;
+              FSelectCellRang.StartCol := j;
+              FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := True;
+
               with FRows[i][j].CellData do
               begin
                 SelectInfo.StartItemNo := Items.Count - 1;
@@ -4642,17 +4653,11 @@ begin
             end;
 
             if Result then
-            begin
-              FSelectCellRang.StartCol := j;
               Break;
-            end;
           end;
 
           if Result then
-          begin
-            FSelectCellRang.StartRow := i;
             Break;
-          end;
         end;
       end;
     end;
@@ -4663,6 +4668,7 @@ begin
     begin
       FSelectCellRang.StartRow := 0;
       FSelectCellRang.StartCol := 0;
+      FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := True;
 
       // 从头开始
       FRows[0][0].CellData.SelectInfo.StartItemNo := 0;
@@ -4683,6 +4689,12 @@ begin
             Continue
           else
           begin
+            if (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.StartCol >= 0) then
+              FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := False;
+
+            FSelectCellRang.StartCol := j;
+            FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := True;
+
             FRows[vRow][j].CellData.SelectInfo.StartItemNo := 0;
             FRows[vRow][j].CellData.SelectInfo.StartItemOffset := 0;
 
@@ -4690,10 +4702,7 @@ begin
           end;
 
           if Result then
-          begin
-            FSelectCellRang.StartCol := j;
             Break;
-          end;
         end;
       end;
 
@@ -4707,6 +4716,13 @@ begin
               Continue
             else
             begin
+              if (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.StartCol >= 0) then
+                FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := False;
+
+              FSelectCellRang.StartRow := i;
+              FSelectCellRang.StartCol := j;
+              FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := True;
+
               FRows[i][j].CellData.SelectInfo.StartItemNo := 0;
               FRows[i][j].CellData.SelectInfo.StartItemOffset := 0;
 
@@ -4714,24 +4730,23 @@ begin
             end;
 
             if Result then
-            begin
-              FSelectCellRang.StartCol := j;
               Break;
-            end;
           end;
 
           if Result then
-          begin
-            FSelectCellRang.StartRow := i;
             Break;
-          end;
         end;
       end;
     end;
   end;
 
   if not Result then
+  begin
+    if (FSelectCellRang.StartRow >= 0) and (FSelectCellRang.StartCol >= 0) then
+      FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].Active := False;
+
     FSelectCellRang.Initialize;
+  end;
 end;
 
 procedure THCTableItem.SelectAll;

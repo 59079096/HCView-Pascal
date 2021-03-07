@@ -455,6 +455,7 @@ var
           vPropAction := AAction as THCItemPropertyUndoAction;
           if (vPropAction.ItemProperty = TItemProperty.uipParaFirst)  // 段首属性变化
             or (vPropAction.ItemProperty = TItemProperty.uipPageBreak)  // 分页属性变化
+            or (vPropAction.ItemProperty = TItemProperty.uipStyleNo)
           then
           begin
             if Result > 0 then
@@ -469,6 +470,8 @@ var
 
   /// <summary> 根据撤销/恢复的事件类型计算后一个ItemNo是否需要格式化 </summary>
   function GetActionAffectLast(const AAction: THCCustomUndoAction): Integer;
+  var
+    vPropAction: THCItemPropertyUndoAction;
   begin
     Result := AAction.ItemNo;
 
@@ -500,10 +503,57 @@ var
               Dec(Result);
           end;
         end;
+
+      actItemProperty:
+        begin
+          vPropAction := AAction as THCItemPropertyUndoAction;
+          if (vPropAction.ItemProperty = TItemProperty.uipParaFirst)  // 段首属性变化
+            or (vPropAction.ItemProperty = TItemProperty.uipPageBreak)  // 分页属性变化
+            or (vPropAction.ItemProperty = TItemProperty.uipStyleNo)
+          then
+          begin
+            if Result < Items.Count - 1 then
+              Inc(Result);
+          end;
+        end;
     end;
 
     if Result > Items.Count - 1 then
       Result := Items.Count - 1;
+  end;
+
+  procedure CalcAffectRange;
+  var
+    i, vFirstNo, vLastNo, vIncCount: Integer;
+  begin
+    vIncCount := 0;
+    FFormatFirstItemNo := GetActionAffectFirst(AUndo.Actions.First);
+    FFormatLastItemNo := GetActionAffectLast(AUndo.Actions.First);
+    if AUndo.Actions.First.Tag = actInsertItem then
+      Inc(vIncCount);
+
+    for i := 1 to AUndo.Actions.Count - 1 do
+    begin
+      vFirstNo := GetActionAffectFirst(AUndo.Actions[i]);
+      vLastNo := GetActionAffectLast(AUndo.Actions[i]);
+      if AUndo.Actions[i].Tag = actInsertItem then
+        Inc(vIncCount);
+
+      if FFormatFirstItemNo > vFirstNo then
+         FFormatFirstItemNo := vFirstNo;
+
+      if FFormatLastItemNo < vLastNo then
+        FFormatLastItemNo := vLastNo;
+    end;
+
+    if FFormatFirstItemNo < 0 then
+      FFormatFirstItemNo := 0;
+
+    if AUndo.IsUndo then
+      FFormatLastItemNo := FFormatLastItemNo + vIncCount;
+
+    if FFormatLastItemNo > Items.Count - 1 then
+      FFormatLastItemNo := Items.Count - 1;
   end;
 
 var
@@ -661,18 +711,9 @@ begin
     FItemAddCount := 0;
     vCaretDrawItemNo := (AUndo as THCDataUndo).CaretDrawItemNo;
 
-    if AUndo.Actions.First.ItemNo > AUndo.Actions.Last.ItemNo then
-    begin
-      FFormatFirstItemNo := GetParaFirstItemNo(GetActionAffectFirst(AUndo.Actions.Last));
-      FFormatLastItemNo := GetParaLastItemNo(GetActionAffectLast(AUndo.Actions.First));
-    end
-    else
-    begin
-      FFormatFirstItemNo := GetParaFirstItemNo(GetActionAffectFirst(AUndo.Actions.First));
-      FFormatLastItemNo := GetParaLastItemNo(GetActionAffectLast(AUndo.Actions.Last));
-    end;
-
-    FFormatFirstDrawItemNo := Items[FFormatFirstItemNo].FirstDItemNo;
+    CalcAffectRange;
+    FFormatLastItemNo := GetParaLastItemNo(FFormatLastItemNo);
+    FFormatFirstDrawItemNo := GetFormatFirstDrawItem(FFormatFirstItemNo);
     FormatPrepare(FFormatFirstDrawItemNo, FFormatLastItemNo);
   end;
 

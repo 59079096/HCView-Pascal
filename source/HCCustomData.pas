@@ -3202,7 +3202,7 @@ var
 begin
   Result := nil;
   vItem := GetActiveItem;
-  if vItem.StyleNo < THCStyle.Null then
+  if Assigned(vItem) and (vItem.StyleNo < THCStyle.Null) then
     Result := vItem;
 end;
 

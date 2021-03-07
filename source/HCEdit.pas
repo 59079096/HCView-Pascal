@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCViewData,
   HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCRectItem,
-  HCUndo, HCCustomData, HCRichData;
+  HCUndo, HCCustomData, HCRichData, HCEditItem;
 
 const
   HC_EDIT_EXT = '.hef';
@@ -87,6 +87,16 @@ type
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
+    procedure DataSaveLiteStream(const AStream: TStream; const AProc: THCProcedure);
+    procedure DataLoadLiteStream(const AStream: TStream; const AProc: THCLoadProc);
+    /// <summary> 复制前，便于控制是否允许复制 </summary>
+    function DoCopyRequest(const AFormat: Word): Boolean; virtual;
+    /// <summary> 粘贴前，便于控制是否允许粘贴 </summary>
+    function DoPasteRequest(const AFormat: Word): Boolean; virtual;
+    /// <summary> 复制前，便于订制特征数据如内容来源 </summary>
+    procedure DoCopyAsStream(const AStream: TStream); virtual;
+    /// <summary> 粘贴前，便于确认订制特征数据如内容来源 </summary>
+    function DoPasteFromStream(const AStream: TStream): Boolean; virtual;
     // 消息
     /// <summary> 响应Tab键和方向键 </summary>
     procedure WMGetDlgCode(var Message: TWMGetDlgCode); message WM_GETDLGCODE;
@@ -154,6 +164,9 @@ type
     procedure UpdateView;
     procedure BeginUpdate;
     procedure EndUpdate;
+
+    /// <summary> 插入Lite流 </summary>
+    function InsertLiteStream(const AStream: TStream): Boolean;
 
     /// <summary> 当前光标处的文本样式 </summary>
     property CurStyleNo: Integer read GetCurStyleNo;
@@ -272,17 +285,22 @@ begin
   begin
     vStream := TMemoryStream.Create;
     try
-      _SaveFileFormatAndVersion(vStream);  // 保存文件格式和版本
-      //DoCopyDataBefor(vStream);  // 通知保存事件
-      _DeleteUnUsedStyle;  // 保存已使用的样式
-      FStyle.SaveToStream(vStream);
-      FData.GetTopLevelData.SaveSelectToStream(vStream);
-      vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
-      if vMem = 0 then
-        raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
-      vPtr := GlobalLock(vMem);
-      Move(vStream.Memory^, vPtr^, vStream.Size);
-      GlobalUnlock(vMem);
+      DoCopyAsStream(vStream);  // 通知保存事件，便于加特征
+
+      DataSaveLiteStream(vStream, procedure()
+      begin
+        Self.FData.GetTopLevelData.SaveSelectToStream(vStream);
+        vMem := GlobalAlloc(GMEM_MOVEABLE or GMEM_DDESHARE, vStream.Size);
+        try
+          if vMem = 0 then
+            raise Exception.Create(HCS_EXCEPTION_MEMORYLESS);
+
+          vPtr := GlobalLock(vMem);
+          Move(vStream.Memory^, vPtr^, vStream.Size);
+        finally
+          GlobalUnlock(vMem);
+        end;
+      end);
     finally
       vStream.Free;
     end;
@@ -290,7 +308,11 @@ begin
     Clipboard.Clear;
     Clipboard.Open;
     try
-      Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);
+      if DoCopyRequest(HC_FILEFORMAT) then
+        Clipboard.SetAsHandle(HC_FILEFORMAT, vMem);
+
+      if DoCopyRequest(CF_UNICODETEXT) then
+          Clipboard.AsText := FData.SaveSelectToText;  // 文本格式
     finally
       Clipboard.Close;
     end;
@@ -363,6 +385,31 @@ begin
   DoChange;
 end;
 
+procedure THCEdit.DataLoadLiteStream(const AStream: TStream; const AProc: THCLoadProc);
+var
+  vFileFormat: string;
+  vFileVersion: Word;
+  vLang: Byte;
+  vStyle: THCStyle;
+begin
+  _LoadFileFormatAndVersion(AStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
+  vStyle := THCStyle.Create;
+  try
+    vStyle.LoadFromStream(AStream, vFileVersion);
+    AProc(vFileVersion, vStyle);
+  finally
+    FreeAndNil(vStyle);
+  end;
+end;
+
+procedure THCEdit.DataSaveLiteStream(const AStream: TStream; const AProc: THCProcedure);
+begin
+  _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
+  //_DeleteUnUsedStyle;  // 删除不使用的样式
+  FStyle.SaveToStream(AStream);
+  AProc;
+end;
+
 destructor THCEdit.Destroy;
 begin
   FData.Free;
@@ -389,6 +436,27 @@ begin
     FOnChange(Self);
 end;
 
+procedure THCEdit.DoCopyAsStream(const AStream: TStream);
+begin
+end;
+
+function THCEdit.DoCopyRequest(const AFormat: Word): Boolean;
+var
+  vTopItem: THCCustomItem;
+begin
+  vTopItem := FData.GetTopLevelItem;
+  if vTopItem is THCEditItem then
+  begin
+    if (vTopItem as THCEditItem).SelectTextExists then
+    begin
+      Result := (AFormat = CF_TEXT) or (AFormat = CF_UNICODETEXT);
+      Exit;
+    end;
+  end;
+
+  Result := True;
+end;
+
 procedure THCEdit.DoMapChanged;
 begin
   if FUpdateCount = 0 then
@@ -405,6 +473,25 @@ begin
     FVScrollBar.Position := FVScrollBar.Position - WheelDelta div 1
   else
     FHScrollBar.Position := FHScrollBar.Position - WheelDelta div 1;
+
+  Result := True;
+end;
+
+function THCEdit.DoPasteFromStream(const AStream: TStream): Boolean;
+begin
+  Result := True;
+end;
+
+function THCEdit.DoPasteRequest(const AFormat: Word): Boolean;
+var
+  vTopItem: THCCustomItem;
+begin
+  vTopItem := FData.GetTopLevelItem;
+  if vTopItem is THCEditItem then
+  begin
+    Result := (AFormat = CF_TEXT) or (AFormat = CF_UNICODETEXT);
+    Exit;
+  end;
 
   Result := True;
 end;
@@ -591,6 +678,23 @@ begin
     begin
       Result := FData.InsertItem(AIndex, AItem);
     end);
+end;
+
+function THCEdit.InsertLiteStream(const AStream: TStream): Boolean;
+var
+  vResult: Boolean;
+begin
+  Result := False;
+  DataLoadLiteStream(AStream, procedure(const AFileVersion: Word; const AStyle: THCStyle)
+  begin
+    Self.BeginUpdate;
+    try
+      vResult := FData.InsertStream(AStream, AStyle, AFileVersion);
+    finally
+      Self.EndUpdate;
+    end;
+  end);
+  Result := vResult;
 end;
 
 function THCEdit.InsertTable(const ARowCount, AColCount: Integer): Boolean;
@@ -823,10 +927,6 @@ var
   vMem: Cardinal;
   vPtr: Pointer;
   vSize: Integer;
-  viVersion: Word;
-  vFileFormat: string;
-  vLang: Byte;
-  vStyle: THCStyle;
 begin
   if Clipboard.HasFormat(HC_FILEFORMAT) then
   begin
@@ -845,15 +945,8 @@ begin
       end;
       //
       vStream.Position := 0;
-      _LoadFileFormatAndVersion(vStream, vFileFormat, viVersion, vLang);  // 文件格式和版本
-      //DoPasteDataBefor(vStream, viVersion);
-      vStyle := THCStyle.Create;
-      try
-        vStyle.LoadFromStream(vStream, viVersion);
-        FData.InsertStream(vStream, vStyle, viVersion);
-      finally
-        FreeAndNil(vStyle);
-      end;
+      if not DoPasteFromStream(vStream) then Exit;
+        InsertLiteStream(vStream);
     finally
       vStream.Free;
     end;

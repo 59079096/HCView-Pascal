@@ -1433,7 +1433,11 @@ begin
   begin
     vItemNo := SelectInfo.StartItemNo;
     vOffset := SelectInfo.StartItemOffset;
-    ReSetSelectAndCaret(SelectInfo.EndItemNo, SelectInfo.EndItemOffset, not aForward);
+
+    if SelectInfo.EndItemNo >= 0 then
+      ReSetSelectAndCaret(SelectInfo.EndItemNo, SelectInfo.EndItemOffset, not aForward)
+    else
+      ReSetSelectAndCaret(vItemNo, vOffset, not aForward);
 
     SelectInfo.StartItemNo := vItemNo;
     SelectInfo.StartItemOffset := vOffset;

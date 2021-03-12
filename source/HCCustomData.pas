@@ -999,7 +999,7 @@ end;
 
 function THCCustomData.IsEmptyLine(const AItemNo: Integer): Boolean;
 begin
-  Result := (FItems[AItemNo].StyleNo > THCStyle.Null) and (Items[AItemNo].Text = '');
+  Result := (FItems[AItemNo].StyleNo > THCStyle.Null) and (FItems[AItemNo].Text = '');
 end;
 
 procedure THCCustomData.GetDataDrawItemRang(const ATop,
@@ -1947,56 +1947,56 @@ procedure THCCustomData.MatchItemSelectState;
   procedure CheckItemSelectedState(const AItemNo: Integer);
   begin
     if (AItemNo > SelectInfo.StartItemNo) and (AItemNo < SelectInfo.EndItemNo) then  // 在选中范围之间
-      Items[AItemNo].SelectComplate
+      FItems[AItemNo].SelectComplate
     else
     if AItemNo = SelectInfo.StartItemNo then  // 选中起始
     begin
       if AItemNo = SelectInfo.EndItemNo then  // 选中在同一个Item
       begin
-        if Items[AItemNo].StyleNo < THCStyle.Null then  // RectItem
+        if FItems[AItemNo].StyleNo < THCStyle.Null then  // RectItem
         begin
           if (SelectInfo.StartItemOffset = OffsetInner)
             or (SelectInfo.EndItemOffset = OffsetInner)
           then
-            Items[AItemNo].SelectPart
+            FItems[AItemNo].SelectPart
           else
-            Items[AItemNo].SelectComplate;
+            FItems[AItemNo].SelectComplate;
         end
         else  // TextItem
         begin
           if (SelectInfo.StartItemOffset = 0)
-            and (SelectInfo.EndItemOffset = Items[AItemNo].Length)
+            and (SelectInfo.EndItemOffset = FItems[AItemNo].Length)
           then
-            Items[AItemNo].SelectComplate
+            FItems[AItemNo].SelectComplate
           else
-            Items[AItemNo].SelectPart;
+            FItems[AItemNo].SelectPart;
         end;
       end
       else  // 选中在不同的Item，当前是起始
       begin
         if SelectInfo.StartItemOffset = 0 then  // 在起始最前
-          Items[AItemNo].SelectComplate
+          FItems[AItemNo].SelectComplate
         else
         if SelectInfo.StartItemOffset < GetItemOffsetAfter(AItemNo) then  // 不在最后
-          Items[AItemNo].SelectPart;
+          FItems[AItemNo].SelectPart;
       end;
     end
     else  // 选中在不同的Item，当前是结尾 if AItemNo = SelectInfo.EndItemNo) then
     begin
-      if Items[AItemNo].StyleNo < THCStyle.Null then  // RectItem
+      if FItems[AItemNo].StyleNo < THCStyle.Null then  // RectItem
       begin
         if SelectInfo.EndItemOffset = OffsetAfter then
-          Items[AItemNo].SelectComplate
+          FItems[AItemNo].SelectComplate
         else
         if SelectInfo.EndItemOffset > OffsetBefor then  // 不在最前
-          Items[AItemNo].SelectPart;
+          FItems[AItemNo].SelectPart;
       end
       else  // TextItem
       begin
-        if SelectInfo.EndItemOffset = Items[AItemNo].Length then
-          Items[AItemNo].SelectComplate
+        if SelectInfo.EndItemOffset = FItems[AItemNo].Length then
+          FItems[AItemNo].SelectComplate
         else
-          Items[AItemNo].SelectPart;
+          FItems[AItemNo].SelectPart;
       end;
     end;
   end;
@@ -2063,14 +2063,14 @@ end;
 
 function THCCustomData.MergeItemToNext(const AItemNo: Integer): Boolean;
 begin
-  Result := (AItemNo < Items.Count - 1) and (not Items[AItemNo + 1].ParaFirst)
-    and MergeItemText(Items[AItemNo], Items[AItemNo + 1]);
+  Result := (AItemNo < FItems.Count - 1) and (not FItems[AItemNo + 1].ParaFirst)
+    and MergeItemText(FItems[AItemNo], FItems[AItemNo + 1]);
 end;
 
 function THCCustomData.MergeItemToPrio(const AItemNo: Integer): Boolean;
 begin
-  Result := (AItemNo > 0) and (not Items[AItemNo].ParaFirst)
-    and MergeItemText(Items[AItemNo - 1], Items[AItemNo]);
+  Result := (AItemNo > 0) and (not FItems[AItemNo].ParaFirst)
+    and MergeItemText(FItems[AItemNo - 1], FItems[AItemNo]);
 end;
 
 function THCCustomData.OffsetInSelect(const AItemNo, AOffset: Integer): Boolean;
@@ -2296,7 +2296,7 @@ begin
       vDrawRect := vDrawItem.Rect;
       OffsetRect(vDrawRect, ADataDrawLeft, vVOffset);  // 偏移到指定的画布绘制位置(SectionData时为页数据在格式化中可显示起始位置)
 
-      if FDrawItems[i].LineFirst then
+      if vDrawItem.LineFirst then
         vLineSpace := GetLineBlankSpace(i);
 
       vClearRect := vDrawRect;
@@ -2519,7 +2519,7 @@ begin
     FItems.Add(vItem);
   end;
 
-  if Items[0].Length = 0 then  // 删除Clear后默认的第一个空行Item
+  if FItems[0].Length = 0 then  // 删除Clear后默认的第一个空行Item
     FItems.Delete(0);
 end;
 
@@ -2802,7 +2802,7 @@ begin
     begin
       vParaFirstTemp := False;
 
-      if DoSaveItem(AStartItemNo) then // 起始
+      if FItems[AStartItemNo].Visible and DoSaveItem(AStartItemNo) then // 起始
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
           Result := (FItems[AStartItemNo] as THCTextItem).SubStringEffective(AStartOffset + 1, FItems[AStartItemNo].Length - AStartOffset)
@@ -2817,7 +2817,7 @@ begin
 
       for i := AStartItemNo + 1 to AEndItemNo - 1 do  // 中间
       begin
-        if DoSaveItem(i) then
+        if FItems[i].Visible and DoSaveItem(i) then
         begin
           if FItems[i].StyleNo > THCStyle.Null then
             vText := (FItems[i] as THCTextItem).TextEffective
@@ -2836,7 +2836,7 @@ begin
           vParaFirstTemp := vParaFirstTemp or FItems[i].ParaFirst;
       end;
 
-      if DoSaveItem(AEndItemNo) then  // 结尾
+      if FItems[AEndItemNo].Visible and DoSaveItem(AEndItemNo) then  // 结尾
       begin
         if FItems[AEndItemNo].StyleNo > THCStyle.Null then
         begin
@@ -2859,7 +2859,7 @@ begin
     end
     else  // 选中在同一Item
     begin
-      if DoSaveItem(AStartItemNo) then
+      if FItems[AStartItemNo].Visible and DoSaveItem(AStartItemNo) then
       begin
         if FItems[AStartItemNo].StyleNo > THCStyle.Null then
           Result := (FItems[AStartItemNo] as THCTextItem).SubStringEffective(AStartOffset + 1, AEndOffset - AStartOffset)
@@ -3073,16 +3073,20 @@ var
   i: Integer;
 begin
   Result := '';
-  for i := 0 to Items.Count - 1 do
+  for i := 0 to FItems.Count - 1 do
   begin
-    if Items[i].ParaFirst then
+    if not FItems[i].Visible then
+      Continue;
+
+    if FItems[i].ParaFirst then
     begin
       if i <> 0 then
         Result := Result + sLineBreak + '</p>';
-      Result := Result + sLineBreak + '<p class="ps' + IntToStr(Items[i].ParaNo) + '">';
+
+      Result := Result + sLineBreak + '<p class="ps' + IntToStr(FItems[i].ParaNo) + '">';
     end;
 
-    Result := Result + sLineBreak + Items[i].ToHtml(APath);
+    Result := Result + sLineBreak + FItems[i].ToHtml(APath);
   end;
 
   Result := Result + sLineBreak + '</p>';
@@ -3257,17 +3261,17 @@ begin
     begin
       if (not FItems[AItemNo].ParaFirst)
         and (AItemNo > 0)
-        and (Items[AItemNo - 1].StyleNo > THCStyle.Null)
+        and (FItems[AItemNo - 1].StyleNo > THCStyle.Null)
       then  // 前一个是TextItem
         vStyleItemNo := AItemNo - 1;
     end;
 
-    if (Items[vStyleItemNo] is THCTextRectItem) and (FSelectInfo.StartItemOffset = OffsetInner) then
-      Self.CurStyleNo := (Items[vStyleItemNo] as THCTextRectItem).TextStyleNo
+    if (FItems[vStyleItemNo] is THCTextRectItem) and (FSelectInfo.StartItemOffset = OffsetInner) then
+      Self.CurStyleNo := (FItems[vStyleItemNo] as THCTextRectItem).TextStyleNo
     else
-      Self.CurStyleNo := Items[vStyleItemNo].StyleNo;
+      Self.CurStyleNo := FItems[vStyleItemNo].StyleNo;
 
-    Self.CurParaNo := Items[vStyleItemNo].ParaNo;
+    Self.CurParaNo := FItems[vStyleItemNo].ParaNo;
   end;
 
   if FItems[AItemNo].StyleNo < THCStyle.Null then  // RectItem

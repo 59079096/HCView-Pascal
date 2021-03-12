@@ -223,7 +223,7 @@ begin
   if FHyperLink <> '' then
     ANode.Attributes['link'] := FHyperLink;
 
-  ANode.Text := Text;
+  ANode.Text := FText;
 end;
 
 end.

@@ -42,6 +42,7 @@ type
       FBatchCount: Byte;
 
     FColumnAlign: Boolean;  // ÁÐ¶ÔÆë
+    FOnSetItemChecked: TNotifyEvent;
     procedure ReLayout;
     function GetItemAt(const X, Y: Integer): Integer;
     procedure SetColumns(const Value: Byte);
@@ -68,7 +69,7 @@ type
     procedure EndAdd;
     procedure AddItem(const AText: string; const ATextValue: string = '';
       const AChecked: Boolean = False);
-
+    procedure SetAllChecked(const AChecked: Boolean);
     procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -81,6 +82,7 @@ type
     property Columns: Byte read FColumns write SetColumns;
     property ColumnAlign: Boolean read FColumnAlign write SetColumnAlign;
     property Items: TObjectList<THCRadioButton> read FItems;
+    property OnSetItemChecked: TNotifyEvent read FOnSetItemChecked write FOnSetItemChecked;
   end;
 
 implementation
@@ -304,6 +306,9 @@ procedure THCRadioGroup.DoSetItemChecked(const AIndex: Integer; const Value: Boo
 begin
   FItems[AIndex].Checked := Value;
   Self.DoChange;
+
+  if Assigned(FOnSetItemChecked) then
+    FOnSetItemChecked(Self);
 end;
 
 procedure THCRadioGroup.EndAdd;
@@ -315,8 +320,7 @@ begin
     ReLayout;
 end;
 
-procedure THCRadioGroup.FormatToDrawItem(const ARichData: THCCustomData;
-  const AItemNo: Integer);
+procedure THCRadioGroup.FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer);
 begin
   if Width < FMinWidth then
     Width := FMinWidth;
@@ -464,8 +468,7 @@ begin
   end;
 end;
 
-function THCRadioGroup.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
-  Y: Integer): Boolean;
+function THCRadioGroup.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer): Boolean;
 var
   vIndex: Integer;
 begin
@@ -698,6 +701,16 @@ begin
     AStream.WriteBuffer(FItems[i].Checked, SizeOf(Boolean));
 
   AStream.WriteBuffer(FRadiostyle, SizeOf(FRadioStyle));
+end;
+
+procedure THCRadioGroup.SetAllChecked(const AChecked: Boolean);
+var
+  i: Integer;
+begin
+  for i := 0 to FItems.Count - 1 do
+    FItems[i].Checked := AChecked;
+
+  Self.DoChange;
 end;
 
 procedure THCRadioGroup.SetColumnAlign(const Value: Boolean);

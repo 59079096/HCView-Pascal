@@ -285,6 +285,8 @@ type
     /// <returns></returns>
     function OffsetInSelect(const AItemNo, AOffset: Integer): Boolean;
 
+    procedure CoordToDrawItem(const X, Y, ADrawItemNo: Integer; var AX, AY: Integer);
+
     /// <summary> 获取Data中的坐标X、Y处的Item和Offset，并返回X、Y相对DrawItem的坐标 </summary>
     /// <param name="X"></param>
     /// <param name="Y"></param>
@@ -725,33 +727,46 @@ begin
     Result := OffsetInSelect(AItemNo, AOffset);  // 对应的AOffset在选中内容中
 end;
 
-procedure THCCustomData.CoordToItemOffset(const X, Y, AItemNo,
-  AOffset: Integer; var AX, AY: Integer);
+procedure THCCustomData.CoordToDrawItem(const X, Y, ADrawItemNo: Integer; var AX, AY: Integer);
 var
-  vDrawItemNo: Integer;
   vDrawRect: TRect;
+  vRectItem: THCCustomRectItem;
 begin
   AX := X;
   AY := Y;
-  if AItemNo < 0 then Exit;
+  //if ADrawItemNo < 0 then Exit;
 
-  vDrawItemNo := GetDrawItemNoByOffset(AItemNo, AOffset);
-  vDrawRect := FDrawItems[vDrawItemNo].Rect;
-
-  InflateRect(vDrawRect, 0, -GetLineBlankSpace(vDrawItemNo) div 2);
+  vDrawRect := FDrawItems[ADrawItemNo].Rect;
+  InflateRect(vDrawRect, 0, -GetLineBlankSpace(ADrawItemNo) div 2);
 
   AX := AX - vDrawRect.Left;
   AY := AY - vDrawRect.Top;
-  if FItems[AItemNo].StyleNo < THCStyle.Null then
+  if FItems[FDrawItems[ADrawItemNo].ItemNo].StyleNo < THCStyle.Null then
   begin
-    case FStyle.ParaStyles[FItems[AItemNo].ParaNo].AlignVert of  // 垂直对齐方式
-      pavCenter: AY := AY - (vDrawRect.Height - (FItems[AItemNo] as THCCustomRectItem).Height) div 2;
+    vRectItem := FItems[FDrawItems[ADrawItemNo].ItemNo] as THCCustomRectItem;
+    case FStyle.ParaStyles[vRectItem.ParaNo].AlignVert of  // 垂直对齐方式
+      pavCenter: AY := AY - (vDrawRect.Height - vRectItem.Height) div 2;
 
       pavTop: ;
     else
-      AY := AY - (vDrawRect.Height - (FItems[AItemNo] as THCCustomRectItem).Height);
+      AY := AY - (vDrawRect.Height - vRectItem.Height);
     end;
   end;
+end;
+
+procedure THCCustomData.CoordToItemOffset(const X, Y, AItemNo, AOffset: Integer; var AX, AY: Integer);
+var
+  vDrawItemNo: Integer;
+begin
+  if AItemNo < 0 then
+  begin
+    AX := X;
+    AY := Y;
+    Exit;
+  end;
+
+  vDrawItemNo := GetDrawItemNoByOffset(AItemNo, AOffset);
+  CoordToDrawItem(X, Y, vDrawItemNo, AX, AY);
 end;
 
 constructor THCCustomData.Create(const AStyle: THCStyle);
@@ -1818,7 +1833,7 @@ var
 begin
   Result := nil;
   vItem := GetActiveItem;
-  if vItem.StyleNo < THCStyle.Null then
+  if Assigned(vItem) and (vItem.StyleNo < THCStyle.Null) then
     Result := (vItem as THCCustomRectItem).GetTopLevelDrawItem;
 
   if Result = nil then
@@ -1838,7 +1853,7 @@ var
 begin
   Result := nil;
   vItem := GetActiveItem;
-  if vItem.StyleNo < THCStyle.Null then
+  if Assigned(vItem) and (vItem.StyleNo < THCStyle.Null) then
   begin
     Result := (vItem as THCCustomRectItem).GetTopLevelRectDrawItem;
     if not Assigned(Result) then
@@ -3130,7 +3145,7 @@ begin
     Result := vDrawItem.Rect.TopLeft;
 
     vItem := GetActiveItem;
-    if vItem.StyleNo < THCStyle.Null then
+    if Assigned(vItem) and (vItem.StyleNo < THCStyle.Null) then
     begin
       vPt := (vItem as THCCustomRectItem).GetTopLevelDrawItemCoord;
       vPt.Y := vPt.Y + FStyle.LineSpaceMin div 2;

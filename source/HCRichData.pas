@@ -5842,7 +5842,7 @@ procedure THCRichData.MouseMove(Shift: TShiftState; X, Y: Integer);
     vX, vY: Integer;
   begin
     if AItemNo < 0 then Exit;
-    CoordToItemOffset(X, Y, AItemNo, AOffset, vX, vY);
+    CoordToDrawItem(X, Y, FMouseMoveDrawItemNo, vX, vY);
     if ADrawItemMouseMove then  // 先自己层面触发再由下面的MouseMove内部触发，保证是鼠标处最内部
       DoDrawItemMouseMove(Self, AItemNo, AOffset, FMouseMoveDrawItemNo, TMouseButton.mbLeft, Shift, vX, vY);
 

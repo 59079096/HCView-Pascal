@@ -201,14 +201,14 @@ type
     /// <summary> 在光标处插入直线 </summary>
     function InsertLine(const ALineHeight: Integer): Boolean;
     function SetActiveImage(const AImageStream: TStream): Boolean;
-    function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
-    function TableInsertRowAfter(const ARowCount: Byte): Boolean;
-    function TableInsertRowBefor(const ARowCount: Byte): Boolean;
+    function ActiveTableResetRowCol(const ARowCount, AColCount: Integer): Boolean;
+    function TableInsertRowAfter(const ARowCount: Integer): Boolean;
+    function TableInsertRowBefor(const ARowCount: Integer): Boolean;
     function ActiveTableDeleteCurRow: Boolean;
     function ActiveTableSplitCurRow: Boolean;
     function ActiveTableSplitCurCol: Boolean;
-    function TableInsertColAfter(const AColCount: Byte): Boolean;
-    function TableInsertColBefor(const AColCount: Byte): Boolean;
+    function TableInsertColAfter(const AColCount: Integer): Boolean;
+    function TableInsertColBefor(const AColCount: Integer): Boolean;
     function ActiveTableDeleteCurCol: Boolean;
     function MergeTableSelectCells: Boolean;
     function TableApplyContentAlign(const AAlign: THCContentAlign): Boolean;
@@ -1078,7 +1078,7 @@ begin
     end);
 end;
 
-function THCRichData.ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
+function THCRichData.ActiveTableResetRowCol(const ARowCount, AColCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 
@@ -2318,7 +2318,7 @@ begin
     end);
 end;
 
-function THCRichData.TableInsertColAfter(const AColCount: Byte): Boolean;
+function THCRichData.TableInsertColAfter(const AColCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 
@@ -2328,7 +2328,7 @@ begin
     end);
 end;
 
-function THCRichData.TableInsertColBefor(const AColCount: Byte): Boolean;
+function THCRichData.TableInsertColBefor(const AColCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 
@@ -2377,7 +2377,7 @@ begin
   FSelectSeekOffset := SelectInfo.StartItemOffset;
 end;
 
-function THCRichData.TableInsertRowAfter(const ARowCount: Byte): Boolean;
+function THCRichData.TableInsertRowAfter(const ARowCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 
@@ -2387,7 +2387,7 @@ begin
     end);
 end;
 
-function THCRichData.TableInsertRowBefor(const ARowCount: Byte): Boolean;
+function THCRichData.TableInsertRowBefor(const ARowCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 

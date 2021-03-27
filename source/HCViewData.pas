@@ -477,7 +477,7 @@ procedure THCViewData.DoDrawItemPaintAfter(const AData: THCCustomData;
   function SelectOffsetAfter_: Boolean;
   begin
     Result := Items[AItemNo].IsSelectComplate;
-    if (not Result) and (SelectInfo.EndItemNo >= 0) then  // 看看是不是选中的边界
+    if (not Result) and (Items[AItemNo].StyleNo > THCStyle.Null) and (SelectInfo.EndItemNo >= 0) then  // 看看是不是选中的边界
     begin
       if AItemNo = SelectInfo.EndItemNo then
       begin

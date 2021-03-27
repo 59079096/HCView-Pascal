@@ -444,13 +444,13 @@ type
     function SetActiveImage(const AImageStream: TStream): Boolean;
 
     /// <summary> 当前表格重设为指定的行列数 </summary>
-    function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
+    function ActiveTableResetRowCol(const ARowCount, AColCount: Integer): Boolean;
 
     /// <summary> 当前表格选中行下面插入行 </summary>
-    function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
+    function ActiveTableInsertRowAfter(const ARowCount: Integer): Boolean;
 
     /// <summary> 当前表格选中行上面插入行 </summary>
-    function ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
+    function ActiveTableInsertRowBefor(const ARowCount: Integer): Boolean;
 
     /// <summary> 当前表格删除选中的行 </summary>
     function ActiveTableDeleteCurRow: Boolean;
@@ -462,10 +462,10 @@ type
     function ActiveTableSplitCurCol: Boolean;
 
     /// <summary> 当前表格选中列左侧插入列 </summary>
-    function ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
+    function ActiveTableInsertColBefor(const AColCount: Integer): Boolean;
 
     /// <summary> 当前表格选中列右侧插入列 </summary>
-    function ActiveTableInsertColAfter(const AColCount: Byte): Boolean;
+    function ActiveTableInsertColAfter(const AColCount: Integer): Boolean;
 
     /// <summary> 当前表格删除选中的列 </summary>
     function ActiveTableDeleteCurCol: Boolean;
@@ -824,7 +824,7 @@ type
     property OnSectionCreateItem: TNotifyEvent read FOnSectionCreateItem write FOnSectionCreateItem;
 
     /// <summary> 节有新的Item插入时触发 </summary>
-    property OnSectionItemInsert: TSectionDataItemEvent read FOnSectionInsertItem write FOnSectionInsertItem;
+    property OnSectionInsertItem: TSectionDataItemEvent read FOnSectionInsertItem write FOnSectionInsertItem;
 
     /// <summary> 节有新的Item删除时触发 </summary>
     property OnSectionRemoveItem: TSectionDataItemEvent read FOnSectionRemoveItem write FOnSectionRemoveItem;
@@ -2423,27 +2423,27 @@ begin
   Result := ActiveSection.ActiveTableDeleteCurRow;
 end;
 
-function THCView.ActiveTableInsertColAfter(const AColCount: Byte): Boolean;
+function THCView.ActiveTableInsertColAfter(const AColCount: Integer): Boolean;
 begin
   Result := ActiveSection.ActiveTableInsertColAfter(AColCount);
 end;
 
-function THCView.ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
+function THCView.ActiveTableInsertColBefor(const AColCount: Integer): Boolean;
 begin
   Result := ActiveSection.ActiveTableInsertColBefor(AColCount);
 end;
 
-function THCView.ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
+function THCView.ActiveTableInsertRowAfter(const ARowCount: Integer): Boolean;
 begin
   Result := ActiveSection.ActiveTableInsertRowAfter(ARowCount);
 end;
 
-function THCView.ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
+function THCView.ActiveTableInsertRowBefor(const ARowCount: Integer): Boolean;
 begin
   Result := ActiveSection.ActiveTableInsertRowBefor(ARowCount);
 end;
 
-function THCView.ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
+function THCView.ActiveTableResetRowCol(const ARowCount, AColCount: Integer): Boolean;
 begin
   Result := ActiveSection.ActiveTableResetRowCol(ARowCount, AColCount);
 end;

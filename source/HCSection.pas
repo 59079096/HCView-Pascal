@@ -297,14 +297,14 @@ type
 
     function SetActiveImage(const AImageStream: TStream): Boolean;
     //
-    function ActiveTableResetRowCol(const ARowCount, AColCount: Byte): Boolean;
-    function ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
-    function ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
+    function ActiveTableResetRowCol(const ARowCount, AColCount: Integer): Boolean;
+    function ActiveTableInsertRowAfter(const ARowCount: Integer): Boolean;
+    function ActiveTableInsertRowBefor(const ARowCount: Integer): Boolean;
     function ActiveTableDeleteCurRow: Boolean;
     function ActiveTableSplitCurRow: Boolean;
     function ActiveTableSplitCurCol: Boolean;
-    function ActiveTableInsertColAfter(const AColCount: Byte): Boolean;
-    function ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
+    function ActiveTableInsertColAfter(const AColCount: Integer): Boolean;
+    function ActiveTableInsertColBefor(const AColCount: Integer): Boolean;
     function ActiveTableDeleteCurCol: Boolean;
     //
     //// <summary> 节坐标转换到指定页坐标 </summary>
@@ -556,7 +556,7 @@ begin
     end);
 end;
 
-function THCCustomSection.ActiveTableInsertColAfter(const AColCount: Byte): Boolean;
+function THCCustomSection.ActiveTableInsertColAfter(const AColCount: Integer): Boolean;
 begin
   Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
@@ -564,7 +564,7 @@ begin
     end);
 end;
 
-function THCCustomSection.ActiveTableInsertColBefor(const AColCount: Byte): Boolean;
+function THCCustomSection.ActiveTableInsertColBefor(const AColCount: Integer): Boolean;
 begin
   Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
@@ -572,7 +572,7 @@ begin
     end);
 end;
 
-function THCCustomSection.ActiveTableInsertRowAfter(const ARowCount: Byte): Boolean;
+function THCCustomSection.ActiveTableInsertRowAfter(const ARowCount: Integer): Boolean;
 begin
   Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
@@ -580,7 +580,7 @@ begin
     end);
 end;
 
-function THCCustomSection.ActiveTableInsertRowBefor(const ARowCount: Byte): Boolean;
+function THCCustomSection.ActiveTableInsertRowBefor(const ARowCount: Integer): Boolean;
 begin
   Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin
@@ -589,7 +589,7 @@ begin
 end;
 
 function THCCustomSection.ActiveTableResetRowCol(const ARowCount,
-  AColCount: Byte): Boolean;
+  AColCount: Integer): Boolean;
 begin
   Result := DoSectionDataAction(FActiveData, function(): Boolean
     begin

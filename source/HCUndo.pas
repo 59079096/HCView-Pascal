@@ -440,15 +440,22 @@ procedure THCUndoList.UndoGroupEnd(const AItemNo, AOffset: Integer);
 var
   vUndoGroupEnd: THCUndoGroupEnd;
 begin
-  if Assigned(FOnUndoGroupEnd) then
-    vUndoGroupEnd := FOnUndoGroupEnd(AItemNo, AOffset)
+  if not (Self.Last is THCUndoGroupBegin) then  // 减少没有任何动作的撤销
+  begin
+    if Assigned(FOnUndoGroupEnd) then
+      vUndoGroupEnd := FOnUndoGroupEnd(AItemNo, AOffset)
+    else
+      vUndoGroupEnd := THCUndoGroupEnd.Create;
+
+    vUndoGroupEnd.ItemNo := AItemNo;
+    vUndoGroupEnd.Offset := AOffset;
+
+    DoNewUndo(vUndoGroupEnd);
+  end
   else
-    vUndoGroupEnd := THCUndoGroupEnd.Create;
+  if Self.Last is THCUndoGroupBegin then
+    Self.Delete(Self.Count - 1);
 
-  vUndoGroupEnd.ItemNo := AItemNo;
-  vUndoGroupEnd.Offset := AOffset;
-
-  DoNewUndo(vUndoGroupEnd);
   FGroupWorking := False;
 end;
 

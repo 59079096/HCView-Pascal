@@ -4345,11 +4345,12 @@ begin
     vPaintInfo := TSectionPaintInfo.Create;
     try
       vPaintInfo.Print := True;
+      vPaintInfo.DPI := vPDF.ScreenLogPixels;
 
       for i := 0 to FSections.Count - 1 do
       begin
         vPaintInfo.SectionIndex := i;
-        vPaintInfo.Zoom := vPDF.ScreenLogPixels / vDPI;
+        vPaintInfo.Zoom := 1;
         vPaintInfo.ScaleX := vPaintInfo.Zoom;
         vPaintInfo.ScaleY := vPaintInfo.Zoom;
 

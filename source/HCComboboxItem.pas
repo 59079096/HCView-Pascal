@@ -170,7 +170,6 @@ begin
     ACanvas.FillRect(FButtonDrawRect);
   end
   else  // 打印
-  if Self.PrintOnlyText then  // 只打印文本，不打按钮
     Exit;
 
   ACanvas.Pen.Color := clBlack;

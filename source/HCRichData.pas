@@ -2057,6 +2057,7 @@ begin
   Result := False;
 
   if not CanEdit then Exit;
+  if not DeleteSelected then Exit;
 
   //-------- 在指定的Index处插入Item --------//
 
@@ -2439,6 +2440,7 @@ begin
   if vDataSize = 0 then Exit;
 
   if not CanEdit then Exit;
+  if not DeleteSelected then Exit;
   if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actInsertItem) then Exit;  // TextItem此偏移位置不可接受输入
   if not SelectPerfect then Exit;
 
@@ -5747,6 +5749,7 @@ begin
   FDraging := False;  // 准备拖拽
   FMouseLBDouble := False;
   FMouseDownReCaret := False;
+  vMouseDownInSelect := False;
   //FSelectSeekOffset := -1;
 
   FMouseLBDowning := (Button = mbLeft) and (Shift = [ssLeft]);
@@ -5798,6 +5801,7 @@ begin
       or (CaretDrawItemNo <> vDrawItemNo)
     then  // 位置发生变化
     begin
+      Style.UpdateInfoRePaint;
       Style.UpdateInfoReCaret;
       FMouseDownReCaret := True;
 
@@ -6032,7 +6036,6 @@ var
 
 var
   i, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
-  //vMouseUpInSelect: Boolean;
 begin
   //if not FMouseLBDowning then Exit;  // 屏蔽OpenDialog对话框双击引起的弹起
   FMouseLBDowning := False;

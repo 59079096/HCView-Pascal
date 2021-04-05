@@ -148,6 +148,7 @@ procedure THCImageItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
   FImage.Assign((Source as THCImageItem).Image);
+  FEmpty := (Source as THCImageItem).Empty;
 end;
 
 procedure THCImageItem.Clear;

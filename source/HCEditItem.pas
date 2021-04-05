@@ -208,7 +208,7 @@ begin
 
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
 
-  if not Self.AutoSize then
+  if (not Self.AutoSize) and (not APaintInfo.Print) then
     ACanvas.TextRect(ADrawRect, ADrawRect.Left + FPaddingLeft - FLeftOffset, ADrawRect.Top + FPaddingTop, FText)
   else
     ACanvas.TextOut(ADrawRect.Left + FPaddingLeft, ADrawRect.Top + FPaddingTop, FText);
@@ -217,7 +217,7 @@ begin
 
   if FBorderSides <> [] then // 非打印
   begin
-    if FMouseIn or Active then  // 鼠标在其中
+    if (not APaintInfo.Print) and (FMouseIn or Active) then
       ACanvas.Pen.Color := clBlue
     else  // 鼠标不在其中或打印
       ACanvas.Pen.Color := clBlack;

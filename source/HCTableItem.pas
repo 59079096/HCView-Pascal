@@ -2444,8 +2444,9 @@ begin
       if vCellPt.Y <> 0 then
       begin
         Undo_RowResize(FMouseDownRow, FRows[FMouseDownRow].Height, FRows[FMouseDownRow].Height + vCellPt.Y);
-        FRows[FMouseDownRow].Height := FRows[FMouseDownRow].Height + vCellPt.Y;
-        FRows[FMouseDownRow].AutoHeight := False;
+        vCellPt.Y := FRows[FMouseDownRow].Height + vCellPt.Y;  // new height
+        FRows[FMouseDownRow].Height := vCellPt.Y;
+        FRows[FMouseDownRow].AutoHeight := vCellPt.Y <> FRows[FMouseDownRow].Height;  // 和要设置的不同就认为是自动行高了
       end;
     end;
 
@@ -3014,7 +3015,7 @@ end;
 function THCTableItem.ResetRowCol(const AWidth, ARowCount, AColCount: Integer): Boolean;
 var
   i, vDataWidth: Integer;
-  vRowHeight: Integer;
+  vFirstRowHeight: Integer;
   vRow: THCTableRow;
 begin
   Result := False;
@@ -3028,12 +3029,12 @@ begin
   FSelectCellRang.Initialize;
 
   Self.Width := AWidth;
-  vRowHeight := FDefaultRowHeight;
+  vFirstRowHeight := -1;
   {$IFDEF RESETTABLEUSEFIRSTROWHEIGHT}
   if FRows.Count > 0 then
-    vRowHeight := FRows[0].Height;
+    vFirstRowHeight := FRows[0].Height;
   {$ENDIF}
-  Height := ARowCount * (vRowHeight + FBorderWidthPix) + FBorderWidthPix;
+  Height := ARowCount * (FDefaultRowHeight + FBorderWidthPix) + FBorderWidthPix;
   vDataWidth := AWidth - (AColCount + 1) * FBorderWidthPix;
 
   FRows.Clear;
@@ -3042,11 +3043,15 @@ begin
     vRow := THCTableRow.Create(OwnerData.Style, AColCount);
     vRow.SetRowWidth(vDataWidth);
     if i = 0 then
+    begin
       FDefaultRowHeight := vRow.Cols[0].CellData.Height + FCellVPaddingPix + FCellVPaddingPix;
+      if vFirstRowHeight < 0 then
+        vFirstRowHeight := FDefaultRowHeight;
+    end;
 
     {$IFDEF RESETTABLEUSEFIRSTROWHEIGHT}
-    vRow.Height := vRowHeight;
-    if vRowHeight <> FDefaultRowHeight then
+    vRow.Height := vFirstRowHeight;
+    if vFirstRowHeight <> FDefaultRowHeight then
       vRow.AutoHeight := False;
     {$ENDIF}
 

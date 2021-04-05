@@ -340,6 +340,11 @@ begin
   else
     FFormatVersion := 1;
 
+  if AFileVersion > 49 then
+    AStream.ReadBuffer(FLineSpaceMin, SizeOf(FLineSpaceMin))
+  else
+    FLineSpaceMin := 8;
+
   LoadParaStyles;
   LoadTextStyles;
 end;
@@ -358,7 +363,14 @@ var
   i, j: Integer;
 begin
   if ANode.HasAttribute('fmtver') then
-    FFormatVersion := ANode.Attributes['fmtver'];
+    FFormatVersion := ANode.Attributes['fmtver']
+  else
+    FFormatVersion := 1;
+
+  if ANode.HasAttribute('linespacemin') then
+    FLineSpaceMin := ANode.Attributes['linespacemin']
+  else
+    FLineSpaceMin := 8;
 
   for i := 0 to ANode.ChildNodes.Count - 1 do
   begin
@@ -409,6 +421,8 @@ begin
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位，便于越过
   //
   AStream.WriteBuffer(FFormatVersion, SizeOf(FFormatVersion));
+  AStream.WriteBuffer(FLineSpaceMin, SizeOf(FLineSpaceMin));
+
   SaveParaStyles;
   SaveTextStyles;
   //
@@ -455,6 +469,7 @@ begin
   ANode.Attributes['fscount'] := FTextStyles.Count;
   ANode.Attributes['pscount'] := FParaStyles.Count;
   ANode.Attributes['fmtver'] := FFormatVersion;
+  ANode.Attributes['linespacemin'] := FLineSpaceMin;
 
   vNode := ANode.AddChild('textstyles');
   for i := 0 to FTextStyles.Count - 1 do

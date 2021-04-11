@@ -242,6 +242,7 @@ type
   THCControlItem = class(THCTextRectItem)
   private
     FAutoSize: Boolean;  // 是根据内容自动大小，还是外部指定大小
+    FEnabled: Boolean;
     FOnClick: TNotifyEvent;
   protected
     FMouseIn: Boolean;
@@ -261,6 +262,7 @@ type
     procedure ParseXml(const ANode: IHCXMLNode); override;
     function ClientRect: TRect; virtual;
     property AutoSize: Boolean read FAutoSize write FAutoSize;
+    property Enabled: Boolean read FEnabled write FEnabled;
     property OnClick: TNotifyEvent read FOnClick write FOnClick;
   end;
 
@@ -1371,6 +1373,7 @@ begin
   inherited Create(AOwnerData);
   FMouseIn := False;
   FAutoSize := True;
+  FEnabled := True;
   FPaddingLeft := 5;
   FPaddingRight := 5;
   FPaddingTop := 5;
@@ -1389,13 +1392,26 @@ procedure THCControlItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
   FAutoSize := ANode.Attributes['autosize'];
+  if ANode.HasAttribute('enabled') then
+    FEnabled := ANode.Attributes['enabled']
+  else
+    FEnabled := True;
 end;
 
 procedure THCControlItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vByte: Byte;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  AStream.ReadBuffer(FAutoSize, SizeOf(FAutoSize));
+  if AFileVersion < 51 then
+    AStream.ReadBuffer(FAutoSize, SizeOf(FAutoSize))
+  else
+  begin
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
+    FAutoSize := Odd(vByte shr 7);
+    FEnabled := Odd(vByte shr 6);
+  end;
 end;
 
 procedure THCControlItem.MouseEnter;
@@ -1420,15 +1436,26 @@ begin
 end;
 
 procedure THCControlItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
+var
+  vByte: Byte;
 begin
   inherited SaveToStreamRange(AStream, AStart, AEnd);
-  AStream.WriteBuffer(FAutoSize, SizeOf(FAutoSize));
+
+  vByte := 0;
+  if FAutoSize then
+    vByte := vByte or (1 shl 7);
+
+  if FEnabled then
+    vByte := vByte or (1 shl 6);
+
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
 end;
 
 procedure THCControlItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
   ANode.Attributes['autosize'] := FAutoSize;
+  ANode.Attributes['enabled'] := FEnabled;
 end;
 
 { THCDomainItem }

@@ -1689,11 +1689,11 @@ end;
 
 function THCView.DoSectionCanEdit(const Sender: TObject): Boolean;
 begin
-  if FCanEditChecked then
+  {if FCanEditChecked then
   begin
     Result := FCanEditSnapShot;
     Exit;
-  end;
+  end;}
 
   if (not Style.States.Contain(hosLoading)) and Assigned(FOnSectionCanEdit) then
     Result := FOnSectionCanEdit(Sender)

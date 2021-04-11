@@ -76,8 +76,8 @@ const
    4.7 数据元痕迹样式改为集合，存痕迹级别
   }
 
-  HC_FileVersion = '5.0';
-  HC_FileVersionInt = 50;
+  HC_FileVersion = '5.1';
+  HC_FileVersionInt = 51;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -146,7 +146,8 @@ type
     hosRedoing,
     hosInsertBreakItem,
     hosBatchInsert,  // 调用InsertItem批量插入多个Item时(如数据组批量插入2个)防止别的操作引起位置变化导致后面插入位置不正确
-    hosDestroying  // 编辑器在销毁中
+    hosDestroying,  // 编辑器在销毁中
+    hosFormatBrushing  // 格式刷
   );
 
   TCharType = (

@@ -2057,7 +2057,10 @@ begin
         OwnerData.Style.UpdateInfoReCaret;
       end;
 
-      DisSelect;  // 清除原选中
+      if (Button = mbLeft) and (ssShift in Shift) then  // shift键重新确定选中范围
+
+      else
+        DisSelect;
 
       if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then
       begin

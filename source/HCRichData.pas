@@ -5763,6 +5763,15 @@ begin
 
   if (Button = mbLeft) and (ssShift in Shift) then  // shift键重新确定选中范围
   begin
+    FMouseDownItemNo := vMouseDownItemNo;
+    FMouseDownItemOffset := vMouseDownItemOffset;
+
+    if (not vRestrain)
+      and (Items[FMouseDownItemNo].StyleNo < THCStyle.Null)
+      and (vMouseDownItemOffset = OffsetInner)
+    then  // RectItem
+      DoItemMouseDown(FMouseDownItemNo, FMouseDownItemOffset)
+    else
     if SelectByMouseDownShift(vMouseDownItemNo, vMouseDownItemOffset) then
     begin
       MatchItemSelectState;  // 设置选中范围内的Item选中状态
@@ -5773,12 +5782,9 @@ begin
       FMouseDownItemOffset := vMouseDownItemOffset;
       FSelectSeekNo := vMouseDownItemNo;
       FSelectSeekOffset := vMouseDownItemOffset;
-
-      if (not vRestrain) and (Items[FMouseDownItemNo].StyleNo < THCStyle.Null) then  // RectItem
-        DoItemMouseDown(FMouseDownItemNo, FMouseDownItemOffset);
-
-      Exit;
     end;
+
+    Exit;
   end;
 
   vMouseDownInSelect := CoordInSelect(X, Y, vMouseDownItemNo, vMouseDownItemOffset, vRestrain);

@@ -546,14 +546,14 @@ begin
   if Style.UpdateInfo.DragingSelected then
   begin
     vDataAnnotate := GetDrawItemFirstDataAnnotateAt(vCaretDrawItemNo,
-      GetDrawItemOffsetWidth(vCaretDrawItemNo,
+      DrawItems[vCaretDrawItemNo].Rect.Left + GetDrawItemOffsetWidth(vCaretDrawItemNo,
         Self.MouseMoveItemOffset - DrawItems[vCaretDrawItemNo].CharOffs + 1),
       DrawItems[vCaretDrawItemNo].Rect.Top + 1);
   end
   else
   begin
     vDataAnnotate := GetDrawItemFirstDataAnnotateAt(vCaretDrawItemNo,
-      GetDrawItemOffsetWidth(vCaretDrawItemNo,
+      DrawItems[vCaretDrawItemNo].Rect.Left + GetDrawItemOffsetWidth(vCaretDrawItemNo,
         SelectInfo.StartItemOffset - DrawItems[vCaretDrawItemNo].CharOffs + 1),
       DrawItems[vCaretDrawItemNo].Rect.Top + 1);
   end;

@@ -1338,6 +1338,7 @@ procedure THCFormatData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
 var
   vDrawItemNo, vOffset: Integer;
 begin
+  Self.DisSelect;
   SelectInfo.StartItemNo := AItemNo;
   SelectInfo.StartItemOffset := AOffset;
 

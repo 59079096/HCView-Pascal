@@ -194,6 +194,9 @@ begin
   end;
 
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
+  if (not Self.Enabled and not APaintInfo.Print) then
+    ACanvas.Font.Color := clGray;
+
   if not AutoSize then
   begin
     GetClipBox(ACanvas.Handle, vClipBoxRect);  // 保存当前的绘图区域
@@ -473,7 +476,7 @@ var
   vIndex: Integer;
 begin
   Result := inherited MouseDown(Button, Shift, X, Y);
-  if OwnerData.CanEdit and (Button = mbLeft) then
+  if Self.Enabled and OwnerData.CanEdit and (Button = mbLeft) then
   begin
     vIndex := GetItemAt(X, Y);
     if vIndex >= 0 then
@@ -611,7 +614,7 @@ begin
 
     Height := vTop + vSize.cy + FPaddingBottom;
 
-    if FColumnAlign then  // 列对齐
+    if FColumnAlign and (FItems.Count > 0) then  // 列对齐
     begin
       for i := 0 to vColumnAct - 2 do  // 每一列最宽的决定下一列的起始
       begin

@@ -710,7 +710,7 @@ end;
 
 procedure THCDateTimePicker.KeyDown(var Key: Word; Shift: TShiftState);
 begin
-  if ReadOnly then Exit;
+  if (not Self.Enabled) or ReadOnly then Exit;
 
   case Key of
     VK_ESCAPE:  // 取消输入的年字符串
@@ -764,7 +764,7 @@ var
   vNumber, vCount: Word;
   vDateTime: TDateTime;
 begin
-  if Self.ReadOnly then Exit;
+  if (not Self.Enabled) or Self.ReadOnly then Exit;
 
   vDateTime := FDateTime;
 

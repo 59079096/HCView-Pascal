@@ -132,6 +132,7 @@ type
     procedure SetCellHPaddingMM(const Value: Single);
     procedure DeleteEmptyRows(const ASRow, AERow: Cardinal);
     procedure DeleteEmptyCols(const ASCol, AECol: Cardinal);
+    procedure MatchCellSelectState;
   protected
     function CanDrag: Boolean; override;
     function GetSelectComplate: Boolean; override;
@@ -490,6 +491,9 @@ begin
   CalcMergeRowHeightFrom(0);
   Self.Height := GetFormatHeight;  // 计算整体高度
   Self.Width := GetFormatWidth;  // 计算整体宽度
+
+  if FSelectCellRang.SelectExists then
+    MatchCellSelectState;
 end;
 
 constructor THCTableItem.Create(const AOwnerData: THCCustomData; const ARowCount, AColCount, AWidth: Integer);
@@ -2234,29 +2238,6 @@ var
   end;
   {$ENDREGION}
 
-  {$REGION 'MatchCellSelectState'}
-
-  procedure MatchCellSelectState;
-  var
-    vR, vC: Integer;
-  begin
-    if not FSelectCellRang.EditCell then  // 不在同一单元格中
-    begin
-      for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
-      begin
-        for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
-        begin
-          {if (vRow = vMoveRow) and (vCol = vMoveCol) then else 什么情况下需要跳过?}
-          if FRows[vR][vC].CellData <> nil then
-            FRows[vR][vC].CellData.SelectAll;
-        end;
-      end;
-    end
-    else  // 在同一单元格中
-      FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.CellSelectedAll := False;
-  end;
-  {$ENDREGION}
-
 var
   vCellPt: TPoint;
   vResizeInfo: TResizeInfo;
@@ -3843,6 +3824,26 @@ begin
   end;
 end;
 
+procedure THCTableItem.MatchCellSelectState;
+var
+  vR, vC: Integer;
+begin
+  if not FSelectCellRang.EditCell then  // 不在同一单元格中
+  begin
+    for vR := FSelectCellRang.StartRow to FSelectCellRang.EndRow do
+    begin
+      for vC := FSelectCellRang.StartCol to FSelectCellRang.EndCol do
+      begin
+        {if (vRow = vMoveRow) and (vCol = vMoveCol) then else 什么情况下需要跳过?}
+        if Assigned(FRows[vR][vC].CellData) then
+          FRows[vR][vC].CellData.SelectAll;
+      end;
+    end;
+  end
+  else  // 在同一单元格中
+    FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol].CellData.CellSelectedAll := False;
+end;
+
 procedure THCTableItem.DeleteEmptyCols(const ASCol, AECol: Cardinal);
 var
   vR, vC, i: Integer;
@@ -4115,21 +4116,20 @@ end;
 
 function THCTableItem.CellsCanMerge(const AStartRow, AStartCol, AEndRow, AEndCol: Integer): Boolean;
 var
-  vR, vC, vEndRow, vEndCol, vDestRow, vDestCol, vSrcRow, vSrcCol: Integer;
+  vR, vC, vDestRow, vDestCol, vSrcRow, vSrcCol: Integer;
 begin
   Result := False;
 
-  GetSourceCell(AEndRow, AEndCol, vEndRow, vEndCol);
-  for vR := AStartRow to vEndRow do
+  for vR := AStartRow to AEndRow do
   begin
-    for vC := AStartCol to vEndCol do
+    for vC := AStartCol to AEndCol do
     begin
       if not Assigned(FRows[vR][vC].CellData) then
       begin
         GetDestCell(vR, vC, vDestRow, vDestCol);
         GetSourceCell(vDestRow, vDestCol, vSrcRow, vSrcCol);
-        if (vDestRow < AStartRow) or (vSrcRow > vEndRow)
-          or (vDestCol < AStartCol) or (vSrcCol > vEndCol)
+        if (vDestRow < AStartRow) or (vSrcRow > AEndRow)
+          or (vDestCol < AStartCol) or (vSrcCol > AEndCol)
         then
           Exit;
       end;

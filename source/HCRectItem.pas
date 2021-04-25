@@ -1361,6 +1361,7 @@ procedure THCControlItem.Assign(Source: THCCustomItem);
 begin
   inherited Assign(Source);
   FAutoSize := (Source as THCControlItem).AutoSize;
+  FEnabled := (Source as THCControlItem).Enabled;
 end;
 
 function THCControlItem.ClientRect: TRect;
@@ -1429,7 +1430,7 @@ end;
 function THCControlItem.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
-  if (Button = mbLeft) and PtInRect(Self.ClientRect, Point(X, Y)) then
+  if (Button = mbLeft) and FEnabled and PtInRect(Self.ClientRect, Point(X, Y)) then
     DoClick;
 
   Result := inherited MouseUp(Button, Shift, X, Y);

@@ -381,20 +381,20 @@ end;
 
 procedure THCComboboxItem.KeyDown(var Key: Word; Shift: TShiftState);
 begin
-  if not FStatic then
+  if not FStatic and Self.Enabled then
     inherited KeyDown(Key, Shift);
 end;
 
 procedure THCComboboxItem.KeyPress(var Key: Char);
 begin
-  if not FStatic then
+  if not FStatic and Self.Enabled then
     inherited KeyPress(Key);
 end;
 
 function THCComboboxItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
-  if (not Self.ReadOnly) and OwnerData.CanEdit
+  if Self.Enabled and (not Self.ReadOnly) and OwnerData.CanEdit
     and (Button = mbLeft) and PtInRect(FButtonRect, Point(X, Y))
   then
   begin

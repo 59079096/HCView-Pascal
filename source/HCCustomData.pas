@@ -1280,6 +1280,7 @@ var
 begin
   Result := 0;
   if ADrawOffs = 0 then Exit;
+  if not FItems[FDrawItems[ADrawItemNo].ItemNo].Visible then Exit;
 
   vDrawItem := FDrawItems[ADrawItemNo];
   vStyleNo := FItems[vDrawItem.ItemNo].StyleNo;
@@ -2311,8 +2312,6 @@ begin
     begin
       vDrawItem := FDrawItems[i];
       vItem := FItems[vDrawItem.ItemNo];
-      if not vItem.Visible then
-        Continue;
 
       vDrawRect := vDrawItem.Rect;
       OffsetRect(vDrawRect, ADataDrawLeft, vVOffset);  // 偏移到指定的画布绘制位置(SectionData时为页数据在格式化中可显示起始位置)
@@ -2322,6 +2321,14 @@ begin
 
       vClearRect := vDrawRect;
       InflateRect(vClearRect, 0, -vLineSpace div 2);  // 除去行间距净Rect，即内容的显示区域
+
+      if not vItem.Visible then
+      begin
+        DrawItemPaintAfter(Self, vDrawItem.ItemNo, i, vDrawRect, vClearRect, ADataDrawLeft,
+          ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom, ACanvas, APaintInfo);
+
+        Continue;
+      end;
 
       { 绘制内容前 }
       DrawItemPaintBefor(Self, vDrawItem.ItemNo, i, vDrawRect, vClearRect, ADataDrawLeft,

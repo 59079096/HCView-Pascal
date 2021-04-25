@@ -421,7 +421,7 @@ procedure THCEditItem.KeyDown(var Key: Word; Shift: TShiftState);
   end;
 
 begin
-  if not FReadOnly then
+  if Self.Enabled and not FReadOnly then
   begin
     case Key of
       VK_BACK: BackspaceKeyDown;  // ªÿ…æ
@@ -448,7 +448,7 @@ end;
 
 procedure THCEditItem.KeyPress(var Key: Char);
 begin
-  if not FReadOnly then
+  if Self.Enabled and not FReadOnly then
   begin
     if SelectTextExists then
       DeleteSelectText;

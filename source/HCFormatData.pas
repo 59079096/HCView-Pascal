@@ -965,7 +965,7 @@ begin
     vRect.Left := APos.X;
     vRect.Top := APos.Y;
     vRect.Right := vRect.Left;
-    vRect.Bottom := vRect.Top + 5;  // 带上行间距
+    vRect.Bottom := vRect.Top + FItemFormatHeight;  // 带上行间距
     NewDrawItem(AItemNo, AOffset, vItem.Length, vRect, vParaFirst, vLineFirst);
   end
   else
@@ -1175,6 +1175,7 @@ procedure THCFormatData.ItemSetCaretRequest(const AItemNo, AOffset: Integer);
 begin
   if AItemNo >= 0 then
   begin
+    DisSelect;
     ReSetSelectAndCaret(AItemNo, AOffset);
     Style.UpdateInfoReCaret(True);
     if Assigned(FOnItemSetCaretRequest) then
@@ -1338,7 +1339,6 @@ procedure THCFormatData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
 var
   vDrawItemNo, vOffset: Integer;
 begin
-  Self.DisSelect;
   SelectInfo.StartItemNo := AItemNo;
   SelectInfo.StartItemOffset := AOffset;
 

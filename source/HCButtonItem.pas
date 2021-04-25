@@ -120,7 +120,7 @@ end;
 function THCButtonItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
-  if PtInRect(Self.ClientRect, Point(X, Y)) then
+  if Self.Enabled and PtInRect(Self.ClientRect, Point(X, Y)) then
     FDown := True;
 
   inherited MouseDown(Button, Shift, X, Y);

@@ -1242,7 +1242,9 @@ var
               Continue;
             end;
 
-            vText := RightStr((Self.Items[vItemNo - 1] as THCTextItem).TextEffective, Length(vKeyword) - 1);
+            if Length(vText) > Length(vKeyword) - 1 then
+              vText := RightStr((Self.Items[vItemNo - 1] as THCTextItem).TextEffective, Length(vKeyword) - 1);
+
             vOverText := vOverText + vText;  // 记录拼接了多少个字符
             vConcatText := vText + vConcatText;  // 拼接后的字符
             if not AMatchCase then  // 不区分大小写
@@ -1296,7 +1298,9 @@ var
               Continue;
             end;
 
-            vText := LeftStr(Self.Items[vItemNo + 1].Text, Length(vKeyword) - 1);  // 取后面比关键字少一个字符长度的，以便和当前末尾最后一个拼接
+            if Length(vText) > Length(vKeyword) - 1 then
+              vText := LeftStr((Self.Items[vItemNo + 1] as THCTextItem).TextEffective, Length(vKeyword) - 1);
+
             vOverText := vOverText + vText;  // 记录拼接了多少个字符
             vConcatText := vConcatText + vText;  // 拼接后的字符
             if not AMatchCase then  // 不区分大小写

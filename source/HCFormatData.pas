@@ -727,7 +727,7 @@ var
     vRect.Right := vRect.Left + vRectItem.Width;
     vRect.Bottom := vRect.Top + vRectItem.Height + Style.LineSpaceMin;  // 带上行间距
     NewDrawItem(AItemNo, AOffset, 1, vRect, vParaFirst, vLineFirst);
-
+    vRectItem.IsFormatDirty := False;
     vRemainderWidth := AFmtRight - vRect.Right;  // 放入后的剩余量
   end;
   {$ENDREGION}

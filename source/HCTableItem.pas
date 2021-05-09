@@ -519,7 +519,7 @@ begin
   FFixColor := clBtnFace;
   FBorderVisible := True;
   FResizeKeepWidth := False;
-
+  ParaFirst := True;
   StyleNo := THCStyle.Table;
   ParaNo := OwnerData.CurParaNo;
   CanPageBreak := True;
@@ -4279,6 +4279,18 @@ begin
       if vDestCellDataFmtTop + vCellDataVerTop + vDrawItem.Rect.Bottom + FBorderWidthPix > APageDataFmtBottom then  // 当前DrawItem底部超过页底部了 20160323002 // 行底部的边框线显示不下时也向下偏移
       begin                                    // |如果FBorderWidth比行高大就不合适
         if i = 0 then  // 第一个DrawItem就放不下，需要整体下移(下移位置由下面判断)
+        begin
+          vFirstLinePlace := False;
+          vPageBreakBottom := vBreakRowFmtTop;
+          Break;
+        end;
+      end;
+
+      if i = vCellData.DrawItems.Count - 1 then
+      begin
+        vLastDFromRowBottom := FRows[vDestRow][vDestCol].Height - (FCellVPaddingPix + vCellData.Height + FCellVPaddingPix);
+
+        if vDestCellDataFmtTop + vCellDataVerTop + vDrawItem.Rect.Bottom + FBorderWidthPix + vLastDFromRowBottom > APageDataFmtBottom then
         begin
           vFirstLinePlace := False;
           vPageBreakBottom := vBreakRowFmtTop;

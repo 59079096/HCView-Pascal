@@ -65,6 +65,7 @@ type
 
     property TopText: string read FTopText write FTopText;
     property BottomText: string read FBottomText write FBottomText;
+    property ActiveArea: TExpressArea read FActiveArea;
   end;
 
 implementation

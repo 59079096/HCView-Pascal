@@ -80,10 +80,10 @@ type
     function SelectPerfect: Boolean;
 
     /// <summary> 当前TextItem内部变化后重新格式化（避免大量重复代码） </summary>
-    function TextItemAction(const AAction: TTextItemActionEvent): Boolean;
+    function TextItemAction(const AItemNo: Integer; const AAction: TTextItemActionEvent): Boolean;
 
     /// <summary> 当前RectItem内部变化后重新格式化（避免量重复代码） </summary>
-    function RectItemAction(const AAction: TRectItemActionEvent): Boolean;
+    function RectItemAction(const AItemNo: Integer; const AAction: TRectItemActionEvent): Boolean;
 
     /// <summary> 初始化鼠标相关字段 </summary>
     procedure InitializeMouseField;
@@ -392,8 +392,6 @@ begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-
-      vRectItem.IsFormatDirty := False;
     end
     else
       Self.FormatInit;
@@ -1051,7 +1049,7 @@ function THCRichData.SetActiveImage(const AImageStream: TStream): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       (ARectItem as THCImageItem).Image.LoadFromStream(AImageStream);
       Result := True;
@@ -1062,7 +1060,7 @@ function THCRichData.ActiveTableDeleteCurCol: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).DeleteCurCol;
     end);
@@ -1072,7 +1070,7 @@ function THCRichData.ActiveTableDeleteCurRow: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).DeleteCurRow;
     end);
@@ -1082,7 +1080,7 @@ function THCRichData.ActiveTableResetRowCol(const ARowCount, AColCount: Integer)
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).ResetRowCol(Self.Width, ARowCount, AColCount);
     end);
@@ -1092,7 +1090,7 @@ function THCRichData.ActiveTableSplitCurCol: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).SplitCurCol;
     end);
@@ -1102,7 +1100,7 @@ function THCRichData.ActiveTableSplitCurRow: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).SplitCurRow;
     end);
@@ -1832,7 +1830,6 @@ begin
         GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
         FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        (Items[SelectInfo.StartItemNo] as THCCustomRectItem).IsFormatDirty := False;
       end
       else
         Self.FormatInit;
@@ -1941,7 +1938,7 @@ procedure THCRichData.ApplyTableCellAlign(const AAlign: THCContentAlign);
 begin
   if not CanEdit then Exit;
 
-  RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       (ARectItem as THCTableItem).ApplyContentAlign(AAlign);
       Result := True;
@@ -2105,6 +2102,7 @@ begin
         if IsEmptyLine(AIndex) then  // 插入位置处是空行，替换当前
         begin
           AItem.ParaFirst := True;
+          AItem.PageBreak := Items[AIndex].PageBreak;
           UndoAction_DeleteItem(AIndex, 0);
           Items.Delete(AIndex);
           Dec(vIncCount);
@@ -2138,6 +2136,7 @@ begin
           FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
           AItem.ParaFirst := True;
+          AItem.PageBreak := Items[AIndex - 1].PageBreak;
           UndoAction_DeleteItem(AIndex - 1, 0);
           Items.Delete(AIndex - 1);
           Dec(vIncCount);
@@ -2161,6 +2160,7 @@ begin
       then  // 插入位置处是空行，替换当前
       begin
         AItem.ParaFirst := True;
+        AItem.PageBreak := Items[AIndex - 1].PageBreak;
         UndoAction_DeleteItem(AIndex - 1, 0);
         Items.Delete(AIndex - 1);
         Dec(vIncCount);
@@ -2312,7 +2312,7 @@ function THCRichData.TableApplyContentAlign(const AAlign: THCContentAlign): Bool
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       (ARectItem as THCTableItem).ApplyContentAlign(AAlign);
       Result := True;
@@ -2323,7 +2323,7 @@ function THCRichData.TableInsertColAfter(const AColCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).InsertColAfter(AColCount);
     end);
@@ -2333,31 +2333,29 @@ function THCRichData.TableInsertColBefor(const AColCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).InsertColBefor(AColCount);
     end);
 end;
 
-function THCRichData.RectItemAction(const AAction: TRectItemActionEvent): Boolean;
+function THCRichData.RectItemAction(const AItemNo: Integer; const AAction: TRectItemActionEvent): Boolean;
 var
-  vCurItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
+  vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
   Result := False;
-  vCurItemNo := GetActiveItemNo;
-  if Items[vCurItemNo] is THCCustomRectItem then
+  if Items[AItemNo] is THCCustomRectItem then
   begin
-    GetFormatRange(vCurItemNo, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
+    GetFormatRange(AItemNo, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
     FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
     Undo_New;
-    if (Items[vCurItemNo] as THCCustomRectItem).MangerUndo then
-      UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+    if (Items[AItemNo] as THCCustomRectItem).MangerUndo then
+      UndoAction_ItemSelf(AItemNo, OffsetInner)
     else
-      UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+      UndoAction_ItemMirror(AItemNo, OffsetInner);
 
-    UndoAction_ItemSelf(vCurItemNo, OffsetInner);
-    Result := AAction(Items[vCurItemNo] as THCCustomRectItem);
+    Result := AAction(Items[AItemNo] as THCCustomRectItem);
     if Result then
     begin
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0);
@@ -2382,7 +2380,7 @@ function THCRichData.TableInsertRowAfter(const ARowCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).InsertRowAfter(ARowCount);
     end);
@@ -2392,28 +2390,27 @@ function THCRichData.TableInsertRowBefor(const ARowCount: Integer): Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).InsertRowBefor(ARowCount);
     end);
 end;
 
-function THCRichData.TextItemAction(const AAction: TTextItemActionEvent): Boolean;
+function THCRichData.TextItemAction(const AItemNo: Integer; const AAction: TTextItemActionEvent): Boolean;
 var
-  vCurItemNo, vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
+  vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
   Result := False;
-  vCurItemNo := GetActiveItemNo;
-  if Items[vCurItemNo] is THCTextItem then
+  if Items[AItemNo] is THCTextItem then
   begin
-    GetFormatRange(vCurItemNo, 1, vFormatFirstDrawItemNo, vFormatLastItemNo);
+    GetFormatRange(AItemNo, 0, vFormatFirstDrawItemNo, vFormatLastItemNo);
     FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
     Undo_New;
-    UndoAction_ItemMirror(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+    UndoAction_ItemMirror(AItemNo, 0);
 
     //UndoAction_ItemSelf(vCurItemNo, OffsetInner);
-    Result := AAction(Items[vCurItemNo] as THCTextItem);
+    Result := AAction(Items[AItemNo] as THCTextItem);
     if Result then
     begin
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo, 0);
@@ -3284,7 +3281,6 @@ begin
         GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
         FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
         ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-        vRectItem.IsFormatDirty := False;
       end
       else
         Self.FormatInit;
@@ -4398,7 +4394,6 @@ var
           GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
           FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
           ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-          vRectItem.IsFormatDirty := False;
         end
         else
           Self.FormatInit;
@@ -5719,7 +5714,7 @@ function THCRichData.MergeTableSelectCells: Boolean;
 begin
   if not CanEdit then Exit(False);
 
-  Result := RectItemAction(function(const ARectItem: THCCustomRectItem): Boolean
+  Result := RectItemAction(GetActiveItemNo, function(const ARectItem: THCCustomRectItem): Boolean
     begin
       Result := (ARectItem as THCTableItem).MergeSelectCells;
     end);
@@ -6196,8 +6191,6 @@ begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-
-      vRectItem.IsFormatDirty := False;
     end
     else
       Self.FormatInit;
@@ -6399,8 +6392,6 @@ begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
-
-      vRectItem.IsFormatDirty := False;
     end
     else
       Self.FormatInit;

@@ -22,6 +22,7 @@ type
   private
     FLeftText, FRightText: string;
     FLeftRect, FRightRect: TRect;
+    procedure SetRightText(const Value: string);
   protected
     procedure DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
       const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
@@ -46,7 +47,7 @@ type
     property LeftRect: TRect read FLeftRect write FLeftRect;
     property RightRect: TRect read FRightRect write FRightRect;
     property LeftText: string read FLeftText write FLeftText;
-    property RightText: string read FRightText write FRightText;
+    property RightText: string read FRightText write SetRightText;
 
     property TopText;
     property BottomText;
@@ -418,6 +419,13 @@ begin
   inherited SaveToStreamRange(AStream, AStart, AEnd);
   HCSaveTextToStream(AStream, FLeftText);
   HCSaveTextToStream(AStream, FRightText);
+end;
+
+procedure THCExpressItem.SetRightText(const Value: string);
+begin
+  FRightText := Value;
+  if (FActiveArea <> ceaRight) and (FCaretOffset > System.Length(FRightText)) then
+      FCaretOffset := System.Length(FRightText);
 end;
 
 procedure THCExpressItem.ToXml(const ANode: IHCXMLNode);

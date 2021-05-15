@@ -350,6 +350,7 @@ var
   function FinishLine(const ALineEndDItemNo, ARemWidth: Integer): Boolean;
   var
     i, vLineBegDItemNo,  // 行第一个DItem
+    vLineMaxDItemNo,
     vMaxBottom,
     viSplitW, vW,
     vLineSpaceCount,   // 当前行分几份
@@ -373,20 +374,18 @@ var
     Assert((vLineBegDItemNo >= 0), '断言失败：行起始DrawItemNo小于0！');
 
     { 找行中第一个不隐藏的 }
-    vMaxBottom := -1;  // 借用变量
+    vLineMaxDItemNo := -1;  // 借用变量
     for i := vLineBegDItemNo to ALineEndDItemNo do
     begin
       if Items[DrawItems[i].ItemNo].Visible then
       begin
-        vMaxBottom := i;
+        vLineMaxDItemNo := i;
         Break;
       end;
     end;
 
-    Result := vMaxBottom >= 0;  // 行中没有全部隐藏了
+    Result := vLineMaxDItemNo >= 0;  // 行中没有全部隐藏了
     if not Result then Exit;  // 行中全隐藏了
-
-    vLineBegDItemNo := vMaxBottom;
 
     // 找行DrawItem中最高的
     vMaxBottom := DrawItems[ALineEndDItemNo].Rect.Bottom;  // 先默认行最后一个DItem的Rect底位置最大

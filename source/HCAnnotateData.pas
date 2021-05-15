@@ -462,19 +462,12 @@ begin
   if FDataAnnotates.Count = 0 then Exit;
 
   vItemNo := Self.DrawItems[ADrawItemNo].ItemNo;
-  if vItemNo < FDataAnnotates.First.StartItemNo then Exit;
-  if vItemNo > FDataAnnotates.Last.EndItemNo then Exit;
-
   FDrawItemAnnotates.Clear;
   for i := 0 to FDataAnnotates.Count - 1 do
   begin
     vDataAnnotate := FDataAnnotates[i];
-
-    if vDataAnnotate.EndItemNo < vItemNo then  // 未进入本次查找范围
+    if (vDataAnnotate.StartItemNo > vItemNo) or (vDataAnnotate.EndItemNo < vItemNo) then
       Continue;
-
-    if vDataAnnotate.StartItemNo > vItemNo then  // 超出本次查找的范围
-      Break;
 
     if ADrawItemNo = vDataAnnotate.StartDrawItemNo then
     begin

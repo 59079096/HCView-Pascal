@@ -5786,14 +5786,19 @@ begin
 
   if vMouseDownInSelect then   // 在选中区域中按下
   begin
-    if FMouseLBDowning then  // 是左键，开始拖拽
+    if Items[vMouseDownItemNo].StyleNo < THCStyle.Null then
+      DoItemMouseDown(vMouseDownItemNo, vMouseDownItemOffset);
+
+    if FMouseLBDowning and not SelectedResizing then
     begin
       FDraging := True;
       Style.UpdateInfo.DragingSelected := True;
+    end
+    else
+    begin
+      FMouseDownItemNo := vMouseDownItemNo;
+      FMouseDownItemOffset := vMouseDownItemOffset;
     end;
-
-    if Items[vMouseDownItemNo].StyleNo < THCStyle.Null then  // 在RectItem上拖拽
-      DoItemMouseDown(vMouseDownItemNo, vMouseDownItemOffset);
   end
   else  // 没点在选中区域中
   begin

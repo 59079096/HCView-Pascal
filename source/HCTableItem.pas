@@ -519,7 +519,7 @@ begin
   FFixColor := clBtnFace;
   FBorderVisible := True;
   FResizeKeepWidth := False;
-  ParaFirst := True;
+
   StyleNo := THCStyle.Table;
   ParaNo := OwnerData.CurParaNo;
   CanPageBreak := True;
@@ -4196,7 +4196,8 @@ var
   i, vR, vC, vFixHeight: Integer;
   vCellData: THCTableCellData;
   vDrawItem: THCCustomDrawItem;
-  vFirstLinePlace  // 各单元格都至少有一行内容可在分页位置上面完整显示
+  vFirstLinePlace,  // 各单元格都至少有一行内容可在分页位置上面完整显示
+  vFindBreak
     : Boolean;
   vColCross: TColCross;
   vColCrosses: TObjectList<TColCross>;  // 记录分页行各列分页起始DrawItem和分页偏移
@@ -4246,6 +4247,7 @@ begin
 
   {$REGION ' 1.放不下，则判断分页位置，不一定是APageDataFmtBottom，可能是分页向下偏移行顶部' }
   vFirstLinePlace := True;
+  vFindBreak := False;
   vPageBreakBottom := APageDataFmtBottom;
 
   // 先判断是不是有单元格里第一行内容就放不下，需要整体下移，这样的好处是，如果
@@ -4278,19 +4280,8 @@ begin
 
       if vDestCellDataFmtTop + vCellDataVerTop + vDrawItem.Rect.Bottom + FBorderWidthPix > APageDataFmtBottom then  // 当前DrawItem底部超过页底部了 20160323002 // 行底部的边框线显示不下时也向下偏移
       begin                                    // |如果FBorderWidth比行高大就不合适
+        vFindBreak := True;
         if i = 0 then  // 第一个DrawItem就放不下，需要整体下移(下移位置由下面判断)
-        begin
-          vFirstLinePlace := False;
-          vPageBreakBottom := vBreakRowFmtTop;
-          Break;
-        end;
-      end;
-
-      if i = vCellData.DrawItems.Count - 1 then
-      begin
-        vLastDFromRowBottom := FRows[vDestRow][vDestCol].Height - (FCellVPaddingPix + vCellData.Height + FCellVPaddingPix);
-
-        if vDestCellDataFmtTop + vCellDataVerTop + vDrawItem.Rect.Bottom + FBorderWidthPix + vLastDFromRowBottom > APageDataFmtBottom then
         begin
           vFirstLinePlace := False;
           vPageBreakBottom := vBreakRowFmtTop;
@@ -4303,6 +4294,12 @@ begin
       Break;
   end;
   {$ENDREGION}
+
+  if vFirstLinePlace and not vFindBreak then
+  begin
+    vFirstLinePlace := False;
+    vPageBreakBottom := vBreakRowFmtTop;
+  end;
 
   // 根据上面计算出来的截断位置(可能是PageData底部也可能是整体下移行底部)
   // 处理内容的偏移，循环原理和上面找是否有整体下移行一样

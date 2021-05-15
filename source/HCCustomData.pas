@@ -2963,7 +2963,7 @@ function THCCustomData.SelectedResizing: Boolean;
 begin
   Result := False;
   if (FSelectInfo.StartItemNo >= 0)
-    and (FSelectInfo.EndItemNo < 0)
+    and ((FSelectInfo.EndItemNo < 0) or (FSelectInfo.StartItemNo = FSelectInfo.EndItemNo))
     and (FItems[FSelectInfo.StartItemNo] is THCResizeRectItem)
   then
     Result := (FItems[FSelectInfo.StartItemNo] as THCResizeRectItem).Resizing;

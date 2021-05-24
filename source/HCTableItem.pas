@@ -97,6 +97,7 @@ type
     procedure InitializeCellData(const ACellData: THCTableCellData);
     function DoCellDataGetRootData: THCCustomData;
     procedure DoCellDataFormatDirty(Sender: TObject);
+    procedure DoCellDataSetFormatChange(Sender: TObject);
     procedure DoCheckCellScript(const ARow, ACol: Integer);
     procedure DoCellDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoCellDataItemSetCaretRequest(const AData: THCCustomData; const AItemNo, AOffset: Integer);
@@ -906,6 +907,11 @@ begin
     (OwnerData as THCRichData).ItemSetCaretRequest(
       (OwnerData as THCRichData).GetItemNo(Self), OffsetInner);
   end;
+end;
+
+procedure THCTableItem.DoCellDataSetFormatChange(Sender: TObject);
+begin
+  (OwnerData as THCRichData).SetFormatChange;
 end;
 
 procedure THCTableItem.DoCellDataFormatDirty(Sender: TObject);
@@ -3552,6 +3558,7 @@ begin
   ACellData.OnGetRootData := DoCellDataGetRootData;
   ACellData.OnGetFormatTop := DoCellDataGetFormatTop;
   ACellData.OnFormatDirty := DoCellDataFormatDirty;
+  ACellData.OnSetFormatChange := DoCellDataSetFormatChange;
 end;
 
 procedure THCTableItem.InitializeMouseInfo;
@@ -5515,6 +5522,14 @@ begin
     end
     else  // 在同一单元格
       ApplyCellAlign_(GetEditCell);
+  end
+  else  // 没有选中则按全部单元格处理
+  begin
+    for vR := 0 to FRows.Count - 1 do
+    begin
+      for vC := 0 to FColWidths.Count - 1 do
+        ApplyCellAlign_(FRows[vR][vC]);
+    end;
   end;
 end;
 

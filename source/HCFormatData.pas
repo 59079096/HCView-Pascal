@@ -110,6 +110,7 @@ type
     procedure ItemReFormatRequest(const AItem: THCCustomItem); virtual;
     procedure ItemReFormatResponse(const AItem: THCCustomItem); virtual;
     procedure ItemSetCaretRequest(const AItemNo, AOffset: Integer); virtual;
+    procedure SetFormatChange; virtual;
     function GetDrawItemFormatTop(const ADrawItemNo: Integer): Integer; virtual;
     function GetItemNo(const AItem: THCCustomItem): Integer;
     procedure BeginFormat;
@@ -956,7 +957,12 @@ begin
   else  // 非段第1个
   begin
     vParaFirst := False;
-    vLineFirst := (APos.X = AFmtLeft) and (DrawItems[ALastDrawItemNo].Width <> 0);  // 最左但不是域后面
+    vLineFirst := APos.X = AFmtLeft;
+    if vLineFirst and (DrawItems[ALastDrawItemNo].Width = 0) then
+    begin
+      if DrawItems[ALastDrawItemNo].LineFirst then
+         vLineFirst := False;
+    end;
   end;
 
   if not vItem.Visible then  // 不显示的Item
@@ -1367,6 +1373,11 @@ begin
     Inc(vDrawItemNo);
 
   CaretDrawItemNo := vDrawItemNo;
+end;
+
+procedure THCFormatData.SetFormatChange;
+begin
+  FFormatChange := True;
 end;
 
 end.

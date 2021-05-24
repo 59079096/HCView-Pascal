@@ -1025,10 +1025,19 @@ begin
 end;
 
 procedure THCRichData.Clear;
+var
+  vStyleNo, vParaNo: Integer;
 begin
   InitializeField;
-
+  vStyleNo := Items[0].StyleNo;
+  vParaNo := Items[0].ParaNo;
   inherited Clear;
+  if (vStyleNo > THCStyle.Null) and (vStyleNo < Self.Style.TextStyles.Count) then
+    FCurStyleNo := vStyleNo;
+
+  if vParaNo < Self.Style.ParaStyles.Count then
+    FCurParaNo := vParaNo;
+
   SetEmptyData;
 end;
 

@@ -30,7 +30,7 @@ type
     FCellSelectedAll
       : Boolean;
     FCellHeight: Integer;  // 所属单元格高度(因合并或手动拖高，单元格高度会大于等于其内数据高度)
-    FOnFormatDirty: TNotifyEvent;
+    FOnFormatDirty, FOnSetFormatChange: TNotifyEvent;
     FOnGetRootData: TGetRootDataEvent;
     FOnGetFormatTop: TGetFormatTopFun;
     function PointInCellRect(const APt: TPoint): Boolean;
@@ -53,6 +53,7 @@ type
       const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False); override;
 
     procedure DoFormatDirty;
+    procedure DoSetFormatChange;
     procedure SetActive(const Value: Boolean);
     function GetFormatTop: Integer;
   public
@@ -71,7 +72,7 @@ type
     procedure GetItemAt(const X, Y: Integer; var AItemNo, AOffset, ADrawItemNo: Integer;
       var ARestrain: Boolean); override;
     function GetRootData: THCCustomData; override;
-
+    procedure SetFormatChange; override;
     /// <summary> 选在第一个Item最前面 </summary>
     function SelectFirstItemOffsetBefor: Boolean;
 
@@ -98,6 +99,7 @@ type
     property OnGetRootData: TGetRootDataEvent read FOnGetRootData write FOnGetRootData;
     property OnGetFormatTop: TGetFormatTopFun read FOnGetFormatTop write FOnGetFormatTop;
     property OnFormatDirty: TNotifyEvent read FOnFormatDirty write FOnFormatDirty;
+    property OnSetFormatChange: TNotifyEvent read FOnSetFormatChange write FOnSetFormatChange;
   end;
 
 implementation
@@ -226,6 +228,12 @@ begin
   end;
 end;
 
+procedure THCTableCellData.DoSetFormatChange;
+begin
+  if Assigned(FOnSetFormatChange) then
+    FOnSetFormatChange(Self);
+end;
+
 function THCTableCellData.PointInCellRect(const APt: TPoint): Boolean;
 begin
   Result := PtInRect(Bounds(0, 0, Width, FCellHeight), APt);
@@ -235,7 +243,9 @@ procedure THCTableCellData.ReFormatData(const AFirstDrawItemNo, ALastItemNo,
   AExtraItemCount: Integer; const AForceClearExtra: Boolean);
 begin
   inherited ReFormatData(AFirstDrawItemNo, ALastItemNo, AExtraItemCount, AForceClearExtra);
-  Self.FormatChange := False;  // 防止下次变动高度没有变化时也通知表格SizeChange
+  if Self.FormatChange then
+    SetFormatChange;
+
   if Self.FormatHeightChange then
     DoFormatDirty;
 end;
@@ -296,6 +306,12 @@ begin
     Self.InitializeField;
     Style.UpdateInfoRePaint;
   end;
+end;
+
+procedure THCTableCellData.SetFormatChange;
+begin
+  Self.FormatChange := False;
+  DoSetFormatChange;
 end;
 
 end.

@@ -170,6 +170,25 @@ begin
     DrawDebugInfo(ACanvas, ADrawRect.Left, ADrawRect.Top - 6, IntToStr(ADrawItemNo));
     {$ENDIF}
   end;
+
+  if FShowUnderLine then  // 下划线
+  begin
+    if DrawItems[ADrawItemNo].LineFirst then
+    begin
+      ACanvas.Pen.Color := clBlack;
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.MoveTo(ADataDrawLeft, ADrawRect.Top - 1);
+      ACanvas.LineTo(ADataDrawLeft + Self.Width, ADrawRect.Top - 1);
+    end;
+
+    if ADrawItemNo = DrawItems.Count - 1 then
+    begin
+      ACanvas.Pen.Color := clBlack;
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.MoveTo(ADataDrawLeft, ADrawRect.Bottom);
+      ACanvas.LineTo(ADataDrawLeft + Self.Width, ADrawRect.Bottom);
+    end;
+  end;
 end;
 
 procedure THCPageData.DoDrawItemPaintBefor(const AData: THCCustomData;
@@ -209,17 +228,6 @@ begin
         ACanvas.LineTo(ADataDrawLeft - 15, vTop + 3);
         ACanvas.MoveTo(ADataDrawLeft - 16, vTop - 2);
         ACanvas.LineTo(ADataDrawLeft - 16, vTop + 3);
-      end;
-    end;
-
-    if FShowUnderLine then  // 下划线
-    begin
-      if DrawItems[ADrawItemNo].LineFirst then
-      begin
-        ACanvas.Pen.Color := clBlack;
-        ACanvas.Pen.Style := psSolid;
-        ACanvas.MoveTo(ADataDrawLeft, ADrawRect.Bottom);
-        ACanvas.LineTo(ADataDrawLeft + Self.Width, ADrawRect.Bottom);
       end;
     end;
 

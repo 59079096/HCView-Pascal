@@ -30,7 +30,7 @@ type
     FCellSelectedAll
       : Boolean;
     FCellHeight: Integer;  // 所属单元格高度(因合并或手动拖高，单元格高度会大于等于其内数据高度)
-    FOnFormatDirty, FOnSetFormatChange: TNotifyEvent;
+    FOnFormatDirty, FOnSetFormatHeightChange: TNotifyEvent;
     FOnGetRootData: TGetRootDataEvent;
     FOnGetFormatTop: TGetFormatTopFun;
     function PointInCellRect(const APt: TPoint): Boolean;
@@ -53,7 +53,7 @@ type
       const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False); override;
 
     procedure DoFormatDirty;
-    procedure DoSetFormatChange;
+    procedure DoSetFormatHeightChange;
     procedure SetActive(const Value: Boolean);
     function GetFormatTop: Integer;
   public
@@ -72,7 +72,7 @@ type
     procedure GetItemAt(const X, Y: Integer; var AItemNo, AOffset, ADrawItemNo: Integer;
       var ARestrain: Boolean); override;
     function GetRootData: THCCustomData; override;
-    procedure SetFormatChange; override;
+    procedure SetFormatHeightChange; override;
     /// <summary> 选在第一个Item最前面 </summary>
     function SelectFirstItemOffsetBefor: Boolean;
 
@@ -99,7 +99,7 @@ type
     property OnGetRootData: TGetRootDataEvent read FOnGetRootData write FOnGetRootData;
     property OnGetFormatTop: TGetFormatTopFun read FOnGetFormatTop write FOnGetFormatTop;
     property OnFormatDirty: TNotifyEvent read FOnFormatDirty write FOnFormatDirty;
-    property OnSetFormatChange: TNotifyEvent read FOnSetFormatChange write FOnSetFormatChange;
+    property OnSetFormatHeightChange: TNotifyEvent read FOnSetFormatHeightChange write FOnSetFormatHeightChange;
   end;
 
 implementation
@@ -228,10 +228,10 @@ begin
   end;
 end;
 
-procedure THCTableCellData.DoSetFormatChange;
+procedure THCTableCellData.DoSetFormatHeightChange;
 begin
-  if Assigned(FOnSetFormatChange) then
-    FOnSetFormatChange(Self);
+  if Assigned(FOnSetFormatHeightChange) then
+    FOnSetFormatHeightChange(Self);
 end;
 
 function THCTableCellData.PointInCellRect(const APt: TPoint): Boolean;
@@ -243,11 +243,13 @@ procedure THCTableCellData.ReFormatData(const AFirstDrawItemNo, ALastItemNo,
   AExtraItemCount: Integer; const AForceClearExtra: Boolean);
 begin
   inherited ReFormatData(AFirstDrawItemNo, ALastItemNo, AExtraItemCount, AForceClearExtra);
-  if Self.FormatChange then
-    SetFormatChange;
+  Self.FormatChange := True;
 
   if Self.FormatHeightChange then
+  begin
+    SetFormatHeightChange;
     DoFormatDirty;
+  end;
 end;
 
 procedure THCTableCellData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer;
@@ -308,10 +310,10 @@ begin
   end;
 end;
 
-procedure THCTableCellData.SetFormatChange;
+procedure THCTableCellData.SetFormatHeightChange;
 begin
   Self.FormatChange := False;
-  DoSetFormatChange;
+  DoSetFormatHeightChange;
 end;
 
 end.

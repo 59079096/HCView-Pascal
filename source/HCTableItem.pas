@@ -97,7 +97,7 @@ type
     procedure InitializeCellData(const ACellData: THCTableCellData);
     function DoCellDataGetRootData: THCCustomData;
     procedure DoCellDataFormatDirty(Sender: TObject);
-    procedure DoCellDataSetFormatChange(Sender: TObject);
+    procedure DoCellDataSetFormatHeightChange(Sender: TObject);
     procedure DoCheckCellScript(const ARow, ACol: Integer);
     procedure DoCellDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoCellDataItemSetCaretRequest(const AData: THCCustomData; const AItemNo, AOffset: Integer);
@@ -909,9 +909,9 @@ begin
   end;
 end;
 
-procedure THCTableItem.DoCellDataSetFormatChange(Sender: TObject);
+procedure THCTableItem.DoCellDataSetFormatHeightChange(Sender: TObject);
 begin
-  (OwnerData as THCRichData).SetFormatChange;
+  (OwnerData as THCRichData).SetFormatHeightChange;
 end;
 
 procedure THCTableItem.DoCellDataFormatDirty(Sender: TObject);
@@ -3558,7 +3558,7 @@ begin
   ACellData.OnGetRootData := DoCellDataGetRootData;
   ACellData.OnGetFormatTop := DoCellDataGetFormatTop;
   ACellData.OnFormatDirty := DoCellDataFormatDirty;
-  ACellData.OnSetFormatChange := DoCellDataSetFormatChange;
+  ACellData.OnSetFormatHeightChange := DoCellDataSetFormatHeightChange;
 end;
 
 procedure THCTableItem.InitializeMouseInfo;

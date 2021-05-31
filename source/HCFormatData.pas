@@ -110,7 +110,7 @@ type
     procedure ItemReFormatRequest(const AItem: THCCustomItem); virtual;
     procedure ItemReFormatResponse(const AItem: THCCustomItem); virtual;
     procedure ItemSetCaretRequest(const AItemNo, AOffset: Integer); virtual;
-    procedure SetFormatChange; virtual;
+    procedure SetFormatHeightChange; virtual;
     function GetDrawItemFormatTop(const ADrawItemNo: Integer): Integer; virtual;
     function GetItemNo(const AItem: THCCustomItem): Integer;
     procedure BeginFormat;
@@ -1375,7 +1375,7 @@ begin
   CaretDrawItemNo := vDrawItemNo;
 end;
 
-procedure THCFormatData.SetFormatChange;
+procedure THCFormatData.SetFormatHeightChange;
 begin
   FFormatChange := True;
 end;

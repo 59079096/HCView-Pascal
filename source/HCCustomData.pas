@@ -95,7 +95,7 @@ type
     FDrawItems: THCDrawItems;
     FSelectInfo: TSelectInfo;
     FLoading: Boolean;  // 当粘贴时调用InsertStream中有表格时，全局并不是loading但对于单元格来说是loading所以需要单独表示操作状态，如果将来需要更多状态可以考虑使用THCStates
-    FCaretDrawItemNo: Integer;  // 当前Item光标处的DrawItem限定其只在相关的光标处理中使用(解决同一Item分行后Offset为行尾时不能区分是上行尾还是下行始)
+    FCaretDrawItemNo: Integer;
 
     FOnInsertItem, FOnRemoveItem: TDataItemEvent;
     FOnSaveItem: TDataItemNoFunEvent;  // 可控制保存时不保存指定的Item实现一次性的功能

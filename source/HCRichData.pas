@@ -2559,7 +2559,12 @@ begin
       else  // 无样式表
       begin
         if vItem.StyleNo > THCStyle.Null then
-          vItem.StyleNo := CurStyleNo;
+        begin
+          if CurStyleNo < THCStyle.Null then
+            vItem.StyleNo := Style.GetStyleNo(Style.DefaultTextStyle, True)
+          else
+            vItem.StyleNo := CurStyleNo;
+        end;
 
         vItem.ParaNo := vCaretParaNo;
       end;

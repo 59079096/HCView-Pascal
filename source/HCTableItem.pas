@@ -2421,7 +2421,7 @@ begin
               FColWidths[vUpCol] := FColWidths[vUpCol] + vCellPt.X;  // 当前列变化
               // 右侧的增加，实现拖动不改变表格整体宽度
               if FResizeKeepWidth and (vUpCol < FColWidths.Count - 1) then  // 右侧的弥补变化
-                FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] + vCellPt.X;
+                FColWidths[vUpCol + 1] := FColWidths[vUpCol + 1] - vCellPt.X;
             end;
           end;
         end;

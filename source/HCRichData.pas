@@ -4525,17 +4525,20 @@ var
               and DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actBackDeleteText)
             then
             begin
+              if Style.ParaStyles[vCurItem.ParaNo].FirstIndent > 0 then  // 在段最前面删除
+                ApplyParaFirstIndent(Max(0, Style.ParaStyles[vCurItem.ParaNo].FirstIndent - PixXToMillimeter(TabCharWidth)))
+              else
               if SelectInfo.StartItemNo > 0 then  // 第一个前回删不处理，停止格式化
               begin
-                if vCurItem.ParaFirst and (SelectInfo.StartItemNo > 0) then
-                begin
+                //if vCurItem.ParaFirst and (SelectInfo.StartItemNo > 0) then
+                //begin
                   vFormatFirstDrawItemNo := GetFormatFirstDrawItem(SelectInfo.StartItemNo - 1,
                     GetItemOffsetAfter(SelectInfo.StartItemNo - 1));
 
                   vFormatLastItemNo := GetParaLastItemNo(SelectInfo.StartItemNo);
-                end
-                else
-                  GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+                //end
+                //else
+                //  GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
                 FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 

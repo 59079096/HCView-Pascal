@@ -3316,8 +3316,13 @@ begin
         case vPtr^ of
           #13:
             begin
-              System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-              DoInsertTextEx(vS, vNewPara);
+              if vNewPara
+                or (vPtr > vPCharStart)
+              then
+              begin
+                System.SetString(vS, vPCharStart, vPtr - vPCharStart);
+                DoInsertTextEx(vS, vNewPara);
+              end;
               vNewPara := True;
 
               Inc(vPtr);
@@ -3336,11 +3341,8 @@ begin
         Inc(vPtr);
       end;
 
-      //if vPtr > vPCharStart then  // 如果插入的字符最后是#13#10，不要再增加空字符(为什么)
-      begin
-        System.SetString(vS, vPCharStart, vPtr - vPCharStart);
-        DoInsertTextEx(vS, vNewPara);
-      end;
+      System.SetString(vS, vPCharStart, vPtr - vPCharStart);
+      DoInsertTextEx(vS, vNewPara);
 
       ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo + vAddCount, vAddCount);
       Result := True;

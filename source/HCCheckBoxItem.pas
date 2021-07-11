@@ -21,7 +21,7 @@ type
   THCCheckBoxItem = class(THCControlItem)
   private
     FText: string;
-    FChecked, FItemHit: Boolean;
+    FChecked, FItemHit, FBoxRight: Boolean;
     function GetBoxRect: TRect;
     procedure SetChecked(const Value: Boolean);
   protected
@@ -46,6 +46,7 @@ type
     procedure ParseXml(const ANode: IHCXMLNode); override;
 
     property Checked: Boolean read FChecked write SetChecked;
+    property BoxRight: Boolean read FBoxRight write FBoxRight;
   end;
 
 implementation
@@ -60,7 +61,10 @@ const
 
 function THCCheckBoxItem.GetBoxRect: TRect;
 begin
-  Result := Classes.Bounds(FPaddingLeft, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize);
+  if FBoxRight then
+    Result := Classes.Bounds(Width - FPaddingLeft - CheckBoxSize, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize)
+  else
+    Result := Classes.Bounds(FPaddingLeft, (Height - CheckBoxSize) div 2, CheckBoxSize, CheckBoxSize);
 end;
 
 function THCCheckBoxItem.GetText: string;
@@ -83,6 +87,7 @@ begin
   FChecked := AChecked;
   FText := AText;
   FItemHit := False;
+  FBoxRight := False;
   FPaddingLeft := 2;
 end;
 
@@ -127,8 +132,11 @@ begin
 
   ACanvas.Brush.Style := bsClear;
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
-  ACanvas.TextOut(ADrawRect.Left + FPaddingLeft + CheckBoxSize + FPaddingLeft,
-    ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2, FText);
+  if FBoxRight then
+    ACanvas.TextOut(ADrawRect.Left, ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2, FText)
+  else
+    ACanvas.TextOut(ADrawRect.Left + FPaddingLeft + CheckBoxSize + FPaddingLeft,
+      ADrawRect.Top + (Height - ACanvas.TextHeight('H')) div 2, FText);
 end;
 
 procedure THCCheckBoxItem.DoSetChecked(const Value: Boolean);
@@ -175,8 +183,8 @@ begin
     begin
       Self.OwnerData.Style.ApplyTempStyle(TextStyleNo);
       vSize := Self.OwnerData.Style.TempCanvas.TextExtent(FText);
-      if PtInRect(Classes.Bounds(FPaddingLeft, 0, FPaddingLeft + CheckBoxSize + FPaddingLeft + vSize.cx, vSize.cy),
-        Point(X, Y))
+      if PtInRect(Classes.Bounds(FPaddingLeft, 0, FPaddingLeft + CheckBoxSize + FPaddingLeft + vSize.cx, vSize.cy), Point(X, Y))
+
       then
         DoSetChecked(not FChecked);
     end
@@ -195,17 +203,35 @@ end;
 
 procedure THCCheckBoxItem.LoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vByte: Byte;
 begin
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
-  AStream.ReadBuffer(FChecked, SizeOf(FChecked));  // ¶Á¹´Ñ¡×´Ì¬
+  if AFileVersion > 51 then
+  begin
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
+    FChecked := Odd(vByte shr 7);
+    FBoxRight := Odd(vByte shr 6);
+  end
+  else
+    AStream.ReadBuffer(FChecked, SizeOf(FChecked));  // ¶Á¹´Ñ¡×´Ì¬
+
   HCLoadTextFromStream(AStream, FText, AFileVersion);  // ¶ÁText
 end;
 
 procedure THCCheckBoxItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
+var
+  vByte: Byte;
 begin
   inherited SaveToStreamRange(AStream, AStart, AEnd);
+  vByte := 0;
+  if FChecked then  // ´æ¹´Ñ¡×´Ì¬
+    vByte := vByte or (1 shl 7);
 
-  AStream.WriteBuffer(FChecked, SizeOf(FChecked));  // ´æ¹´Ñ¡×´Ì¬
+  if FBoxRight then
+    vByte := vByte or (1 shl 6);
+
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
   HCSaveTextToStream(AStream, FText);
 end;
 

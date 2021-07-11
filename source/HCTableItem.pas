@@ -107,7 +107,8 @@ type
     /// <summary> 表格行有添加时 </summary>
     procedure DoRowAdd(const ARow: THCTableRow);
     procedure DoRowRemove(const ARow: THCTableRow);
-    function DoRowGetVPaddingPix: Byte;
+    function DoRowGetVPaddingPix: Integer;
+    function DoRowGetDefaultRowHeight: Integer;
     procedure CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure);
 
     /// <summary> 获取当前表格格式化高度 </summary>
@@ -955,7 +956,12 @@ begin
     Result := inherited DoSelfUndoNew;
 end;
 
-function THCTableItem.DoRowGetVPaddingPix: Byte;
+function THCTableItem.DoRowGetDefaultRowHeight: Integer;
+begin
+  Result := FDefaultRowHeight;
+end;
+
+function THCTableItem.DoRowGetVPaddingPix: Integer;
 begin
   Result := FCellVPaddingPix;
 end;
@@ -1114,7 +1120,7 @@ begin
   begin
     // 不在当前屏幕范围内的不绘制(1)
     vCellDataDrawTop := vCellDataDrawTop + FRows[vR].FmtOffset + FCellVPaddingPix;
-    if vCellDataDrawTop > ADataScreenBottom then  // 行数据顶部大于可显示区域显示不出来不绘制
+    if vCellDataDrawTop >= ADataScreenBottom then  // 行数据顶部大于可显示区域显示不出来不绘制
     begin
       if (vFirstDrawRow < 0) and IsBreakRow(vR){(FRows[vR].FmtOffset > 0)} then  // 有标题行导致的第vR行没显示出来，但固定行可以显示出来
         vDrawFixRow := (FFixRow >= 0) and (vR > FFixRow + FFixRowCount - 1);
@@ -1124,7 +1130,7 @@ begin
 
     vCellDataDrawBottom := vCellDataDrawTop - FCellVPaddingPix + FRows[vR].Height - FCellVPaddingPix;
 
-    if vCellDataDrawBottom < ADataScreenTop then  // 当前行底部小于可显示顶部，没显示出来不绘制
+    if vCellDataDrawBottom <= ADataScreenTop then  // 当前行底部小于可显示顶部，没显示出来不绘制
     begin
       vCellDataDrawTop := vCellDataDrawBottom + FCellVPaddingPix + FBorderWidthPix;  // 准备判断下一行是否是可显示第一行
       Continue;
@@ -1377,7 +1383,10 @@ begin
             Dec(vDestCol2);
           end;}
 
-          if (vBorderTop < ADataScreenTop) and (ADataDrawTop >= 0) then  // 表格当前行显示不全或表格当前行跨页此时在下一页绘制
+          if IsBreakRow(vR) and (vR = vFirstDrawRow) then
+            vBorderTop := vBorderTop - 1;
+
+          if (vBorderTop < ADataScreenTop) and (ADataDrawTop >= 0) then
             vBorderTop := ADataScreenTop;
 
           {if GetObjectType(ACanvas.Pen.Handle) = OBJ_EXTPEN then
@@ -1387,10 +1396,10 @@ begin
             //GetObject(ACanvas.Pen.Handle, vBottom, vExtPen);
           end
           else}
-          vExtPen := CreateExtPen(ACanvas.Pen);  // 因为默认的画笔没有线帽的控制，新增支持线帽的画笔
+          vExtPen := CreateExtPen(ACanvas.Pen);
           vOldPen := SelectObject(ACanvas.Handle, vExtPen);
           try
-            if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then  // 上边框可显示
+            if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then
             begin
               if APaintInfo.Print then
               begin
@@ -1629,6 +1638,7 @@ var
   vCellData: THCTableCellData;
 begin
   ARow.OnGetVPaddingPix := DoRowGetVPaddingPix;
+  ARow.OnGetDefaultRowHeight := DoRowGetDefaultRowHeight;
   for i := 0 to ARow.ColCount - 1 do
   begin
     vCellData := ARow[i].CellData;
@@ -2694,11 +2704,14 @@ begin
   if ATop + vH < 0 then Exit;
 
   vRect := Bounds(ALeft, ATop, Width, vH);
-  //if not APaintInfo.Print then
+  if not APaintInfo.Print then
   begin
     ACanvas.Brush.Color := clBtnFace;
     ACanvas.FillRect(vRect);
   end;
+
+  DoPaint(OwnerData.Style, vRect, ATop, ATop + vH, ATop, ATop + vH, ACanvas, APaintInfo);
+  Exit;
 
   vTop := ATop;
   for vR := FFixRow to FFixRow + FFixRowCount - 1 do

@@ -37,7 +37,7 @@ type
     FMultSelect: Boolean;
     FItems: TObjectList<THCRadioButton>;
     FRadioStyle: THCRadioStyle;
-    FItemHit: Boolean;
+    FItemHit, FBoxRight: Boolean;
     FColumns,  // 大于0的整数时列属性有效，0用于兼容旧版本的不分列
       FBatchCount: Byte;
 
@@ -79,6 +79,7 @@ type
     property MultSelect: Boolean read FMultSelect write FMultSelect;
     property RadioStyle: THCRadioStyle read FRadioStyle write FRadioStyle;
     property ItemHit: Boolean read FItemHit write FItemHit;
+    property BoxRight: Boolean read FBoxRight write FBoxRight;
     property Columns: Byte read FColumns write SetColumns;
     property ColumnAlign: Boolean read FColumnAlign write SetColumnAlign;
     property Items: TObjectList<THCRadioButton> read FItems;
@@ -131,6 +132,7 @@ begin
   FColumns := 0;  // 0兼容旧版本
   FColumnAlign := True;
   FItemHit := False;
+  FBoxRight := False;
   FItems := TObjectList<THCRadioButton>.Create;
   FItems.OnNotify := DoItemNotify;
   FRadioStyle := THCRadioStyle.Radio;
@@ -233,40 +235,33 @@ procedure THCRadioGroup.DoPaintItems(const ACanvas: TCanvas; const ADrawRect: TR
 var
   i: Integer;
   vPoint: TPoint;
+  vBoxRect: TRect;
 begin
   for i := 0 to FItems.Count - 1 do
   begin
     vPoint.X := FItems[i].Rect.Left;
     vPoint.Y := FItems[i].Rect.Top;
     vPoint.Offset(ADrawRect.Left, ADrawRect.Top);
+    if FBoxRight then
+      vBoxRect := Bounds(FItems[i].Rect.Right + ADrawRect.Left - RadioButtonWidth, vPoint.Y, RadioButtonWidth, RadioButtonWidth)
+    else
+      vBoxRect := Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth);
 
     if APaintInfo.Print then
     begin
       if FItems[i].Checked then
       begin
         if FRadioStyle = THCRadioStyle.Radio then
-        begin
-          HCDrawFrameControl(ACanvas, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-            THCControlState.hcsChecked, THCControlStyle.hcyRadio);
-        end
+          HCDrawFrameControl(ACanvas, vBoxRect, THCControlState.hcsChecked, THCControlStyle.hcyRadio)
         else
-        begin
-          HCDrawFrameControl(ACanvas, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-            THCControlState.hcsChecked, THCControlStyle.hcyCheck);
-        end;
+          HCDrawFrameControl(ACanvas, vBoxRect, THCControlState.hcsChecked, THCControlStyle.hcyCheck);
       end
       else
       begin
         if FRadioStyle = THCRadioStyle.Radio then
-        begin
-          HCDrawFrameControl(ACanvas, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-            THCControlState.hcsCustom, THCControlStyle.hcyRadio);
-        end
+          HCDrawFrameControl(ACanvas, vBoxRect, THCControlState.hcsCustom, THCControlStyle.hcyRadio)
         else
-        begin
-          HCDrawFrameControl(ACanvas, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-            THCControlState.hcsCustom, THCControlStyle.hcyCheck);
-        end;
+          HCDrawFrameControl(ACanvas, vBoxRect, THCControlState.hcsCustom, THCControlStyle.hcyCheck);
       end;
 
       ACanvas.Brush.Style := bsClear;
@@ -276,32 +271,23 @@ begin
       if FItems[i].Checked then
       begin
         if FRadioStyle = THCRadioStyle.Radio then
-        begin
-          DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-            DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONRADIO);
-        end
+          DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONRADIO)
         else
-        begin
-          DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-            DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONCHECK);
-        end;
+          DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_CHECKED or DFCS_BUTTONCHECK);
       end
       else
       begin
         if FRadioStyle = THCRadioStyle.Radio then
-        begin
-          DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-            DFC_BUTTON, DFCS_BUTTONRADIO);
-        end
+          DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_BUTTONRADIO)
         else
-        begin
-          DrawFrameControl(ACanvas.Handle, Bounds(vPoint.X, vPoint.Y, RadioButtonWidth, RadioButtonWidth),
-            DFC_BUTTON, DFCS_BUTTONCHECK);
-        end;
+          DrawFrameControl(ACanvas.Handle, vBoxRect, DFC_BUTTON, DFCS_BUTTONCHECK);
       end;
     end;
 
-    ACanvas.TextOut(vPoint.X + RadioButtonWidth, vPoint.Y, FItems[i].Text);
+    if FBoxRight then
+      ACanvas.TextOut(vPoint.X, vPoint.Y, FItems[i].Text)
+    else
+      ACanvas.TextOut(vPoint.X + RadioButtonWidth, vPoint.Y, FItems[i].Text);
   end;
 end;
 
@@ -334,6 +320,7 @@ end;
 function THCRadioGroup.GetItemAt(const X, Y: Integer): Integer;
 var
   i: Integer;
+  vBoxRect: TRect;
 begin
   Result := -1;
 
@@ -349,8 +336,12 @@ begin
     end
     else  // 只在box命中
     begin
-      if PtInRect(Bounds(FItems[i].Rect.Left, FItems[i].Rect.Top,
-        RadioButtonWidth, RadioButtonWidth), Point(x, y))
+      if FBoxRight then
+        vBoxRect := Bounds(FItems[i].Rect.Right - RadioButtonWidth, FItems[i].Rect.Top, RadioButtonWidth, RadioButtonWidth)
+      else
+        vBoxRect := Bounds(FItems[i].Rect.Left, FItems[i].Rect.Top, RadioButtonWidth, RadioButtonWidth);
+
+      if PtInRect(vBoxRect, Point(x, y))
       then
       begin
         Result := i;
@@ -407,6 +398,7 @@ begin
       FMultSelect := Odd(vByte shr 7);
       FItemHit := Odd(vByte shr 6);
       FColumnAlign := Odd(vByte shr 5);
+      FBoxRight := Odd(vByte shr 4);
     end;
 
     // 读Items
@@ -677,6 +669,9 @@ begin
 
   if FColumnAlign then
     vByte := vByte or (1 shl 5);
+
+  if FBoxRight then
+    vByte := vByte or (1 shl 4);
 
   AStream.WriteBuffer(vByte, SizeOf(vByte));
 

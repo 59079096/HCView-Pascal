@@ -24,7 +24,7 @@ const
 type
   PPointerList = ^TPointerList;
   TPointerList = array[0..MaxListSize] of Pointer;
-  TOnGetVPaddingPixEvent = function(): Byte of object;
+  TOnGetTableIntEvent = function(): Integer of object;
 
   THCTableRow = class(TObject)
   private
@@ -36,7 +36,7 @@ type
       : Integer;
 
     FAutoHeight: Boolean;  // True根据内容自动匹配合适的高度 False用户拖动后的自定义高度
-    FOnGetVPaddingPix: TOnGetVPaddingPixEvent;
+    FOnGetVPaddingPix, FOnGetDefaultRowHeight: TOnGetVPaddingPixEvent;
     procedure SetCapacity(const Value: Integer);
     function CalcMaxCellDataHeight: Integer;
     function GetItems(Index: Integer): Pointer;
@@ -72,8 +72,8 @@ type
     property AutoHeight: Boolean read FAutoHeight write FAutoHeight;
     /// <summary>因跨页向下整体偏移的量</summary>
     property FmtOffset: Integer read FFmtOffset write FFmtOffset;
-
-    property OnGetVPaddingPix: TOnGetVPaddingPixEvent read FOnGetVPaddingPix write FOnGetVPaddingPix;
+    property OnGetDefaultRowHeight: TOnGetTableIntEvent read FOnGetDefaultRowHeight write FOnGetDefaultRowHeight;
+    property OnGetVPaddingPix: TOnGetTableIntEvent read FOnGetVPaddingPix write FOnGetVPaddingPix;
   end;
 
   TRowAddEvent = procedure(const ARow: THCTableRow) of object;
@@ -152,7 +152,11 @@ function THCTableRow.CalcMaxCellDataHeight: Integer;
 var
   i: Integer;
 begin
-  Result := MinRowHeight;
+  if Assigned(FOnGetDefaultRowHeight) then
+    Result := FOnGetDefaultRowHeight
+  else
+    Result := MinRowHeight;
+
   for i := 0 to FColCount - 1 do  // 找行中最高的单元格
   begin
     if (Cols[i].CellData <> nil) and (Cols[i].RowSpan = 0) then  // 不是被合并的单元格，不是行合并的行单元格

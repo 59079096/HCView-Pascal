@@ -160,6 +160,7 @@ begin
       vLogFont.lfHeight := Round(FSize * vPixPerInch / 72 / AScale)
   end;
 
+  DeleteObject(ACanvas.Font.Handle);
   ACanvas.Font.Handle := CreateFontIndirect(vLogFont);
 
   GetTextMetrics(ACanvas.Handle, FTextMetric);  // 得到字体信息

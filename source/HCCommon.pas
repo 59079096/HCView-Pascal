@@ -384,6 +384,7 @@ type
   procedure HCDrawWave(const ACanvas: TCanvas; const ARect: TRect);
 
   function SaveCanvas(const ACanvas: TCanvas): THCCanvas;
+  function ReplaceUnPreChar(const AText: string): string;  // 替换掉字符串的英文空白和#9等不完美识别的字符
 
 var
   GCursor: TCursor;
@@ -496,6 +497,12 @@ begin
       ACanvas.LineTo(vRect.Right - 3, vRect.Top + 3);
     end;
   end;
+end;
+
+function ReplaceUnPreChar(const AText: string): string;
+begin
+  Result := StringReplace(AText, Char($2002), Char($0020), [rfReplaceAll, rfIgnoreCase]);  // 替换EN SPACE为SPACE
+  Result := StringReplace(Result, #9, '', [rfReplaceAll, rfIgnoreCase]);  // 替换tab为空
 end;
 
 procedure HCDrawWave(const ACanvas: TCanvas; const ARect: TRect);

@@ -215,7 +215,10 @@ begin
     FHeight := vHeight
   else
   if FHeight < vHeight then
+  begin
     FHeight := vHeight;
+    FAutoHeight := True;
+  end;
 
   for i := 0 to FColCount - 1 do
     Cols[i].Height := FHeight;

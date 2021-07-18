@@ -3264,7 +3264,7 @@ var
 var
   vPCharStart, vPCharEnd, vPtr: PChar;
   vNewPara: Boolean;
-  vS: string;
+  vText, vS: string;
   vRectItem: THCCustomRectItem;
   vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
@@ -3307,8 +3307,9 @@ begin
       GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
       FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
 
-      vPCharStart := PChar(AText);
-      vPCharEnd := vPCharStart + Length(AText);
+      vText := ReplaceUnPreChar(AText);
+      vPCharStart := PChar(vText);
+      vPCharEnd := vPCharStart + Length(vText);
       if vPCharStart = vPCharEnd then Exit;
       vPtr := vPCharStart;
       while vPtr < vPCharEnd do

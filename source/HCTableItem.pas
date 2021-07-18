@@ -999,6 +999,7 @@ var
   var
     vC, i, vRowDataDrawTop, vDestCellDataDrawTop, vBreakBottom, vCellDataVerTop: Integer;
     vRect: TRect;
+    vFindShouLian: Boolean;
   begin
     if vShouLian = 0 then  // 没有计算过当前行有跨页的所有列中最佳跨页时收敛位置
     begin
@@ -1023,7 +1024,7 @@ var
 
       // 分页行Data绘制起始位置，第一次绘制整体下移分页行时要增加偏移，否则不增加(和上一行结尾相同)做为收敛位置(见前上行Exit处)
       vRowDataDrawTop := vRowDataDrawTop + FRows[ARow].FmtOffset;
-
+      vFindShouLian := False;
       vBreakBottom := 0;
       for vC := 0 to FRows[ARow].ColCount - 1 do  // 遍历同行各列，获取截断位置(因为各行在CheckFormatPage已经算好分页位置，所以此处只要一个单元格跨页位置同时适用当前行所有单元格跨页位置)
       begin
@@ -1056,6 +1057,7 @@ var
               else
                 vShouLian := Max(vShouLian, vDestCellDataDrawTop - FBorderWidthPix);
 
+              vFindShouLian := True;
               Break;
             end
             else  // 此DrawItem没有超过当前页
@@ -1064,7 +1066,10 @@ var
         end;
       end;
 
-      vShouLian := Max(vShouLian, vBreakBottom);
+      if not vFindShouLian then
+        vShouLian := Min(ADataScreenBottom, vRowDataDrawTop + FRows[ARow].FmtOffset + FRows[ARow].Height) - FBorderWidthPix
+      else
+        vShouLian := Max(vShouLian, vBreakBottom);
     end;
   end;
   {$ENDREGION}
@@ -1399,7 +1404,7 @@ begin
           vExtPen := CreateExtPen(ACanvas.Pen);
           vOldPen := SelectObject(ACanvas.Handle, vExtPen);
           try
-            if (vBorderTop >= 0) and (cbsTop in FRows[vR][vC].BorderSides) then
+            if (vBorderTop + FBorderWidthPix > 0) and (cbsTop in FRows[vR][vC].BorderSides) then
             begin
               if APaintInfo.Print then
               begin
@@ -1427,7 +1432,7 @@ begin
               end;
             end;
 
-            if (vBorderBottom <= ADataScreenBottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // 下边框
+            if (vBorderBottom < ADataScreenBottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // 下边框
             begin
               if APaintInfo.Print then
               begin
@@ -4305,8 +4310,9 @@ begin
         begin
           vFirstLinePlace := False;
           vPageBreakBottom := vBreakRowFmtTop;
-          Break;
         end;
+
+        Break;
       end;
     end;
 
@@ -4318,7 +4324,7 @@ begin
   if vFirstLinePlace and not vFindBreak then
   begin
     vFirstLinePlace := False;
-    vPageBreakBottom := vBreakRowFmtTop;
+    //vPageBreakBottom := vBreakRowFmtTop;
   end;
 
   // 根据上面计算出来的截断位置(可能是PageData底部也可能是整体下移行底部)

@@ -36,7 +36,7 @@ type
       : Integer;
 
     FAutoHeight: Boolean;  // True根据内容自动匹配合适的高度 False用户拖动后的自定义高度
-    FOnGetVPaddingPix, FOnGetDefaultRowHeight: TOnGetVPaddingPixEvent;
+    FOnGetVPaddingPix, FOnGetDefaultRowHeight: TOnGetTableIntEvent;
     procedure SetCapacity(const Value: Integer);
     function CalcMaxCellDataHeight: Integer;
     function GetItems(Index: Integer): Pointer;

@@ -1481,6 +1481,8 @@ begin
     ACanvas.Brush.Style := bsClear;
     ACanvas.Font.Size := 10;
     ACanvas.Font.Name := 'ËÎÌו';
+    ACanvas.Font.Color := clBlack;
+    ACanvas.Font.Style := [];
     ACanvas.TextOut(ARect.Left + (ARect.Width - ACanvas.TextWidth(vS)) div 2,
       ARect.Top + vSection.Footer.Height, vS);
   end;

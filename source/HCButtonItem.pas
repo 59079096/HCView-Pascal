@@ -70,8 +70,8 @@ end;
 procedure THCButtonItem.DoPaint(const AStyle: THCStyle; const ADrawRect: TRect;
   const ADataDrawTop, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
   const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
-//var
-//  vBoxRect: TRect;
+var
+  vSize: TSize;
 begin
   inherited DoPaint(AStyle, ADrawRect, ADataDrawTop, ADataDrawBottom, ADataScreenTop,
     ADataScreenBottom, ACanvas, APaintInfo);
@@ -94,7 +94,9 @@ begin
 
   ACanvas.Brush.Style := bsClear;
   AStyle.TextStyles[TextStyleNo].ApplyStyle(ACanvas, APaintInfo.ScaleY / APaintInfo.Zoom);
-  ACanvas.TextOut(ADrawRect.Left + FPaddingLeft, ADrawRect.Top + FPaddingTop, FText);
+  vSize := ACanvas.TextExtent(FText);
+  ACanvas.TextOut(ADrawRect.Left + (ADrawRect.Width - vSize.cx) div 2,
+    ADrawRect.Top + (ADrawRect.Height - vSize.cy) div 2, FText);
 end;
 
 procedure THCButtonItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -121,7 +123,7 @@ function THCButtonItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
   if Self.Enabled and PtInRect(Self.ClientRect, Point(X, Y)) then
-    FDown := True;
+    FDown := ssLeft in Shift;
 
   inherited MouseDown(Button, Shift, X, Y);
 end;

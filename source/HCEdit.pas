@@ -259,6 +259,8 @@ begin
   if (FCaret <> nil) and FStyle.UpdateInfo.ReCaret then
   begin
     FStyle.UpdateInfo.ReCaret := False;
+    FStyle.UpdateInfo.ReStyle := False;
+    FStyle.UpdateInfo.ReScroll := False;
     ReBuildCaret(AScrollBar);
     UpdateImmPosition;
   end;

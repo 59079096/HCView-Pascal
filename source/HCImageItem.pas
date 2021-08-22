@@ -374,7 +374,7 @@ begin
     FImage.LoadFromStream(AStream);  // 会触发OnChange
     FEmpty := False;
   end
-  else  // 兼容C#版本
+  else  // 兼容C#版本的图片文件
   begin
     AStream.ReadBuffer(vImgSize, SizeOf(vImgSize));
     if vImgSize > 0 then

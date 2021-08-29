@@ -52,9 +52,6 @@ type
     FScaleX, FScaleY,  // 目标画布和显示器画布dpi比例(打印机dpi和显示器dpi不一致时的缩放比例)
     FZoom  // 视图设置的放大比例
       : Single;
-    // 如果要将ADataDrawLeft, ADataDrawBottom, ADataScreenTop, ADataScreenBottom,
-    // 等信息增加到此类中，需要设计表格单元格Data绘制时和页面Data的这几个值不一样
-    // 需要不停的修改此类中这几个参数
   public
     constructor Create; virtual;
     destructor Destroy; override;

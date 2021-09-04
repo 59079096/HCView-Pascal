@@ -1330,7 +1330,9 @@ procedure THCEdit._DeleteUnUsedStyle;
 var
   i, vUnCount: Integer;
 begin
-  for i := 0 to FStyle.TextStyles.Count - 1 do
+  FStyle.TextStyles[0].CheckSaveUsed := True;
+  FStyle.TextStyles[0].TempNo := 0;
+  for i := 1 to FStyle.TextStyles.Count - 1 do
   begin
     FStyle.TextStyles[i].CheckSaveUsed := False;
     FStyle.TextStyles[i].TempNo := THCStyle.Null;
@@ -1344,7 +1346,7 @@ begin
   FData.MarkStyleUsed(True);
 
   vUnCount := 0;
-  for i := 0 to FStyle.TextStyles.Count - 1 do
+  for i := 1 to FStyle.TextStyles.Count - 1 do
   begin
     if FStyle.TextStyles[i].CheckSaveUsed then
       FStyle.TextStyles[i].TempNo := i - vUnCount
@@ -1363,7 +1365,7 @@ begin
 
   FData.MarkStyleUsed(False);
 
-  for i := FStyle.TextStyles.Count - 1 downto 0 do
+  for i := FStyle.TextStyles.Count - 1 downto 1 do
   begin
     if not FStyle.TextStyles[i].CheckSaveUsed then
       FStyle.TextStyles.Delete(i);

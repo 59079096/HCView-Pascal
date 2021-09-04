@@ -164,8 +164,6 @@ type
     procedure DeleteEmptyItem;
     procedure SetCaretDrawItemNo(const Value: Integer);
 
-    /// <summary> 计算行高(文本高+行间距) </summary>
-    function CalculateLineHeight(const ATextStyle: THCTextStyle; const AParaStyle: THCParaStyle): Integer;
     function GetUndoList: THCUndoList; virtual;
     /// <summary> 是否允许保存该Item </summary>
     function DoSaveItem(const AItemNo: Integer): Boolean; virtual;
@@ -212,7 +210,8 @@ type
     function CreateDefaultDomainItem: THCCustomItem; virtual;
     function CreateItemByStyle(const AStyleNo: Integer): THCCustomItem; virtual;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); virtual;
-
+    /// <summary> 计算行高(文本高+行间距) </summary>
+    function CalculateLineHeight(const ATextStyle: THCTextStyle; const AParaStyle: THCParaStyle): Integer;
     /// <summary>
     /// 返回指定坐标下的Item和Offset
     /// </summary>

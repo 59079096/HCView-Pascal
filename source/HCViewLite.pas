@@ -186,7 +186,9 @@ var
   i, vUnCount: Integer;
   vData: THCCustomData;
 begin
-  for i := 0 to AStyle.TextStyles.Count - 1 do
+  AStyle.TextStyles[0].CheckSaveUsed := True;
+  AStyle.TextStyles[0].TempNo := 0;
+  for i := 1 to AStyle.TextStyles.Count - 1 do
   begin
     AStyle.TextStyles[i].CheckSaveUsed := False;
     AStyle.TextStyles[i].TempNo := THCStyle.Null;
@@ -202,7 +204,7 @@ begin
     ASections[i].MarkStyleUsed(True, AAreas);
 
   vUnCount := 0;
-  for i := 0 to AStyle.TextStyles.Count - 1 do
+  for i := 1 to AStyle.TextStyles.Count - 1 do
   begin
     if AStyle.TextStyles[i].CheckSaveUsed then
       AStyle.TextStyles[i].TempNo := i - vUnCount
@@ -230,7 +232,7 @@ begin
     vData.CurParaNo := AStyle.ParaStyles[vData.CurParaNo].TempNo;
   end;
 
-  for i := AStyle.TextStyles.Count - 1 downto 0 do
+  for i := AStyle.TextStyles.Count - 1 downto 1 do
   begin
     if not AStyle.TextStyles[i].CheckSaveUsed then
       AStyle.TextStyles.Delete(i);

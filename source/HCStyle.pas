@@ -124,6 +124,7 @@ type
     /// <returns>样式编号</returns>
     function NewDefaultTextStyle: Integer;
     function NewDefaultParaStyle: Integer;
+    function GetDefaultStyleNo: Integer;
     function GetStyleNo(const ATextStyle: THCTextStyle; const ACreateIfNull: Boolean): Integer;
     function GetParaNo(const AParaStyle: THCParaStyle; const ACreateIfNull: Boolean): Integer;
     procedure ApplyTempStyle(const Value: Integer; const AScale: Single = 1);
@@ -271,8 +272,7 @@ begin
   end;
 end;
 
-function THCStyle.GetStyleNo(const ATextStyle: THCTextStyle;
-  const ACreateIfNull: Boolean): Integer;
+function THCStyle.GetStyleNo(const ATextStyle: THCTextStyle; const ACreateIfNull: Boolean): Integer;
 var
   i: Integer;
   vTextStyle: THCTextStyle;
@@ -292,8 +292,15 @@ begin
     vTextStyle := THCTextStyle.Create;
     vTextStyle.AssignEx(ATextStyle);
     FTextStyles.Add(vTextStyle);
+    vTextStyle.ApplyStyle(FTempCanvas);
     Result := FTextStyles.Count - 1;
+    FTempStyleNo := Result;
   end;
+end;
+
+function THCStyle.GetDefaultStyleNo: Integer;
+begin
+  Result := GetStyleNo(FDefaultTextStyle, True);
 end;
 
 function THCStyle.GetHtmlFileTempName(const AReset: Boolean = False): string;
@@ -356,7 +363,8 @@ var
 begin
   vTextStyle := THCTextStyle.Create;
   Result := FTextStyles.Add(vTextStyle);
-  vTextStyle.ApplyStyle(FTempCanvas);  // 生成测量信息
+  vTextStyle.ApplyStyle(FTempCanvas);
+  FTempStyleNo := Result;
 end;
 
 procedure THCStyle.ParseXml(const ANode: IHCXMLNode);

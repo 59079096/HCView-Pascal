@@ -14,7 +14,7 @@ unit HCTableRow;
 interface
 
 uses
-  HCCustomData, HCTableCell, HCTableCellData, HCStyle, HCXml;
+  Classes, HCCustomData, HCTableCell, HCTableCellData, HCStyle, HCXml;
 
 const
   MinRowHeight = 20;  // < 10时受FGripSize拖块大小会不容易点进去
@@ -44,6 +44,7 @@ type
     procedure SetColCount(const Value: Integer);
     procedure SetHeight(const Value: Integer);  // 外部拖动改变行高
   protected
+    function DoCreateCell(const AStyle: THCStyle): THCTableCell; virtual;
     function GetCols(const Index: Integer): THCTableCell;
     function GetVPadding: Byte;
     property Items[Index: Integer]: Pointer read GetItems write SetItems;
@@ -57,9 +58,11 @@ type
     //
     procedure FormatInit;
     procedure SetRowWidth(const AWidth: Integer);
-
-    procedure ToXml(const ANode: IHCXMLNode);
-    procedure ParseXml(const ANode: IHCXMLNode);
+    function CreateCell(const AStyle: THCStyle): THCTableCell;
+    procedure SaveToStream(const AStream: TStream); virtual;
+    procedure LoadFromStream(const AStream: TStream; const AFileVersion: Word); virtual;
+    procedure ToXml(const ANode: IHCXMLNode); virtual;
+    procedure ParseXml(const ANode: IHCXMLNode); virtual;
 
     //property Capacity: Integer read FCapacity write SetCapacity;
     property ColCount: Integer read FColCount write SetColCount;
@@ -106,6 +109,10 @@ begin
   FList^[Index] := Item;
   Inc(FColCount);
   Result := True;
+end;
+
+procedure THCTableRow.LoadFromStream(const AStream: TStream; const AFileVersion: Word);
+begin
 end;
 
 procedure THCTableRow.ParseXml(const ANode: IHCXMLNode);
@@ -182,11 +189,16 @@ begin
   FCapacity := 0;
   for i := 0 to AColCount - 1 do
   begin
-    vCell := THCTableCell.Create(AStyle);
+    vCell := DoCreateCell(AStyle);
     Add(vCell);
   end;
 
   FAutoHeight := True;
+end;
+
+function THCTableRow.CreateCell(const AStyle: THCStyle): THCTableCell;
+begin
+  Result := DoCreateCell(AStyle);
 end;
 
 procedure THCTableRow.Delete(Index: Integer);
@@ -204,6 +216,11 @@ destructor THCTableRow.Destroy;
 begin
   Clear;
   inherited;
+end;
+
+function THCTableRow.DoCreateCell(const AStyle: THCStyle): THCTableCell;
+begin
+  Result := THCTableCell.Create(AStyle);
 end;
 
 procedure THCTableRow.FormatInit;
@@ -243,6 +260,10 @@ begin
   if (Index < 0) or (Index >= FColCount) then
     raise Exception.CreateFmt('异常:[THCTableRow.GetItems]参数Index值%d超出范围！', [Index]);
   Result := FList^[Index];
+end;
+
+procedure THCTableRow.SaveToStream(const AStream: TStream);
+begin
 end;
 
 procedure THCTableRow.SetCapacity(const Value: Integer);

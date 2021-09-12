@@ -91,7 +91,7 @@ type
     procedure SetActive(const Value: Boolean);
     procedure SetHeight(const Value: Integer);
   public
-    constructor Create(const AStyle: THCStyle);
+    constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
 
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer;
@@ -108,9 +108,9 @@ type
 
     procedure SaveToStream(const AStream: TStream); virtual;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word);
-    procedure ToXml(const ANode: IHCXMLNode);
-    procedure ParseXml(const ANode: IHCXMLNode);
+      const AFileVersion: Word); virtual;
+    procedure ToXml(const ANode: IHCXMLNode); virtual;
+    procedure ParseXml(const ANode: IHCXMLNode); virtual;
     function GetCellDataTop(const ACellVPadding: Byte): Integer;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer;
       const ACellHPadding, ACellVPadding: Byte; var ACaretInfo: THCCaretInfo);

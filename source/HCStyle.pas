@@ -339,6 +339,7 @@ procedure THCStyle.LoadFromStream(const AStream: TStream; const AFileVersion: Wo
   {$ENDREGION}
 
 var
+  vByte: Byte;
   vDataSize: Int64;
 begin
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
@@ -352,6 +353,14 @@ begin
     AStream.ReadBuffer(FLineSpaceMin, SizeOf(FLineSpaceMin))
   else
     FLineSpaceMin := 8;
+
+  if AFileVersion > 53 then
+  begin
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
+    FShowParaLastMark := Odd(vByte shr 7);
+  end
+  else
+    FShowParaLastMark := True;
 
   LoadParaStyles;
   LoadTextStyles;
@@ -380,6 +389,11 @@ begin
     FLineSpaceMin := ANode.Attributes['linespacemin']
   else
     FLineSpaceMin := 8;
+
+  if ANode.HasAttribute('showplm') then
+    FShowParaLastMark := ANode.Attributes['showplm']
+  else
+    FShowParaLastMark := True;
 
   for i := 0 to ANode.ChildNodes.Count - 1 do
   begin
@@ -424,6 +438,7 @@ procedure THCStyle.SaveToStream(const AStream: TStream);
   {$ENDREGION}
 
 var
+  vByte: Byte;
   vBegPos, vEndPos: Int64;
 begin
   vBegPos := AStream.Position;
@@ -431,6 +446,12 @@ begin
   //
   AStream.WriteBuffer(FFormatVersion, SizeOf(FFormatVersion));
   AStream.WriteBuffer(FLineSpaceMin, SizeOf(FLineSpaceMin));
+
+  vByte := 0;
+  if FShowParaLastMark then
+    vByte := vByte or (1 shl 7);
+
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
 
   SaveParaStyles;
   SaveTextStyles;
@@ -479,6 +500,7 @@ begin
   ANode.Attributes['pscount'] := FParaStyles.Count;
   ANode.Attributes['fmtver'] := FFormatVersion;
   ANode.Attributes['linespacemin'] := FLineSpaceMin;
+  ANode.Attributes['showplm'] := FShowParaLastMark;
 
   vNode := ANode.AddChild('textstyles');
   for i := 0 to FTextStyles.Count - 1 do

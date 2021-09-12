@@ -109,7 +109,6 @@ type
     procedure DoRowRemove(const ARow: THCTableRow);
     function DoRowGetVPaddingPix: Integer;
     function DoRowGetDefaultRowHeight: Integer;
-    procedure CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure);
 
     /// <summary> 获取当前表格格式化高度 </summary>
     /// <returns></returns>
@@ -141,7 +140,9 @@ type
     procedure SelectComplate; override;
     function GetResizing: Boolean; override;
     procedure SetResizing(const Value: Boolean); override;
+    procedure CellChangeByAction(const ARow, ACol: Integer; const AProcedure: THCProcedure); virtual;
 
+    function DoCreateRow(const AStyle: THCStyle; const AColCount: Integer): THCTableRow; virtual;
     /// <summary> 在指定的位置绘制表格 </summary>
     /// <param name="AStyle"></param>
     /// <param name="ADrawRect">绘制时的Rect(相对ADataScreenTop)</param>
@@ -928,6 +929,11 @@ end;
 procedure THCTableItem.DoCheckCellScript(const ARow, ACol: Integer);
 begin
 
+end;
+
+function THCTableItem.DoCreateRow(const AStyle: THCStyle; const AColCount: Integer): THCTableRow;
+begin
+  Result := THCTableRow.Create(AStyle, AColCount);
 end;
 
 function THCTableItem.DoSelfUndoNew: THCUndo;
@@ -1982,7 +1988,7 @@ begin
   { 创建行、列 }
   for i := 0 to vR - 1 do
   begin
-    vRow := THCTableRow.Create(OwnerData.Style, vC);  // 注意行创建时是table拥有者的Style，加载时是传入的AStyle
+    vRow := DoCreateRow(OwnerData.Style, vC);  // 注意行创建时是table拥有者的Style，加载时是传入的AStyle
     FRows.Add(vRow);
   end;
 
@@ -2010,6 +2016,8 @@ begin
       FRows[vR][vC].CellData.Width := FColWidths[vC] - 2 * FCellHPaddingPix;
       FRows[vR][vC].LoadFromStream(AStream, AStyle, AFileVersion);
     end;
+
+    FRows[vR].LoadFromStream(AStream, AFileVersion);
   end;
 end;
 
@@ -2960,7 +2968,7 @@ begin
   { 创建行、列 }
   for i := 0 to vR - 1 do
   begin
-    vRow := THCTableRow.Create(OwnerData.Style, vC);  // 注意行创建时是table拥有者的Style，加载时是传入的AStyle
+    vRow := DoCreateRow(OwnerData.Style, vC);  // 注意行创建时是table拥有者的Style，加载时是传入的AStyle
     FRows.Add(vRow);
   end;
 
@@ -3048,7 +3056,7 @@ begin
   FRows.Clear;
   for i := 0 to ARowCount - 1 do
   begin
-    vRow := THCTableRow.Create(OwnerData.Style, AColCount);
+    vRow := DoCreateRow(OwnerData.Style, AColCount);
     vRow.SetRowWidth(vDataWidth);
     if i = 0 then
     begin
@@ -3603,7 +3611,7 @@ begin
   begin
     for vRow := 0 to RowCount - 1 do
     begin
-      vCell := THCTableCell.Create(OwnerData.Style);
+      vCell := FRows[vRow].CreateCell(OwnerData.Style);
       vCell.Width := vWidth;
       vCell.Height := FRows[vRow].Height;
       InitializeCellData(vCell.CellData);
@@ -3694,7 +3702,7 @@ begin
 
   for i := 0 to ACount - 1 do
   begin
-    vTableRow := THCTableRow.Create(OwnerData.Style, FColWidths.Count);
+    vTableRow := DoCreateRow(OwnerData.Style, FColWidths.Count);
     vTableRow.Height := FDefaultRowHeight;
 
     for vCol := 0 to FColWidths.Count - 1 do
@@ -4601,6 +4609,8 @@ begin
 
     for vC := 0 to FRows[vR].ColCount - 1 do  // 各列数据
       FRows[vR][vC].SaveToStream(AStream);
+
+    FRows[vR].SaveToStream(AStream);
   end;
 end;
 

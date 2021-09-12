@@ -241,6 +241,7 @@ type
 
   THCControlItem = class(THCTextRectItem)
   private
+    FTag: Integer;
     FAutoSize: Boolean;  // 是根据内容自动大小，还是外部指定大小
     FEnabled: Boolean;
     FOnClick: TNotifyEvent;
@@ -1381,6 +1382,7 @@ begin
   FPaddingBottom := 5;
   FMinWidth := 20;
   FMinHeight := 10;
+  FTag := 0;
 end;
 
 procedure THCControlItem.DoClick;
@@ -1397,6 +1399,11 @@ begin
     FEnabled := ANode.Attributes['enabled']
   else
     FEnabled := True;
+
+  if ANode.HasAttribute('tag') then
+    FTag := ANode.Attributes['tag']
+  else
+    FTag := 0;
 end;
 
 procedure THCControlItem.LoadFromStream(const AStream: TStream;
@@ -1412,6 +1419,10 @@ begin
     AStream.ReadBuffer(vByte, SizeOf(vByte));
     FAutoSize := Odd(vByte shr 7);
     FEnabled := Odd(vByte shr 6);
+    if AFileVersion > 53 then
+      AStream.ReadBuffer(FTag, SizeOf(FTag))
+    else
+      FTag := 0;
   end;
 end;
 
@@ -1450,6 +1461,7 @@ begin
     vByte := vByte or (1 shl 6);
 
   AStream.WriteBuffer(vByte, SizeOf(vByte));
+  AStream.WriteBuffer(FTag, SizeOf(FTag));
 end;
 
 procedure THCControlItem.ToXml(const ANode: IHCXMLNode);
@@ -1457,6 +1469,7 @@ begin
   inherited ToXml(ANode);
   ANode.Attributes['autosize'] := FAutoSize;
   ANode.Attributes['enabled'] := FEnabled;
+  ANode.Attributes['tag'] := FTag;
 end;
 
 { THCDomainItem }

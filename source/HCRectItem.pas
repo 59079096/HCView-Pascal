@@ -77,6 +77,8 @@ type
     /// <summary> ActiveItem重新适应其环境(供外部直接修改Item属性后重新和其前后Item连接组合) </summary>
     procedure ActiveItemReAdaptEnvironment; virtual;
     function DeleteSelected: Boolean; virtual;
+    function InsertAnnotate(const ATitle, AText: string): Boolean; virtual;
+    function DeleteActiveAnnotate: Boolean; virtual;
     /// <summary> 删除当前域 </summary>
     function DeleteActiveDomain: Boolean; virtual;
     /// <summary> 删除当前Data指定范围内的Item </summary>
@@ -438,6 +440,11 @@ begin
   Height := AHeight;
 end;
 
+function THCCustomRectItem.DeleteActiveAnnotate: Boolean;
+begin
+  Result := False;
+end;
+
 procedure THCCustomRectItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
   const AKeepPara: Boolean);
 begin
@@ -626,6 +633,11 @@ begin
   AUndoList.OnUndo := DoSelfUndo;
   AUndoList.OnRedo := DoSelfRedo;
   AUndoList.OnUndoDestroy := DoSelfUndoDestroy;
+end;
+
+function THCCustomRectItem.InsertAnnotate(const ATitle, AText: string): Boolean;
+begin
+  Result := False;
 end;
 
 function THCCustomRectItem.InsertGraphic(const AGraphic: TGraphic;

@@ -20,13 +20,15 @@ uses
   Generics.Collections, SysUtils, HCCommon, HCViewData, HCRichData, HCDrawItem,
   HCSection, HCScrollBar, HCRichScrollBar, HCStatusScrollBar, HCParaStyle, HCXml,
   HCTextStyle, HCRectItem, HCTextItem, HCItem, HCCustomFloatItem, HCUndo,
-  HCAnnotateData, HCSectionData;
+  HCAnnotateData, HCSectionData, HCAnnotateItem;
 
 type
-  THCDrawAnnotate = class(THCDrawItemAnnotate)  // Data批注信息
+  THCDrawAnnotate = class(TObject)
   public
+    DrawRect: TRect;
+    AnnotateItem: THCAnnotateItem;
     Data: THCCustomData;
-    Rect: TRect;  // 在批注区绘制时的区域
+    Rect: TRect;
   end;
 
   THCDrawAnnotateDynamic = class(THCDrawAnnotate)
@@ -64,20 +66,15 @@ type
       const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 
     /// <summary> 有批注插入 </summary>
-    procedure InsertDataAnnotate(const ADataAnnotate: THCDataAnnotate);
+    procedure InsertDataAnnotate(const AAnnotateItem: THCAnnotateItem);
 
     /// <summary> 有批注移除 </summary>
-    procedure RemoveDataAnnotate(const ADataAnnotate: THCDataAnnotate);
+    procedure RemoveDataAnnotate(const AAnnotateItem: THCAnnotateItem);
 
     /// <summary> 添加一个需要绘制的DrawAnnotate </summary>
     procedure AddDrawAnnotate(const ADrawAnnotate: THCDrawAnnotate);
     /// <summary> 重绘前清除上次绘制 </summary>
     procedure ClearDrawAnnotate;
-
-    function ActiveAnnotate: THCDataAnnotate;
-
-    /// <summary> 通过DrawAnnotate删除Annotate </summary>
-    procedure DeleteDataAnnotateByDraw(const AIndex: Integer);
     procedure MouseDown(const X, Y: Integer);
     procedure MouseMove(const X, Y: Integer);
     property DrawCount: Integer read GetDrawCount;
@@ -112,6 +109,7 @@ type
     FIsChanged: Boolean;  // 是否发生了改变
     FCanEditChecked, FCanEditSnapShot: Boolean;
     FAnnotatePre: THCAnnotatePre;  // 批注管理
+    FPrintAnnotatePre: Boolean;
 
     FViewModel: THCViewModel;  // 界面显示模式：页面、Web
     FCaret: THCCaret;
@@ -173,12 +171,12 @@ type
     function DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
     procedure DoSectionItemResize(const AData: THCCustomData; const AItemNo: Integer);
     procedure DoSectionDrawItemAnnotate(const Sender: TObject; const AData: THCCustomData;
-      const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
+      const ADrawItemNo: Integer; const ADrawRect: TRect; const AAnnotateItem: THCAnnotateItem);
     function DoSectionGetUndoList: THCUndoList;
     procedure DoSectionInsertAnnotate(const Sender: TObject; const AData: THCCustomData;
-      const ADataAnnotate: THCDataAnnotate);
+      const AAnnotateItem: THCAnnotateItem);
     procedure DoSectionRemoveAnnotate(const Sender: TObject; const AData: THCCustomData;
-      const ADataAnnotate: THCDataAnnotate);
+      const AAnnotateItem: THCAnnotateItem);
     procedure DoSectionCurParaNoChange(Sender: TObject);
     procedure DoSectionActivePageChange(Sender: TObject);
 
@@ -380,7 +378,7 @@ type
 
     /// <summary> 删除当前域 </summary>
     function DeleteActiveDomain: Boolean;
-
+    function DeleteActiveAnnotate: Boolean;
     /// <summary> 删除当前Data指定范围内的Item </summary>
     procedure DeleteActiveDataItems(const AStartNo: Integer; const AEndNo: Integer = -1;
       const AKeepPara: Boolean = True);
@@ -805,7 +803,7 @@ type
 
     /// <summary> 当前文档是否有变化 </summary>
     property IsChanged: Boolean read FIsChanged write SetIsChanged;
-
+    property PrintAnnotatePre: Boolean read FPrintAnnotatePre write FPrintAnnotatePre;
     /// <summary> 当前文档胶卷视图时页之间的间距 </summary>
     property PagePadding: Byte read FPagePadding write SetPagePadding;
 
@@ -1183,6 +1181,7 @@ begin
 
   FFileName := '';
   FIsChanged := False;
+  FPrintAnnotatePre := False;
   ResetCanEditShot;
 
   FZoom := 1;
@@ -1257,6 +1256,11 @@ begin
   //_DeleteUnUsedStyle;  // 删除不使用的样式
   FStyle.SaveToStream(AStream);
   AProc;
+end;
+
+function THCView.DeleteActiveAnnotate: Boolean;
+begin
+  Result := ActiveSection.DeleteActiveAnnotate;
 end;
 
 procedure THCView.DeleteActiveDataItems(const AStartNo: Integer;
@@ -1556,9 +1560,9 @@ begin
 end;
 
 procedure THCView.DoSectionRemoveAnnotate(const Sender: TObject;
-  const AData: THCCustomData; const ADataAnnotate: THCDataAnnotate);
+  const AData: THCCustomData; const AAnnotateItem: THCAnnotateItem);
 begin
-  FAnnotatePre.RemoveDataAnnotate(ADataAnnotate);
+  FAnnotatePre.RemoveDataAnnotate(AAnnotateItem);
 end;
 
 procedure THCView.DoSectionRemoveItem(const Sender: TObject;
@@ -1867,10 +1871,9 @@ begin
   DoMapChanged;
 end;
 
-procedure THCView.DoSectionInsertAnnotate(const Sender: TObject;
-  const AData: THCCustomData; const ADataAnnotate: THCDataAnnotate);
+procedure THCView.DoSectionInsertAnnotate(const Sender: TObject; const AData: THCCustomData; const AAnnotateItem: THCAnnotateItem);
 begin
-  FAnnotatePre.InsertDataAnnotate(ADataAnnotate);
+  FAnnotatePre.InsertDataAnnotate(AAnnotateItem);
 end;
 
 procedure THCView.DoSectionInsertItem(const Sender: TObject;
@@ -1910,7 +1913,7 @@ begin
 end;
 
 procedure THCView.DoSectionDrawItemAnnotate(const Sender: TObject; const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const AAnnotateItem: THCAnnotateItem);
 var
   vDrawAnnotate: THCDrawAnnotate;
 begin
@@ -1918,7 +1921,7 @@ begin
   //vAnnotate.Section := Sender;
   vDrawAnnotate.Data := AData;
   vDrawAnnotate.DrawRect := ADrawRect;
-  vDrawAnnotate.DataAnnotate := ADataAnnotate;
+  vDrawAnnotate.AnnotateItem := AAnnotateItem;
   FAnnotatePre.AddDrawAnnotate(vDrawAnnotate);
 end;
 
@@ -3417,7 +3420,7 @@ begin
             vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);  // 4961
             vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);  // 7016
 
-            if FSections[vSectionIndex].Page.DataAnnotates.Count > 0 then
+            if FPrintAnnotatePre and FAnnotatePre.Visible then
             begin
               vPaintInfo.ScaleX := vPrintWidth / (FSections[vSectionIndex].PaperWidthPix + AnnotationWidth);
               vPaintInfo.ScaleY := vPrintHeight / (FSections[vSectionIndex].PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
@@ -3513,7 +3516,7 @@ begin
     vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);
     vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);
 
-    if Self.ActiveSection.Page.DataAnnotates.Count > 0 then
+    if FPrintAnnotatePre and FAnnotatePre.Visible then
     begin
       vPaintInfo.ScaleX := vPrintWidth / (Self.ActiveSection.PaperWidthPix + AnnotationWidth);
       vPaintInfo.ScaleY := vPrintHeight / (Self.ActiveSection.PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
@@ -3635,7 +3638,7 @@ begin
     vPrintWidth := GetDeviceCaps(Printer.Handle, PHYSICALWIDTH);
     vPrintHeight := GetDeviceCaps(Printer.Handle, PHYSICALHEIGHT);
 
-    if Self.ActiveSection.Page.DataAnnotates.Count > 0 then
+    if FPrintAnnotatePre and FAnnotatePre.Visible then
     begin
       vPaintInfo.ScaleX := vPrintWidth / (Self.ActiveSection.PaperWidthPix + AnnotationWidth);
       vPaintInfo.ScaleY := vPrintHeight / (Self.ActiveSection.PaperHeightPix + AnnotationWidth * vPrintHeight / vPrintWidth);
@@ -4206,7 +4209,8 @@ var
   i: Integer;
 begin
   {$IFDEF USESCRIPT}
-  Self.DisSelect;
+  if not AQuick then
+    Self.DisSelect;
   {$ENDIF}
   FStyle.States.Include(hosSaving);
   try
@@ -5195,14 +5199,6 @@ end;
 
 { THCAnnotate }
 
-function THCAnnotatePre.ActiveAnnotate: THCDataAnnotate;
-begin
-  if FActiveDrawAnnotateIndex < 0 then
-    Result := nil
-  else
-    Result := FDrawAnnotates[FActiveDrawAnnotateIndex].DataAnnotate;
-end;
-
 procedure THCAnnotatePre.AddDrawAnnotate(const ADrawAnnotate: THCDrawAnnotate);
 begin
   FDrawAnnotates.Add(ADrawAnnotate);
@@ -5221,15 +5217,6 @@ begin
   FVisible := False;
   FMouseIn := False;
   FActiveDrawAnnotateIndex := -1;
-end;
-
-procedure THCAnnotatePre.DeleteDataAnnotateByDraw(const AIndex: Integer);
-begin
-  if AIndex >= 0 then
-  begin
-    (FDrawAnnotates[AIndex].Data as THCAnnotateData).DataAnnotates.DeleteByID(FDrawAnnotates[AIndex].DataAnnotate.ID);
-    DoUpdateView;
-  end;
 end;
 
 destructor THCAnnotatePre.Destroy;
@@ -5269,7 +5256,7 @@ begin
   Result := FDrawAnnotates.Count;
 end;
 
-procedure THCAnnotatePre.InsertDataAnnotate(const ADataAnnotate: THCDataAnnotate);
+procedure THCAnnotatePre.InsertDataAnnotate(const AAnnotateItem: THCAnnotateItem);
 begin
   Inc(FCount);
   FVisible := True;
@@ -5293,7 +5280,7 @@ end;
 procedure THCAnnotatePre.PaintDrawAnnotate(const Sender: TObject; const APageRect: TRect;
   const ACanvas: TCanvas; const APaintInfo: TSectionPaintInfo);
 var
-  i, vVOffset, vTop, vBottom, vRePlace, vSpace, vFirst, vLast: Integer;
+  i, j, vVOffset, vTop, vBottom, vRePlace, vSpace, vFirst, vLast: Integer;
   vHeaderAreaHeight: Integer absolute vSpace;
   vTextRect: TRect;
   vSection: THCSection;
@@ -5356,16 +5343,26 @@ begin
         if vDrawAnnotate is THCDrawAnnotateDynamic then
           vText := (vDrawAnnotate as THCDrawAnnotateDynamic).Title + ':' + (vDrawAnnotate as THCDrawAnnotateDynamic).Text
         else
-          vText := vDrawAnnotate.DataAnnotate.Title + ':' + vDrawAnnotate.DataAnnotate.Text;
+          vText := vDrawAnnotate.AnnotateItem.Content.Title + ':' + vDrawAnnotate.AnnotateItem.Content.Text;
 
-        vDrawAnnotate.Rect := Rect(0, 0, AnnotationWidth - 30, 0);
-        Windows.DrawTextEx(ACanvas.Handle, PChar(IntToStr(i) + vText), -1, vDrawAnnotate.Rect,
+        vTextRect := Rect(0, 0, AnnotationWidth - 30, 0);
+        Windows.DrawTextEx(ACanvas.Handle, PChar(IntToStr(i) + vText), -1, vTextRect,
           DT_TOP or DT_LEFT or DT_WORDBREAK or DT_CALCRECT, nil);  // 计算区域
-        if vDrawAnnotate.Rect.Right < AnnotationWidth - 30 then
-          vDrawAnnotate.Rect.Right := AnnotationWidth - 30;
+        if vTextRect.Right < AnnotationWidth - 30 then
+          vTextRect.Right := AnnotationWidth - 30;
 
-        vDrawAnnotate.Rect.Offset(APageRect.Right + 20, vTop + 5);
-        vDrawAnnotate.Rect.Inflate(5, 5);
+        if vDrawAnnotate.AnnotateItem.Replys.Count > 0 then
+        begin
+          vTextRect.Bottom := vTextRect.Bottom + vDrawAnnotate.AnnotateItem.Replys.Count * 20;
+          for j := 0 to vDrawAnnotate.AnnotateItem.Replys.Count - 1 do
+          begin
+
+          end;
+        end;
+
+        vTextRect.Offset(APageRect.Right + 20, vTop + 5);
+        vTextRect.Inflate(5, 5);
+        vDrawAnnotate.Rect := vTextRect;
 
         vTop := vDrawAnnotate.Rect.Bottom + 5;
       end;
@@ -5424,17 +5421,17 @@ begin
         end
         else
         begin
-          vText := vDrawAnnotate.DataAnnotate.Title + ':' + vDrawAnnotate.DataAnnotate.Text;
+          vText := vDrawAnnotate.AnnotateItem.Content.Title + ':' + vDrawAnnotate.AnnotateItem.Content.Text;
           vData := vDrawAnnotate.Data as THCAnnotateData;
 
-          if vDrawAnnotate.DataAnnotate = vData.HotAnnotate then
+          if (vData.HotAnnotate.EndNo >= 0) and (vDrawAnnotate.AnnotateItem = vData.HotAnnotate.Data.Items[vData.HotAnnotate.EndNo]) then
           begin
             ACanvas.Pen.Style := TPenStyle.psSolid;
             ACanvas.Pen.Width := 1;
             ACanvas.Brush.Color := AnnotateBKActiveColor;
           end
           else
-          if vDrawAnnotate.DataAnnotate = vData.ActiveAnnotate then
+          if (vData.ActiveAnnotate.EndNo >= 0) and (vDrawAnnotate.AnnotateItem = vData.ActiveAnnotate.Data.Items[vData.ActiveAnnotate.EndNo]) then
           begin
             ACanvas.Pen.Style := TPenStyle.psSolid;
             ACanvas.Pen.Width := 2;
@@ -5467,7 +5464,7 @@ begin
   end;
 end;
 
-procedure THCAnnotatePre.RemoveDataAnnotate(const ADataAnnotate: THCDataAnnotate);
+procedure THCAnnotatePre.RemoveDataAnnotate(const AAnnotateItem: THCAnnotateItem);
 begin
   Dec(FCount);
   if FCount = 0 then

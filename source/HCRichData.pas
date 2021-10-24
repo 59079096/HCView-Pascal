@@ -245,7 +245,7 @@ uses
   Math, HCTableItem, HCImageItem, HCCheckBoxItem, HCTabItem, HCLineItem, HCExpressItem,
   HCGifItem, HCEditItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFloatLineItem,
   HCFractionItem, HCDateTimePicker, HCRadioGroup, HCSupSubScriptItem, HCUnitConversion,
-  HCFloatBarCodeItem, HCButtonItem;
+  HCFloatBarCodeItem, HCButtonItem, HCAnnotateItem;
 
 { THCRichData }
 
@@ -282,6 +282,7 @@ begin
       THCStyle.DateTimePicker: Result := THCDateTimePicker.Create(Self, Now);
       THCStyle.RadioGroup: Result := THCRadioGroup.Create(Self);
       THCStyle.SupSubScript: Result := THCSupSubScriptItem.Create(Self, '', '');
+      THCStyle.Annotate: Result := THCAnnotateItem.Create(Self);
       // FloatItem
       THCStyle.FloatLine: Result := THCFloatLineItem.Create(Self);
       THCStyle.FloatBarCode: Result := THCFloatBarCodeItem.Create(Self);
@@ -2689,17 +2690,28 @@ begin
         end;
       end;
 
-      if (vInsetLastNo < Items.Count - 1)  // 插入最后Item和后面的能合并
-        and (not Items[vInsetLastNo + 1].ParaFirst)
-        and MergeItemText(Items[vInsetLastNo], Items[vInsetLastNo + 1])
+      if (vInsetLastNo < Items.Count - 1)  // 不是在最后插入
+        and (not Items[vInsetLastNo + 1].ParaFirst)  // 插入位置后面不是段首，要判断能否合并
       then
       begin
-        UndoAction_InsertText(vInsetLastNo,
-          Items[vInsetLastNo].Length - Items[vInsetLastNo + 1].Length + 1, Items[vInsetLastNo + 1].Text);
-        UndoAction_DeleteItem(vInsetLastNo + 1, 0);
+        if MergeItemText(Items[vInsetLastNo], Items[vInsetLastNo + 1]) then  // 能合并
+        begin
+          UndoAction_InsertText(vInsetLastNo,
+            Items[vInsetLastNo].Length - Items[vInsetLastNo + 1].Length + 1, Items[vInsetLastNo + 1].Text);
+          UndoAction_DeleteItem(vInsetLastNo + 1, 0);
 
-        Items.Delete(vInsetLastNo + 1);
-        Dec(vItemCount);
+          Items.Delete(vInsetLastNo + 1);
+          Dec(vItemCount);
+        end
+        else  // 不能合并
+        if Items[vInsetLastNo].ParaFirst and IsEmptyLine(vInsetLastNo) then  // 插入內容最后一行是空行，后面的变为段首
+        begin
+          UndoAction_ItemParaFirst(vInsetLastNo + 1, 0, Items[vInsetLastNo + 1].ParaFirst);
+          Items[vInsetLastNo + 1].ParaFirst := True;
+          UndoAction_DeleteItem(vInsetLastNo, 0);
+          Items.Delete(vInsetLastNo);
+          Dec(vItemCount);
+        end;
       end;
     end
     else  // 在最开始第0个位置处插入

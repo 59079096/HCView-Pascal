@@ -16,7 +16,8 @@ interface
 uses
   Windows, Classes, Controls, Graphics, SysUtils, HCViewData, HCSectionData,
   HCRichData, HCTextStyle, HCParaStyle, HCItem, HCCustomFloatItem, HCDrawItem,
-  HCPage, HCRectItem, HCCommon, HCStyle, HCAnnotateData, HCCustomData, HCUndo, HCXml;
+  HCPage, HCRectItem, HCAnnotateItem, HCCommon, HCStyle, HCAnnotateData,
+  HCCustomData, HCUndo, HCXml;
 
 type
   TPrintResult = (prOk, prNoPrinter, prNoSupport, prError);
@@ -45,9 +46,9 @@ type
   TSectionDataItemNoFunEvent = function(const Sender: TObject; const AData: THCCustomData;
     const AItemNo: Integer): Boolean of object;
   TSectionDrawItemAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
-    const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate) of object;
+    const ADrawItemNo: Integer; const ADrawRect: TRect; const AAnnotateItem: THCAnnotateItem) of object;
   TSectionAnnotateEvent = procedure(const Sender: TObject; const AData: THCCustomData;
-    const ADataAnnotate: THCDataAnnotate) of object;
+    const AAnnotateItem: THCAnnotateItem) of object;
   TSectionDataItemMouseEvent = procedure(const Sender: TObject; const AData: THCCustomData;
     const AItemNo, AOffset: Integer; Button: TMouseButton; Shift: TShiftState; X, Y: Integer) of object;
   TSectionDataDrawItemMouseEvent = procedure(const Sender: TObject; const AData: THCCustomData;
@@ -135,10 +136,10 @@ type
       ADataDrawRight, ADataDrawBottom, ADataScreenTop, ADataScreenBottom: Integer;
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo);
 
-    procedure DoDataInsertAnnotate(const AData: THCCustomData; const ADataAnnotate: THCDataAnnotate);
-    procedure DoDataRemoveAnnotate(const AData: THCCustomData; const ADataAnnotate: THCDataAnnotate);
+    procedure DoDataInsertAnnotate(const AData: THCCustomData; const AAnnotateItem: THCAnnotateItem);
+    procedure DoDataRemoveAnnotate(const AData: THCCustomData; const AAnnotateItem: THCAnnotateItem);
     procedure DoDataDrawItemAnnotate(const AData: THCCustomData; const ADrawItemNo: Integer;
-      const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
+      const ADrawRect: TRect; const AAnnotateItem: THCAnnotateItem);
 
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
@@ -371,6 +372,7 @@ type
     procedure BuildSectionPages(const AStartDrawItemNo: Integer);
     function DeleteSelected: Boolean;
     procedure DisSelect;
+    function DeleteActiveAnnotate: Boolean;
     function DeleteActiveDomain: Boolean;
     procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
       const AKeepPara: Boolean);
@@ -816,6 +818,14 @@ begin
   Result := DoSectionDataAction(AData, AAction);
 end;
 
+function THCCustomSection.DeleteActiveAnnotate: Boolean;
+begin
+  Result := DoSectionDataAction(FActiveData, function(): Boolean
+    begin
+      Result := FActiveData.DeleteActiveAnnotate;
+    end);
+end;
+
 procedure THCCustomSection.DeleteActiveDataItems(const AStartNo, AEndNo: Integer;
   const AKeepPara: Boolean);
 begin
@@ -916,11 +926,10 @@ begin
     FOnCurParaNoChange(Sender);
 end;
 
-procedure THCCustomSection.DoDataInsertAnnotate(const AData: THCCustomData;
-  const ADataAnnotate: THCDataAnnotate);
+procedure THCCustomSection.DoDataInsertAnnotate(const AData: THCCustomData; const AAnnotateItem: THCAnnotateItem);
 begin
   if Assigned(FOnInsertAnnotate) then
-    FOnInsertAnnotate(Self, AData, ADataAnnotate);
+    FOnInsertAnnotate(Self, AData, AAnnotateItem);
 end;
 
 procedure THCCustomSection.DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
@@ -948,10 +957,10 @@ begin
 end;
 
 procedure THCCustomSection.DoDataDrawItemAnnotate(const AData: THCCustomData;
-  const ADrawItemNo: Integer; const ADrawRect: TRect; const ADataAnnotate: THCDataAnnotate);
+  const ADrawItemNo: Integer; const ADrawRect: TRect; const AAnnotateItem: THCAnnotateItem);
 begin
   if Assigned(FOnDrawItemAnnotate) then
-    FOnDrawItemAnnotate(Self, AData, ADrawItemNo, ADrawRect, ADataAnnotate);
+    FOnDrawItemAnnotate(Self, AData, ADrawItemNo, ADrawRect, AAnnotateItem);
 end;
 
 procedure THCCustomSection.DoDataDrawItemMouseMove(const AData: THCCustomData;
@@ -1068,10 +1077,10 @@ begin
 end;
 
 procedure THCCustomSection.DoDataRemoveAnnotate(const AData: THCCustomData;
-  const ADataAnnotate: THCDataAnnotate);
+  const AAnnotateItem: THCAnnotateItem);
 begin
   if Assigned(FOnRemoveAnnotate) then
-    FOnRemoveAnnotate(Self, AData, ADataAnnotate);
+    FOnRemoveAnnotate(Self, AData, AAnnotateItem);
 end;
 
 procedure THCCustomSection.DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);

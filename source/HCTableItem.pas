@@ -242,6 +242,8 @@ type
     procedure ReFormatRequest; override;
     procedure ActiveItemReAdaptEnvironment; override;
     function DeleteActiveDomain: Boolean; override;
+    function InsertAnnotate(const ATitle, AText: string): Boolean; override;
+    function DeleteActiveAnnotate: Boolean; override;
     procedure DeleteActiveDataItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean); override;
     procedure SetActiveItemText(const AText: string); override;
     function IsSelectComplateTheory: Boolean; override;
@@ -564,6 +566,27 @@ begin
   end
   else
     inherited DblClick(X, Y);
+end;
+
+function THCTableItem.DeleteActiveAnnotate: Boolean;
+var
+  vResult: Boolean;
+begin
+  Result := inherited DeleteActiveAnnotate;
+
+  if FSelectCellRang.EditCell then  // 在同一单元格中编辑
+  begin
+    CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+      procedure
+      var
+        vEditCell: THCTableCell;
+      begin
+        vEditCell := FRows[FSelectCellRang.StartRow][FSelectCellRang.StartCol];
+        vResult := vEditCell.CellData.DeleteActiveAnnotate;
+      end);
+
+    Result := vResult;
+  end;
 end;
 
 procedure THCTableItem.DeleteActiveDataItems(const AStartNo, AEndNo: Integer; const AKeepPara: Boolean);
@@ -3595,6 +3618,24 @@ begin
   FMouseMoveRow := -1;
   FMouseMoveCol := -1;
   FMouseLBDowning := False;
+end;
+
+function THCTableItem.InsertAnnotate(const ATitle, AText: string): Boolean;
+var
+  vCell: THCTableCell;
+  vResult: Boolean;
+begin
+  Result := False;
+  vCell := GetEditCell;
+  if not Assigned(vCell) then Exit;
+
+  CellChangeByAction(FSelectCellRang.StartRow, FSelectCellRang.StartCol,
+    procedure
+    begin
+      vResult := vCell.CellData.InsertAnnotate(ATitle, AText);
+    end);
+
+  Result := vResult;
 end;
 
 function THCTableItem.InsertCol(const ACol, ACount: Integer): Boolean;

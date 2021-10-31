@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, HCView, HCGridView, HCTableItem, StdCtrls, ExtCtrls;
+  Dialogs, HCView, HCTableItem, StdCtrls, ExtCtrls;
 
 type
   TfrmBorderBackColor = class(TForm)
@@ -29,7 +29,6 @@ type
   public
     { Public declarations }
     procedure SetView(const AView: THCView);
-    procedure SetGridView(const AGridView: THCGridView);
   end;
 
 implementation
@@ -63,25 +62,6 @@ begin
   chkBottom.Checked := cbsBottom in vBorderSides;
   chkLTRB.Checked := cbsLTRB in vBorderSides;
   chkRTLB.Checked := cbsRTLB in vBorderSides;
-end;
-
-procedure TfrmBorderBackColor.SetGridView(const AGridView: THCGridView);
-begin
-  FTableItem := AGridView.Page.GetActiveItem as THCTableItem;
-  GetTableProperty;
-
-  Self.ShowModal;
-  if Self.ModalResult = mrOk then
-  begin
-    AGridView.BeginUpdate;
-    try
-      SetTableProperty;
-
-      AGridView.Style.UpdateInfoRePaint;
-    finally
-      AGridView.EndUpdate;
-    end;
-  end;
 end;
 
 procedure TfrmBorderBackColor.SetTableProperty;

@@ -5351,7 +5351,7 @@ begin
         if vTextRect.Right < AnnotationWidth - 30 then
           vTextRect.Right := AnnotationWidth - 30;
 
-        if vDrawAnnotate.AnnotateItem.Replys.Count > 0 then
+        if Assigned(vDrawAnnotate.AnnotateItem) and (vDrawAnnotate.AnnotateItem.Replys.Count > 0) then
         begin
           vTextRect.Bottom := vTextRect.Bottom + vDrawAnnotate.AnnotateItem.Replys.Count * 20;
           for j := 0 to vDrawAnnotate.AnnotateItem.Replys.Count - 1 do

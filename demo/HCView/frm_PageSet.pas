@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Generics.Collections, HCView, HCGridView;
+  Dialogs, StdCtrls, Generics.Collections, HCView;
 
 type
   TPaperInfo = class
@@ -60,7 +60,6 @@ type
   public
     { Public declarations }
     procedure SetView(const AHCView: THCView);
-    procedure SetGridView(const AHCGridView: THCGridView);
   end;
 
 implementation
@@ -126,78 +125,6 @@ begin
     begin
       Result := i;
       Break;
-    end;
-  end;
-end;
-
-procedure TfrmPageSet.SetGridView(const AHCGridView: THCGridView);
-var
-  vIndex: Integer;
-begin
-  cbbPaper.ItemIndex := cbbPaper.Items.IndexOf(GetPaperSizeName(AHCGridView.PaperSize));
-  if cbbPaper.ItemIndex < 0 then  // 自定义
-    cbbPaper.ItemIndex := 0;
-
-  edtWidth.Text := FormatFloat('0.#', AHCGridView.PaperWidth);
-  edtHeight.Text := FormatFloat('0.#', AHCGridView.PaperHeight);
-
-  edtTop.Text := FormatFloat('0.#', AHCGridView.PaperMarginTop);
-  edtLeft.Text := FormatFloat('0.#', AHCGridView.PaperMarginLeft);
-  edtRight.Text := FormatFloat('0.#', AHCGridView.PaperMarginRight);
-  edtBottom.Text := FormatFloat('0.#', AHCGridView.PaperMarginBottom);
-
-  chkSymmetryMargin.Checked := AHCGridView.SymmetryMargin;
-
-  if AHCGridView.PaperOrientation = TPaperOrientation.cpoPortrait then
-    cbbPaperOrientation.ItemIndex := 0
-  else
-    cbbPaperOrientation.ItemIndex := 1;
-
-  chkPageNoVisible.Checked := AHCGridView.PageNoVisible;
-  chkParaLastMark.Checked := AHCGridView.Style.ShowParaLastMark;
-  chkShowLineNo.Checked := False;
-  chkShowLineNo.Enabled := False;
-  chkShowLineActiveMark.Checked := False;
-  chkShowLineActiveMark.Enabled := False;
-  chkShowUnderLine.Checked := False;
-  chkShowUnderLine.Enabled := False;
-
-  Self.ShowModal;
-  if Self.ModalResult = mrOk then
-  begin
-    AHCGridView.BeginUpdate;
-    try
-      vIndex := GetPaperInfoIndexByName(cbbPaper.Text);
-      AHCGridView.PaperSize := FPaperInfos[vIndex].Size;
-
-      if vIndex = 0 then  // 自定义
-      begin
-        AHCGridView.PaperWidth := StrToFloat(edtWidth.Text);
-        AHCGridView.PaperHeight := StrToFloat(edtHeight.Text);
-      end
-      else
-      begin
-        AHCGridView.PaperWidth := FPaperInfos[vIndex].Width;
-        AHCGridView.PaperHeight := FPaperInfos[vIndex].Height;
-      end;
-
-      AHCGridView.PaperMarginTop := StrToFloat(edtTop.Text);
-      AHCGridView.PaperMarginLeft := StrToFloat(edtLeft.Text);
-      AHCGridView.PaperMarginRight := StrToFloat(edtRight.Text);
-      AHCGridView.PaperMarginBottom := StrToFloat(edtBottom.Text);
-
-      AHCGridView.SymmetryMargin := chkSymmetryMargin.Checked;
-
-      if cbbPaperOrientation.ItemIndex = 0 then
-        AHCGridView.PaperOrientation := TPaperOrientation.cpoPortrait
-      else
-        AHCGridView.PaperOrientation := TPaperOrientation.cpoLandscape;
-
-      AHCGridView.PageNoVisible := chkPageNoVisible.Checked;
-      AHCGridView.Style.ShowParaLastMark := chkParaLastMark.Checked;
-      AHCGridView.ResetMargin;
-    finally
-      AHCGridView.EndUpdate;
     end;
   end;
 end;

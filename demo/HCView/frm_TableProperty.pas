@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, HCView, HCGridView, HCTableItem, ComCtrls, StdCtrls, ExtCtrls, Buttons;
+  Dialogs, HCView, HCTableItem, ComCtrls, StdCtrls, ExtCtrls, Buttons;
 
 type
   TfrmTableProperty = class(TForm)
@@ -66,7 +66,6 @@ type
   public
     { Public declarations }
     procedure SetView(const AView: THCView);
-    procedure SetGridView(const AGridView: THCGridView);
   end;
 
 implementation
@@ -85,9 +84,7 @@ begin
   vFrmBorderBackColor := TfrmBorderBackColor.Create(Self);
   try
     if Assigned(FView) then
-      vFrmBorderBackColor.SetView(FView)
-    else
-      vFrmBorderBackColor.SetGridView(FGridView);
+      vFrmBorderBackColor.SetView(FView);
   finally
     FreeAndNil(vFrmBorderBackColor);
   end;
@@ -298,31 +295,6 @@ begin
     tsCell.TabVisible := False;
 end;
 
-procedure TfrmTableProperty.SetGridView(const AGridView: THCGridView);
-begin
-  FView := nil;
-  FGridView := AGridView;
-  FTableItem := AGridView.Page.GetActiveItem as THCTableItem;
-
-  GetTableProperty;
-
-  Self.ShowModal;
-  if Self.ModalResult = mrOk then
-  begin
-    FGridView.BeginUpdate;
-    try
-      SetTableProperty;
-
-      if FReFormt then
-        FGridView.ReFormatActiveItem;
-
-      FGridView.Style.UpdateInfoRePaint;
-    finally
-      FGridView.EndUpdate;
-    end;
-  end;
-end;
-
 procedure TfrmTableProperty.SetTableProperty;
 var
   vR, vC, viValue: Integer;
@@ -433,7 +405,6 @@ end;
 
 procedure TfrmTableProperty.SetView(const AView: THCView);
 begin
-  FGridView := nil;
   FView := AView;
 
   FTableItem := FView.ActiveSection.ActiveData.GetActiveItem as THCTableItem;

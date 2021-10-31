@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, Dialogs,
-  ExtCtrls, StdCtrls, Printers, HCView, HCGridView, HCSection, HCItem, ComCtrls, Buttons;
+  ExtCtrls, StdCtrls, Printers, HCView, HCSection, HCItem, ComCtrls, Buttons;
 
 type
   TfrmPrintView = class(TForm)
@@ -55,7 +55,6 @@ type
   public
     { Public declarations }
     procedure SetView(const AHCView: THCView);
-    procedure SetGridView(const AHCGridView: THCGridView);
   end;
 
 implementation
@@ -393,38 +392,6 @@ begin
   pbPage.Invalidate;
 end;
 
-procedure TfrmPrintView.SetGridView(const AHCGridView: THCGridView);
-begin
-  FHCView := THCView.Create(nil);
-  try
-    scrlbrPage.Min := 0;
-
-    AHCGridView.CloneToHCView(FHCView);
-    if FHCView.PageCount > 1 then
-      scrlbrPage.Max := FHCView.PageCount - 1
-    else
-      scrlbrPage.Visible := False;
-
-    FPageIndex := 0;
-    edtPageNo.Text := IntToStr(FPageIndex + 1);
-    lblPageCount.Caption := '/ ' + IntToStr(FHCView.PageCount);
-
-    Self.ShowModal;
-    if Self.ModalResult = mrOk then
-    begin
-
-    end;
-
-    if FTooltipHandle <> 0 then
-    begin
-      DestroyWindow(FTooltipHandle);
-      FTooltipHandle := 0;
-    end;
-  finally
-    FreeAndNil(FHCView);
-  end;
-end;
-
 procedure TfrmPrintView.SetView(const AHCView: THCView);
 begin
   FHCView := AHCView;
@@ -498,13 +465,13 @@ begin
     vPaintInfo.WindowWidth := FDrawWidth;
     vPaintInfo.WindowHeight := FDrawHeight;
 
-    if FHCView.Sections[vSection].Page.DataAnnotates.Count > 0 then
-    begin
-      vPaintInfo.Zoom := vZoom * FHCView.Sections[vSection].PaperWidthPix / (FHCView.Sections[vSection].PaperWidthPix + AnnotationWidth);
-      vPaintInfo.ScaleX := vPaintInfo.Zoom;
-      vPaintInfo.ScaleY := vPaintInfo.Zoom;
-    end
-    else
+//    if FHCView.Sections[vSection].Page.DataAnnotates.Count > 0 then
+//    begin
+//      vPaintInfo.Zoom := vZoom * FHCView.Sections[vSection].PaperWidthPix / (FHCView.Sections[vSection].PaperWidthPix + AnnotationWidth);
+//      vPaintInfo.ScaleX := vPaintInfo.Zoom;
+//      vPaintInfo.ScaleY := vPaintInfo.Zoom;
+//    end
+//    else
     begin
       vPaintInfo.ScaleX := vZoom;
       vPaintInfo.ScaleY := vZoom;

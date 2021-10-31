@@ -252,7 +252,7 @@ uses
   HCGifItem, HCComboboxItem, HCQRCodeItem, HCBarCodeItem, HCFractionItem, HCFloatLineItem,
   HCDateTimePicker, HCSupSubScriptItem, HCRadioGroup, frm_Paragraph, frm_TableProperty,
   frm_SearchAndReplace, frm_PrintView, frm_ControlItemProperty, frm_Annotate,
-  frm_TableBorderBackColor, HCFloatBarCodeItem;
+  frm_TableBorderBackColor, HCFloatBarCodeItem, HCAnnotateData;
 
 {$R *.dfm}
 
@@ -674,7 +674,7 @@ var
 begin
   vFrmAnnotate := TfrmAnnotate.Create(Self);
   try
-    vFrmAnnotate.SetAnnotate(FHCView.AnnotatePre.ActiveAnnotate);
+    vFrmAnnotate.SetView(FHCView);
   finally
     FreeAndNil(vFrmAnnotate);
   end;
@@ -818,7 +818,7 @@ end;
 
 procedure TfrmHCViewDemo.mniDelAnnotateClick(Sender: TObject);
 begin
-  FHCView.AnnotatePre.DeleteDataAnnotateByDraw(FHCView.AnnotatePre.ActiveDrawAnnotateIndex);
+  FHCView.DeleteActiveAnnotate;
 end;
 
 procedure TfrmHCViewDemo.mniDeleteCurColClick(Sender: TObject);
@@ -862,13 +862,13 @@ procedure TfrmHCViewDemo.mniN2Click(Sender: TObject);
 var
   vFrmAnnotate: TfrmAnnotate;
 begin
-  if not FHCView.ActiveSection.SelectExists then Exit;
-
   vFrmAnnotate := TfrmAnnotate.Create(Self);
   try
-    vFrmAnnotate.SetAnnotate(nil);
     if vFrmAnnotate.ModalResult = mrOk then
+    begin
+      vFrmAnnotate.SetView(nil);
       FHCView.InsertAnnotate(vFrmAnnotate.edtTitle.Text, vFrmAnnotate.mmoText.Text);
+    end;
   finally
     FreeAndNil(vFrmAnnotate);
   end;
@@ -1237,23 +1237,23 @@ var
   vTableItem: THCTableItem;
   vActiveData, vTopData: THCCustomData;
 begin
-  if FHCView.AnnotatePre.ActiveDrawAnnotateIndex >= 0 then  // 在某个显示的批注上右键
-  begin
-    for i := 0 to pmHCView.Items.Count - 1 do
-      pmHCView.Items[i].Visible := False;
-
-    mniModAnnotate.Visible := True;
-    mniDelAnnotate.Visible := True;
-    Exit;
-  end
-  else
-  begin
-    for i := 0 to pmHCView.Items.Count - 1 do
-      pmHCView.Items[i].Visible := True;
-
-    mniModAnnotate.Visible := False;
-    mniDelAnnotate.Visible := False;
-  end;
+//  if FHCView.AnnotatePre.ActiveDrawAnnotateIndex >= 0 then  // 在某个显示的批注上右键
+//  begin
+//    for i := 0 to pmHCView.Items.Count - 1 do
+//      pmHCView.Items[i].Visible := False;
+//
+//    mniModAnnotate.Visible := True;
+//    mniDelAnnotate.Visible := True;
+//    Exit;
+//  end
+//  else
+//  begin
+//    for i := 0 to pmHCView.Items.Count - 1 do
+//      pmHCView.Items[i].Visible := True;
+//
+//    mniModAnnotate.Visible := False;
+//    mniDelAnnotate.Visible := False;
+//  end;
 
   vActiveData := FHCView.ActiveSection.ActiveData;
   vActiveItem := vActiveData.GetActiveItem;
@@ -1323,6 +1323,9 @@ begin
     and (vTopItem is THCControlItem) and vTopItem.Active;
   if mniControlItem.Visible then
     mniControlItem.Caption := '属性(' + (vTopItem as THCControlItem).ClassName + ')';
+
+  mniModAnnotate.Visible := (vTopData as THCAnnotateData).ActiveAnnotate.BeginNo >= 0;
+  mniDelAnnotate.Visible := mniModAnnotate.Visible;
 end;
 
 function TfrmHCViewDemo.SaveFile: Boolean;

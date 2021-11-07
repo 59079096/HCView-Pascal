@@ -1034,7 +1034,7 @@ var
   vRePaint: Boolean;
 begin
   vRePaint := Self.Style.DrawHotDomainRegion and (FHotDomain.BeginNo >= 0);
-  FHotDomain.Clear;
+  //FHotDomain.Clear;
   inherited MouseMove(Shift, X, Y);
   //if not Self.MouseMoveRestrain then  // 实时判断鼠标处的域
   begin

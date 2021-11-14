@@ -22,6 +22,7 @@ type
   private
     FText: string;
     FChecked, FItemHit, FBoxRight: Boolean;
+    FOnCheckChanged: TNotifyEvent;
     function GetBoxRect: TRect;
     procedure SetChecked(const Value: Boolean);
   protected
@@ -47,6 +48,7 @@ type
 
     property Checked: Boolean read FChecked write SetChecked;
     property BoxRight: Boolean read FBoxRight write FBoxRight;
+    property OnCheckChanged: TNotifyEvent read FOnCheckChanged write FOnCheckChanged;
   end;
 
 implementation

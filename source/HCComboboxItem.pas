@@ -29,7 +29,7 @@ type
     FMouseInButton: Boolean;
     FPopupForm: THCPopupForm;
     FScrollBar: THCComScrollBar;
-    FOnPopupItem: TNotifyEvent;
+    FOnPopupItem, FOnItemIndexChanged: TNotifyEvent;
 
     // DropDown²¿·Ö
     function ScrollBarVisible: Boolean;
@@ -77,6 +77,7 @@ type
     property SaveItem: Boolean read FSaveItem write FSaveItem;
     property &Static: Boolean read FStatic write FStatic;
     property OnPopupItem: TNotifyEvent read FOnPopupItem write FOnPopupItem;
+    property OnItemIndexChanged: TNotifyEvent read FOnItemIndexChanged write FOnItemIndexChanged;
   end;
 
 implementation

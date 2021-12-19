@@ -49,7 +49,7 @@ type
     function GetVPadding: Byte;
     property Items[Index: Integer]: Pointer read GetItems write SetItems;
   public
-    constructor Create(const AStyle: THCStyle; const AColCount: Integer);
+    constructor Create(const AStyle: THCStyle; const AColCount: Integer); virtual;
     destructor Destroy; override;
     function Add(Item: Pointer): Integer;
     function Insert(Index: Integer; Item: Pointer): Boolean;

@@ -640,7 +640,7 @@ begin
     if FCode <> '' then
     begin
       ACanvas.TextOut(ARect.Left + (ARect.Right - ARect.Left - ACanvas.TextWidth(FText)) div 2,
-        ARect.Top + vHeight + 2, FText);
+        ARect.Top + vHeight, FText);
     end
     else
     begin

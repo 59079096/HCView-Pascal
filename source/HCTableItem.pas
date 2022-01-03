@@ -371,6 +371,7 @@ type
     property FixRow: ShortInt read FFixRow;
     /// <summary> 固定行跨度 </summary>
     property FixRowCount: Byte read FFixRowCount;
+    property ResizeKeepWidth: Boolean read FResizeKeepWidth write FResizeKeepWidth;
     property DefaultRowHeight: Integer read FDefaultRowHeight;
     property OnCellPaintBK: THCCellPaintEvent read FOnCellPaintBK write FOnCellPaintBK;
     property OnCellPaintData: THCCellPaintDataEvent read FOnCellPaintData write FOnCellPaintData;

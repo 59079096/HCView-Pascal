@@ -1279,7 +1279,7 @@ end;
 
 procedure THCView.DeleteActiveSection;
 begin
-  if FActiveSectionIndex > 0 then
+  if (not Self.ReadOnly) and (FActiveSectionIndex > 0) then
   begin
     FSections.Delete(FActiveSectionIndex);
     FActiveSectionIndex := FActiveSectionIndex - 1;

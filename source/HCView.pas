@@ -1589,7 +1589,7 @@ end;
 
 function THCView.DoSectionGetScreenCoord(const X, Y: Integer): TPoint;
 begin
-  Result := ClientToScreen(Point(X, Y));
+  Result := ClientToScreen(Point(ZoomIn(X), ZoomIn(Y)));
 end;
 
 function THCView.DoSectionGetUndoList: THCUndoList;

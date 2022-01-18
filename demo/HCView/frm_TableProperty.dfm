@@ -130,6 +130,7 @@ object frmTableProperty: TfrmTableProperty
         Top = 30
         Width = 65
         Height = 21
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         TabOrder = 0
         Text = 'edtCellHPadding'
         OnChange = edtCellHPaddingChange
@@ -139,6 +140,7 @@ object frmTableProperty: TfrmTableProperty
         Top = 30
         Width = 65
         Height = 21
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         TabOrder = 1
         Text = 'edtCellVPadding'
         OnChange = edtCellHPaddingChange
@@ -148,6 +150,7 @@ object frmTableProperty: TfrmTableProperty
         Top = 64
         Width = 65
         Height = 21
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         TabOrder = 2
         Text = 'edtBorderWidth'
         OnChange = edtCellHPaddingChange
@@ -174,6 +177,7 @@ object frmTableProperty: TfrmTableProperty
         Top = 126
         Width = 40
         Height = 21
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         TabOrder = 5
         OnChange = edtCellHPaddingChange
       end
@@ -182,6 +186,7 @@ object frmTableProperty: TfrmTableProperty
         Top = 126
         Width = 40
         Height = 21
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         TabOrder = 6
         OnChange = edtCellHPaddingChange
       end
@@ -190,6 +195,7 @@ object frmTableProperty: TfrmTableProperty
         Top = 174
         Width = 40
         Height = 21
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         TabOrder = 7
         OnChange = edtCellHPaddingChange
       end
@@ -198,6 +204,7 @@ object frmTableProperty: TfrmTableProperty
         Top = 174
         Width = 40
         Height = 21
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         TabOrder = 8
         OnChange = edtCellHPaddingChange
       end
@@ -226,6 +233,7 @@ object frmTableProperty: TfrmTableProperty
         Width = 91
         Height = 21
         Style = csDropDownList
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         ItemIndex = 0
         TabOrder = 0
         Text = #33258#23450#20041
@@ -242,6 +250,7 @@ object frmTableProperty: TfrmTableProperty
         Top = 7
         Width = 91
         Height = 21
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         TabOrder = 1
         Text = 'edtRowHeight'
         OnChange = edtCellHPaddingChange
@@ -534,6 +543,7 @@ object frmTableProperty: TfrmTableProperty
         Width = 91
         Height = 21
         Style = csDropDownList
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#20116#31508#36755#20837#27861
         ItemIndex = 0
         TabOrder = 0
         Text = #39030

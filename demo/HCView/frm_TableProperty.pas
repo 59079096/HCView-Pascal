@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, HCView, HCTableItem, ComCtrls, StdCtrls, ExtCtrls, Buttons;
+  Dialogs, HCView, {HCGridView,} HCTableItem, ComCtrls, StdCtrls, ExtCtrls, Buttons;
 
 type
   TfrmTableProperty = class(TForm)
@@ -58,14 +58,14 @@ type
     { Private declarations }
     FReFormt: Boolean;
     FView: THCView;
-    FGridView: THCGridView;
+    //FGridView: THCGridView;
     FTableItem: THCTableItem;
-    FFixRowFirst, FFixRowLast, FFixColFirst, FFixColLast: Integer;
     procedure GetTableProperty;
     procedure SetTableProperty;
   public
     { Public declarations }
     procedure SetView(const AView: THCView);
+    //procedure SetGridView(const AGridView: THCGridView);
   end;
 
 implementation
@@ -84,7 +84,9 @@ begin
   vFrmBorderBackColor := TfrmBorderBackColor.Create(Self);
   try
     if Assigned(FView) then
-      vFrmBorderBackColor.SetView(FView);
+      vFrmBorderBackColor.SetView(FView)
+    {else
+      vFrmBorderBackColor.SetGridView(FGridView)};
   finally
     FreeAndNil(vFrmBorderBackColor);
   end;
@@ -92,101 +94,6 @@ end;
 
 procedure TfrmTableProperty.btnOkClick(Sender: TObject);
 begin
-  // 检查固定行填写是否正确
-  if edtFixRowFirst.Text <> '' then
-  begin
-    if TryStrToInt(edtFixRowFirst.Text, FFixRowFirst) then
-    begin
-      if (FFixRowFirst = 0) or (FFixRowFirst > FTableItem.RowCount) then
-      begin
-        ShowMessage('固定起始行不小于1且不超过表格总行数！');
-        edtFixRowFirst.SetFocus;
-        Exit;
-      end;
-    end
-    else
-    begin
-      ShowMessage('请填写正确的固定起始行数据值！');
-      edtFixRowFirst.SetFocus;
-      Exit;
-    end;
-
-    if TryStrToInt(edtFixRowLast.Text, FFixRowLast) then
-    begin
-      if (FFixRowLast = 0) or (FFixRowLast > FTableItem.RowCount) then
-      begin
-        ShowMessage('固定结束行不小于1且不超过表格总行数！');
-        edtFixRowLast.SetFocus;
-        Exit;
-      end;
-    end
-    else
-    begin
-      ShowMessage('请填写正确的固定结束行数据值！');
-      edtFixRowLast.SetFocus;
-      Exit;
-    end;
-
-    if FFixRowFirst > FFixRowLast then
-    begin
-      ShowMessage('固定行起始不能大于结束！');
-      edtFixRowFirst.SetFocus;
-      Exit;
-    end;
-  end
-  else
-  begin
-    FFixRowFirst := -1;
-    FFixRowLast := -1;
-  end;
-
-  // 检查固定列填写是否正确
-  if edtFixColFirst.Text <> '' then
-  begin
-    if TryStrToInt(edtFixColFirst.Text, FFixColFirst) then
-    begin
-      if (FFixColFirst = 0) or (FFixColFirst > FTableItem.ColCount) then
-      begin
-        ShowMessage('固定起始列不小于1且不超过表格总列数！');
-        edtFixColFirst.SetFocus;
-        Exit;
-      end;
-    end
-    else
-    begin
-      ShowMessage('请填写正确的固定起始列数据值！');
-      edtFixColFirst.SetFocus;
-      Exit;
-    end;
-
-    if TryStrToInt(edtFixColLast.Text, FFixColLast) then
-    begin
-      if (FFixColLast = 0) or (FFixColLast > FTableItem.ColCount) then
-      begin
-        ShowMessage('固定结束列不小于1且不超过表格总列数！');
-        edtFixColLast.SetFocus;
-        Exit;
-      end;
-    end
-    else
-    begin
-      ShowMessage('请填写正确的固定结束列数据值！');
-      edtFixColLast.SetFocus;
-      Exit;
-    end;
-
-    if FFixColFirst > FFixColLast then
-    begin
-      ShowMessage('固定列起始不能大于结束！');
-      Exit;
-    end;
-  end
-  else
-  begin
-    FFixColFirst := -1;
-    FFixColLast := -1;
-  end;
-
   Self.ModalResult := mrOk;
 end;
 
@@ -219,31 +126,22 @@ var
   vCell: THCTableCell;
 begin
   // 表格
-  edtCellHPadding.Text := IntToStr(FTableItem.CellHPaddingPix);
-  edtCellVPadding.Text := IntToStr(FTableItem.CellVPaddingPix);
+  edtCellHPadding.Text := FormatFloat('0.##', FTableItem.CellHPaddingMM);
+  edtCellVPadding.Text := FormatFloat('0.##', FTableItem.CellVPaddingMM);
   chkBorderVisible.Checked := FTableItem.BorderVisible;
   edtBorderWidth.Text := FormatFloat('0.##', FTableItem.BorderWidthPt);
-  if FTableItem.FixRow >= 0 then
-  begin
-    edtFixRowFirst.Text := IntToStr(FTableItem.FixRow + 1);
-    edtFixRowLast.Text := IntToStr(FTableItem.FixRow + FTableItem.FixRowCount);
-  end
-  else
-  begin
-    edtFixRowFirst.Text := '';
-    edtFixRowLast.Text := '';
-  end;
 
-  if FTableItem.FixCol >= 0 then
-  begin
-    edtFixColFirst.Text := IntToStr(FTableItem.FixCol + 1);
-    edtFixColLast.Text := IntToStr(FTableItem.FixCol + FTableItem.FixColCount);
-  end
+  edtFixRowFirst.Text := IntToStr(FTableItem.FixRow);
+  if FTableItem.FixRowCount > 0 then
+    edtFixRowLast.Text := IntToStr(FTableItem.FixRow + FTableItem.FixRowCount - 1)
   else
-  begin
-    edtFixColFirst.Text := '';
-    edtFixColLast.Text := '';
-  end;
+    edtFixRowLast.Text := edtFixRowFirst.Text;
+
+  edtFixColFirst.Text := IntToStr(FTableItem.FixCol);
+  if FTableItem.FixColCount > 0 then
+    edtFixColLast.Text := IntToStr(FTableItem.FixCol + FTableItem.FixColCount - 1)
+  else
+    edtFixColLast.Text := edtFixColFirst.Text;
 
   // 行
   if FTableItem.SelectCellRang.StartRow >= 0 then
@@ -295,19 +193,46 @@ begin
     tsCell.TabVisible := False;
 end;
 
+{procedure TfrmTableProperty.SetGridView(const AGridView: THCGridView);
+begin
+  FView := nil;
+  FGridView := AGridView;
+  FTableItem := AGridView.Page.GetActiveItem as THCTableItem;
+
+  GetTableProperty;
+
+  Self.ShowModal;
+  if Self.ModalResult = mrOk then
+  begin
+    FGridView.BeginUpdate;
+    try
+      SetTableProperty;
+
+      if FReFormt then
+        FGridView.ReFormatActiveItem;
+
+      FGridView.Style.UpdateInfoRePaint;
+    finally
+      FGridView.EndUpdate;
+    end;
+  end;
+end;}
+
 procedure TfrmTableProperty.SetTableProperty;
 var
   vR, vC, viValue: Integer;
   vCell: THCTableCell;
 begin
   // 表格
-  FTableItem.CellHPaddingMM := StrToFloatDef(edtCellHPadding.Text, 0.5);
+  FTableItem.CellHPaddingMM := StrToFloatDef(edtCellHPadding.Text, 0.2);
   FTableItem.CellVPaddingMM := StrToFloatDef(edtCellVPadding.Text, 0);
   FTableItem.BorderWidthPt := StrToFloatDef(edtBorderWidth.Text, 0.5);
   FTableItem.BorderVisible := chkBorderVisible.Checked;
 
-  FTableItem.SetFixRowAndCount(FFixRowFirst, FFixRowLast - FFixRowFirst + 1);
-  FTableItem.SetFixColAndCount(FFixColFirst, FFixColLast - FFixColFirst + 1);
+  FTableItem.SetFixRowAndCount(StrToIntDef(edtFixRowFirst.Text, -1),
+    StrToIntDef(edtFixRowLast.Text, -1) - StrToIntDef(edtFixRowFirst.Text, -1) + 1);
+  FTableItem.SetFixColAndCount(StrToIntDef(edtFixColFirst.Text, -1),
+    StrToIntDef(edtFixColLast.Text, -1) - StrToIntDef(edtFixColFirst.Text, -1) + 1);
 
   // 行
   if (FTableItem.SelectCellRang.StartRow >= 0) and (TryStrToInt(edtRowHeight.Text, viValue)) then
@@ -405,6 +330,7 @@ end;
 
 procedure TfrmTableProperty.SetView(const AView: THCView);
 begin
+  //FGridView := nil;
   FView := AView;
 
   FTableItem := FView.ActiveSection.ActiveData.GetActiveItem as THCTableItem;

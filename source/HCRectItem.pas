@@ -247,6 +247,7 @@ type
     FAutoSize: Boolean;  // 是根据内容自动大小，还是外部指定大小
     FEnabled: Boolean;
     FOnClick: TNotifyEvent;
+    FOnKeyDown: TKeyEvent;
   protected
     FMouseIn: Boolean;
     FPaddingLeft, FPaddingRight, FPaddingTop, FPaddingBottom: Byte;
@@ -258,6 +259,7 @@ type
   public
     constructor Create(const AOwnerData: THCCustomData); override;
     procedure Assign(Source: THCCustomItem); override;
+    procedure KeyDown(var Key: Word; Shift: TShiftState); override;
     procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -267,6 +269,7 @@ type
     property AutoSize: Boolean read FAutoSize write FAutoSize;
     property Enabled: Boolean read FEnabled write FEnabled;
     property OnClick: TNotifyEvent read FOnClick write FOnClick;
+    property OnKeyDown: TKeyEvent read FOnKeyDown write FOnKeyDown;
   end;
 
   TGripType = (gtNone, gtLeftTop, gtRightTop, gtLeftBottom, gtRightBottom,
@@ -1401,6 +1404,13 @@ procedure THCControlItem.DoClick;
 begin
   if Assigned(FOnClick) and OwnerData.CanEdit then
     FOnClick(Self);
+end;
+
+procedure THCControlItem.KeyDown(var Key: Word; Shift: TShiftState);
+begin
+  inherited KeyDown(Key, Shift);
+  if Assigned(FOnKeyDown) then
+    FOnKeyDown(Self, Key, Shift);
 end;
 
 procedure THCControlItem.ParseXml(const ANode: IHCXMLNode);

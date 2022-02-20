@@ -3428,8 +3428,8 @@ begin
             end
             else
             begin
-              vPaintInfo.ScaleX := vPrintWidth / FSections[vSectionIndex].PaperWidthPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-              vPaintInfo.ScaleY := vPrintHeight / FSections[vSectionIndex].PaperHeightPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+              vPaintInfo.ScaleX := GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.TempCanvas.Handle, LOGPIXELSX);  // vPrintWidth / FSections[vSectionIndex].PaperWidthPix;
+              vPaintInfo.ScaleY := GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.TempCanvas.Handle, LOGPIXELSY);  // vPrintHeight / FSections[vSectionIndex].PaperHeightPix;
               vPaintInfo.Zoom := 1;
             end;
 
@@ -3524,8 +3524,8 @@ begin
     end
     else
     begin
-      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PaperWidthPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PaperHeightPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+      vPaintInfo.ScaleX := GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.TempCanvas.Handle, LOGPIXELSX);  // vPrintWidth / Self.ActiveSection.PaperWidthPix;
+      vPaintInfo.ScaleY := GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.TempCanvas.Handle, LOGPIXELSY);  // vPrintHeight / Self.ActiveSection.PaperHeightPix;
       vPaintInfo.Zoom := 1;
     end;
 
@@ -3646,8 +3646,8 @@ begin
     end
     else
     begin
-      vPaintInfo.ScaleX := vPrintWidth / Self.ActiveSection.PaperWidthPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSX);
-      vPaintInfo.ScaleY := vPrintHeight / Self.ActiveSection.PaperHeightPix;  // GetDeviceCaps(HCPrinter.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.DefCanvas.Handle, LOGPIXELSY);
+      vPaintInfo.ScaleX := GetDeviceCaps(Printer.Handle, LOGPIXELSX) / GetDeviceCaps(FStyle.TempCanvas.Handle, LOGPIXELSX);  // vPrintWidth / Self.ActiveSection.PaperWidthPix;
+      vPaintInfo.ScaleY := GetDeviceCaps(Printer.Handle, LOGPIXELSY) / GetDeviceCaps(FStyle.TempCanvas.Handle, LOGPIXELSY);  // vPrintHeight / Self.ActiveSection.PaperHeightPix;
       vPaintInfo.Zoom := 1;
     end;
 

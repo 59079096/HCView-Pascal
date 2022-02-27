@@ -219,6 +219,8 @@ type
     property Level: Byte read FLevel write FLevel;
   end;
 
+  THCTextHorAlign = (hthaLeft, hthaCenter, hthaRight);
+
   THCTextRectItem = class(THCCustomRectItem)  // 带文本样式的RectItem
   private
     FTextStyleNo: Integer;

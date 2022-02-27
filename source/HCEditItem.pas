@@ -25,6 +25,7 @@ type
   THCEditItem = class(THCControlItem)
   private
     FText: string;
+    FTextAlignHorz: THCTextHorAlign;
     FBorderWidth: Byte;
     FBorderSides: TBorderSides;
     FReadOnly, FPrintOnlyText: Boolean;

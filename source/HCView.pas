@@ -5113,7 +5113,7 @@ end;
 
 procedure THCView.WMGetDlgCode(var Message: TWMGetDlgCode);
 begin
-  Message.Result := DLGC_WANTTAB or DLGC_WANTARROWS;
+  Message.Result := DLGC_WANTTAB or DLGC_WANTARROWS or DLGC_WANTCHARS;
 end;
 
 procedure THCView.WMImeComposition(var Message: TMessage);

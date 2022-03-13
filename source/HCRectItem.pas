@@ -61,7 +61,7 @@ type
     constructor Create(const AOwnerData: THCCustomData); overload; virtual;
     /// <summary> 适用于加载时创建 </summary>
     constructor Create(const AOwnerData: THCCustomData; const AWidth, AHeight: Integer); overload; virtual;
-
+    function MatchTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch): Boolean; virtual;
     procedure ApplySelectTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch); virtual;
     /// <summary> RectItem内部Data是否响应了修改样式 </summary>
     procedure ApplySelectParaStyle(const AStyle: THCStyle; const AMatchStyle: THCParaMatch); virtual;
@@ -231,6 +231,7 @@ type
     procedure Assign(Source: THCCustomItem); override;
     function GetOffsetAt(const X: Integer): Integer; override;
     function JustifySplit: Boolean; override;
+    function MatchTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch): Boolean; override;
     procedure ApplySelectTextStyle(const AStyle: THCStyle;
       const AMatchStyle: THCStyleMatch); override;
     procedure MarkStyleUsed(const AMark: Boolean); override;
@@ -694,6 +695,11 @@ end;
 
 procedure THCCustomRectItem.MarkStyleUsed(const AMark: Boolean);
 begin
+end;
+
+function THCCustomRectItem.MatchTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch): Boolean;
+begin
+  Result := False;
 end;
 
 function THCCustomRectItem.MouseDown(Button: TMouseButton; Shift: TShiftState;
@@ -1338,6 +1344,12 @@ begin
     OwnerData.Style.TextStyles[FTextStyleNo].CheckSaveUsed := True
   else  // 重新赋值
     FTextStyleNo := OwnerData.Style.TextStyles[FTextStyleNo].TempNo;
+end;
+
+function THCTextRectItem.MatchTextStyle(const AStyle: THCStyle; const AMatchStyle: THCStyleMatch): Boolean;
+begin
+  AMatchStyle.Append := not AMatchStyle.StyleHasMatch(AStyle, FTextStyleNo);
+  Result := True;
 end;
 
 procedure THCTextRectItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);

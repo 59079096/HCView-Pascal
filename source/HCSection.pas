@@ -1705,7 +1705,7 @@ end;
 function THCCustomSection.DoSectionDataAction(const AData: THCSectionData; const AAction: THCFunction): Boolean;
 begin
   if not AData.CanEdit then Exit(False);
-  if AData.FloatItemIndex >= 0 then Exit(False);
+  //if AData.FloatItemIndex >= 0 then Exit(False);
 
   Result := AAction;  // 处理变动
 

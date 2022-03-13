@@ -322,7 +322,7 @@ type
     function IsRectItem(const AItemNo: Integer): Boolean;
 
     /// <summary> 返回在指定位置插入文本时用哪个文本样式最合适 </summary>
-    function MatchTextStyleNoAt(const AItemNo, AOffset: Integer): Integer;
+    function MatchTextStyleNoAt(const AItemNo, AOffset: Integer): Integer; virtual;
 
     /// <summary> 返回Item的文本样式 </summary>
     function GetItemStyle(const AItemNo: Integer): Integer;
@@ -2068,7 +2068,12 @@ begin
         Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True);
     end
     else  // 在RectItem上
-      Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True);  // 默认文本样式
+    begin
+      if FItems[AItemNo] is THCTextRectItem then  // 在THCTextRectItem上时，可以使用其文本样式
+        Result := (FItems[AItemNo] as THCTextRectItem).TextStyleNo
+      else
+        Result := FStyle.GetStyleNo(FStyle.DefaultTextStyle, True);  // 默认文本样式
+    end;
   end
   else  // 当前位置是TextItem
     Result := FItems[AItemNo].StyleNo;  // 防止静默移动选中位置没有更新当前样式
@@ -3293,11 +3298,7 @@ begin
         vStyleItemNo := AItemNo - 1;
     end;
 
-    if (FItems[vStyleItemNo] is THCTextRectItem) and (FSelectInfo.StartItemOffset = OffsetInner) then
-      Self.CurStyleNo := (FItems[vStyleItemNo] as THCTextRectItem).TextStyleNo
-    else
-      Self.CurStyleNo := FItems[vStyleItemNo].StyleNo;
-
+    Self.CurStyleNo := MatchTextStyleNoAt(vStyleItemNo, FSelectInfo.StartItemOffset);
     Self.CurParaNo := FItems[vStyleItemNo].ParaNo;
   end;
 

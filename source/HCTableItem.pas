@@ -1462,7 +1462,7 @@ begin
               end;
             end;
 
-            if (vBorderBottom < ADataScreenBottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // 下边框
+            if (vBorderBottom <= ADataScreenBottom) and (cbsBottom in FRows[vR][vC].BorderSides) then  // 下边框
             begin
               if APaintInfo.Print then
               begin
@@ -1965,11 +1965,19 @@ var
   i, vR, vC, vWidth: Integer;
   vAutoHeight: Boolean;
   vRow: THCTableRow;
+  vByte: Byte;
 begin
   FRows.Clear;
   inherited LoadFromStream(AStream, AStyle, AFileVersion);
 
-  AStream.ReadBuffer(FBorderVisible, SizeOf(FBorderVisible));
+  if AFileVersion > 55 then
+  begin
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
+    FBorderVisible := Odd(vByte shr 7);
+    FResizeKeepWidth := Odd(vByte shr 6);
+  end
+  else
+    AStream.ReadBuffer(FBorderVisible, SizeOf(FBorderVisible));
 
   if AFileVersion > 31 then
   begin
@@ -4621,10 +4629,19 @@ end;
 procedure THCTableItem.SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer);
 var
   i, vR, vC: Integer;
+  vByte: Byte;
 begin
   inherited SaveToStreamRange(AStream, AStart, AEnd);
 
-  AStream.WriteBuffer(FBorderVisible, SizeOf(FBorderVisible));
+  vByte := 0;
+  if FBorderVisible then
+    vByte := vByte or (1 shl 7);
+
+  if FResizeKeepWidth then
+    vByte := vByte or (1 shl 6);
+
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
+  //AStream.WriteBuffer(FBorderVisible, SizeOf(FBorderVisible));
   AStream.WriteBuffer(FBorderWidthPt, SizeOf(FBorderWidthPt));
   AStream.WriteBuffer(FCellVPaddingMM, SizeOf(FCellVPaddingMM));
   AStream.WriteBuffer(FCellHPaddingMM, SizeOf(FCellHPaddingMM));

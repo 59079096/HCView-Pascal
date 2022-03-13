@@ -1854,6 +1854,7 @@ var
   vFileExt: string;
   vVersion: Word;
   vLang: Byte;
+  vSize: Cardinal;
 begin
   AStream.Position := 0;
   _LoadFileFormatAndVersion(AStream, vFileExt, vVersion, vLang);  // 文件格式和版本
@@ -1866,6 +1867,17 @@ begin
 
   DoLoadStreamBefor(AStream, vVersion);  // 触发加载前事件
   AStyle.LoadFromStream(AStream, vVersion);  // 加载样式表
+
+  if vVersion > 55 then
+  begin
+    AStream.ReadBuffer(vLang, SizeOf(vLang));
+    if vLang >= 0 then
+       AStream.ReadBuffer(vLang, SizeOf(vLang));
+
+    if vLang >= 0 then
+      AStream.ReadBuffer(vSize, SizeOf(vSize));
+  end;
+
   ALoadSectionProc(vVersion);  // 加载节数量、节数据
   DoLoadStreamAfter(AStream, vVersion);
   DoMapChanged;
@@ -2344,6 +2356,8 @@ var
   vSection: THCSection;
 begin
   Result := False;
+  if Self.ReadOnly then Exit;
+
   Self.BeginUpdate;
   try
     vSection := NewDefaultSection;
@@ -4207,6 +4221,7 @@ procedure THCView.SaveToStream(const AStream: TStream; const AQuick: Boolean = F
 var
   vByte: Byte;
   i: Integer;
+  vSize: Cardinal;
 begin
   {$IFDEF USESCRIPT}
   if not AQuick then
@@ -4223,6 +4238,12 @@ begin
       DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
     end;
     FStyle.SaveToStream(AStream);
+
+    vByte := 0;
+    AStream.WriteBuffer(vByte, SizeOf(vByte));
+    AStream.WriteBuffer(vByte, SizeOf(vByte));
+    vSize := 0;
+    AStream.WriteBuffer(vSize, SizeOf(vSize));
 
     // 节数量
     vByte := FSections.Count;

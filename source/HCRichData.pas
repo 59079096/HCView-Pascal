@@ -1860,11 +1860,10 @@ begin
         AMatchStyle.Append := not AMatchStyle.StyleHasMatch(Style, Items[i].StyleNo);  // 根据第一个判断是添加样式还是减掉样式
         Break;
       end
-      else
-      if Items[i] is THCTextRectItem then
+      else  // RectItem
       begin
-        AMatchStyle.Append := not AMatchStyle.StyleHasMatch(Style, (Items[i] as THCTextRectItem).TextStyleNo);  // 根据第一个判断是添加样式还是减掉样式
-        Break;
+        if (Items[i] as THCCustomRectItem).MatchTextStyle(Style, AMatchStyle) then
+          Break;
       end;
     end;
 
@@ -3426,12 +3425,25 @@ var
   procedure TABKeyDown;
   var
     vTabItem: TTabItem;
+    vStyleNo, vTabW: Integer;
     vParaStyle: THCParaStyle;
   begin
     if (SelectInfo.StartItemOffset = 0) and (Items[SelectInfo.StartItemNo].ParaFirst) then  // 段首
     begin
       vParaStyle := Style.ParaStyles[vCurItem.ParaNo];
-      ApplyParaFirstIndent(vParaStyle.FirstIndent + PixXToMillimeter(TabCharWidth));
+      vStyleNo := MatchTextStyleNoAt(SelectInfo.StartItemNo, SelectInfo.StartItemOffset);
+      if vStyleNo < THCStyle.Null then
+        vStyleNo := Style.GetDefaultStyleNo;
+
+      if vStyleNo < THCStyle.Null then
+        vTabW := TabCharWidth
+      else
+      begin
+        Style.ApplyTempStyle(vStyleNo);
+        vTabW := Style.TempCanvas.TextWidth('荆') * 2;  // 2个字符宽度
+      end;
+
+      ApplyParaFirstIndent(vParaStyle.FirstIndent + PixXToMillimeter(vTabW));
     end
     else
     if vCurItem.StyleNo < THCStyle.Null then  // 当前是RectItem

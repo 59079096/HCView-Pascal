@@ -1422,7 +1422,7 @@ end;
 
 procedure THCControlItem.KeyDown(var Key: Word; Shift: TShiftState);
 begin
-  inherited KeyDown(Key, Shift);
+  //inherited KeyDown(Key, Shift);
   if Assigned(FOnKeyDown) then
     FOnKeyDown(Self, Key, Shift);
 end;

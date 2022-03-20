@@ -62,6 +62,8 @@ type
     /// <summary> 初始化格式化的相关参数适用于 201903141706 </summary>
     procedure FormatInit;
 
+    procedure Clear; override;
+
     /// <summary> 设置光标位置到指定的Item最后面 </summary>
     procedure ReSetSelectAndCaret(const AItemNo: Integer); overload;
 
@@ -156,6 +158,13 @@ begin
     FLastFormatParaNo := AItem.ParaNo;
     FItemFormatHeight := CalculateLineHeight(Style.TextStyles[AItem.StyleNo], Style.ParaStyles[AItem.ParaNo]);
   end;
+end;
+
+procedure THCFormatData.Clear;
+begin
+  FFormatChange := False;
+  FormatInit;
+  inherited Clear;
 end;
 
 constructor THCFormatData.Create(const AStyle: THCStyle);

@@ -1784,7 +1784,9 @@ begin
           DoActiveDataCheckUpdateInfo;
         end;
     end;
-  end;
+  end
+  else
+    FActiveData.KeyDown(Key, Shift);
 end;
 
 procedure THCCustomSection.KeyPress(var Key: Char);

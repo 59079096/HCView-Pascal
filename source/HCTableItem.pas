@@ -286,7 +286,7 @@ type
     function ToHtml(const APath: string): string; override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
-    function ResetRowCol(const AWidth, ARowCount, AColCount: Integer): Boolean;
+    function ResetRowCol(const AWidth, ARowCount, AColCount: Integer; const AUserFirstRowHeight: Boolean = False): Boolean;
     /// <summary> 获取当前表格格式化宽度 </summary>
     function GetFormatWidth: Integer;
     procedure AdjustWidth(const AReFormat: Boolean);
@@ -337,7 +337,7 @@ type
     function MergeSelectCells: Boolean;
     function SelectedCellCanMerge: Boolean;
     function GetEditCell: THCTableCell; overload;
-    procedure GetEditCell(var ARow, ACol: Integer); overload;
+    function GetEditCell(var ARow, ACol: Integer): Boolean; overload;
     function InsertRowAfter(const ACount: Integer): Boolean;
     function InsertRowBefor(const ACount: Integer): Boolean;
     function InsertColAfter(const ACount: Integer): Boolean;
@@ -897,6 +897,7 @@ end;
 
 procedure THCTableItem.DoCellDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
 begin
+  FormatDirty;
   (OwnerData as THCRichData).ItemReFormatRequest(Self);
 end;
 
@@ -1928,6 +1929,8 @@ begin
             end;
           end;
         end;
+    else
+      vEditCell.CellData.KeyDown(vOldKey, Shift);
     end;
   end
   else
@@ -3060,7 +3063,7 @@ begin
   (OwnerData as THCRichData).ItemReFormatRequest(Self);
 end;
 
-function THCTableItem.ResetRowCol(const AWidth, ARowCount, AColCount: Integer): Boolean;
+function THCTableItem.ResetRowCol(const AWidth, ARowCount, AColCount: Integer; const AUserFirstRowHeight: Boolean = False): Boolean;
 var
   i, vDataWidth: Integer;
   vFirstRowHeight: Integer;
@@ -3092,7 +3095,9 @@ begin
     vRow.SetRowWidth(vDataWidth);
     if i = 0 then
     begin
-      FDefaultRowHeight := vRow.Cols[0].CellData.Height + FCellVPaddingPix + FCellVPaddingPix;
+      if AUserFirstRowHeight then
+        vFirstRowHeight := vRow.Cols[0].CellData.Height + FCellVPaddingPix + FCellVPaddingPix
+      else
       if vFirstRowHeight < 0 then
         vFirstRowHeight := FDefaultRowHeight;
     end;
@@ -3296,14 +3301,16 @@ begin
     ADestCol := ADestCol + FRows[ARow][ACol].ColSpan;
 end;
 
-procedure THCTableItem.GetEditCell(var ARow, ACol: Integer);
+function THCTableItem.GetEditCell(var ARow, ACol: Integer): Boolean;
 begin
+  Result := False;
   ARow := -1;
   ACol := -1;
   if FSelectCellRang.EditCell then  // 在同一单元格中编辑
   begin
     ARow := FSelectCellRang.StartRow;
     ACol := FSelectCellRang.StartCol;
+    Result := True;
   end;
 end;
 

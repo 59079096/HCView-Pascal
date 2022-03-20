@@ -4467,6 +4467,8 @@ var
               vRectItem.Active := False;
               Style.UpdateInfoRePaint;
             end;
+        else
+          vRectItem.KeyDown(Key, Shift);
         end;
       end;
     end

@@ -173,18 +173,15 @@ begin
 
   if FShowUnderLine then  // 下划线
   begin
-    if DrawItems[ADrawItemNo].LineFirst then
+    if AData.IsLineLastDrawItem(ADrawItemNo) then
     begin
       ACanvas.Pen.Color := clBlack;
       ACanvas.Pen.Style := psSolid;
-      ACanvas.MoveTo(ADataDrawLeft, ADrawRect.Top - 1);
-      ACanvas.LineTo(ADataDrawLeft + Self.Width, ADrawRect.Top - 1);
-    end;
 
-    if ADrawItemNo = DrawItems.Count - 1 then
-    begin
-      ACanvas.Pen.Color := clBlack;
-      ACanvas.Pen.Style := psSolid;
+      // 上下都绘制，防止当前行的数据元背景色把上一行下面的线抹掉
+      ACanvas.MoveTo(ADataDrawLeft, ADrawRect.Top);
+      ACanvas.LineTo(ADataDrawLeft + Self.Width, ADrawRect.Top);
+
       ACanvas.MoveTo(ADataDrawLeft, ADrawRect.Bottom);
       ACanvas.LineTo(ADataDrawLeft + Self.Width, ADrawRect.Bottom);
     end;

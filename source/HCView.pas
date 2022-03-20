@@ -4598,7 +4598,7 @@ end;
 
 procedure THCView.SetPrintBySectionInfo(const ASectionIndex: Integer);
 var
-  vDevice: Array[0..(cchDeviceName - 1)] of Char;
+  vDevice: Array[0..(255 - 1)] of Char;
   vDriver: Array[0..(MAX_PATH - 1)] of Char;
   vPort: Array[0..32] of Char;
   vHDMode: THandle;

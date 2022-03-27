@@ -110,6 +110,9 @@ const
   DontLineLastChar = '/\＼“‘';
   /// <summary> 可以挤压宽度的字符 </summary>
   LineSqueezeChar = '，。；、？“”';
+  HCsLineBreak = sLineBreak;
+  HCRecordSeparator = Char(#30);
+  HCUnitSeparator = Char(#31);
 
   HCBoolText: array [Boolean] of Char = ('0', '1');
 

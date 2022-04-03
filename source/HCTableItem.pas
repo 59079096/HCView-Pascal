@@ -239,7 +239,6 @@ type
     function InsertItem(const AItem: THCCustomItem): Boolean; override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word): Boolean; override;
     procedure ReFormatActiveItem; override;
-    procedure ReFormatRequest; override;
     procedure ActiveItemReAdaptEnvironment; override;
     function DeleteActiveDomain: Boolean; override;
     function InsertAnnotate(const ATitle, AText: string): Boolean; override;
@@ -3054,13 +3053,6 @@ begin
   end;
 
   Self.FormatDirty;  // 对于修改表格整体属性，如边框宽度等并不仅仅是某个单元格的变化，需要强制重新格式化
-end;
-
-procedure THCTableItem.ReFormatRequest;
-begin
-  //inherited;
-  FormatDirty;
-  (OwnerData as THCRichData).ItemReFormatRequest(Self);
 end;
 
 function THCTableItem.ResetRowCol(const AWidth, ARowCount, AColCount: Integer; const AUserFirstRowHeight: Boolean = False): Boolean;

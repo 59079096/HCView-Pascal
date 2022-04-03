@@ -351,7 +351,7 @@ var
 implementation
 
 uses
-  SysUtils;
+  SysUtils, HCFormatData;
 
 { THCCustomRectItem }
 
@@ -497,6 +497,7 @@ end;
 procedure THCCustomRectItem.FormatDirty;
 begin
   FIsFormatDirty := True;
+  (Self.OwnerData as THCFormatData).FormatDirty;
 end;
 
 procedure THCCustomRectItem.FormatToDrawItem(const ARichData: THCCustomData;
@@ -739,6 +740,8 @@ end;
 
 procedure THCCustomRectItem.ReFormatRequest;
 begin
+  FormatDirty;
+  (OwnerData as THCFormatData).ItemReFormatRequest(Self);
 end;
 
 procedure THCCustomRectItem.SaveSelectToStream(const AStream: TStream);

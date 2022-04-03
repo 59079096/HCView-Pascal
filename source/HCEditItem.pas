@@ -34,6 +34,7 @@ type
     FLeftOffset  // 0位置是相对左FMargin
       : Integer;
     procedure CalcTextSize;
+    procedure CalcSize;
     procedure ScrollAdjust(const AOffset: Integer);
     function GetCharDrawLeft(const AOffset: Integer): Integer;
     function OffsetInSelect(const AOffset: Integer): Boolean;
@@ -60,6 +61,7 @@ type
     procedure GetCaretInfo(var ACaretInfo: THCCaretInfo); override;
     function GetText: string; override;
     procedure SetText(const Value: string); override;
+    procedure SetTextAlignHorz(const Value: THCTextHorAlign);
   public
     constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
     function SelectTextExists: Boolean;
@@ -72,6 +74,7 @@ type
     function SaveSelectToText: string; override;
     procedure Assign(Source: THCCustomItem); override;
     procedure Clear; override;
+    procedure ReFormatRequest; override;
     function InsertStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word): Boolean; override;
     function InsertText(const AText: string): Boolean; override;
@@ -85,9 +88,12 @@ type
     property PrintOnlyText: Boolean read FPrintOnlyText write FPrintOnlyText;
     property BorderSides: TBorderSides read FBorderSides write FBorderSides;
     property BorderWidth: Byte read FBorderWidth write FBorderWidth;
+    property TextAlignHorz: THCTextHorAlign read FTextAlignHorz write SetTextAlignHorz;
   end;
 
 implementation
+
+{$I HCView.inc}
 
 uses
   Math, Clipbrd;
@@ -102,6 +108,23 @@ begin
   FPrintOnlyText := (Source as THCEditItem).PrintOnlyText;
   FBorderSides := (Source as THCEditItem).BorderSides;
   FBorderWidth := (Source as THCEditItem).BorderWidth;
+end;
+
+procedure THCEditItem.CalcSize;
+begin
+  CalcTextSize;
+
+  if Self.AutoSize then
+  begin
+    Width := FPaddingLeft + FTextSize.cx + FPaddingRight;  // 间距
+    Height := FPaddingTop + FTextSize.cy + FPaddingBottom;
+  end;
+
+  if Width < FMinWidth then
+    Width := FMinWidth;
+
+  if Height < FMinHeight then
+    Height := FMinHeight;
 end;
 
 procedure THCEditItem.CalcTextSize;
@@ -137,9 +160,11 @@ begin
   FSelEnd := -1;
   FSelMove := -1;
   Width := 50;
+  FTextAlignHorz := hthaLeft;
   FPrintOnlyText := False;
   FBorderWidth := 1;
   FBorderSides := [cbsLeft, cbsTop, cbsRight, cbsBottom];
+  CalcSize;
 end;
 
 function THCEditItem.DeleteSelected: Boolean;
@@ -255,19 +280,7 @@ end;
 procedure THCEditItem.FormatToDrawItem(const ARichData: THCCustomData;
   const AItemNo: Integer);
 begin
-  CalcTextSize;
-
-  if Self.AutoSize then
-  begin
-    Width := FPaddingLeft + FTextSize.cx + FPaddingRight;  // 间距
-    Height := FPaddingTop + FTextSize.cy + FPaddingBottom;
-  end;
-
-  if Width < FMinWidth then
-    Width := FMinWidth;
-
-  if Height < FMinHeight then
-    Height := FMinHeight;
+  CalcSize;
 end;
 
 procedure THCEditItem.GetCaretInfo(var ACaretInfo: THCCaretInfo);
@@ -439,12 +452,10 @@ begin
           FCaretOffset := System.Length(FText);  // End键
           ScrollAdjust(FCaretOffset);
         end;
-    else
-      inherited KeyDown(Key, Shift);
     end;
-  end
-  else
-    inherited KeyDown(Key, Shift);
+  end;
+
+  inherited KeyDown(Key, Shift);
 end;
 
 procedure THCEditItem.KeyPress(var Key: Char);
@@ -459,9 +470,9 @@ begin
     CalcTextSize;
     ScrollAdjust(FCaretOffset);
     Self.FormatDirty;
-  end
-  else
-    inherited KeyPress(Key);
+  end;
+
+  inherited KeyPress(Key);
 end;
 
 function THCEditItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
@@ -546,7 +557,13 @@ begin
   FPrintOnlyText := ANode.Attributes['printonlytext'];
   SetBorderSideByPro(ANode.Attributes['border'], FBorderSides);
   FBorderWidth := ANode.Attributes['borderwidth'];
+  FTextAlignHorz := ANode.Attributes['textalignhorz'];
   FText := ANode.Text;
+end;
+
+procedure THCEditItem.ReFormatRequest;
+begin
+  inherited ReFormatRequest;
 end;
 
 procedure THCEditItem.LoadFromStream(const AStream: TStream;
@@ -574,6 +591,9 @@ begin
     AStream.ReadBuffer(FBorderSides, SizeOf(FBorderSides));
     AStream.ReadBuffer(FBorderWidth, SizeOf(FBorderWidth));
   end;
+
+  if AFileVersion > 56 then
+    AStream.ReadBuffer(FTextAlignHorz, SizeOf(THCTextHorAlign));
 end;
 
 function THCEditItem.SaveSelectToText: string;
@@ -601,6 +621,7 @@ begin
   AStream.WriteBuffer(vByte, SizeOf(vByte));
   AStream.WriteBuffer(FBorderSides, SizeOf(FBorderSides));
   AStream.WriteBuffer(FBorderWidth, SizeOf(FBorderWidth));
+  AStream.WriteBuffer(FTextAlignHorz, SizeOf(THCTextHorAlign));
 end;
 
 procedure THCEditItem.ScrollAdjust(const AOffset: Integer);
@@ -665,7 +686,7 @@ end;
 
 procedure THCEditItem.SetText(const Value: string);
 begin
-  if (not FReadOnly) and (FText <> Value) then
+  if FText <> Value then
   begin
     FText := Value;
     if FCaretOffset > System.Length(FText) then
@@ -678,6 +699,15 @@ begin
   end;
 end;
 
+procedure THCEditItem.SetTextAlignHorz(const Value: THCTextHorAlign);
+begin
+  if FTextAlignHorz <> Value then
+  begin
+    FTextAlignHorz := Value;
+    ReFormatRequest;
+  end;
+end;
+
 procedure THCEditItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
@@ -685,6 +715,7 @@ begin
   ANode.Attributes['printonlytext'] := FPrintOnlyText;
   ANode.Attributes['border'] := GetBorderSidePro(FBorderSides);
   ANode.Attributes['borderwidth'] := FBorderWidth;
+  ANode.Attributes['textalignhorz'] := FTextAlignHorz;
   ANode.Text := FText;
 end;
 

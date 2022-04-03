@@ -735,6 +735,10 @@ begin
   FPage.Clear;
   FPages.ClearEx;
   FActivePageIndex := 0;
+
+  FHeader.FormatChange := False;
+  FFooter.FormatChange := False;
+  FPage.FormatChange := False;
 end;
 
 constructor THCCustomSection.Create(const AStyle: THCStyle);
@@ -2895,6 +2899,10 @@ begin
     if FPage.FloatItems[i].PageIndex > FPages.Count - 1 then
       FPage.FloatItems.Delete(i);
   end;
+
+  FHeader.FormatChange := False;
+  FFooter.FormatChange := False;
+  FPage.FormatChange := False;
 end;
 
 procedure THCCustomSection.ActiveItemReAdaptEnvironment;

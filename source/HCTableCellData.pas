@@ -30,7 +30,7 @@ type
     FCellSelectedAll
       : Boolean;
     FCellHeight: Integer;  // 所属单元格高度(因合并或手动拖高，单元格高度会大于等于其内数据高度)
-    FOnFormatDirty, FOnSetFormatHeightChange: TNotifyEvent;
+    FOnSetFormatHeightChange: TNotifyEvent;
     FOnGetRootData: TGetRootDataEvent;
     FOnGetFormatTop: TGetFormatTopFun;
     function PointInCellRect(const APt: TPoint): Boolean;
@@ -52,7 +52,6 @@ type
     procedure ReFormatData(const AFirstDrawItemNo: Integer; const ALastItemNo: Integer = -1;
       const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False); override;
 
-    procedure DoFormatDirty;
     procedure DoSetFormatHeightChange;
     procedure SetActive(const Value: Boolean);
     function GetFormatTop: Integer;
@@ -98,7 +97,6 @@ type
 
     property OnGetRootData: TGetRootDataEvent read FOnGetRootData write FOnGetRootData;
     property OnGetFormatTop: TGetFormatTopFun read FOnGetFormatTop write FOnGetFormatTop;
-    property OnFormatDirty: TNotifyEvent read FOnFormatDirty write FOnFormatDirty;
     property OnSetFormatHeightChange: TNotifyEvent read FOnSetFormatHeightChange write FOnSetFormatHeightChange;
   end;
 
@@ -209,12 +207,6 @@ begin
     Result := FOnGetRootData
   else
     Result := inherited GetRootData;
-end;
-
-procedure THCTableCellData.DoFormatDirty;
-begin
-  if Assigned(FOnFormatDirty) then
-    FOnFormatDirty(Self);
 end;
 
 procedure THCTableCellData.DoLoadFromStream(const AStream: TStream;

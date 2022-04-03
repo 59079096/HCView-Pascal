@@ -41,6 +41,7 @@ type
     /// <summary> 多次格式化是否有变动，外部由此决定是否重新计算分页起始结束DrawItemNo </summary>
     FFormatChange: Boolean;
 
+    FOnFormatDirty: TNotifyEvent;
     FOnItemReFormatRequest: TDataItemEvent;
     FOnItemSetCaretRequest: TDataItemNoOffsetEvent;
     procedure FormatRange(const AStartDrawItemNo, ALastItemNo: Integer);
@@ -59,10 +60,9 @@ type
     procedure FormatItemToDrawItems(const AItemNo, AOffset, AFmtLeft, AFmtRight,
       AContentWidth: Integer; var APos: TPoint; var ALastDrawItemNo: Integer);
   protected
+    procedure DoFormatDirty;
     /// <summary> 初始化格式化的相关参数适用于 201903141706 </summary>
     procedure FormatInit;
-
-    procedure Clear; override;
 
     /// <summary> 设置光标位置到指定的Item最后面 </summary>
     procedure ReSetSelectAndCaret(const AItemNo: Integer); overload;
@@ -115,6 +115,7 @@ type
     procedure SetFormatHeightChange; virtual;
     function GetDrawItemFormatTop(const ADrawItemNo: Integer): Integer; virtual;
     function GetItemNo(const AItem: THCCustomItem): Integer;
+    procedure FormatDirty;
     procedure BeginFormat;
     procedure EndFormat(const AReformat: Boolean = True);
     property Width: Integer read FWidth write FWidth;
@@ -123,6 +124,7 @@ type
     property FormatDrawItemCountChange: Boolean read FFormatDrawItemCountChange;
     property FormatChange: Boolean read FFormatChange write FFormatChange;
     property FormatCount: Integer read FFormatCount;
+    property OnFormatDirty: TNotifyEvent read FOnFormatDirty write FOnFormatDirty;
     property OnItemReFormatRequest: TDataItemEvent read FOnItemReFormatRequest write FOnItemReFormatRequest;
     property OnItemSetCaretRequest: TDataItemNoOffsetEvent read FOnItemSetCaretRequest write FOnItemSetCaretRequest;
   end;
@@ -160,13 +162,6 @@ begin
   end;
 end;
 
-procedure THCFormatData.Clear;
-begin
-  FFormatChange := False;
-  FormatInit;
-  inherited Clear;
-end;
-
 constructor THCFormatData.Create(const AStyle: THCStyle);
 begin
   inherited Create(AStyle);
@@ -179,6 +174,12 @@ destructor THCFormatData.Destroy;
 begin
 
   inherited Destroy;
+end;
+
+procedure THCFormatData.DoFormatDirty;
+begin
+  if Assigned(FOnFormatDirty) then
+    FOnFormatDirty(Self);
 end;
 
 procedure THCFormatData.EndFormat(const AReformat: Boolean = True);
@@ -296,12 +297,17 @@ begin
     FFormatEndBottom := DrawItems[vLastDrawItemNo].Rect.Bottom - vFmtTopOffset;
 end;
 
+procedure THCFormatData.FormatDirty;
+begin
+  DoFormatDirty;
+end;
+
 procedure THCFormatData.FormatInit;
 begin
   if not FFormatChange then
   begin
     FFormatHeightChange := False;
-    FFormatStartDrawItemNo := -1;
+    FFormatStartDrawItemNo := 0;
   end;
 
   FFormatDrawItemCountChange := False;
@@ -1176,6 +1182,12 @@ end;
 
 procedure THCFormatData.ItemReFormatRequest(const AItem: THCCustomItem);
 begin
+  if FFormatCount > 0 then
+  begin
+    FormatDirty;
+    Exit;
+  end;
+
   if Assigned(FOnItemReFormatRequest) then
     FOnItemReFormatRequest(Self, AItem);
 end;

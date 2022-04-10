@@ -1469,6 +1469,7 @@ begin
   begin
     if (GetItemStyle(SelectInfo.StartItemNo) < THCStyle.Null)
       and (SelectInfo.StartItemOffset = OffsetInner)
+      and not (Items[SelectInfo.StartItemNo] as THCCustomRectItem).IsSelectComplateTheory
     then  // µ±Ç°ÊÇRectItem
     begin
       if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).MangerUndo then

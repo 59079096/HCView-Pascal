@@ -76,8 +76,8 @@ const
    4.7 数据元痕迹样式改为集合，存痕迹级别
   }
 
-  HC_FileVersion = '5.7';
-  HC_FileVersionInt = 57;
+  HC_FileVersion = '5.8';
+  HC_FileVersionInt = 58;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;
@@ -371,6 +371,8 @@ type
   procedure HCSetProperty(const APropertys: TStrings; const APropName, APropValue: string);
   procedure HCRemoveProperty(const APropertys: TStrings; const APropName: string);
 
+  function CreateScriptObject: TStringList;
+
   /// <summary> 保存文件格式、版本 </summary>
   procedure _SaveFileFormatAndVersion(const AStream: TStream);
   /// <summary> 读取文件格式、版本 </summary>
@@ -619,6 +621,13 @@ end;
 function HCDeleteBreak(const S: string): string;
 begin
   Result := StringReplace(S, sLineBreak, '', [rfReplaceAll]);
+end;
+
+function CreateScriptObject: TStringList;
+begin
+  Result := TStringList.Create;
+  Result.NameValueSeparator := HCRecordSeparator;
+  Result.LineBreak := HCUnitSeparator;
 end;
 
 function GetUnicodeCharType(const AChar: Char): TCharType;

@@ -479,7 +479,7 @@ end;
 
 procedure THCTableItem.FormatToDrawItem(const ARichData: THCCustomData; const AItemNo: Integer);
 var
-  i, vR, vC: Integer;
+  vR: Integer;
 begin
   if not Self.IsFormatDirty then
   begin
@@ -502,9 +502,6 @@ begin
 end;
 
 constructor THCTableItem.Create(const AOwnerData: THCCustomData; const ARowCount, AColCount, AWidth: Integer);
-var
-  vRow: THCTableRow;
-  i, vDataWidth: Integer;
 begin
   inherited Create(AOwnerData);
 
@@ -906,8 +903,6 @@ var
   vR, vC, vRow, vCol: Integer;
   vPointer: Pointer;
 begin
-  Self.DisSelect;
-
   vRow := -1;
   vCol := -1;
   vPointer := Pointer(AData);
@@ -929,7 +924,13 @@ begin
 
   if vRow >= 0 then
   begin
-    FSelectCellRang.SetStart(vRow, vCol);
+    if (vRow <> FSelectCellRang.StartRow) or (vCol <> FSelectCellRang.StartCol) then
+    begin
+      Self.DisSelect;
+      FSelectCellRang.SetStart(vRow, vCol);
+      FRows[vRow].Cols[vCol].CellData.Active := True;
+    end;
+
     (OwnerData as THCRichData).ItemSetCaretRequest(
       (OwnerData as THCRichData).GetItemNo(Self), OffsetInner);
   end;
@@ -2122,15 +2123,8 @@ begin
 
         DoSelectCellChange(FMouseDownRow, FMouseDownCol, vMouseDownRow, vMouseDownCol);
         OwnerData.Style.UpdateInfoReCaret;
-      end;
 
-      if (Button = mbLeft) and (ssShift in Shift) then  // shift键重新确定选中范围
-
-      else
         DisSelect;
-
-      if (vMouseDownRow <> FMouseDownRow) or (vMouseDownCol <> FMouseDownCol) then
-      begin
         FMouseDownRow := vMouseDownRow;
         FMouseDownCol := vMouseDownCol;
       end;

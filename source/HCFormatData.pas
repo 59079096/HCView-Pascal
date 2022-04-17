@@ -1201,8 +1201,11 @@ procedure THCFormatData.ItemSetCaretRequest(const AItemNo, AOffset: Integer);
 begin
   if AItemNo >= 0 then
   begin
-    DisSelect;
+    if SelectInfo.EndItemNo >= 0 then
+      DisSelect;
+
     ReSetSelectAndCaret(AItemNo, AOffset);
+    Items[AItemNo].Active := True;
     Style.UpdateInfoReCaret(True);
     if Assigned(FOnItemSetCaretRequest) then
       FOnItemSetCaretRequest(Self, AItemNo, AOffset);

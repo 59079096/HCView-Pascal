@@ -87,6 +87,8 @@ type
     function DoDataCreateStyleItem(const AData: THCCustomData; const AStyleNo: Integer): THCCustomItem; virtual;
     procedure DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
     procedure DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem); virtual;
+    procedure DoDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
+    function DoDataGetScreenCoord(const X, Y: Integer): TPoint;
     procedure DataSaveLiteStream(const AStream: TStream; const AProc: THCProcedure);
     procedure DataLoadLiteStream(const AStream: TStream; const AProc: THCLoadProc);
     /// <summary> 复制前，便于控制是否允许复制 </summary>
@@ -256,12 +258,15 @@ end;
 
 procedure THCEdit.CheckUpdateInfo(const AScrollBar: Boolean = False);
 begin
+  if FUpdateCount > 0 then
+    Exit;
+
   if (FCaret <> nil) and FStyle.UpdateInfo.ReCaret then
   begin
+    ReBuildCaret(AScrollBar);
     FStyle.UpdateInfo.ReCaret := False;
     FStyle.UpdateInfo.ReStyle := False;
     FStyle.UpdateInfo.ReScroll := False;
-    ReBuildCaret(AScrollBar);
     UpdateImmPosition;
   end;
 
@@ -341,6 +346,8 @@ begin
   FData.OnDrawItemPaintBefor := DoDrawItemPaintBefor;
   FData.OnInsertItem := DoDataInsertItem;
   FData.OnRemoveItem := DoDataRemoveItem;
+  FData.OnItemReFormatRequest = DoDataItemReFormatRequest;
+  FData.OnGetScreenCoord = DoDataGetScreenCoord;
 
   FDataBmp := TBitmap.Create;
 
@@ -599,10 +606,24 @@ begin
     Result := nil;
 end;
 
+function THCEdit.DoDataGetScreenCoord(const X, Y: Integer): TPoint;
+begin
+  Result.X := X;
+  Result.Y := Y;
+  Result := Self.ClientToScreen(Result);
+end;
+
 procedure THCEdit.DoDataInsertItem(const AData: THCCustomData; const AItem: THCCustomItem);
 begin
   if Assigned(FOnInsertItem) then
     FOnInsertItem(AData, AItem);
+end;
+
+procedure THCEdit.DoDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
+begin
+  if not AData.CanEdit then Exit;
+  (aData as HCFormatData).ReFormatActiveItem();  // 处理变动
+  DoChange();
 end;
 
 procedure THCEdit.DoDataRemoveItem(const AData: THCCustomData; const AItem: THCCustomItem);
@@ -958,7 +979,7 @@ begin
   begin
     Self.BeginUpdate;
     try
-      FData.InsertText(Clipboard.AsText);
+      Self.InsertText(Clipboard.AsText);
     finally
       Self.EndUpdate;
     end;
@@ -984,7 +1005,7 @@ begin
   vCaretInfo.Height := 0;
   vCaretInfo.Visible := True;
 
-  FData.GetCaretInfo(FData.SelectInfo.StartItemNo, FData.SelectInfo.StartItemOffset, vCaretInfo);
+  FData.GetCaretInfoCur(vCaretInfo);
 
   if not vCaretInfo.Visible then
   begin
@@ -1057,20 +1078,25 @@ end;
 
 procedure THCEdit.Redo;
 begin
-  if FUndoList.Enable then  // 恢复过程不要产生新的Redo
-  begin
-    try
-      FUndoList.Enable := False;
-
-      BeginUpdate;
+  FStyle.States.Include(THCState.hosRedoing);
+  try
+    if FUndoList.Enable then  // 恢复过程不要产生新的Redo
+    begin
       try
-        FUndoList.Redo;
+        FUndoList.Enable := False;
+
+        BeginUpdate;
+        try
+          FUndoList.Redo;
+        finally
+          EndUpdate;
+        end;
       finally
-        EndUpdate;
+        FUndoList.Enable := True;
       end;
-    finally
-      FUndoList.Enable := True;
     end;
+  finally
+    FStyle.States.Exclude(THCState.hosRedoing);
   end;
 end;
 
@@ -1140,20 +1166,25 @@ end;
 
 procedure THCEdit.Undo;
 begin
-  if FUndoList.Enable then  // 撤销过程不要产生新的Undo
-  begin
-    try
-      FUndoList.Enable := False;
-
-      BeginUpdate;
+  FStyle.States.Include(THCState.hosUndoing);
+  try
+    if FUndoList.Enable then  // 撤销过程不要产生新的Undo
+    begin
       try
-        FUndoList.Undo;
+        FUndoList.Enable := False;
+
+        BeginUpdate;
+        try
+          FUndoList.Undo;
+        finally
+          EndUpdate;
+        end;
       finally
-        EndUpdate;
+        FUndoList.Enable := True;
       end;
-    finally
-      FUndoList.Enable := True;
     end;
+  finally
+    FStyle.States.Exclude(THCState.hosUndoing);
   end;
 end;
 
@@ -1179,7 +1210,7 @@ begin
     FDataBmp.Canvas.Lock;
     try
       // 控件背景
-      FDataBmp.Canvas.Brush.Color := clWhite;// $00E7BE9F;
+      FDataBmp.Canvas.Brush.Color := FStyle.BackgroundColor;// $00E7BE9F;
       FDataBmp.Canvas.FillRect(Rect(0, 0, FDataBmp.Width, FDataBmp.Height));
       //
       vViewWidth := GetViewWidth;
@@ -1269,12 +1300,7 @@ begin
           SetLength(vBuffer, vSize);  // vSize - 2
           vS := WideStringOf(vBuffer);
           if vS <> '' then
-          begin
-            FData.InsertText(vS);
-            FStyle.UpdateInfoRePaint;
-            FStyle.UpdateInfoReCaret;
-            CheckUpdateInfo;
-          end;
+            Self.InsertText(vS);
         end;
       finally
         ImmReleaseContext(Handle, vhIMC);

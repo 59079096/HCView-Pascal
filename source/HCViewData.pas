@@ -57,6 +57,7 @@ type
       const ADrawRect, AClearRect: TRect; const ADataDrawLeft, ADataDrawRight, ADataDrawBottom, ADataScreenTop,
       ADataScreenBottom: Integer; const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     function DoPaintDomainRegion(const AItemNo: Integer): Boolean;
+    procedure GetActiveDomain;
   public
     constructor Create(const AStyle: THCStyle); override;
     destructor Destroy; override;
@@ -885,6 +886,14 @@ begin
   end;
 end;
 
+procedure THCViewData.GetActiveDomain;
+begin
+  if FDomainCount > 0 then
+    GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, FActiveDomain)  // 获取当前光标处ActiveDeGroup信息
+  else
+    FActiveDomain.Clear;
+end;
+
 procedure THCViewData.GetCaretInfo(const AItemNo, AOffset: Integer;
   var ACaretInfo: THCCaretInfo);
 var
@@ -904,10 +913,7 @@ begin
       if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then  // 原来有信息(处理未通过鼠标点击移动光标时没有清除)
         vRePaint := True;
 
-      if FDomainCount > 0 then
-        GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, FActiveDomain)  // 获取当前光标处ActiveDeGroup信息
-      else
-        FActiveDomain.Clear;
+      GetActiveDomain;
 
       if Self.Style.DrawActiveDomainRegion and (FActiveDomain.BeginNo >= 0) then
         vRePaint := True;
@@ -1115,12 +1121,7 @@ procedure THCViewData.ReSetSelectAndCaret(const AItemNo, AOffset: Integer; const
 begin
   inherited ReSetSelectAndCaret(AItemNo, AOffset, ANextWhenMid);
   if not Self.Style.States.Contain(THCState.hosBatchInsert) then
-  begin
-    if FDomainCount > 0 then
-      GetDomainFrom(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, FActiveDomain)  // 获取当前光标处ActiveDeGroup信息
-    else
-      FActiveDomain.Clear;
-  end;
+    GetActiveDomain;
 end;
 
 //procedure THCViewData.SaveDomainToStream(const AStream: TStream; const ADomainItemNo: Integer);

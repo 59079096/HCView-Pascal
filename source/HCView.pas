@@ -1636,9 +1636,12 @@ end;
 function THCView.DoPasteRequest(const AFormat: Word): Boolean;
 var
   vTopItem: THCCustomItem;
+  vTopData: THCCustomData;
 begin
-  vTopItem := ActiveSection.GetTopLevelItem;
-  if vTopItem is THCEditItem then
+  //vTopItem := ActiveSection.GetTopLevelItem;
+  vTopData := Self.ActiveSectionTopLevelData;
+  vTopItem := vTopData.GetActiveItem;
+  if (vTopItem is THCEditItem) and (vTopData.SelectInfo.StartItemOffset = OffsetInner) then
   begin
     Result := (AFormat = CF_TEXT) or (AFormat = CF_UNICODETEXT);
     Exit;

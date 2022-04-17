@@ -1175,6 +1175,12 @@ begin
     if (AStartItemNo <> AEndItemNo) and (AEndItemNo >= 0)
       and (Items[AEndItemNo].Length > 0) and (AEndItemNoOffset = 0)
       and (not Items[AEndItemNo].ParaFirst)
+      and (  (AEndItemNoOffset = 0)
+            or (     (Items[AEndItemNo].StyleNo < THCStyle.Null)
+                 and (AEndItemNoOffset = OffsetInner)
+                 and not (Items[AEndItemNo] as THCCustomRectItem).SelectExists
+               )
+          )
     then  // 结束在Item最前面，改为上一个Item结束
     begin
       Items[AEndItemNo].DisSelect;  // 从前往后选，鼠标移动到前一次前面，原鼠标处被移出选中范围
@@ -1197,8 +1203,13 @@ begin
     end;
 
     if (AStartItemNo <> AEndItemNo)
-      and (AEndItemNoOffset = GetItemOffsetAfter(AEndItemNo))
-    then  // 结束在Item最后面，改为下一个Item开始
+      and ( (AEndItemNoOffset = GetItemOffsetAfter(AEndItemNo))
+            or (     (Items[AEndItemNo].StyleNo < THCStyle.Null)
+                 and (AEndItemNoOffset = OffsetInner)
+                 and not (Items[AEndItemNo] as THCCustomRectItem).SelectExists
+               )
+          )
+    then
     begin
       Items[AEndItemNo].DisSelect;  // 从后往前选，鼠标移动到前一个后面，原鼠标处被移出选中范围
 
@@ -5970,6 +5981,11 @@ begin
       FMouseMoveRestrain := vRestrain;
     end;
 
+    if (Items[FMouseMoveItemNo].StyleNo < THCStyle.Null)
+      and (FMouseDownItemOffset = OffsetInner)
+    then  // 划选 RectItem
+      DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
+
     AdjustSelectRange(FMouseDownItemNo, FMouseDownItemOffset,
       FMouseMoveItemNo, FMouseMoveItemOffset);  // 确定SelectRang
 
@@ -5980,11 +5996,6 @@ begin
       MatchItemSelectState  // 设置选中范围内的Item选中状态
     else
       CaretDrawItemNo := FMouseMoveDrawItemNo;  // 按下上一个DrawItem最后，划选到下一个开始时，没有选中内容，要更换CaretDrawIemNo
-
-    if (Items[FMouseMoveItemNo].StyleNo < THCStyle.Null)
-      and (FMouseDownItemOffset = OffsetInner)
-    then  // 划选 RectItem
-      DoItemMouseMove(FMouseMoveItemNo, FMouseMoveItemOffset);
 
     Style.UpdateInfoRePaint;
     Style.UpdateInfoReCaret;

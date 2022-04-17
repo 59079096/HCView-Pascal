@@ -200,6 +200,7 @@ procedure THCCheckBoxItem.ParseXml(const ANode: IHCXMLNode);
 begin
   inherited ParseXml(ANode);
   FChecked := ANode.Attributes['check'];
+  FItemHit := ANode.Attributes['itemhit'];
   FText := ANode.Text;
 end;
 
@@ -214,6 +215,7 @@ begin
     AStream.ReadBuffer(vByte, SizeOf(vByte));
     FChecked := Odd(vByte shr 7);
     FBoxRight := Odd(vByte shr 6);
+    FItemHit := Odd(vByte shr 5);
   end
   else
     AStream.ReadBuffer(FChecked, SizeOf(FChecked));  // ¶Á¹´Ñ¡×´Ì¬
@@ -232,6 +234,9 @@ begin
 
   if FBoxRight then
     vByte := vByte or (1 shl 6);
+
+  if FItemHit then
+    vByte := vByte or (1 shl 5);
 
   AStream.WriteBuffer(vByte, SizeOf(vByte));
   HCSaveTextToStream(AStream, FText);
@@ -255,6 +260,7 @@ procedure THCCheckBoxItem.ToXml(const ANode: IHCXMLNode);
 begin
   inherited ToXml(ANode);
   ANode.Attributes['check'] := FChecked;  // ´æ¹´Ñ¡×´Ì¬
+  ANode.Attributes['itemhit'] := FItemHit;
   ANode.Text := FText;
 end;
 

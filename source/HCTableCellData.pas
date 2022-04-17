@@ -254,6 +254,7 @@ begin
     Self.SelectInfo.Initialize;
     Self.SelectInfo.StartItemNo := AItemNo;
     Self.SelectInfo.StartItemOffset := AOffset;
+    Self.GetActiveDomain;
   end;
 end;
 

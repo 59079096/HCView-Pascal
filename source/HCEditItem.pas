@@ -601,6 +601,9 @@ begin
   if SelectTextExists then
     Result := Copy(FText, FCaretOffset + 1, FSelEnd - FCaretOffset)
   else
+  if Self.IsSelectComplate then
+    Result := FText
+  else
     Result := inherited SaveSelectToText;
 end;
 

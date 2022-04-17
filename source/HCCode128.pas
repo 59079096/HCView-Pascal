@@ -380,7 +380,7 @@ end;
 
 function THCCode128.GetCode(const AText: string): AnsiString;
 var
-  vCode, vNextChar, vStartCode, vCheckSumCode: AnsiString;
+  vCode, vNextChar, vStartCode: AnsiString;
   vEncoding: THCCode128Encoding;
   vIndex, vChecksum, vCodeWordPos, vIdx: Integer;
 begin

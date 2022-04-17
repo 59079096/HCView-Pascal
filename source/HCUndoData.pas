@@ -198,7 +198,6 @@ var
     procedure UndoRedoSetItemText;
     var
       vAction: THCSetItemTextUndoAction;
-      vOldText: string;
     begin
       vAction := AAction as THCSetItemTextUndoAction;
       vCaretItemNo := vAction.ItemNo;

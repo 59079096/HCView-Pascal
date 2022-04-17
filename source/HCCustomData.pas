@@ -712,7 +712,7 @@ end;
 function THCCustomData.CoordInSelect(const X, Y, AItemNo,
   AOffset: Integer; const ARestrain: Boolean): Boolean;
 var
-  vX, vY, vDrawItemNo: Integer;
+  vDrawItemNo: Integer;
   vDrawRect: TRect;
 begin
   Result := False;
@@ -873,6 +873,7 @@ begin
 
   FSelectInfo.StartItemNo := -1;
   FSelectInfo.StartItemOffset := -1;
+  FCaretDrawItemNo := -1;
 end;
 
 procedure THCCustomData.DoCaretItemChanged;
@@ -1101,7 +1102,6 @@ var
   vRight, vWidth: Integer;
   vDrawItem: THCCustomDrawItem;
   vText: string;
-  vS: string;
   vLineLast: Boolean;
 
   i, j,
@@ -1273,9 +1273,9 @@ var
 
   vSplitList: THCIntegerList;
   vLineLast: Boolean;
-  i, j, viSplitW, vSplitCount, vMod, {vCharWidth} vInnerOffs
+  i, viSplitW, vSplitCount, vMod, {vCharWidth} vInnerOffs
     : Integer;
-  vExtra, vX: Integer;
+  vExtra: Integer;
 begin
   Result := 0;
   if ADrawOffs = 0 then Exit;
@@ -1979,7 +1979,10 @@ procedure THCCustomData.MatchItemSelectState;
           if (SelectInfo.StartItemOffset = OffsetInner)
             or (SelectInfo.EndItemOffset = OffsetInner)
           then
-            FItems[AItemNo].SelectPart
+          begin
+            if (FItems[AItemNo] as THCCustomRectItem).SelectExists then
+              FItems[AItemNo].SelectPart;
+          end
           else
             FItems[AItemNo].SelectComplate;
         end
@@ -1999,7 +2002,15 @@ procedure THCCustomData.MatchItemSelectState;
           FItems[AItemNo].SelectComplate
         else
         if SelectInfo.StartItemOffset < GetItemOffsetAfter(AItemNo) then  // 不在最后
-          FItems[AItemNo].SelectPart;
+        begin
+          if (FItems[AItemNo].StyleNo < THCStyle.Null) then
+          begin
+            if (FItems[AItemNo] as THCCustomRectItem).SelectExists then
+              FItems[AItemNo].SelectPart;
+          end
+          else
+            FItems[AItemNo].SelectPart;
+        end;
       end;
     end
     else  // 选中在不同的Item，当前是结尾 if AItemNo = SelectInfo.EndItemNo) then
@@ -2010,7 +2021,10 @@ procedure THCCustomData.MatchItemSelectState;
           FItems[AItemNo].SelectComplate
         else
         if SelectInfo.EndItemOffset > OffsetBefor then  // 不在最前
-          FItems[AItemNo].SelectPart;
+        begin
+          if (FItems[AItemNo] as THCCustomRectItem).SelectExists then
+            FItems[AItemNo].SelectPart;
+        end;
       end
       else  // TextItem
       begin

@@ -3358,6 +3358,9 @@ begin
       end;
     end
     else
+    if Clipboard.HasFormat(CF_BITMAP) and DoPasteRequest(CF_BITMAP) then
+      PasteBitmapImage
+    else
     if Clipboard.HasFormat(CF_RTF) and DoPasteRequest(CF_RTF) then
       PasteRtf
     else
@@ -3368,10 +3371,7 @@ begin
       InsertText(Clipboard.AsText)
     else
     if Clipboard.HasFormat(CF_UNICODETEXT) and DoPasteRequest(CF_UNICODETEXT) then
-      InsertText(Clipboard.AsText)
-    else
-    if Clipboard.HasFormat(CF_BITMAP) and DoPasteRequest(CF_BITMAP) then
-      PasteBitmapImage;
+      InsertText(Clipboard.AsText);
   finally
     FStyle.States.Exclude(hosPasting);
   end;

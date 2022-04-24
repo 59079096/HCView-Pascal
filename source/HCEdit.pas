@@ -16,7 +16,7 @@ interface
 uses
   Windows, Classes, Controls, Graphics, Messages, SysUtils, Forms, IMM, HCViewData,
   HCCommon, HCScrollBar, HCStyle, HCTextStyle, HCParaStyle, HCItem, HCRectItem,
-  HCUndo, HCCustomData, HCRichData, HCEditItem;
+  HCUndo, HCCustomData, HCRichData, HCEditItem, HCFormatData;
 
 const
   HC_EDIT_EXT = '.hef';
@@ -346,8 +346,8 @@ begin
   FData.OnDrawItemPaintBefor := DoDrawItemPaintBefor;
   FData.OnInsertItem := DoDataInsertItem;
   FData.OnRemoveItem := DoDataRemoveItem;
-  FData.OnItemReFormatRequest = DoDataItemReFormatRequest;
-  FData.OnGetScreenCoord = DoDataGetScreenCoord;
+  FData.OnItemReFormatRequest := DoDataItemReFormatRequest;
+  FData.OnGetScreenCoord := DoDataGetScreenCoord;
 
   FDataBmp := TBitmap.Create;
 
@@ -622,7 +622,7 @@ end;
 procedure THCEdit.DoDataItemReFormatRequest(const AData: THCCustomData; const AItem: THCCustomItem);
 begin
   if not AData.CanEdit then Exit;
-  (aData as HCFormatData).ReFormatActiveItem();  // 处理变动
+  (AData as THCFormatData).ReFormatActiveItem();  // 处理变动
   DoChange();
 end;
 

@@ -613,7 +613,6 @@ begin
 
   vSelectSeekStart := IsSelectSeekStart;
   vDelCount := 0;
-  Self.InitializeField;  // 删除后原鼠标处可能已经没有了
 
   if (SelectInfo.EndItemNo < 0)
     and (Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null)
@@ -946,6 +945,7 @@ begin
 
   inherited DeleteSelected;
 
+  Self.InitializeField;
   ReSetSelectAndCaret(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, not vSelectSeekStart);
   Result := True;
 end;

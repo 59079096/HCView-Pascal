@@ -81,7 +81,8 @@ type
     FWidth,    // 被合并后记录原始宽(否则当行第一列被合并后，第二列无法确认水平起始位置)
     FHeight,   // 被合并后记录原始高、记录拖动改变后高
     FRowSpan,  // 单元格跨几行，用于合并目标单元格记录合并了几行，合并源记录合并到单元格的行号，0没有行合并
-    FColSpan   // 单元格跨几列，用于合并目标单元格记录合并了几列，合并源记录合并到单元格的列号，0没有列合并
+    FColSpan,   // 单元格跨几列，用于合并目标单元格记录合并了几列，合并源记录合并到单元格的列号，0没有列合并
+    FRightOffset
       : Integer;
     FBackgroundColor: TColor;
     FAlignVert: THCAlignVert;
@@ -136,6 +137,7 @@ type
     property Height: Integer read FHeight write SetHeight;
     property RowSpan: Integer read FRowSpan write FRowSpan;
     property ColSpan: Integer read FColSpan write FColSpan;
+    property RightOffset: Integer read FRightOffset write FRightOffset;
     property BackgroundColor: TColor read FBackgroundColor write FBackgroundColor;
     // 用于表格切换编辑的单元格
     property Active: Boolean read GetActive write SetActive;
@@ -158,6 +160,7 @@ begin
   FBackgroundColor := HCTransparentColor;
   FRowSpan := 0;
   FColSpan := 0;
+  FRightOffset := 0;
 end;
 
 destructor THCTableCell.Destroy;
@@ -216,6 +219,10 @@ begin
   AStream.ReadBuffer(FHeight, SizeOf(FHeight));
   AStream.ReadBuffer(FRowSpan, SizeOf(FRowSpan));
   AStream.ReadBuffer(FColSpan, SizeOf(FColSpan));
+  if AFileVersion > 58 then
+    AStream.ReadBuffer(FRightOffset, SizeOf(FRightOffset))
+  else
+    FRightOffset := 0;
 
   if AFileVersion > 11 then
   begin
@@ -362,6 +369,7 @@ begin
   AStream.WriteBuffer(FHeight, SizeOf(FHeight));
   AStream.WriteBuffer(FRowSpan, SizeOf(FRowSpan));
   AStream.WriteBuffer(FColSpan, SizeOf(FColSpan));
+  AStream.WriteBuffer(FRightOffset, SizeOf(FRightOffset));
 
   AStream.WriteBuffer(FAlignVert, SizeOf(FAlignVert));  // 垂直对齐方式
   HCSaveColorToStream(AStream, FBackgroundColor);  // 背景色

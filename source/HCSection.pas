@@ -77,9 +77,10 @@ type
     FMousePageIndex,  // 当前鼠标所在页
     FDisplayFirstPageIndex,  // 屏显第一页
     FDisplayLastPageIndex,   // 屏显最后一页
-    FHeaderOffset  // 页眉顶部偏移
+    FHeaderOffset,  // 页眉顶部偏移
+    FPageNoOffset
       : Integer;
-
+    FPageNoHorAlign: THCTextHorAlign;
     FOnDataChange,  // 页眉、页脚、页面某一个修改时触发
     FOnDataSetChange,
     FOnCheckUpdateInfo,  // 当前Data需要UpdateInfo更新时触发
@@ -445,6 +446,8 @@ type
     property PageNoVisible: Boolean read FPageNoVisible write FPageNoVisible;
     property PageNoFrom: Integer read FPageNoFrom write FPageNoFrom;
     property PageNoFormat: string read FPageNoFormat write SetPageNoFormat;
+    property PageNoOffset: Integer read FPageNoOffset write FPageNoOffset;
+    property PageNoHorAlign: THCTextHorAlign read FPageNoHorAlign write FPageNoHorAlign;
     property PagePadding: Byte read FPagePadding write FPagePadding;
 
     /// <summary> 文档所有部分是否只读 </summary>
@@ -785,6 +788,8 @@ begin
   FPageNoVisible := True;
   FPageNoFrom := 1;
   FPageNoFormat := '%d/%d';
+  FPageNoHorAlign := THCTextHorAlign.hthaCenter;
+  FPageNoOffset := 0;
   FHeaderOffset := 20;
   FViewModel := hvmFilm;
   FPagePadding := 20;
@@ -1887,6 +1892,17 @@ begin
     FPage.LoadFromStream(AStream, FStyle, AFileVersion);
   // 20190906001 FloatItem不能通过GetPageIndexByFormat(FPage.FloatItems[0].Top)来计算FloatItem
   // 的页序号，因为正文的可能拖到页眉页脚处，按Top算GetPageIndexByFormat并不在当前页中
+
+  if AFileVersion > 58 then  // 页码的水平对齐和在页面底部的偏移
+  begin
+    AStream.ReadBuffer(FPageNoHorAlign, SizeOf(FPageNoHorAlign));
+    AStream.ReadBuffer(FPageNoOffset, SizeOf(FPageNoOffset));
+  end
+  else
+  begin
+    FPageNoHorAlign := THCTextHorAlign.hthaCenter;
+    FPageNoOffset := FFooter.Height;
+  end;
 
   BuildSectionPages(0);
 end;
@@ -3006,6 +3022,9 @@ begin
     if saPage in ASaveParts then  // 存页面
       FPage.SaveToStream(AStream);
   end;
+
+  AStream.WriteBuffer(FPageNoHorAlign, SizeOf(FPageNoHorAlign));
+  AStream.WriteBuffer(FPageNoOffset, SizeOf(FPageNoOffset));
   //
   vEndPos := AStream.Position;
   AStream.Position := vBegPos;

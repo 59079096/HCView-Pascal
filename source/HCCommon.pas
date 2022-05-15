@@ -76,8 +76,8 @@ const
    4.7 数据元痕迹样式改为集合，存痕迹级别
   }
 
-  HC_FileVersion = '5.8';
-  HC_FileVersionInt = 58;
+  HC_FileVersion = '5.9';
+  HC_FileVersionInt = 59;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;

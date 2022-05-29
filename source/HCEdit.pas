@@ -398,10 +398,17 @@ procedure THCEdit.DataLoadLiteStream(const AStream: TStream; const AProc: THCLoa
 var
   vFileFormat: string;
   vFileVersion: Word;
-  vLang: Byte;
+  vLang, vSType: Byte;
   vStyle: THCStyle;
 begin
   _LoadFileFormatAndVersion(AStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
+  if vFileVersion > 59 then
+  begin
+    AStream.ReadBuffer(vSType, 1);
+    if vSType <> HC_STREAM_LITE then
+      Exit;
+  end;
+
   vStyle := THCStyle.Create;
   try
     vStyle.LoadFromStream(AStream, vFileVersion);
@@ -412,9 +419,13 @@ begin
 end;
 
 procedure THCEdit.DataSaveLiteStream(const AStream: TStream; const AProc: THCProcedure);
+var
+  vSType: Byte;
 begin
   _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
   //_DeleteUnUsedStyle;  // 删除不使用的样式
+  vSType := HC_STREAM_LITE;
+  AStream.WriteBuffer(vSType, 1);
   FStyle.SaveToStream(AStream);
   AProc;
 end;
@@ -846,7 +857,7 @@ procedure THCEdit.LoadFromStream(const AStream: TStream);
 var
   vFileExt: string;
   viVersion: Word;
-  vLang: Byte;
+  vLang, vSType: Byte;
 begin
   Self.BeginUpdate;
   try
@@ -862,6 +873,13 @@ begin
       _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLang);  // 文件格式和版本
       if vFileExt <> HC_EXT then
         raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
+
+      if viVersion > 59 then
+      begin
+        AStream.ReadBuffer(vSType, 1);
+        if vSType <> HC_STREAM_LITE then  // 不是Lite文件流 20220520001
+          Exit;
+      end;
 
       FStyle.LoadFromStream(AStream, viVersion);  // 加载样式表
       FData.LoadFromStream(AStream, FStyle, viVersion);
@@ -1126,8 +1144,12 @@ begin
 end;
 
 procedure THCEdit.SaveToStream(const AStream: TStream);
+var
+  vSType: Byte;
 begin
   _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
+  vSType := HC_STREAM_LITE;
+  AStream.WriteBuffer(vSType, 1);
   _DeleteUnUsedStyle;  // 删除不使用的样式(可否改为把有用的存了，加载时Item的StyleNo取有用)
   FStyle.SaveToStream(AStream);
   FData.SaveToStream(AStream);

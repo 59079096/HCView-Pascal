@@ -38,6 +38,10 @@ const
   HC_EXT = '.hcf';
   HC_PROGRAMLANGUAGE = 1;  // 1字节表示使用的编程语言 1:delphi, 2:C#, 3:C++, 4:HTML5
 
+  HC_STREAM_VIEW = 0;
+  HC_STREAM_LITE = 1;
+  HC_STREAM_ITEM = 2;
+  HC_STREAM_GRID = 3;
   {1.3 支持浮动对象保存和读取(未处理向下兼容)
    1.4 支持表格单元格边框显示属性的保存和读取
    1.5 重构行间距的计算方式
@@ -76,8 +80,8 @@ const
    4.7 数据元痕迹样式改为集合，存痕迹级别
   }
 
-  HC_FileVersion = '5.9';
-  HC_FileVersionInt = 59;
+  HC_FileVersion = '6.0';
+  HC_FileVersionInt = 60;
 
   TabCharWidth = 28;  // 默认Tab宽度(五号) 14 * 2个
   DefaultColWidth = 50;

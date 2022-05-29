@@ -775,7 +775,7 @@ procedure THCUndoData.LoadItemFromStreamAlone(const AStream: TStream;
 var
   vFileExt: string;
   viVersion: Word;
-  vLang: Byte;
+  vLang, vSType: Byte;
   vStyleNo, vParaNo: Integer;
   vStyle: THCStyle;
   vTextStyle: THCTextStyle;
@@ -785,6 +785,13 @@ begin
   _LoadFileFormatAndVersion(AStream, vFileExt, viVersion, vLang);  // 文件格式和版本
   if (vFileExt <> HC_EXT) and (vFileExt <> 'cff.') then
     raise Exception.Create('加载失败，不是' + HC_EXT + '文件！');
+
+  if viVersion > 59 then
+  begin
+    AStream.ReadBuffer(vSType, 1);
+    if vSType <> HC_STREAM_ITEM then  // 不是ITEM文件流
+      Exit;
+  end;
 
   vStyle := THCStyle.Create;
   try
@@ -818,8 +825,12 @@ end;
 
 procedure THCUndoData.SaveItemToStreamAlone(const AStream: TStream;
   const AItem: THCCustomItem);
+var
+  vSType: Byte;
 begin
   _SaveFileFormatAndVersion(AStream);
+  vSType := HC_STREAM_ITEM;
+  AStream.WriteBuffer(vSType, 1);
   Style.SaveToStream(AStream);
   AItem.SaveToStream(AStream);
 end;

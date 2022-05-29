@@ -167,10 +167,17 @@ procedure THCViewLite.DataLoadLiteStream(const AStream: TStream; const AProc: TH
 var
   vFileFormat: string;
   vFileVersion: Word;
-  vLang: Byte;
+  vLang, vSType: Byte;
   vStyle: THCStyle;
 begin
   _LoadFileFormatAndVersion(AStream, vFileFormat, vFileVersion, vLang);  // 文件格式和版本
+  if vFileVersion > 59 then
+  begin
+    AStream.ReadBuffer(vSType, 1);
+    if vSType <> HC_STREAM_LITE then  // 不是Lite流
+      Exit;
+  end;
+
   vStyle := THCStyle.Create;
   try
     vStyle.LoadFromStream(AStream, vFileVersion);
@@ -257,7 +264,7 @@ procedure THCViewLite.DoLoadFromStream(const AStream: TStream;
 var
   vFileExt: string;
   vVersion: Word;
-  vLang: Byte;
+  vLang, vSType: Byte;
 begin
   AStream.Position := 0;
   _LoadFileFormatAndVersion(AStream, vFileExt, vVersion, vLang);  // 文件格式和版本
@@ -267,6 +274,13 @@ begin
     raise Exception.Create('加载失败，当前编辑器最高支持版本为'
       + IntToStr(HC_FileVersionInt) + '的文件，无法打开版本为'
       + IntToStr(vVersion) + '的文件！');
+
+  if vVersion > 59 then
+  begin
+    AStream.ReadBuffer(vSType, 1);
+    if vSType <> HC_STREAM_VIEW then  // 不是View流
+      Exit;
+  end;
 
   DoLoadStreamBefor(AStream, vVersion);  // 触发加载前事件
   AStyle.LoadFromStream(AStream, vVersion);  // 加载样式表
@@ -832,12 +846,15 @@ end;
 
 procedure THCViewLite.SaveToStream(const AStream: TStream; const AQuick: Boolean; const AAreas: TSectionAreas);
 var
-  vByte: Byte;
+  vByte, vSType: Byte;
   i: Integer;
 begin
   FStyle.States.Include(hosSaving);
   try
     _SaveFileFormatAndVersion(AStream);  // 文件格式和版本
+    vSType := HC_STREAM_VIEW;
+    AStream.WriteBuffer(vSType, 1);
+
     DoSaveStreamBefor(AStream);
 
     if not AQuick then

@@ -20,7 +20,7 @@ interface
 
 uses
   Windows, SysUtils, Classes, Types, Graphics, HCStyle, HCCustomData, HCItem,
-  HCTextStyle, HCParaStyle;
+  HCTextStyle, HCParaStyle, HCCommon;
 
 type
   THCFormatData = class(THCCustomData)
@@ -100,6 +100,9 @@ type
     /// <summary> 格式化指定范围内的DrawItem </summary>
     procedure ReFormatData(const AFirstDrawItemNo: Integer; const ALastItemNo: Integer = -1;
       const AExtraItemCount: Integer = 0; const AForceClearExtra: Boolean = False); virtual;
+    function GetUnicodeCharType(const AChar: Char): TCharType;
+    function CharCannotEndOfLine(const AChar: Char): Boolean;
+    function CharCanSqueeze(const AChar: Char): Boolean;
   public
     constructor Create(const AStyle: THCStyle); virtual;
     destructor Destroy; override;
@@ -134,7 +137,7 @@ implementation
 {$I HCView.inc}
 
 uses
-  HCRectItem, HCDrawItem, HCCommon;
+  HCRectItem, HCDrawItem;
 
 const
   FormatTextCut = 8192;  // 一次计算多少个字符的间距
@@ -160,6 +163,22 @@ begin
     FLastFormatParaNo := AItem.ParaNo;
     FItemFormatHeight := CalculateLineHeight(Style.TextStyles[AItem.StyleNo], Style.ParaStyles[AItem.ParaNo]);
   end;
+end;
+
+function THCFormatData.CharCannotEndOfLine(const AChar: Char): Boolean;
+begin
+  if Style.FormatVersion > 2 then
+    Result := PosCharHC(AChar, DontLineLastCharV3) > 0
+  else
+    Result := PosCharHC(AChar, DontLineLastCharLessV3) > 0;
+end;
+
+function THCFormatData.CharCanSqueeze(const AChar: Char): Boolean;
+begin
+  if Style.FormatVersion > 2 then
+    Result := PosCharHC(AChar, LineSqueezeCharV3) > 0
+  else
+    Result := PosCharHC(AChar, LineSqueezeCharLessV3) > 0;
 end;
 
 constructor THCFormatData.Create(const AStyle: THCStyle);
@@ -609,7 +628,7 @@ var
       else  // 下一个可以放在行首，当前位置能否放置到行尾
       begin
         vChar := AText[APos];  // 当前位置字符
-        if PosCharHC(vChar, DontLineLastChar) > 0 then  // 是不能放在行尾的字符
+        if CharCannotEndOfLine(vChar) then  // 是不能放在行尾的字符
         begin
           Dec(APos);  // 再往前寻找截断位置
           GetHeadTailBreak(AText, APos);
@@ -803,14 +822,14 @@ var
       viBreakOffset := ACharOffset  // 当前位置截断
     else
     begin
-      if Style.FormatVersion = 2 then
+      if Style.FormatVersion > 1 then
       begin
         vSqueeze := False;
         for i := ACharOffset - 1 to vItemLen - 1 do
         begin
           if vCharWidths[i] - ABasePos > APlaceWidth then  // 放不下了
           begin
-            if (not vSqueeze) and (PosCharHC(vText[i + 1], LineSqueezeChar) > 0) then  // 没挤压过且下一个是可挤压字符
+            if (not vSqueeze) and CharCanSqueeze(vText[i + 1]) then  // 没挤压过且下一个是可挤压字符
             begin
               if vCharWidths[i] - ABasePos - APlaceWidth > 3 then  // (vCharWidths[i] - vCharWidths[i - 1]) div 2 then
               begin
@@ -923,6 +942,9 @@ var
           else
             viPlaceOffset := viBreakOffset - 1;
         end;
+
+        if vSqueeze and (viPlaceOffset < viBreakOffset - 1) and (Style.FormatVersion > 2) then  // 压缩了，但截断位置并不是压缩字符(压缩的并不能放到行尾)
+          vSqueeze := False;
 
         vRect.Left := APos.X;
         vRect.Top := APos.Y;
@@ -1177,6 +1199,69 @@ begin
       Result := i;
       Break;
     end;
+  end;
+end;
+
+function THCFormatData.GetUnicodeCharType(const AChar: Char): TCharType;
+begin
+  case Cardinal(AChar) of
+    $2E80..$2EF3,  // 部首扩展 115
+    $2F00..$2FD5,  // 康熙部首 214
+    $2FF0..$2FFB,  // 汉字结构 12
+    $3007,  // 〇 1
+    $3105..$312F,  // 汉字注音 43
+    $31A0..$31BA,  // 注音扩展 22
+    $31C0..$31E3,  // 汉字笔划 36
+    $3400..$4DB5,  // 扩展A 6582个
+    $4E00..$9FA5,  // 基本汉字 20902个
+    $9FA6..$9FEF,  // 基本汉字补充 74个
+    $E400..$E5E8,  // 部件扩展 452
+    $E600..$E6CF,  // PUA增补 207
+    $E815..$E86F,  // PUA(GBK)部件 81
+    $F900..$FAD9,  // 兼容汉字 477
+    $20000..$2A6D6, // 扩展B 42711个
+    $2A700..$2B734,  // 扩展C 4149
+    $2B740..$2B81D,  // 扩展D 222
+    $2B820..$2CEA1,  // 扩展E 5762
+    $2CEB0..$2EBE0,  // 扩展F 7473
+    $2F800..$2FA1D  // 兼容扩展 542
+      : Result := jctHZ;  // 汉字
+
+    $0600..$06FF:
+      Result := jctHZ;  // 阿拉伯文，维吾尔语
+
+    $0F00..$0F0A, $0F0E..$0FFF:  // 藏文
+      Result := jctZW;
+
+    $0F0B, $0F0C, $0F0D:  // 藏文空格和分隔
+      Result := jctBreak;
+
+    $1800..$18AF: Result := jctHZ;  // 蒙古字符
+
+    $201C, $201D, $FFE5, $2018,  // “”￥‘
+    $00D7, $3002, $3001, $FF01,  // ×。、！
+    $FF03, $FF05, $FF06, $FF08,  // ＃％＆（
+    $FF09, $FF0B, $FF0C, $FF0D  // ）＋，－
+      :
+      begin
+        if Style.FormatVersion > 2 then
+          Result := jctFH
+        else
+          Result := jctBreak;
+      end;
+
+    $21..$2F,  // !"#$%&'()*+,-./
+    $3A..$40,  // :;<=>?@
+    $5B..$60,  // [\]^_`
+    $7B..$7E,   // {|}~
+    $FFE0  // ￠
+      : Result := jctFH;
+
+    $30..$39: Result := jctSZ;  // 0..9
+
+    $41..$5A, $61..$7A: Result := jctZM;  // A..Z, a..z
+  else
+    Result := jctBreak;
   end;
 end;
 

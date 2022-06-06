@@ -91,6 +91,7 @@ const
   AnnotateBKActiveColor = $00A8A8FF;
   HyperTextColor = $00C16305;
   HCTransparentColor = clNone;  // 透明色
+  HCFormatVersion: Byte = 3;
   {$IFDEF UNPLACEHOLDERCHAR}
   /// <summary> 不占位字符或紧缩字符 </summary>
   TibetanVowel = #3962{e} + #3956{u} + #3954{i} + #3964{o};  // 藏文元音字母
@@ -110,10 +111,12 @@ const
     + UnPlaceholderChar  // 紧缩字符
   {$ENDIF}
     ;
-  /// <summary> 不能在行尾的字符 </summary>
-  DontLineLastChar = '/\＼“‘';
+  DontLineLastCharLessV3 = '/\＼“‘';  // FormatVersion 3之前的版本
+  DontLineLastCharV3 = '/\＼“"‘''';  // FormatVersion 3
   /// <summary> 可以挤压宽度的字符 </summary>
-  LineSqueezeChar = '，。；、？“”';
+  LineSqueezeCharLessV3 = '，。；、？“”';  // FormatVersion 3之前的版本
+  LineSqueezeCharV3 = '，。；、？”’';  // FormatVersion 3
+
   HCsLineBreak = sLineBreak;
   HCRecordSeparator = Char(#30);
   HCUnitSeparator = Char(#31);
@@ -315,9 +318,6 @@ type
 
   /// <summary> 效率更高的返回字符在字符串位置函数 </summary>
   function PosCharHC(const AChar: Char; const AStr: string{; const Offset: Integer = 1}): Integer;
-
-  /// <summary> 返回字符类型 </summary>
-  function GetUnicodeCharType(const AChar: Char): TCharType;
 
   {$IFDEF UNPLACEHOLDERCHAR}
   /// <summary> 返回字符串指定位置的实际有效字前、后位置 </summary>
@@ -632,56 +632,6 @@ begin
   Result := TStringList.Create;
   Result.NameValueSeparator := HCRecordSeparator;
   Result.LineBreak := HCUnitSeparator;
-end;
-
-function GetUnicodeCharType(const AChar: Char): TCharType;
-begin
-  case Cardinal(AChar) of
-    $2E80..$2EF3,  // 部首扩展 115
-    $2F00..$2FD5,  // 康熙部首 214
-    $2FF0..$2FFB,  // 汉字结构 12
-    $3007,  // 〇 1
-    $3105..$312F,  // 汉字注音 43
-    $31A0..$31BA,  // 注音扩展 22
-    $31C0..$31E3,  // 汉字笔划 36
-    $3400..$4DB5,  // 扩展A 6582个
-    $4E00..$9FA5,  // 基本汉字 20902个
-    $9FA6..$9FEF,  // 基本汉字补充 74个
-    $E400..$E5E8,  // 部件扩展 452
-    $E600..$E6CF,  // PUA增补 207
-    $E815..$E86F,  // PUA(GBK)部件 81
-    $F900..$FAD9,  // 兼容汉字 477
-    $20000..$2A6D6, // 扩展B 42711个
-    $2A700..$2B734,  // 扩展C 4149
-    $2B740..$2B81D,  // 扩展D 222
-    $2B820..$2CEA1,  // 扩展E 5762
-    $2CEB0..$2EBE0,  // 扩展F 7473
-    $2F800..$2FA1D  // 兼容扩展 542
-      : Result := jctHZ;  // 汉字
-
-    $0600..$06FF:
-      Result := jctHZ;  // 阿拉伯文，维吾尔语
-
-    $0F00..$0FFF:  // 藏文
-      Result := jctHZ;
-
-    $1800..$18AF: Result := jctHZ;  // 蒙古字符
-
-    $21..$2F,  // !"#$%&'()*+,-./
-    $3A..$40,  // :;<=>?@
-    $5B..$60,  // [\]^_`
-    $7B..$7E,   // {|}~
-    $FFE0  // ￠
-      : Result := jctFH;
-
-    //$FF01..$FF0F,  // ！“＃￥％＆‘（）×＋，－。、
-
-    $30..$39: Result := jctSZ;  // 0..9
-
-    $41..$5A, $61..$7A: Result := jctZM;  // A..Z, a..z
-  else
-    Result := jctBreak;
-  end;
 end;
 
 function IsKeyPressWant(const AKey: Char): Boolean;

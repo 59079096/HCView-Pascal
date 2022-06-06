@@ -169,6 +169,7 @@ end;
 
 procedure THCStyle.Initialize;
 begin
+  FFormatVersion := HCFormatVersion;
   FTextStyles.DeleteRange(1, FTextStyles.Count - 1);  // 保留默认文本样式
   FParaStyles.DeleteRange(1, FParaStyles.Count - 1);  // 保留默认段样式
 end;
@@ -197,7 +198,7 @@ begin
   FBackgroundColor := $00FFFFFF;
   FSelColor := clSkyBlue;
   FLineSpaceMin := 8;
-  FFormatVersion := 2;
+  FFormatVersion := HCFormatVersion;
   FShowParaLastMark := True;
   FDrawHotDomainRegion := True;
   FDrawActiveDomainRegion := True;

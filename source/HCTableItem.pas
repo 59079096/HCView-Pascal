@@ -5467,7 +5467,7 @@ end;
 
 function THCTableItem.WantKeyDown(const Key: Word; const Shift: TShiftState): Boolean;
 begin
-  Result := True;
+  Result := not (Key in [VK_CONTROL, VK_SHIFT, VK_MENU]);
 end;
 
 function THCTableItem.ActiveDataResizing: Boolean;

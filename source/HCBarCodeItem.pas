@@ -31,7 +31,7 @@ type
     function GetText: string; override;
     procedure SetText(const Value: string); override;
   public
-    constructor Create(const AOwnerData: THCCustomData; const AText: string);
+    constructor Create(const AOwnerData: THCCustomData; const AText: string); virtual;
     destructor Destroy; override;
     procedure Assign(Source: THCCustomItem); override;
     procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;

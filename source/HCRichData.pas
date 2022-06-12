@@ -1133,7 +1133,7 @@ begin
 
   for i := vAddStartNo to ASrcData.Items.Count - 1 do
   begin
-    if not ASrcData.IsEmptyLine(i) then
+    //if not ASrcData.IsEmptyLine(i) then
     begin
       vItem := CreateItemByStyle(ASrcData.Items[i].StyleNo);
       vItem.Assign(ASrcData.Items[i]);

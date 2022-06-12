@@ -651,9 +651,17 @@ begin
 end;
 
 procedure THCCode128.SetText(const Value: string);
+var
+  i: Integer;
 begin
   if FText <> Value then
   begin
+    for i := 1 to Length(Value) do
+    begin
+      if Ord(Value[i]) > 128 then
+        Exit;
+    end;
+
     FText := Value;
     try
       FCode := GetCode(FText);

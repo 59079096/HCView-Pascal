@@ -382,8 +382,11 @@ end;
 
 procedure THCComboboxItem.KeyDown(var Key: Word; Shift: TShiftState);
 begin
-  if not FStatic and Self.Enabled then
-    inherited KeyDown(Key, Shift);
+  if FStatic and (not Key in [VK_BACK, VK_DELETE]) then
+    inherited KeyDown(Key, Shift)
+  else
+  if Assigned(OnKeyDown) then
+    OnKeyDown(Self, Key, Shift);
 end;
 
 procedure THCComboboxItem.KeyPress(var Key: Char);

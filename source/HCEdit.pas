@@ -347,7 +347,7 @@ begin
   FData.OnInsertItem := DoDataInsertItem;
   FData.OnRemoveItem := DoDataRemoveItem;
   FData.OnItemReFormatRequest := DoDataItemReFormatRequest;
-  FData.OnGetScreenCoord := DoDataGetScreenCoord;
+  //FData.OnGetScreenCoord := DoDataGetScreenCoord;
 
   FDataBmp := TBitmap.Create;
 

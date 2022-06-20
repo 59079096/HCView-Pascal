@@ -265,6 +265,7 @@ var
   vFileExt: string;
   vVersion: Word;
   vLang, vSType: Byte;
+  vSize: Integer;
 begin
   AStream.Position := 0;
   _LoadFileFormatAndVersion(AStream, vFileExt, vVersion, vLang);  // 文件格式和版本
@@ -847,7 +848,7 @@ end;
 procedure THCViewLite.SaveToStream(const AStream: TStream; const AQuick: Boolean; const AAreas: TSectionAreas);
 var
   vByte, vSType: Byte;
-  i: Integer;
+  i, vSize: Integer;
 begin
   FStyle.States.Include(hosSaving);
   try

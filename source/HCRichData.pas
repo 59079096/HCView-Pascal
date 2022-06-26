@@ -1801,6 +1801,25 @@ begin
 
   if not SelectExists then  // 没有选中
   begin
+    if Items[SelectInfo.StartItemNo].StyleNo < THCStyle.Null then
+    begin
+      if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).MangerUndo then
+        UndoAction_ItemSelf(SelectInfo.StartItemNo, OffsetInner)
+      else
+        UndoAction_ItemMirror(SelectInfo.StartItemNo, OffsetInner);
+
+      (Items[SelectInfo.StartItemNo] as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
+      if (Items[SelectInfo.StartItemNo] as THCCustomRectItem).IsFormatDirty then
+      begin
+        // 如果改变会引起RectItem宽度变化，则需要格式化到最后一个Item
+        GetFormatRange(vFormatFirstDrawItemNo, vFormatLastItemNo);
+        FormatPrepare(vFormatFirstDrawItemNo, vFormatLastItemNo);
+        ReFormatData(vFormatFirstDrawItemNo, vFormatLastItemNo);
+      end
+      else
+        Self.FormatInit;
+    end
+    else
     if CurStyleNo > THCStyle.Null then  // (容错)不在不支持文本样式的RectItem上，如果支持点击其上赋值Style.CurStyleNo为确定的文本样式
     begin
       AMatchStyle.Append := not AMatchStyle.StyleHasMatch(Style, CurStyleNo);  // 根据当前判断是添加样式还是减掉样式

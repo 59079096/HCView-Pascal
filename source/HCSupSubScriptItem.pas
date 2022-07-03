@@ -147,14 +147,14 @@ procedure THCSupSubScriptItem.DoPaint(const AStyle: THCStyle; const ADrawRect: T
 var
   vFocusRect: TRect;
 begin
-  if Self.Active and (not APaintInfo.Print) then
-  begin
-    ACanvas.Brush.Color := clBtnFace;
-    ACanvas.FillRect(ADrawRect);
-  end;
-
   if not APaintInfo.Print then
   begin
+    if Self.Active then
+    begin
+      ACanvas.Brush.Color := clBtnFace;
+      ACanvas.FillRect(ADrawRect);
+    end;
+
     if FActiveArea <> ceaNone then
     begin
       case FActiveArea of

@@ -1230,8 +1230,8 @@ begin
     $0600..$06FF:
       Result := jctHZ;  // 阿拉伯文，维吾尔语
 
-    $0F00..$0F0A, $0F0E..$0FFF:  // 藏文
-      Result := jctZW;
+    //$0F00..$0F0A, $0F0E..$0FFF:  // 藏文
+    //  Result := jctZW;
 
     $0F0B, $0F0C, $0F0D:  // 藏文空格和分隔
       Result := jctBreak;

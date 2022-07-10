@@ -49,6 +49,7 @@ type
     procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
+    procedure LoadFromBase64(const ABase64: string);
     function ToHtml(const APath: string): string; override;
     procedure ToXml(const ANode: IHCXMLNode); override;
     procedure ParseXml(const ANode: IHCXMLNode); override;
@@ -357,6 +358,14 @@ begin
   end;
 
   FEmpty := False;
+end;
+
+procedure THCImageItem.LoadFromBase64(const ABase64: string);
+begin
+  Base64ToGraphic(ABase64, FImage);
+  {$IFNDEF BMPIMAGEITEM}
+  DoImageChange(Self);
+  {$ENDIF}
 end;
 
 procedure THCImageItem.LoadFromStream(const AStream: TStream;

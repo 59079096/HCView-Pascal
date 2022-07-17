@@ -2423,15 +2423,12 @@ begin
 
   if Resizing then  // 拖动改变列宽，单元格Data宽度的改变由重新格式化处理
   begin
+    vResizeInfo := GetCellAt(FMouseDownX, FMouseDownY, vUpRow, vUpCol, False);
     if FResizeInfo.TableSite = tsBorderRight then  // 拖宽/拖窄
     begin
       vCellPt.X := X - FMouseDownX;  // 不使用FResizeInfo.DestX(会造成按下处弹出也有偏移)
       if vCellPt.X <> 0 then
       begin
-        // AReDest为False用于处理拖动改变列宽时，如拖动处列是合并源，其他行此列并无合并操作
-        // 这时弹起，如果取拖动列目标列变宽，则其他行拖动处的列并没变宽
-        vResizeInfo := GetCellAt(FMouseDownX, FMouseDownY, vUpRow, vUpCol, False{实际位置处的列});
-
         if (vResizeInfo.TableSite <> tsOutside) and (vCellPt.X <> 0) then  // 没弹起在外面
         begin
           if vCellPt.X > 0 then  // 拖宽了
@@ -2484,10 +2481,10 @@ begin
       vCellPt.Y := Y - FMouseDownY;  // 不使用FResizeInfo.DestY(会造成按下处弹出也有偏移)
       if vCellPt.Y <> 0 then
       begin
-        Undo_RowResize(FMouseDownRow, FRows[FMouseDownRow].Height, FRows[FMouseDownRow].Height + vCellPt.Y);
-        vCellPt.Y := FRows[FMouseDownRow].Height + vCellPt.Y;  // new height
-        FRows[FMouseDownRow].Height := vCellPt.Y;
-        FRows[FMouseDownRow].AutoHeight := vCellPt.Y <> FRows[FMouseDownRow].Height;  // 和要设置的不同就认为是自动行高了
+        Undo_RowResize(vUpRow, FRows[vUpRow].Height, FRows[vUpRow].Height + vCellPt.Y);
+        vCellPt.Y := FRows[vUpRow].Height + vCellPt.Y;  // new height
+        FRows[vUpRow].Height := vCellPt.Y;
+        FRows[vUpRow].AutoHeight := vCellPt.Y <> FRows[vUpRow].Height;  // 和要设置的不同就认为是自动行高了
       end;
     end;
 

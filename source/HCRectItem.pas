@@ -1334,7 +1334,7 @@ begin
     if Assigned(AStyle) then
       FTextStyleNo := OwnerData.Style.GetStyleNo(AStyle.TextStyles[FTextStyleNo], True)
     else
-      FTextStyleNo := 0;
+      FTextStyleNo := OwnerData.Style.GetDefaultStyleNo;
   end
   else
   if Assigned(AStyle) and (FTextStyleNo > AStyle.TextStyles.Count - 1) then  // 兼容历史错误(删除多余样式时没有)

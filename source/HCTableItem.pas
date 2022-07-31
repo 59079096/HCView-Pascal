@@ -3679,6 +3679,9 @@ begin
     FColWidths.Insert(ACol, vWidth);  // 右侧插入列
   end;
 
+  if FResizeKeepWidth then
+    AdjustWidth(False);
+
   Self.InitializeMouseInfo;
   FSelectCellRang.Initialize;
   Self.FormatDirty;

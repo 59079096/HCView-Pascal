@@ -1391,7 +1391,7 @@ procedure THCView.DisSelect;
 begin
   ActiveSection.DisSelect;
   //DoMapChanged;
-  DoSectionDataCheckUpdateInfo(Self);
+  CheckUpdateInfo;
 end;
 
 procedure THCView.GetViewHeight;

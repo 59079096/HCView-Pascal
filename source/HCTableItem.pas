@@ -5718,13 +5718,14 @@ var
   vR, vC: Integer;
   vSrcTable: THCTableItem;
 begin
-  // 必需保证行、列数量一致
   inherited Assign(Source);
 
   vSrcTable := Source as THCTableItem;
+  Self.ResetRowCol(vSrcTable.Width, vSrcTable.RowCount, vSrcTable.ColCount);
 
   FBorderVisible := vSrcTable.BorderVisible;
   BorderWidthPt := vSrcTable.BorderWidthPt;
+  FResizeKeepWidth := vSrcTable.ResizeKeepWidth;
   CellHPaddingMM := vSrcTable.CellHPaddingMM;
   CellVPaddingMM := vSrcTable.CellVPaddingMM;
   FFixRow := vSrcTable.FixRow;

@@ -1123,13 +1123,15 @@ var
 begin
   Self.InitializeField;
 
+  vAddStartNo := 0;
+  if IsEmptyData then  // 空的话直接全部使用来源
+    Self.Items.Clear
+  else
   if (Self.Items.Count > 0) and Self.Items.Last.CanConcatItems(ASrcData.Items.First) then
   begin
     Self.Items.Last.Text := Self.Items.Last.Text + ASrcData.Items.First.Text;
     vAddStartNo := 1;
-  end
-  else
-    vAddStartNo := 0;
+  end;
 
   for i := vAddStartNo to ASrcData.Items.Count - 1 do
   begin

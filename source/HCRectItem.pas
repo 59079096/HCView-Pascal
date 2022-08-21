@@ -201,6 +201,7 @@ type
   public
     Empty: Boolean;
     constructor Create(const AOwnerData: THCCustomData); override;
+    procedure Assign(Source: THCCustomItem); override;
     class function IsBeginMark(const AItem: THCCustomItem): Boolean;
     class function IsEndMark(const AItem: THCCustomItem): Boolean;
     function GetOffsetAt(const X: Integer): Integer; override;
@@ -1513,10 +1514,19 @@ end;
 
 { THCDomainItem }
 
+procedure THCDomainItem.Assign(Source: THCCustomItem);
+begin
+  inherited Assign(Source);
+  FMarkType := (Source as THCDomainItem).MarkType;
+  FLevel := (Source as THCDomainItem).Level;
+  Empty := (Source as THCDomainItem).Empty;
+end;
+
 constructor THCDomainItem.Create(const AOwnerData: THCCustomData);
 begin
   inherited Create(AOwnerData);
   Self.StyleNo := THCStyle.Domain;
+  FMarkType := TMarkType.cmtBeg;
   FLevel := 0;
   Width := 0;
   Height := AOwnerData.Style.TextStyles[0].FontHeight;

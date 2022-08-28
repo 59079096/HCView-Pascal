@@ -1083,7 +1083,7 @@ begin
     try
       FUndoList.Enable := False;
       FSections[0].Clear;
-      FUndoList.Clear;
+      ClearUndo;
     finally
       FUndoList.RestoreState;
     end;
@@ -2618,7 +2618,7 @@ begin
   Self.BeginUpdate;
   try
     // 清除撤销恢复数据
-    FUndoList.Clear;
+    ClearUndo;
     FUndoList.SaveState;
     try
       FUndoList.Enable := False;
@@ -2641,7 +2641,7 @@ begin
   Self.BeginUpdate;
   try
     // 清除撤销恢复数据
-    FUndoList.Clear;
+    ClearUndo;
     FUndoList.SaveState;
     try
       FUndoList.Enable := False;
@@ -2680,7 +2680,7 @@ begin
   Self.BeginUpdate;
   try
     // 清除撤销恢复数据
-    FUndoList.Clear;
+    ClearUndo;
     FUndoList.SaveState;
     try
       FUndoList.Enable := False;
@@ -2814,7 +2814,7 @@ begin
   Self.BeginUpdate;
   try
     // 清除撤销恢复数据
-    FUndoList.Clear;
+    ClearUndo;
     FUndoList.SaveState;
     try
       FUndoList.Enable := False;
@@ -4042,7 +4042,7 @@ var
   i: Integer;
   vPath: string;
 begin
-  FUndoList.Clear; // 防止删除样式后的撤销找不到原样式
+  ClearUndo; // 防止删除样式后的撤销找不到原样式
   DeleteUnUsedStyle(FStyle, FSections, [saHeader, saPage, saFooter]);
 
   FStyle.GetHtmlFileTempName(True);
@@ -4258,7 +4258,7 @@ begin
 
     if not AQuick then
     begin
-      FUndoList.Clear; // 防止删除样式后的撤销找不到原样式
+      ClearUndo; // 防止删除样式后的撤销找不到原样式
       DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
     end;
     FStyle.SaveToStream(AStream);
@@ -4304,7 +4304,7 @@ var
 begin
   FStyle.States.Include(hosSaving);
   try
-    FUndoList.Clear; // 防止删除样式后的撤销找不到原样式
+    ClearUndo; // 防止删除样式后的撤销找不到原样式
     DeleteUnUsedStyle(FStyle, FSections, [saHeader, saPage, saFooter]);
 
     vXml := THCXMLDocument.Create(nil);

@@ -186,8 +186,8 @@ type
     actDeleteSelected  // É¾³ýÑ¡ÖÐÄÚÈÝ
   );
 
-    THCControlState = (hcsCustom, hcsChecked);
-    THCControlStyle = (hcyRadio, hcyCheck);
+  THCControlState = (hcsCustom, hcsChecked);
+  THCControlStyle = (hcyRadio, hcyCheck);
 
 //  TPaperSize = (psCustom, ps4A0, ps2A0, psA0, psA1, psA2,
 //    psA3, psA4, psA5, psA6, psA7, psA8,

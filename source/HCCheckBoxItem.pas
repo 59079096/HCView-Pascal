@@ -21,7 +21,7 @@ type
   THCCheckBoxItem = class(THCControlItem)
   private
     FText: string;
-    FChecked, FItemHit, FBoxRight: Boolean;
+    FChecked, FItemHit, FBoxRight, FAutoWrap: Boolean;
     FOnCheckChanged: TNotifyEvent;
     function GetBoxRect: TRect;
     procedure SetChecked(const Value: Boolean);
@@ -48,6 +48,7 @@ type
 
     property Checked: Boolean read FChecked write SetChecked;
     property BoxRight: Boolean read FBoxRight write FBoxRight;
+    property AutoWrap: Boolean read FAutoWrap write FAutoWrap;
     property OnCheckChanged: TNotifyEvent read FOnCheckChanged write FOnCheckChanged;
   end;
 

@@ -1835,6 +1835,7 @@ var
   vDataSize: Int64;
   vArea: Boolean;
   vLoadParts: TSectionAreas;
+  vByte: Byte;
 begin
   //---- 注意和 SeekStreamTo 方法一致
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
@@ -1903,6 +1904,9 @@ begin
     FPageNoHorAlign := THCTextHorAlign.hthaCenter;
     FPageNoOffset := FFooter.Height;
   end;
+
+  if AFileVersion > 61 then
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
 
   BuildSectionPages(0);
 end;
@@ -2985,6 +2989,7 @@ procedure THCCustomSection.SaveToStream(const AStream: TStream;
 var
   vBegPos, vEndPos: Int64;
   vArea: Boolean;
+  vByte: Byte;
 begin
   vBegPos := AStream.Position;
   AStream.WriteBuffer(vBegPos, SizeOf(vBegPos));  // 数据大小占位，便于越过
@@ -3025,6 +3030,8 @@ begin
 
   AStream.WriteBuffer(FPageNoHorAlign, SizeOf(FPageNoHorAlign));
   AStream.WriteBuffer(FPageNoOffset, SizeOf(FPageNoOffset));
+  vByte := 0;
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
   //
   vEndPos := AStream.Position;
   AStream.Position := vBegPos;

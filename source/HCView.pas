@@ -301,7 +301,8 @@ type
     procedure DoPaintViewAfter(const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
 
     procedure DoPaintViewHintLayer(const ACanvas: TCanvas; const APaintInfo: TPaintInfo); virtual;
-
+    procedure DoSaveMutMargin(const AStream: TStream); virtual;
+    procedure DoLoadMutMargin(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); virtual;
     /// <summary> 保存文档前触发事件，便于订制特征数据 </summary>
     procedure DoSaveStreamBefor(const AStream: TStream); virtual;
 
@@ -1689,6 +1690,14 @@ begin
   ActiveSection.Redo(Sender);
 end;
 
+procedure THCView.DoSaveMutMargin(const AStream: TStream);
+var
+  vByte: Byte;
+begin
+  vByte := 0;
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
+end;
+
 procedure THCView.DoSaveStreamAfter(const AStream: TStream);
 begin
   //SetIsChanged(False);  做定备份保存时不能做为业务保存成功
@@ -1888,6 +1897,7 @@ begin
 
   DoLoadStreamBefor(AStream, vVersion);  // 触发加载前事件
   AStyle.LoadFromStream(AStream, vVersion);  // 加载样式表
+  DoLoadMutMargin(AStream, AStyle, vVersion);
 
   if vVersion > 55 then
   begin
@@ -1902,6 +1912,15 @@ begin
   ALoadSectionProc(vVersion);  // 加载节数量、节数据
   DoLoadStreamAfter(AStream, vVersion);
   DoMapChanged;
+end;
+
+procedure THCView.DoLoadMutMargin(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vByte: Byte;
+begin
+  if AFileVersion > 61 then
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
 end;
 
 procedure THCView.DoSectionInsertAnnotate(const Sender: TObject; const AData: THCCustomData; const AAnnotateItem: THCAnnotateItem);
@@ -4262,6 +4281,7 @@ begin
       DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
     end;
     FStyle.SaveToStream(AStream);
+    DoSaveMutMargin(AStream);
 
     vByte := 0;
     AStream.WriteBuffer(vByte, SizeOf(vByte));

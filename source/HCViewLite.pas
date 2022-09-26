@@ -30,6 +30,9 @@ type
     /// <returns>创建好的Item</returns>
     function DoSectionCreateStyleItem(const AData: THCCustomData;
       const AStyleNo: Integer): THCCustomItem; virtual;
+    procedure DoSaveMutMargin(const AStream: TStream); virtual;
+    procedure DoLoadMutMargin(const AStream: TStream; const AStyle: THCStyle; const AFileVersion: Word); virtual;
+
     /// <summary> 保存文档前触发事件，便于订制特征数据 </summary>
     procedure DoSaveStreamBefor(const AStream: TStream); virtual;
 
@@ -285,6 +288,7 @@ begin
 
   DoLoadStreamBefor(AStream, vVersion);  // 触发加载前事件
   AStyle.LoadFromStream(AStream, vVersion);  // 加载样式表
+  DoLoadMutMargin(AStream, AStyle, vVersion);
 
   if vVersion > 55 then
   begin
@@ -300,12 +304,29 @@ begin
   DoLoadStreamAfter(AStream, vVersion);
 end;
 
+procedure THCViewLite.DoLoadMutMargin(const AStream: TStream;
+  const AStyle: THCStyle; const AFileVersion: Word);
+var
+  vByte: Byte;
+begin
+  if AFileVersion > 61 then
+    AStream.ReadBuffer(vByte, SizeOf(vByte));
+end;
+
 procedure THCViewLite.DoLoadStreamAfter(const AStream: TStream; const AFileVersion: Word);
 begin
 end;
 
 procedure THCViewLite.DoLoadStreamBefor(const AStream: TStream; const AFileVersion: Word);
 begin
+end;
+
+procedure THCViewLite.DoSaveMutMargin(const AStream: TStream);
+var
+  vByte: Byte;
+begin
+  vByte := 0;
+  AStream.WriteBuffer(vByte, SizeOf(vByte));
 end;
 
 procedure THCViewLite.DoSaveStreamAfter(const AStream: TStream);
@@ -862,6 +883,7 @@ begin
       DeleteUnUsedStyle(FStyle, FSections, AAreas);  // 删除不使用的样式
 
     FStyle.SaveToStream(AStream);
+    DoSaveMutMargin(AStream);
 
     vByte := 0;
     AStream.WriteBuffer(vByte, SizeOf(vByte));

@@ -628,6 +628,7 @@ var
   viDestRow, viDestCol: Integer;
 begin
   Result := False;
+  if FColWidths.Count = 1 then Exit;
 
   if not ColCanDelete(ACol) then Exit;
 

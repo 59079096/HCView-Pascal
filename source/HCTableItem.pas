@@ -1245,14 +1245,18 @@ begin
             if vDrawDefault and not APaintInfo.Print then
             begin
               if IsFixCol(vC) then
-                ACanvas.Brush.Color := FFixColor
+              begin
+                ACanvas.Brush.Color := FFixColor;
+                ACanvas.FillRect(vCellRect);
+              end
               else
               if FRows[vDestRow][vDestCol].BackgroundColor <> HCTransparentColor then  // 背景色
-                ACanvas.Brush.Color := FRows[vDestRow][vDestCol].BackgroundColor
+              begin
+                ACanvas.Brush.Color := FRows[vDestRow][vDestCol].BackgroundColor;
+                ACanvas.FillRect(vCellRect);
+              end
               else
                 ACanvas.Brush.Style := bsClear;
-
-              ACanvas.FillRect(vCellRect);
             end;
           end;
 

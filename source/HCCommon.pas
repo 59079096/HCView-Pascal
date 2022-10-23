@@ -152,6 +152,7 @@ type
     hosCopying,  // 复制
     hosPasting,  // 粘贴
     hosDomainWholeReplace,  // 域整体替换
+    hosClearing,  // 正在清空
     hosUndoing,
     hosRedoing,
     hosInsertBreakItem,

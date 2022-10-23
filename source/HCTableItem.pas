@@ -696,7 +696,7 @@ var
   viDestRow, viDestCol: Integer;
 begin
   Result := False;
-  if (ARow = 0) and (FRows.Count = 1) then Exit
+  if (ARow = 0) and (FRows.Count = 1) then Exit;
 
   if not RowCanDelete(ARow) then Exit;
   Undo_Mirror;

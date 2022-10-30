@@ -1244,7 +1244,7 @@ begin
 
             if vDrawDefault and not APaintInfo.Print then
             begin
-              if IsFixCol(vC) then
+              if IsFixRow(vR) or IsFixCol(vC) then
               begin
                 ACanvas.Brush.Color := FFixColor;
                 ACanvas.FillRect(vCellRect);

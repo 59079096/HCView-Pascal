@@ -1074,19 +1074,24 @@ procedure THCView.Clear;
 begin
   Self.BeginUpdate;  // 防止：清空时隐藏工具，工具条隐藏时又触发重绘，重绘时还没有格式化完
   try
-    FStyle.Initialize;  // 先清样式，防止Data初始化为EmptyData时空Item样式赋值为CurStyleNo
-    FSections.DeleteRange(1, FSections.Count - 1);
-    FActiveSectionIndex := 0;
-    FDisplayFirstSection := -1;
-    FDisplayLastSection := -1;
-
-    FUndoList.SaveState;
+    FStyle.States.Include(hosClearing);
     try
-      FUndoList.Enable := False;
-      FSections[0].Clear;
-      ClearUndo;
+      FStyle.Initialize;  // 先清样式，防止Data初始化为EmptyData时空Item样式赋值为CurStyleNo
+      FSections.DeleteRange(1, FSections.Count - 1);
+      FActiveSectionIndex := 0;
+      FDisplayFirstSection := -1;
+      FDisplayLastSection := -1;
+
+      FUndoList.SaveState;
+      try
+        FUndoList.Enable := False;
+        FSections[0].Clear;
+        ClearUndo;
+      finally
+        FUndoList.RestoreState;
+      end;
     finally
-      FUndoList.RestoreState;
+      FStyle.States.Exclude(hosClearing);
     end;
 
     FHScrollBar.Position := 0;

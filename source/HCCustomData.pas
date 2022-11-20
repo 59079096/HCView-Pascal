@@ -3036,7 +3036,8 @@ end;
 
 function THCCustomData.SelectInSameItem: Boolean;
 begin
-  Result := FSelectInfo.StartItemNo = FSelectInfo.EndItemNo;
+  Result := (FSelectInfo.StartItemNo >= 0)
+    and ((FSelectInfo.EndItemNo < 0) or (FSelectInfo.StartItemNo = FSelectInfo.EndItemNo));
 end;
 
 function THCCustomData.SelectStartItemBoundary: Boolean;

@@ -27,8 +27,6 @@ const
   HCS_EXCEPTION_NULLTEXT = HC_EXCEPTION + '文本Item的内容出现为空的情况！';
   HCS_EXCEPTION_TEXTOVER = HC_EXCEPTION + 'TextItem的内容超出允许的最大字节数4294967295！';
   HCS_EXCEPTION_MEMORYLESS = HC_EXCEPTION + '复制时没有申请到足够的内存！';
-  //HCS_EXCEPTION_UNACCEPTDATATYPE = HC_EXCEPTION + '不可接受的数据类型！';
-  //HCS_EXCEPTION_STRINGLENGTHLIMIT = HC_EXCEPTION + '此版本不支持连续不换行样式字符串超过65535！';
   HCS_EXCEPTION_VOIDSOURCECELL = HC_EXCEPTION + '源单元格无法再获取源单元格！';
   HCS_EXCEPTION_TIMERRESOURCEOUTOF = HC_EXCEPTION + '安装计时器的资源不足！';
 
@@ -189,35 +187,6 @@ type
 
   THCControlState = (hcsCustom, hcsChecked);
   THCControlStyle = (hcyRadio, hcyCheck);
-
-//  TPaperSize = (psCustom, ps4A0, ps2A0, psA0, psA1, psA2,
-//    psA3, psA4, psA5, psA6, psA7, psA8,
-//    psA9, psA10, psB0, psB1, psB2, psB3,
-//    psB4, psB5, psB6, psB7, psB8, psB9,
-//    psB10, psC0, psC1, psC2, psC3, psC4,
-//    psC5, psC6, psC7, psC8, psC9, psC10,
-//    psLetter, psLegal, psLedger, psTabloid,
-//    psStatement, psQuarto, psFoolscap, psFolio,
-//    psExecutive, psMonarch, psGovernmentLetter,
-//    psPost, psCrown, psLargePost, psDemy,
-//    psMedium, psRoyal, psElephant, psDoubleDemy,
-//    psQuadDemy, psIndexCard3_5, psIndexCard4_6,
-//    psIndexCard5_8, psInternationalBusinessCard,
-//    psUSBusinessCard, psEmperor, psAntiquarian,
-//    psGrandEagle, psDoubleElephant, psAtlas,
-//    psColombier, psImperial, psDoubleLargePost,
-//    psPrincess, psCartridge, psSheet, psHalfPost,
-//    psDoublePost, psSuperRoyal, psCopyDraught,
-//    psPinchedPost, psSmallFoolscap, psBrief, psPott,
-//    psPA0, psPA1, psPA2, psPA3, psPA4, psPA5,
-//    psPA6, psPA7, psPA8, psPA9, psPA10, psF4,
-//    psA0a, psJISB0, psJISB1, psJISB2, psJISB3,
-//    psJISB4, psJISB5, psJISB6, psJISB7, psJISB8,
-//    psJISB9, psJISB10, psJISB11, psJISB12,
-//    psANSI_A, psANSI_B, psANSI_C, psANSI_D,
-//    psANSI_E, psArch_A, psArch_B, psArch_C,
-//    psArch_D, psArch_E, psArch_E1,
-//    ps16K, ps32K);
 
   THCFont = class(TFont)
   public
@@ -1216,7 +1185,6 @@ begin
   if FX <> Value then
   begin
     FX := Value;
-    //FReCreate := True;
     Show;
   end;
 end;
@@ -1227,7 +1195,6 @@ begin
   begin
     FY := Value;
     Show;
-    //FReCreate := True;
   end;
 end;
 

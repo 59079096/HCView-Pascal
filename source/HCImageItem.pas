@@ -550,7 +550,7 @@ begin
   else  // ±£´æÎªBase64
   begin
     Result := '<img width="' + IntToStr(Width) + '" height="' + IntToStr(Height)
-      + '" src="data:img/jpg;base64,' + GraphicToBase64(FImage) + '" alt="THCImageItem" />';
+      + '" src="data:image/jpg;base64,' + GraphicToBase64(FImage) + '" alt="THCImageItem" />';
   end;
 end;
 

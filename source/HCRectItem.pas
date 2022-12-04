@@ -835,7 +835,7 @@ begin
     else  // ±£´æÎªBase64
     begin
       Result := '<img width="' + IntToStr(FWidth) + '" height="' + IntToStr(FHeight)
-        + '" src="data:img/jpg;base64,' + GraphicToBase64(vBitmap) + '" alt="' + Self.ClassName + '" />';
+        + '" src="data:image/jpg;base64,' + GraphicToBase64(vBitmap) + '" alt="' + Self.ClassName + '" />';
     end;
   finally
     FreeAndNil(vBitmap);

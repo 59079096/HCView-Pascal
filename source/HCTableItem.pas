@@ -2077,7 +2077,7 @@ begin
 
   FResizeInfo := GetCellAt(X, Y, vMouseDownRow, vMouseDownCol);
 
-  Resizing := (Button = mbLeft)
+  Resizing := ((Button = mbLeft) and (Shift = [ssLeft]))
     and ((FResizeInfo.TableSite = tsBorderRight) or (FResizeInfo.TableSite = tsBorderBottom))
     and Self.AllowResize;
 

@@ -3093,7 +3093,7 @@ begin
   if FStyle.UpdateInfo.Selecting then
     AutoScrollTimer(False);
 
-  if Button = mbRight then Exit;  // 右键弹出菜单
+  //if Button = mbRight then Exit;  // 右键弹出菜单
   //GetSectionByCrood(FHScrollBar.Value + X, FVScrollBar.Value + Y, vSectionIndex);
   if FActiveSectionIndex >= 0 then  // 按下时在节中
     FSections[FActiveSectionIndex].MouseUp(Button, Shift,

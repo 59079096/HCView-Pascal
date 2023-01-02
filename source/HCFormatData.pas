@@ -1009,6 +1009,7 @@ begin
     vRect.Right := vRect.Left;
     vRect.Bottom := vRect.Top + FItemFormatHeight;  // 带上行间距
     NewDrawItem(AItemNo, AOffset, vItem.Length, vRect, vParaFirst, vLineFirst);
+    vRemainderWidth := AFmtRight - APos.X;
   end
   else
   if vItem.StyleNo < THCStyle.Null then  // 是RectItem

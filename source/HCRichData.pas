@@ -6226,7 +6226,7 @@ begin
   else  // 非拖拽、非划选
   if (Button = TMouseButton.mbRight) and CoordInSelect(X, Y, vUpItemNo, vUpItemOffset, vRestrain) then
   begin
-    if FItems[vUpItemNo].StyleNo < THCStyle.Null then
+    if Items[vUpItemNo].StyleNo < THCStyle.Null then
       DoItemMouseUp(vUpItemNo, vUpItemOffset);
   end
   else

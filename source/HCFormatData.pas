@@ -907,9 +907,13 @@ var
       else  // 整体下移到下一行
       begin
         vRemainderWidth := APlaceWidth;
-        FinishLine(ALastDrawItemNo, vRemainderWidth);
+        if ALastDrawItemNo >= 0 then
+          FinishLine(ALastDrawItemNo, vRemainderWidth);
+
         APos.X := AFmtLeft;  // 偏移到下一行开始计算
-        APos.Y := DrawItems[ALastDrawItemNo].Rect.Bottom;
+        if ALastDrawItemNo >= 0 then
+          APos.Y := DrawItems[ALastDrawItemNo].Rect.Bottom;
+
         DoFormatTextItemToDrawItems(ACharOffset, AFmtRight - APos.X, ABasePos);
       end;
     end

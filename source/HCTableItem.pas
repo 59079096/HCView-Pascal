@@ -348,6 +348,7 @@ type
     function IsBreakRow(const ARow: Integer): Boolean;
     function IsFixRow(const ARow: Integer): Boolean;
     function IsFixCol(const ACol: Integer): Boolean;
+    function IsEmptyRow(const ARow: Integer): Boolean;
     function GetFixRowHeight: Integer;
     function GetFixColWidth: Integer;
     function GetFixColLeft: Integer;
@@ -3871,6 +3872,21 @@ begin
     begin
       Result := True;
       Break;
+    end;
+  end;
+end;
+
+function THCTableItem.IsEmptyRow(const ARow: Integer): Boolean;
+var
+  vC: Integer;
+begin
+  Result := True;
+  for vC := 0 to FRows[ARow].ColCount - 1 do
+  begin
+    if (FRows[ARow][vC].CellData <> nil) then
+    begin
+      if not FRows[ARow][vC].CellData.IsEmptyData then
+        Exit(False);
     end;
   end;
 end;

@@ -510,8 +510,8 @@ type
     function Replace(const AText: string): Boolean;
     function ParseHtml(const AHtmlText: string): Boolean;
     function InsertFloatItem(const AFloatItem: THCCustomFloatItem): Boolean;
-    procedure SeekStreamToArea(const AStream: TStream; const AStyle: THCStyle;
-      const AFileVersion: Word; const APart: TSectionArea; const AUsePaper: Boolean);
+    function SeekStreamToArea(const AStream: TStream; const AStyle: THCStyle;
+      const AFileVersion: Word; const APart: TSectionArea; const AUsePaper: Boolean): Boolean;
     function ToHtml(const APath: string): string;
     procedure ToXml(const ANode: IHCXMLNode);
     procedure ParseXml(const ANode: IHCXMLNode);
@@ -3330,8 +3330,8 @@ begin
   DoActiveDataCheckUpdateInfo;
 end;
 
-procedure THCSection.SeekStreamToArea(const AStream: TStream; const AStyle: THCStyle;
-  const AFileVersion: Word; const APart: TSectionArea; const AUsePaper: Boolean);
+function THCSection.SeekStreamToArea(const AStream: TStream; const AStyle: THCStyle;
+  const AFileVersion: Word; const APart: TSectionArea; const AUsePaper: Boolean): Boolean;
 var
   vDataSize: Int64;
   vS: string;
@@ -3339,6 +3339,7 @@ var
   vLoadParts: TSectionAreas;
   vArea: Boolean;
 begin
+  Result := False;
   //---- 注意和 LoadFromStream 方法一致
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
   if AFileVersion > 41 then  //--- 注意和 DoLoadFromStream 方法一致
@@ -3389,15 +3390,15 @@ begin
   if saHeader in vLoadParts then
   begin
     AStream.Position := AStream.Position + SizeOf(FHeaderOffset);
-    if APart = TSectionArea.saHeader then Exit;
+    if APart = TSectionArea.saHeader then Exit(True);
 
     //FHeader.LoadFromStream(AStream, FStyle, AFileVersion);
     AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
     AStream.Position := AStream.Position + vDataSize;
   end;
-  if APart = TSectionArea.saHeader then Exit;
+  if APart = TSectionArea.saHeader then Exit(True);
 
-  if APart = TSectionArea.saFooter then Exit;
+  if APart = TSectionArea.saFooter then Exit(True);
   if saFooter in vLoadParts then
   begin
     //FFooter.LoadFromStream(AStream, FStyle, AFileVersion);
@@ -3405,9 +3406,32 @@ begin
     AStream.Position := AStream.Position + vDataSize;
   end;
 
-  AStream.Position := AStream.Position + SizeOf(FPage.ShowUnderLine);  // 下划线
-  AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
-  if APart = TSectionArea.saPage then Exit;  
+  if APart = TSectionArea.saPage then
+  begin
+    if AFileVersion > 63 then
+    begin
+      AStream.Position := AStream.Position + SizeOf(Byte);
+      //FShowUnderLine := Odd(vByte shr 7);
+      //FShowBorder := Odd(vByte shr 6);
+      AStream.Position := AStream.Position + SizeOf(FPage.LineStyle);
+      //HCLoadColorFromStream(AStream, vColor);
+      AStream.Position := AStream.Position + SizeOf(Byte);  // a
+      AStream.Position := AStream.Position + SizeOf(Byte);  // r
+      AStream.Position := AStream.Position + SizeOf(Byte);  // g
+      AStream.Position := AStream.Position + SizeOf(Byte);  // b
+
+      AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
+
+      AStream.Position := AStream.Position + SizeOf(FPage.FormatDirection);
+    end
+    else
+    begin
+      AStream.Position := AStream.Position + SizeOf(FPage.ShowUnderLine);  // 下划线
+      AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
+    end;
+
+    Result := True;
+  end;
 end;
 
 function THCSection.ToHtml(const APath: string): string;

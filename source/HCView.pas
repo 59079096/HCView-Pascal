@@ -2443,8 +2443,9 @@ begin
 
           if AFileVersion > 42 then
           begin
-            ActiveSection.SeekStreamToArea(AStream, vStyle, AFileVersion, TSectionArea.saPage, False);
-            vResult := ActiveSection.InsertStream(AStream, vStyle, AFileVersion);  // 只插入第一节的数据
+            if ActiveSection.SeekStreamToArea(AStream, vStyle, AFileVersion, TSectionArea.saPage, False) then
+              vResult := ActiveSection.InsertStream(AStream, vStyle, AFileVersion);  // 只插入第一节的数据
+
             Exit;
           end;
 
@@ -3093,7 +3094,9 @@ begin
   if FStyle.UpdateInfo.Selecting then
     AutoScrollTimer(False);
 
-  //if Button = mbRight then Exit;  // 右键弹出菜单
+  if (Button = mbRight) and Assigned(Self.PopupMenu) then   // 右键弹出菜单
+    Exit;
+
   //GetSectionByCrood(FHScrollBar.Value + X, FVScrollBar.Value + Y, vSectionIndex);
   if FActiveSectionIndex >= 0 then  // 按下时在节中
     FSections[FActiveSectionIndex].MouseUp(Button, Shift,

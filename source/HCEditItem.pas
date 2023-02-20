@@ -392,7 +392,7 @@ procedure THCEditItem.KeyDown(var Key: Word; Shift: TShiftState);
     begin
       System.Delete(FText, FCaretOffset, 1);
       Dec(FCaretOffset);
-      CalcTextSize;
+      //CalcTextSize;
     end;
 
     ScrollAdjust(FCaretOffset);
@@ -427,7 +427,7 @@ procedure THCEditItem.KeyDown(var Key: Word; Shift: TShiftState);
     if FCaretOffset < System.Length(FText) then
     begin
       System.Delete(FText, FCaretOffset + 1, 1);
-      CalcTextSize;
+      //CalcTextSize;
     end;
 
     ScrollAdjust(FCaretOffset);
@@ -467,7 +467,6 @@ begin
 
     Inc(FCaretOffset);
     System.Insert(Key, FText, FCaretOffset);
-    CalcTextSize;
     ScrollAdjust(FCaretOffset);
     Self.FormatDirty;
   end;

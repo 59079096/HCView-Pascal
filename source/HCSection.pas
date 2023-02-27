@@ -1880,17 +1880,17 @@ begin
   begin
     AStream.ReadBuffer(FHeaderOffset, SizeOf(FHeaderOffset));
     FHeader.Width := FPage.Width;
-    FHeader.LoadFromStream(AStream, FStyle, AFileVersion);
+    FHeader.LoadFromStream(AStream, AStyle, AFileVersion);
   end;
 
   if saFooter in vLoadParts then
   begin
     FFooter.Width := FPage.Width;
-    FFooter.LoadFromStream(AStream, FStyle, AFileVersion);
+    FFooter.LoadFromStream(AStream, AStyle, AFileVersion);
   end;
 
   if saPage in vLoadParts then
-    FPage.LoadFromStream(AStream, FStyle, AFileVersion);
+    FPage.LoadFromStream(AStream, AStyle, AFileVersion);
   // 20190906001 FloatItem不能通过GetPageIndexByFormat(FPage.FloatItems[0].Top)来计算FloatItem
   // 的页序号，因为正文的可能拖到页眉页脚处，按Top算GetPageIndexByFormat并不在当前页中
 
@@ -3413,7 +3413,7 @@ begin
       AStream.Position := AStream.Position + SizeOf(Byte);
       //FShowUnderLine := Odd(vByte shr 7);
       //FShowBorder := Odd(vByte shr 6);
-      AStream.Position := AStream.Position + SizeOf(FPage.LineStyle);
+      AStream.Position := AStream.Position + SizeOf(Byte);
       //HCLoadColorFromStream(AStream, vColor);
       AStream.Position := AStream.Position + SizeOf(Byte);  // a
       AStream.Position := AStream.Position + SizeOf(Byte);  // r
@@ -3422,7 +3422,7 @@ begin
 
       AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));
 
-      AStream.Position := AStream.Position + SizeOf(FPage.FormatDirection);
+      AStream.Position := AStream.Position + SizeOf(Byte);
     end
     else
     begin

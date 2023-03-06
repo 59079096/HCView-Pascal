@@ -2478,7 +2478,7 @@ begin
   AStream.ReadBuffer(vDataSize, SizeOf(vDataSize));  // 先试探有没有数据
   if vDataSize = 0 then Exit;
 
-  if not CanEdit then Exit;
+  if (not Loading) and (not CanEdit) then Exit;
   if not DeleteSelected then Exit;
   if not DoAcceptAction(SelectInfo.StartItemNo, SelectInfo.StartItemOffset, actInsertItem) then Exit;  // TextItem此偏移位置不可接受输入
   if not SelectPerfect then Exit;
@@ -5763,7 +5763,7 @@ procedure THCRichData.DoLoadFromStream(const AStream: TStream;
   const AStyle: THCStyle; const AFileVersion: Word);
 begin
   FReadOnly := False;
-  if not CanEdit then Exit;
+  if (not Loading) and (not CanEdit) then Exit;
   //Self.InitializeField;  LoadFromStream中的Clear处理了
   inherited DoLoadFromStream(AStream, AStyle, AFileVersion);
 

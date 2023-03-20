@@ -319,6 +319,7 @@ type
     function GetTopLevelDrawItemCoord: TPoint;
     function GetTopLevelRectDrawItem: THCCustomDrawItem;
     function GetTopLevelRectDrawItemCoord: TPoint;
+    function IsTextItem(const AItemNo: Integer): Boolean;
     function IsRectItem(const AItemNo: Integer): Boolean;
 
     /// <summary> 返回在指定位置插入文本时用哪个文本样式最合适 </summary>
@@ -1922,6 +1923,11 @@ end;
 function THCCustomData.IsRectItem(const AItemNo: Integer): Boolean;
 begin
   Result := FItems[AItemNo].StyleNo < THCStyle.Null;
+end;
+
+function THCCustomData.IsTextItem(const AItemNo: Integer): Boolean;
+begin
+  Result := FItems[AItemNo].StyleNo > THCStyle.Null;
 end;
 
 procedure THCCustomData.LoadFromStream(const AStream: TStream;

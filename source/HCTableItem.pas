@@ -3614,6 +3614,7 @@ begin
   ACellData.OnGetFormatTop := DoCellDataGetFormatTop;
   ACellData.OnFormatDirty := DoCellDataFormatDirty;
   ACellData.OnSetFormatHeightChange := DoCellDataSetFormatHeightChange;
+  ACellData.OnGetScreenCoord := (OwnerData as THCViewData).OnGetScreenCoord;
 end;
 
 procedure THCTableItem.InitializeMouseInfo;

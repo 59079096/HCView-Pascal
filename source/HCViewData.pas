@@ -23,6 +23,7 @@ type
   TOnCanEditEvent = function(const Sender: TObject): Boolean of object;
   TTextEvent = function(const AData: THCCustomData; const AItemNo, AOffset: Integer;
     const AText: string): Boolean of object;
+  TGetScreenCoordEvent = function (const X, Y: Integer): TPoint of object;
 
   THCViewData = class(THCViewDevData)  // 具有高亮域和操作Items功能的Data类
   private
@@ -39,6 +40,7 @@ type
     FOnInsertTextBefor: TTextEvent;
     FOnCaretItemChanged: TDataItemEvent;
     FOnPaintDomainRegion: TDataItemNoFunEvent;
+    FOnGetScreenCoord: TGetScreenCoordEvent;
   protected
     function DoAcceptAction(const AItemNo, AOffset: Integer; const AAction: THCAction): Boolean; override;
     /// <summary> 是否允许保存该Item </summary>
@@ -68,6 +70,7 @@ type
       const ACanvas: TCanvas; const APaintInfo: TPaintInfo); override;
     procedure InitializeField; override;
     procedure GetCaretInfo(const AItemNo, AOffset: Integer; var ACaretInfo: THCCaretInfo); override;
+    function GetScreenCoord(const X, Y: Integer): TPoint; override;
     function DeleteSelected: Boolean; override;
     function DeleteActiveDomain: Boolean;
     function DeleteDomain(const ADomain: THCDomainInfo): Boolean;
@@ -883,6 +886,17 @@ begin
 
     if ADomainInfo.EndNo < 0 then
       raise Exception.Create('异常：获取域结束位置出错！');
+  end;
+end;
+
+function THCViewData.GetScreenCoord(const X, Y: Integer): TPoint;
+begin
+  if Assigned(FOnGetScreenCoord) then
+    Result := FOnGetScreenCoord(X, Y)
+  else
+  begin
+    Result.X := 0;
+    Result.Y := 0;
   end;
 end;
 

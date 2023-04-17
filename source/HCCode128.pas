@@ -605,7 +605,7 @@ var
   vLineType: THCCodeLineType;
 begin
   vX := 0;
-  vHeight := Self.Height;
+  vHeight := ARect.Bottom - ARect.Top;
   if FTextVisible then
     vHeight := vHeight - 12;
 

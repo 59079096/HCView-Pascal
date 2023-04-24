@@ -2103,7 +2103,7 @@ begin
   begin
     if CoordInSelect(X, Y) then  // 在选中区域中（不包括边框线及边框线容差）
     begin
-      if FMouseLBDowning then
+      if (not (ssDouble in Shift)) and FMouseLBDowning then
         FDraging := True;
 
       if (FMouseDownRow <> vMouseDownRow) or (FMouseDownCol <> vMouseDownCol) then

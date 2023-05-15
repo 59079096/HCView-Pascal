@@ -1370,6 +1370,12 @@ begin
             Exit;
         end;
       end;
+
+    WM_IME_CHAR:
+      begin
+        Message.Result := 1;
+        Exit;
+      end;
   end;
   inherited WndProc(Message);
 end;

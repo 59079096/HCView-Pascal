@@ -344,7 +344,7 @@ begin
   if X <= FPaddingLeft then
     Result := OffsetBefor
   else
-  if X >= Width - FPaddingRight then
+  if X >= Width{ - FPaddingRight} then
     Result := OffsetAfter
   else
     Result := OffsetInner;

@@ -5868,7 +5868,7 @@ begin
     if Items[vMouseDownItemNo].StyleNo < THCStyle.Null then
       DoItemMouseDown(vMouseDownItemNo, vMouseDownItemOffset);
 
-    if FMouseLBDowning and not SelectedResizing then
+    if (not (ssDouble in Shift)) and FMouseLBDowning and not SelectedResizing then
     begin
       FDraging := True;
       Style.UpdateInfo.DragingSelected := True;

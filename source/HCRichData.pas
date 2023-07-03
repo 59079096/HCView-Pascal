@@ -5707,8 +5707,7 @@ var
   vFormatFirstDrawItemNo, vFormatLastItemNo: Integer;
 begin
   if not CanEdit then Exit;
-
-  //DeleteSelected;
+  if not DeleteSelected then Exit;
 
   vCarteItem := GetActiveItem;
   if not Assigned(vCarteItem) then Exit;  // 跨页合并时，合并后并没有当前Item

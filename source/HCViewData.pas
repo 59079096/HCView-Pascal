@@ -138,6 +138,7 @@ type
     property OnCanEdit: TOnCanEditEvent read FOnCanEdit write FOnCanEdit;
     property OnInsertTextBefor: TTextEvent read FOnInsertTextBefor write FOnInsertTextBefor;
     property OnPaintDomainRegion: TDataItemNoFunEvent read FOnPaintDomainRegion write FOnPaintDomainRegion;
+    property OnGetScreenCoord: TGetScreenCoordEvent read FOnGetScreenCoord write FOnGetScreenCoord;
   end;
 
 implementation
@@ -439,8 +440,8 @@ end;
 
 function THCViewData.DeleteSelected: Boolean;
 begin
-  FDomainStartDeletes.Clear;  // 清空域删除时记录前后配对信息
   Result := inherited DeleteSelected;
+  FDomainStartDeletes.Clear;
 end;
 
 destructor THCViewData.Destroy;

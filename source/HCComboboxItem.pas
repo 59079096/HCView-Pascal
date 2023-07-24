@@ -174,6 +174,7 @@ begin
     Exit;
 
   ACanvas.Pen.Color := clBlack;
+  ACanvas.Pen.Style := psSolid;
   vLeft := FButtonDrawRect.Left + (BTNWIDTH - 7) div 2;
   vTop := FButtonDrawRect.Top + (FButtonDrawRect.Height - 4) div 2;
 

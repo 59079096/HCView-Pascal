@@ -1535,6 +1535,8 @@ var
         UndoAction_ItemMirror(AItemNo, OffsetInner);
 
       (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
+      if vItem is THCTextRectItem then
+        CurStyleNo := (vItem as THCTextRectItem).TextStyleNo;
     end
     else  // 文本
     begin
@@ -1676,6 +1678,8 @@ var
         UndoAction_ItemMirror(AItemNo, SelectInfo.StartItemOffset);
 
       (vItem as THCCustomRectItem).ApplySelectTextStyle(Style, AMatchStyle);
+      if vItem is THCTextRectItem then
+        CurStyleNo := (vItem as THCTextRectItem).TextStyleNo;
     end
     else  // 文本
     begin
@@ -1683,6 +1687,8 @@ var
 
       if vItem.StyleNo <> vStyleNo then
       begin
+        CurStyleNo := vStyleNo;
+
         if vItem.IsSelectComplate then  // Item全选中了
         begin
           UndoAction_ItemStyle(AItemNo, 0, vStyleNo);

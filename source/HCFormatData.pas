@@ -1135,7 +1135,22 @@ begin
     while Result > 0 do
     begin
       if DrawItems[Result].LineFirst then
-        Break
+      begin
+        if (Result = ADrawItemNo - 1)
+          and (Items[DrawItems[Result].ItemNo].StyleNo > THCStyle.Null)
+          and (DrawItems[Result].CharLen = 1)
+          and (Items[DrawItems[ADrawItemNo].ItemNo].StyleNo > THCStyle.Null)
+        then
+        begin
+          if PosCharHC(Items[DrawItems[ADrawItemNo].ItemNo].Text[1], DontLineFirstChar) > 0 then
+          begin
+            Dec(Result);
+            Continue;
+          end;
+        end;
+
+        Break;
+      end
       else
         Dec(Result);
     end;
@@ -1278,7 +1293,7 @@ begin
     Exit;
   end;
 
-  if Assigned(FOnItemReFormatRequest) then
+  if (not FStyle.States.Contain(hosBatchInsert)) and Assigned(FOnItemReFormatRequest) then
     FOnItemReFormatRequest(Self, AItem);
 end;
 

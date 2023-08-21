@@ -116,7 +116,7 @@ begin
   FLineSpaceMode := TParaLineSpaceMode.pls150;
   FLineSpace := 1;
   FBreakRough := False;
-  FBackColor := clSilver;
+  FBackColor := HCTransparentColor;
   FAlignHorz := TParaAlignHorz.pahJustify;
   FAlignVert := TParaAlignVert.pavCenter;
 end;

@@ -252,6 +252,7 @@ type
     FEnabled: Boolean;
     FOnClick: TNotifyEvent;
     FOnKeyDown: TKeyEvent;
+    FOnKeyPress: TKeyPressEvent;
   protected
     FMouseIn: Boolean;
     FPaddingLeft, FPaddingRight, FPaddingTop, FPaddingBottom: Byte;
@@ -264,6 +265,7 @@ type
     constructor Create(const AOwnerData: THCCustomData); override;
     procedure Assign(Source: THCCustomItem); override;
     procedure KeyDown(var Key: Word; Shift: TShiftState); override;
+    procedure KeyPress(var Key: Char); override;
     procedure SaveToStreamRange(const AStream: TStream; const AStart, AEnd: Integer); override;
     procedure LoadFromStream(const AStream: TStream; const AStyle: THCStyle;
       const AFileVersion: Word); override;
@@ -274,6 +276,7 @@ type
     property Enabled: Boolean read FEnabled write FEnabled;
     property OnClick: TNotifyEvent read FOnClick write FOnClick;
     property OnKeyDown: TKeyEvent read FOnKeyDown write FOnKeyDown;
+    property OnKeyPress: TKeyPressEvent read FOnKeyPress write FOnKeyPress;
   end;
 
   TGripType = (gtNone, gtLeftTop, gtRightTop, gtLeftBottom, gtRightBottom,
@@ -1429,6 +1432,12 @@ begin
   //inherited KeyDown(Key, Shift);
   if Assigned(FOnKeyDown) then
     FOnKeyDown(Self, Key, Shift);
+end;
+
+procedure THCControlItem.KeyPress(var Key: Char);
+begin
+  if Assigned(FOnKeyPress) then
+    FOnKeyPress(Self, Key);
 end;
 
 procedure THCControlItem.ParseXml(const ANode: IHCXMLNode);

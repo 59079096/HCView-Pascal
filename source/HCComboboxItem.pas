@@ -400,7 +400,10 @@ function THCComboboxItem.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer): Boolean;
 begin
   if Self.Enabled and (not Self.ReadOnly) and OwnerData.CanEdit
-    and (Button = mbLeft) and PtInRect(FButtonRect, Point(X, Y))
+    and (Button = mbLeft) and (
+      (FStatic and PtInRect(Self.ClientRect, Point(X, Y)))
+      or PtInRect(FButtonRect, Point(X, Y))
+    )
   then
   begin
     Result := True;
@@ -436,6 +439,9 @@ begin
       FMouseInButton := False;
       OwnerData.Style.UpdateInfoRePaint;
     end;
+
+    if FStatic and PtInRect(Self.ClientRect, Point(X, Y)) then
+      GCursor := crDefault;
 
     Result := inherited MouseMove(Shift, X, Y);
   end;
